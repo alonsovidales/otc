@@ -2258,7 +2258,13 @@ unpaired socket is closed after 30 requests answered "unreachable" or refused
 disabled flag is read through `Manager.DeviceDisabled` (`hosts.go`): remembered 5 s
 (`cDisabledTTL`; a change through this node shows at once), and looked up only for a host that can
 be a device's (`IsDeviceHost`: one label under `[otc-api] tld`; an IP, a port or a name of another
-domain never) at most 5 a second per address after a burst of 30. Every write to a
+domain never) at most 5 a second per address after a burst of 30. A device's message (registration,
+secret rotation, release, logs, name check, user address, disabled state, push) whose identity can't
+be a device's - an owner, domain or secret past its `devices` column (64/150/150 bytes), a domain of
+other than host-name characters - is refused as a wrong secret before anything in it is looked up
+or logged (`identity.go`); its info lines name the domain only once the secret checked out, and
+refusals are a line a minute per address (`logRefusal`), as is the API's cross-origin refusal, with
+the Origin and path cut to 160 bytes. Every write to a
 client goes through `writeClient` (fragments above 256 KiB, a fresh 60 s deadline per piece, so only
 a client that stopped reading trips it) - never on a device socket; `pingLoop` uses `WriteControl`
 so pongs flow during large uploads. Device replies are read under `replyBudget` (8 GiB), and

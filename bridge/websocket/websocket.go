@@ -1787,6 +1787,19 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			resp := &pb.RespEnvelope{
 				Id: env.Id,
 			}
+			// A device's message is refused before anything in it is
+			// looked up or logged when its identity can't be any device's:
+			// it may carry 8 MiB of anything.
+			if owner, domain, secret, isDevice := deviceIdentity(&env); isDevice && !plausibleIdentity(owner, domain, secret) {
+				mg.logRefusal("identity|"+clientaddr.Bucket(addr), "refused a device message whose identity no device can have, from", addr) // i18n-ignore: a log line
+				resp.Error = true
+				resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
+				respBin, _ := proto.Marshal(resp)
+				if err := writeClient(conn, respBin); err != nil {
+					log.Error("error responding:", err)
+				}
+				return
+			}
 			switch p := env.Payload.(type) {
 			case *pb.ReqEnvelope_ReqBridgeRegister:
 				log.Info("Register device")
@@ -1801,7 +1814,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					if mg.openRegistration {
 						err = mg.dao.RegistreDevice(p.ReqBridgeRegister.OwnerUuid, domain, p.ReqBridgeRegister.Secret)
 					} else {
-						log.Error("rejected registration for", domain, "from", conn.RemoteAddr().String(), "- the domain is not registered to any account")
+						mg.logRefusal("unregistered|"+clientaddr.Bucket(addr), "rejected registration for", domain, "from", addr, "- the domain is not registered to any account") // i18n-ignore: a log line
 						resp.Error = true
 						resp.ErrorMessage = "This domain is not registered: create an account at https://" + mg.baseHost() + "/account and add it there, or run the setup again signed in" // i18n-ignore: a registration reply, which reaches only the device's log
 						// Issue #182: a device whose name stays unknown here
@@ -1839,8 +1852,8 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// registering bridge: <nil>" with no domain, which sent
 					// an outage investigation down the wrong path. The
 					// secret itself is deliberately not logged.
-					log.Error("rejected registration for", domain, "from", conn.RemoteAddr().String(),
-						"- owner/secret do not match the bridge's record (owner claimed:", p.ReqBridgeRegister.OwnerUuid, ")")
+					claimed := p.ReqBridgeRegister.OwnerUuid
+					mg.logRefusal("secret|"+clientaddr.Bucket(addr), "rejected registration for", domain, "from", addr, "- owner/secret do not match the bridge's record (owner claimed:", claimed, ")") // i18n-ignore: a log line
 					resp.Error = true
 					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
 					// Someone tried to register an already-claimed domain with
@@ -1934,7 +1947,6 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				// connection, so this always closes the connection instead
 				// of returning early like ReqBridgeRegister does above.
 				defer conn.Close()
-				log.Info("Rotate bridge secret for device:", p.ReqRotateBridgeSecret.Domain)
 				// Issue #157: random bytes, not two UUIDs glued together.
 				secretBytes := make([]byte, 32)
 				if _, err := rand.Read(secretBytes); err != nil {
@@ -1953,13 +1965,14 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = cInternalErrorMsg
 				} else if !ok {
-					log.Error("rotate secret rejected: no matching device/secret")
+					mg.logRefusal("secret|"+clientaddr.Bucket(addr), "rotate secret rejected: no matching device/secret, from", addr) // i18n-ignore: a log line
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), p.ReqRotateBridgeSecret.Domain, p.ReqRotateBridgeSecret.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
 						log.Error("error logging auth event:", logErr)
 					}
 					resp.Error = true
 					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
 				} else {
+					log.Info("Rotated the bridge secret of device:", p.ReqRotateBridgeSecret.Domain)
 					resp.Payload = &pb.RespEnvelope_RespRotateBridgeSecretAck{
 						RespRotateBridgeSecretAck: &pb.RotateBridgeSecretAck{
 							NewSecret: newSecret,
@@ -2064,6 +2077,11 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				} else if !defined || !validSecret {
 					resp.Error = true
 					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
+				} else if !plausibleDomain(req.CandidateDomain) {
+					// No device's name, so no new user's either.
+					resp.Payload = &pb.RespEnvelope_RespDomainAvailable{
+						RespDomainAvailable: &pb.RespDomainAvailable{Available: false},
+					}
 				} else if registered, err := mg.dao.IsDomainRegistered(req.CandidateDomain); err != nil {
 					log.Error("error checking whether", req.CandidateDomain, "is registered:", err)
 					resp.Error = true
@@ -2105,7 +2123,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = cInternalErrorMsg
 				} else if !defined || !validSecret {
-					log.Error("disabled-state update rejected: invalid device/secret for", req.Domain)
+					mg.logRefusal("secret|"+clientaddr.Bucket(addr), "disabled-state update rejected: invalid device/secret for", req.Domain, "from", addr) // i18n-ignore: a log line
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
 						log.Error("error logging auth event:", logErr)
 					}
@@ -2137,7 +2155,6 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			case *pb.ReqEnvelope_ReqBridgeNotify:
 				defer conn.Close()
 				req := p.ReqBridgeNotify
-				log.Info("Relay push for device:", req.Domain)
 
 				defined, validSecret, err := mg.dao.IsValidDevice(req.OwnerUuid, req.Domain, req.Secret)
 				if err != nil && err != sql.ErrNoRows {
@@ -2145,7 +2162,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = cInternalErrorMsg
 				} else if !defined || !validSecret {
-					log.Error("push relay rejected: invalid device/secret for", req.Domain)
+					mg.logRefusal("secret|"+clientaddr.Bucket(addr), "push relay rejected: invalid device/secret for", req.Domain, "from", addr) // i18n-ignore: a log line
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
 						log.Error("error logging auth event:", logErr)
 					}
@@ -2156,6 +2173,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = cInternalErrorMsg
 				} else {
+					log.Info("Relay push for device:", req.Domain)
 					ps.NotifyMobile(req.Title, req.Body, push.Target{Kind: req.Kind, PubUUID: req.PubUuid, CommentUUID: req.CommentUuid})
 					resp.Payload = &pb.RespEnvelope_RespBridgeNotifyAck{
 						RespBridgeNotifyAck: &pb.BridgeNotifyAck{Ok: true},
@@ -2177,7 +2195,6 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				// device ever goes offline.
 				defer conn.Close()
 				req := p.ReqUpdatePushRegistrations
-				log.Info("Update push registrations for device:", req.Domain)
 
 				defined, validSecret, err := mg.dao.IsValidDevice(req.OwnerUuid, req.Domain, req.Secret)
 				if err != nil && err != sql.ErrNoRows {
@@ -2185,13 +2202,14 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = cInternalErrorMsg
 				} else if !defined || !validSecret {
-					log.Error("push registration update rejected: invalid device/secret for", req.Domain)
+					mg.logRefusal("secret|"+clientaddr.Bucket(addr), "push registration update rejected: invalid device/secret for", req.Domain, "from", addr) // i18n-ignore: a log line
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
 						log.Error("error logging auth event:", logErr)
 					}
 					resp.Error = true
 					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
 				} else {
+					log.Info("Update push registrations for device:", req.Domain)
 					// The offline alert posts to these from the bridge itself.
 					apnsTokens, fcmTokens, webSubs, dropped := filterPushRegistrations(req)
 					if dropped > 0 {
@@ -2418,7 +2436,11 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// page for this (issue #97's unavailable.html), but a
 					// native app, or a browser tab that was already open
 					// when the device went away, only ever reaches here.
-					log.Error("no available connections in the pool for", r.Host)
+					if IsDeviceHost(r.Host, mg.tld) {
+						mg.logRefusal("unreachable|"+logged(r.Host), "no available connections in the pool for", logged(r.Host)) // i18n-ignore: a log line
+					} else {
+						log.Debug("no device has the address", logged(r.Host))
+					}
 					resp.Error = true
 					resp.ErrorMessage = cDeviceUnreachableMsg
 					// Wrapped in a RespAck for the same reason the disabled

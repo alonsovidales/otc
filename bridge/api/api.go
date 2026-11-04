@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -105,6 +106,9 @@ type API struct {
 	// onlinePerAddr limits the device-online questions (each may ask
 	// Redis) per address.
 	onlinePerAddr *limits.Rate
+	// refusalLog keeps refusals from one address to a line a minute
+	// (logRefusal); nil logs every one.
+	refusalLog *limits.Rate
 	// forwardOneOff stands in for websocket.ForwardOneOff in tests (a
 	// fake device); nil in production.
 	forwardOneOff func(domain string, frame []byte) ([]byte, error)
@@ -188,6 +192,7 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 		oneOffPerAddr:     limits.NewRate(cOneOffPerSecond, cOneOffBurst),
 		beaconPerAddr:     limits.NewRate(cSetupBeaconPerSecond, cSetupBeaconBurst),
 		onlinePerAddr:     limits.NewRate(cOnlinePerSecond, cOnlineBurst),
+		refusalLog:        limits.NewRate(1.0/60, 1),
 		websocket:         webSocket,
 		dao:               dao,
 		admin:             adm,
@@ -1220,6 +1225,26 @@ func writeJSONErr(w http.ResponseWriter, status int, code, msg string) {
 // the catalog (api.error.*), in English for every request (docs/i18n.md).
 func errorText(m i18n.Msg) string { return m.Render("en") }
 
+// logRefusal logs a refused request, a line a minute per client address
+// at most: what a client sends can't fill the log.
+func (api *API) logRefusal(r *http.Request, what ...any) {
+	if api.refusalLog == nil || api.refusalLog.Allow(clientaddr.Bucket(requestAddr(r))) {
+		log.Info(what...)
+	}
+}
+
+// cLoggedMax is how much of a value a client sent goes into a log line.
+const cLoggedMax = 160
+
+// logged is s as a log line may carry it: at most cLoggedMax bytes, and
+// how long it was when it was longer.
+func logged(s string) string {
+	if len(s) <= cLoggedMax {
+		return s
+	}
+	return s[:cLoggedMax] + "...(" + strconv.Itoa(len(s)) + " bytes)"
+}
+
 // apiError is an error answer worked out away from the handler that
 // sends it: its code and English text, as writeJSONErr takes them.
 type apiError struct{ code, msg string }
@@ -1254,7 +1279,9 @@ func (api *API) originGuard(next http.Handler) http.Handler {
 			}
 		}
 		if (origin != "" && origin != own) || (withCookie && origin != own) {
-			log.Info("refused a cross-origin", r.Method, p, "from origin", origin)
+			// The header is the client's, of any length: bounded, and a
+			// line a minute per address.
+			api.logRefusal(r, "refused a cross-origin", logged(r.Method), logged(p), "from origin", logged(origin)) // i18n-ignore: a log line
 			writeJSONErr(w, http.StatusForbidden, "cross_origin", errorText(i18n.ApiErrorCrossOrigin()))
 			return
 		}
