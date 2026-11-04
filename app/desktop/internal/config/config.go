@@ -84,10 +84,57 @@ type RemoteFolder struct {
 	// older version stored here is still sent once.
 	OutOfImages *bool `json:"out_of_images,omitempty"`
 	UploadOnly  *bool `json:"upload_only,omitempty"`
+	// DeleteHeld is the owner's "Delete Them on the Device Too…": the key
+	// of the set of deletes the device-side mass-deletion guard held, as
+	// the tray or the command line showed it (FolderStatus.DeletesHeldKey)
+	// when the owner confirmed. The engine's next pass lets those deletes
+	// go when the guard would hold that very set again, and clears it -
+	// compare-and-clear, like a folder's requests -, or clears it with the
+	// hold left as it is when the set has changed since. "" when nothing
+	// is asked (engine/deleteheld.go).
+	DeleteHeld string `json:"delete_held,omitempty"`
+}
+
+// SetDeleteHeldRequest records the owner's approval of the held set with
+// this key for two-way folder id, for the engine's next pass, and says
+// whether the folder is there.
+func (c *Config) SetDeleteHeldRequest(id, key string) bool {
+	for i := range c.RemoteFolders {
+		if f := &c.RemoteFolders[i]; f.ID == id {
+			f.DeleteHeld = key
+			return true
+		}
+	}
+	return false
+}
+
+// DeleteHeldRequest is folder id's approval ("" when there is none).
+func (c *Config) DeleteHeldRequest(id string) string {
+	for _, f := range c.RemoteFolders {
+		if f.ID == id {
+			return f.DeleteHeld
+		}
+	}
+	return ""
+}
+
+// ClearDeleteHeldRequest drops folder id's approval once a pass has acted
+// on it - only while it is still the one acted on (key), not one the tray
+// or the command line made meanwhile. Says whether it did.
+func (c *Config) ClearDeleteHeldRequest(id, key string) bool {
+	for i := range c.RemoteFolders {
+		if f := &c.RemoteFolders[i]; f.ID == id && f.DeleteHeld != "" && f.DeleteHeld == key {
+			f.DeleteHeld = ""
+			return true
+		}
+	}
+	return false
 }
 
 // Request is one of the requests a folder keeps in config.json until the
-// device has acknowledged it, and then never sends again.
+// device has acknowledged it, and then never sends again. (A two-way
+// folder's DeleteHeld is kept the same way, for the engine rather than
+// the device: a key, not a yes or no.)
 type Request int
 
 const (
@@ -675,6 +722,13 @@ type FolderStatus struct {
 	// there is none) - and the device's refusal of the last one.
 	UploadOnly     string `json:"upload_only,omitempty"`
 	UploadOnlyNote string `json:"upload_only_note,omitempty"`
+	// DeletesHeld is how many deletes the device-side mass-deletion guard
+	// held at the folder's last pass that got that far (files gone from
+	// here at once, kept on the device), and DeletesHeldKey the key of
+	// that set - what "Delete Them on the Device Too…" records
+	// (RemoteFolder.DeleteHeld). 0 and "" when it held none.
+	DeletesHeld    int    `json:"deletes_held,omitempty"`
+	DeletesHeldKey string `json:"deletes_held_key,omitempty"`
 }
 
 // State is state.json.

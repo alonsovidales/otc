@@ -260,8 +260,16 @@ type Engine struct {
 	// last pass, as last logged (noteGoneMounts).
 	goneMountsSeen map[string]string
 	// Deletes the device-side mass-deletion guard holds per two-way
-	// folder, as last logged (noteMassHeld).
-	massHeld map[string]int
+	// folder, and their set's key, as last logged (noteMassHeld) - what
+	// state.json shows for "Delete Them on the Device Too…"
+	// (deleteheld.go).
+	massHeld map[string]heldSet
+	// Approvals of held deletes acted on whose clear config.json still
+	// owes (deleteheld.go's dropDeleteApproval), by folder.
+	approvalDone map[string]string
+	// Two-way folders whose pass runs again once the one under way is
+	// over (passSoon).
+	passAgain map[string]bool
 	// Changes a two-way folder holds until the device's pin is confirmed,
 	// as last logged (noteUnconfirmed).
 	unconfirmed map[string]int
@@ -567,6 +575,9 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 	// already synced goes now, not at the folder's next pass.
 	imagesChanged := e.changedRequestsLocked(imagesRequest, old, cfg)
 	uploadOnlyChanged := e.changedRequestsLocked(uploadOnlyRequest, old, cfg)
+	// "Delete Them on the Device Too…" just confirmed: the folder's pass
+	// runs now (deleteheld.go).
+	approved := e.changedApprovalsLocked(old, cfg)
 	if old.Domain != cfg.Domain {
 		// The old device's home-network endpoint goes with it (issue
 		// #190); under e.mu, as keepLocalEndpoint stores one.
@@ -597,6 +608,9 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 		e.sendLanguage()
 	}
 	if e.ws.IsConnected() {
+		for _, f := range approved {
+			e.passSoon(f)
+		}
 		go e.startSync()
 	}
 }
@@ -639,6 +653,8 @@ func (e *Engine) dropRemoteFolderLocked(id string) {
 	delete(e.replacedRoot, id)
 	delete(e.goneMountsSeen, id)
 	delete(e.massHeld, id)
+	delete(e.approvalDone, id)
+	delete(e.passAgain, id)
 	delete(e.unconfirmed, id)
 	delete(e.markFailed, id)
 	delete(e.remoteStates, id)
@@ -750,6 +766,7 @@ func (e *Engine) Snapshot() config.State {
 		fs := toStatus(f.ID, f.LocalPath, f.RemotePath, e.remoteStates[f.ID])
 		e.imagesStatusLocked(&fs)
 		e.uploadOnlyStatusLocked(&fs)
+		e.deletesHeldStatusLocked(&fs)
 		st.RemoteFolders = append(st.RemoteFolders, fs)
 	}
 
@@ -1555,6 +1572,9 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		return
 	}
 	e.folderBusy[f.ID] = true
+	// This pass is the one passSoon asked for: it reads config.json's
+	// approval as it reaches the guard.
+	delete(e.passAgain, f.ID)
 	if t := e.remoteRetry[f.ID]; t != nil {
 		t.Stop()
 		delete(e.remoteRetry, f.ID)
@@ -1563,7 +1583,15 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	defer func() {
 		e.mu.Lock()
 		delete(e.folderBusy, f.ID)
+		// Asked for while this pass ran (passSoon): it may have looked at
+		// the guard already, so another goes now.
+		again := e.passAgain[f.ID]
+		delete(e.passAgain, f.ID)
+		current, still := e.remoteFolderLocked(f.ID)
 		e.mu.Unlock()
+		if again && still {
+			go e.reconcileRemoteFolder(current)
+		}
 	}()
 	// A missing local root is not "everything was deleted here": an
 	// unplugged disk, a share not mounted yet, a folder renamed. The folder
@@ -1993,12 +2021,25 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	// handful of files and a quarter of what the device holds, those deletes
 	// are held: the files stay on the device, their baselines here, and the
 	// folder says so until they are back here or deleted there too (from the
-	// web or a phone), which agrees. A file whose content is here under
-	// another name is no loss - a folder moved or renamed here - and its
-	// delete goes.
+	// web or a phone, or "Delete Them on the Device Too…" here), which
+	// agrees. A file whose content is here under another name is no loss -
+	// a folder moved or renamed here - and its delete goes.
 	var heldNote FolderState
 	held := e.holdMassDeviceDeletes(f, actions, localByRel, localHashes, newLocal, remoteByRel)
-	e.noteMassHeld(f, len(held))
+	heldKey := heldDeletesKey(actions, held)
+	// The owner's "Delete Them on the Device Too…" (deleteheld.go): the set
+	// held now is the one they were shown - its deletes go, subject to
+	// what follows like any other; another set, the hold stays. Settled
+	// once the pin's wait below has had its say.
+	e.mu.Lock()
+	approval, done := e.deleteApprovalLocked(f.ID)
+	e.mu.Unlock()
+	approvalSaid := judgeDeleteApproval(approval, done, heldKey)
+	approvedN := 0
+	if approvalSaid == approvalGo {
+		approvedN, held, heldKey = len(held), nil, ""
+	}
+	e.noteMassHeld(f, len(held), heldKey)
 	if len(held) > 0 {
 		kept := actions[:0]
 		for _, a := range actions {
@@ -2048,6 +2089,8 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	} else {
 		e.noteUnconfirmed(f, 0)
 	}
+	// The count it let go, or (held is nil then) what the guard holds now.
+	e.settleDeleteApproval(f, approval, approvalSaid, approvedN+len(held), uncertain)
 
 	// Local deletes first: on a disk that ignores case (Windows, macOS) a
 	// file renamed only in case elsewhere is a download of "A.txt" and a
@@ -2482,21 +2525,25 @@ func (e *Engine) noteUnconfirmed(f config.RemoteFolder, n int) {
 	}
 }
 
-// noteMassHeld logs how many deletes the device-side mass-deletion guard
-// holds for a two-way folder - when that changes, not at every pass.
-func (e *Engine) noteMassHeld(f config.RemoteFolder, n int) {
+// noteMassHeld keeps how many deletes the device-side mass-deletion guard
+// holds for a two-way folder, and their set's key (heldDeletesKey), for
+// state.json, and logs the count when it changes, not at every pass.
+func (e *Engine) noteMassHeld(f config.RemoteFolder, n int, key string) {
 	e.mu.Lock()
 	if e.massHeld == nil {
-		e.massHeld = map[string]int{}
+		e.massHeld = map[string]heldSet{}
 	}
-	changed := e.massHeld[f.ID] != n
+	was := e.massHeld[f.ID]
 	if n == 0 {
 		delete(e.massHeld, f.ID)
 	} else {
-		e.massHeld[f.ID] = n
+		e.massHeld[f.ID] = heldSet{n: n, key: key}
 	}
 	e.mu.Unlock()
-	if changed && n > 0 {
+	if was.key != key {
+		e.notify() // the tray's item, and the count it asks about
+	}
+	if was.n != n && n > 0 {
 		log.Printf("%s: %d files gone from here at once - not deleted on the device, which keeps them (deleted there too, they are gone everywhere)", f.RemotePath, n)
 	}
 }

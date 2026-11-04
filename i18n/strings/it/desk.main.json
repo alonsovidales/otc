@@ -127,6 +127,28 @@
     "text": "CPU: {percent}%",
     "en": "CPU: {percent}%"
   },
+  "desk.main.delete_held": {
+    "text": "Eliminali anche sul dispositivo…",
+    "en": "Delete Them on the Device Too…"
+  },
+  "desk.main.delete_held_button": {
+    "text": "Elimina sul dispositivo",
+    "en": "Delete on Device"
+  },
+  "desk.main.delete_held_message": {
+    "text": "Sono stati eliminati da questa cartella tutti insieme, quindi Off The Cloud li ha conservati sul dispositivo nel caso si trattasse di un errore. Se li elimini anche lì, spariranno ovunque, insieme alle loro versioni precedenti. L’operazione non può essere annullata.",
+    "en": "They were deleted from this folder all at once, so Off The Cloud kept them on the device in case that was a mistake. Deleting them there too removes them everywhere, with their older versions. This can't be undone.",
+    "reviewed": "claude-backtranslation 2026-11-04 #42022f9a"
+  },
+  "desk.main.delete_held_tip": {
+    "text": "Elimina anche sul dispositivo i file eliminati qui tutti insieme (chiede prima)",
+    "en": "Delete the files deleted here at once on the device too (asks first)"
+  },
+  "desk.main.delete_held_title": {
+    "text": "Eliminare {files} file anche sul dispositivo?",
+    "en": "Delete {files} files on the device too?",
+    "reviewed": "claude-backtranslation 2026-11-04 #550df29f"
+  },
   "desk.main.deletes_held": {
     "text": "{files} file eliminati qui tutti insieme restano sul dispositivo: se era voluto, eliminali anche lì",
     "en": "{files} files deleted here at once are kept on the device - if that was meant, delete them there too"

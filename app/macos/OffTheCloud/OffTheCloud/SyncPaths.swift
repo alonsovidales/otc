@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import CryptoKit
 import Foundation
 
 /// Issue #192: how a synced folder stands with Images on the device
@@ -306,6 +307,58 @@ enum SyncPaths {
         var held = Set<String>()
         for d in deletes where !here.contains(d.hash) { held.insert(d.relative) }
         return overMassDelete(held.count, of: deviceFiles) ? held : []
+    }
+
+    // "Delete Them on the Device Too…": the way out of that hold from this
+    // Mac - before, only deleting the files on the device from the web or
+    // a phone ended it. The folder's row asks the owner, with the count,
+    // and a yes approves the set it was shown, never whatever is gone by
+    // the time the next pass looks: the approval is the set's key, and the
+    // pass lets the deletes go only while the guard would hold that very
+    // set (every check after the guard still applies). As otc-sync's
+    // engine/deleteheld.go, whose approval goes through config.json.
+
+    /// The key of a set of held deletes: the SHA-256, in hex, of each held
+    /// path and the device's hash of it (the planned delete's), one line
+    /// each, sorted by their UTF-8 bytes. "" for none. As otc-sync's
+    /// heldDeletesKey, byte for byte.
+    static func heldDeletesKey(_ deletes: [(relative: String, hash: String)], held: Set<String>) -> String {
+        guard !held.isEmpty else { return "" }
+        let lines = deletes.filter { held.contains($0.relative) }
+            .map { Array(($0.relative + "\u{0}" + $0.hash + "\n").utf8) }
+            .sorted { $0.lexicographicallyPrecedes($1) }
+        var hasher = SHA256()
+        for line in lines { hasher.update(data: Data(line)) }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// What a pass makes of the owner's approval.
+    enum HeldApproval: Equatable {
+        /// Nothing was asked.
+        case none
+        /// The set held now is the one approved: its deletes go.
+        case approved
+        /// What was approved isn't what the guard holds now (or it holds
+        /// nothing): dropped, and the hold stays as it is.
+        case stale
+    }
+
+    /// The verdict on `approved` (the key the owner confirmed, nil for
+    /// none) against `key`, the set the guard holds now ("" for none). As
+    /// otc-sync's judgeDeleteApproval (which also refuses an approval read
+    /// back from config.json after its clear failed - the Mac keeps it in
+    /// memory only).
+    static func heldApproval(_ approved: String?, held key: String) -> HeldApproval {
+        guard let approved, !approved.isEmpty else { return .none }
+        return approved == key ? .approved : .stale
+    }
+
+    /// What the guard held at a two-way folder's last pass that got that
+    /// far: how many deletes, and their set's key - what the row's "Delete
+    /// Them on the Device Too…" asks about and approves.
+    struct HeldDeletes: Equatable {
+        let count: Int
+        let key: String
     }
 
     // MARK: Which folder a record was made with

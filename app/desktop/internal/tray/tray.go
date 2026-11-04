@@ -2,7 +2,8 @@
 
 // Package tray is PopoverView.swift as a system tray menu: status, RAID
 // health, the web app, one row per folder (its submenu: Open - see
-// openfolder.go -, Images, Remove), Add Folder… (addfolder.go),
+// openfolder.go -, Delete Them on the Device Too… while deletes are held -
+// deleteheld.go -, Images, Remove), Add Folder… (addfolder.go),
 // settings, start at login, quit. Dialogs are the OS's own (a folder
 // chooser, a text entry, a list) rather than a window of ours, so the
 // binary stays free of a GUI toolkit and cross-compiles from anywhere.
@@ -108,6 +109,9 @@ type folderItem struct {
 	// Issue #197: shows the folder in the file manager (openfolder.go).
 	open   *systray.MenuItem
 	remove *systray.MenuItem
+	// "Delete Them on the Device Too…", shown while the device-side
+	// mass-deletion guard holds the folder's deletes (deleteheld.go).
+	deleteHeld *systray.MenuItem
 	// Issue #192: "Kept Out of Images" and the line under it (images.go).
 	images     *systray.MenuItem
 	imagesInfo *systray.MenuItem
@@ -390,11 +394,13 @@ func (u *ui) build(folders []config.FolderStatus) {
 	for _, f := range folders {
 		mi := addMenuItem(folderTitle(f), "")
 		open := addOpenItem(mi, f)
+		del := addDeleteHeldItem(mi)
 		img, info := addImagesItems(mi)
 		upInfo := addUploadOnlyInfo(mi)
 		rm := addSubMenuItem(mi, i18n.CommonRemove().Render(l), i18n.DeskMainRemoveTip().Render(l))
-		u.hidden(img, info, upInfo)
-		u.folders = append(u.folders, &folderItem{item: mi, open: open, remove: rm, images: img, imagesInfo: info, uploadInfo: upInfo, id: f.ID, remote: f.RemotePath != ""})
+		u.hidden(del, img, info, upInfo)
+		u.folders = append(u.folders, &folderItem{item: mi, open: open, remove: rm, deleteHeld: del, images: img, imagesInfo: info,
+			uploadInfo: upInfo, id: f.ID, remote: f.RemotePath != ""})
 	}
 	if len(folders) > 0 {
 		u.empty.Hide()
@@ -478,6 +484,8 @@ func (u *ui) build(folders []config.FolderStatus) {
 					return
 				case <-fi.open.ClickedCh:
 					go u.openFolder(fi)
+				case <-fi.deleteHeld.ClickedCh:
+					go u.deleteHeld(fi)
 				case <-fi.remove.ClickedCh:
 					go u.removeFolder(fi)
 				case <-fi.images.ClickedCh:
@@ -585,6 +593,7 @@ func (u *ui) apply() {
 	for i, f := range want {
 		u.setTitle(u.folders[i].item, folderTitle(f))
 		u.applyOpen(u.folders[i], f)
+		u.applyDeleteHeld(u.folders[i], f)
 		u.applyImages(u.folders[i], f)
 		u.applyUploadOnly(u.folders[i], f)
 	}

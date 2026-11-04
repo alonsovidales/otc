@@ -127,6 +127,28 @@
     "text": "Processeur : {percent} %",
     "en": "CPU: {percent}%"
   },
+  "desk.main.delete_held": {
+    "text": "Les supprimer aussi sur l’appareil…",
+    "en": "Delete Them on the Device Too…"
+  },
+  "desk.main.delete_held_button": {
+    "text": "Supprimer sur l’appareil",
+    "en": "Delete on Device"
+  },
+  "desk.main.delete_held_message": {
+    "text": "Ils ont été supprimés de ce dossier d’un coup, alors Off The Cloud les a conservés sur l’appareil au cas où il s’agirait d’une erreur. Si vous les supprimez aussi là-bas, ils disparaîtront partout, avec leurs anciennes versions. Cette action est irréversible.",
+    "en": "They were deleted from this folder all at once, so Off The Cloud kept them on the device in case that was a mistake. Deleting them there too removes them everywhere, with their older versions. This can't be undone.",
+    "reviewed": "claude-backtranslation 2026-11-04 #c92be029"
+  },
+  "desk.main.delete_held_tip": {
+    "text": "Supprimer aussi sur l’appareil les fichiers supprimés ici d’un coup (demande d’abord)",
+    "en": "Delete the files deleted here at once on the device too (asks first)"
+  },
+  "desk.main.delete_held_title": {
+    "text": "Supprimer aussi {files} fichiers sur l’appareil ?",
+    "en": "Delete {files} files on the device too?",
+    "reviewed": "claude-backtranslation 2026-11-04 #2acda91b"
+  },
   "desk.main.deletes_held": {
     "text": "{files} fichiers supprimés ici d’un coup sont conservés sur l’appareil : si c’était voulu, supprimez-les aussi là-bas",
     "en": "{files} files deleted here at once are kept on the device - if that was meant, delete them there too"

@@ -166,6 +166,8 @@ struct PopoverView: View {
                                         images: sync.outOfImagesState(for: f.id),
                                         imagesNote: sync.outOfImagesNotes[f.id],
                                         setOutOfImages: { sync.setOutOfImages(f.id, keepOut: $0) },
+                                        held: sync.heldOnDevice[f.id],
+                                        deleteHeld: { sync.deleteHeldOnDevice(f.id, key: $0) },
                                         remove: { sync.removeRemoteFolder(f) })
                     }
                 }
@@ -384,10 +386,19 @@ struct RemoteFolderRow: View {
     let images: OutOfImagesState
     let imagesNote: String?
     let setOutOfImages: (Bool) -> Void
+    /// The deletes the device-side mass-deletion guard holds (files gone
+    /// from here at once, kept on the device), nil when none, and what
+    /// confirming "Delete Them on the Device Too…" does with the key of
+    /// the set it asked about.
+    let held: SyncPaths.HeldDeletes?
+    let deleteHeld: (String) -> Void
     let remove: () -> Void
     @State private var confirmImages = false
     /// As FolderRow's.
     @State private var confirmRemove = false
+    /// The held set the confirmation asks about, while it shows: the one a
+    /// yes approves.
+    @State private var askingDeleteHeld: SyncPaths.HeldDeletes?
     /// Issue #197: as FolderRow's.
     @State private var missingAt: Date?
 
@@ -428,6 +439,14 @@ struct RemoteFolderRow: View {
                 }.buttonStyle(.plain)
             }
             FolderMissingNote(url: folder.localURL, missingAt: $missingAt)
+            if let held, askingDeleteHeld == nil {
+                DeleteHeldButton { askingDeleteHeld = held }
+            }
+            if let asking = askingDeleteHeld {
+                DeleteHeldConfirmation(count: asking.count,
+                                       onCancel: { askingDeleteHeld = nil },
+                                       onConfirm: { askingDeleteHeld = nil; deleteHeld(asking.key) })
+            }
             if confirmRemove {
                 RemoveFolderConfirmation(name: folder.localURL.lastPathComponent,
                                          onCancel: { confirmRemove = false },
@@ -441,6 +460,60 @@ struct RemoteFolderRow: View {
         }
         .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+        // What the guard holds changed while the question was open (a pass
+        // found another set, or none): it no longer asks about what is held,
+        // so it goes, and the button offers the new count.
+        .onChange(of: held) { _, now in
+            if askingDeleteHeld != nil, askingDeleteHeld != now { askingDeleteHeld = nil }
+        }
+    }
+}
+
+/// "Delete Them on the Device Too…", under a two-way folder's row while the
+/// device-side mass-deletion guard holds its deletes (the row's state says
+/// "25 files deleted here at once are kept on the device - …"). A click asks
+/// first, inside the row (DeleteHeldConfirmation). otc-sync's tray has it in
+/// the folder's submenu (tray/deleteheld.go), its command line `otc-sync
+/// delete-held`.
+struct DeleteHeldButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(S.deskMainDeleteHeld, action: action)
+            .buttonStyle(.link)
+            .font(.caption)
+            .help(S.deskMainDeleteHeldTip)
+    }
+}
+
+/// Asked inside the row, never as an .alert() (which closes the popover), as
+/// RemoveFolderConfirmation: how many files, what deleting them there too
+/// means, and Cancel or Delete on Device. otc-sync's tray asks the same in a
+/// dialog, Cancel its default.
+struct DeleteHeldConfirmation: View {
+    let count: Int
+    let onCancel: () -> Void
+    let onConfirm: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(S.deskMainDeleteHeldTitle(files: count))
+                .font(.callout.bold())
+                .fixedSize(horizontal: false, vertical: true)
+            Text(S.deskMainDeleteHeldMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Spacer()
+                Button(S.commonCancel, action: onCancel)
+                    .keyboardShortcut(.cancelAction)
+                Button(S.deskMainDeleteHeldButton, role: .destructive, action: onConfirm)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+            }
+            .controlSize(.small)
+        }
     }
 }
 

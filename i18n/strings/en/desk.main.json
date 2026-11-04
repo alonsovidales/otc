@@ -162,10 +162,38 @@
     "note": "otc-sync: line of the storage line's submenu in the tray menu: how busy the device's processor is. {percent} is a whole number.",
     "max": 30
   },
+  "desk.main.delete_held": {
+    "text": "Delete Them on the Device Too…",
+    "note": "Both apps: the action offered while a two-way folder's deletes are held on the device (desk.main.deletes_held): on the Mac a button under the folder's row, in otc-sync an item of the folder's submenu in the tray menu. It asks first (desk.main.delete_held_title), then deletes on the device the files deleted from the folder at once. Title Case; the ellipsis says it asks before doing anything.",
+    "max": 45
+  },
+  "desk.main.delete_held_button": {
+    "text": "Delete on Device",
+    "note": "Both apps: the button that confirms desk.main.delete_held_title: the files deleted from the folder at once are deleted on the device too. Title Case.",
+    "max": 30
+  },
+  "desk.main.delete_held_message": {
+    "text": "They were deleted from this folder all at once, so Off The Cloud kept them on the device in case that was a mistake. Deleting them there too removes them everywhere, with their older versions. This can't be undone.",
+    "note": "Both apps: the text of the question desk.main.delete_held_title. The app didn't delete them on the device because so many vanished from the folder at once (an unplugged disk, a program that emptied it), which looks like an accident. Deleted there too, they are gone from the device and from every other app and computer that syncs it, with the older versions the device kept of them: the device has no trash.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #af8ca5aa"
+  },
+  "desk.main.delete_held_tip": {
+    "text": "Delete the files deleted here at once on the device too (asks first)",
+    "note": "otc-sync: tooltip of Delete Them on the Device Too… (desk.main.delete_held) in a folder's submenu of the tray menu; the Mac shows it as that button's tooltip."
+  },
+  "desk.main.delete_held_title": {
+    "text": "Delete {files} files on the device too?",
+    "args": [["files", "int"]],
+    "note": "Both apps: the title of the question before the files deleted from a two-way folder all at once (kept on the device: desk.main.deletes_held) are deleted on the device too. {files} is how many (always more than 20).",
+    "max": 80,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #67e1d507"
+  },
   "desk.main.deletes_held": {
     "text": "{files} files deleted here at once are kept on the device - if that was meant, delete them there too",
     "args": [["files", "int"]],
-    "note": "Both apps: a two-way folder's state after many of its files vanished from this computer in one go (always more than 20, and more than a quarter of the folder). The app did not delete them on the device, where they stay; if the person meant to delete them, they delete them on the device too (from the web app or a phone). {files} is how many."
+    "note": "Both apps: a two-way folder's state after many of its files vanished from this computer in one go (always more than 20, and more than a quarter of the folder). The app did not delete them on the device, where they stay; if the person meant to delete them, they delete them on the device too: with Delete Them on the Device Too… beside it (desk.main.delete_held), or from the web app or a phone. {files} is how many."
   },
   "desk.main.device_unconfirmed": {
     "text": "{files} change(s) wait until this computer recognizes the device",

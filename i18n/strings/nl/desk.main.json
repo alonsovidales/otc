@@ -127,6 +127,28 @@
     "text": "CPU: {percent}%",
     "en": "CPU: {percent}%"
   },
+  "desk.main.delete_held": {
+    "text": "Ook op het apparaat verwijderen…",
+    "en": "Delete Them on the Device Too…"
+  },
+  "desk.main.delete_held_button": {
+    "text": "Op het apparaat verwijderen",
+    "en": "Delete on Device"
+  },
+  "desk.main.delete_held_message": {
+    "text": "Ze zijn in één keer uit deze map verwijderd, dus heeft Off The Cloud ze op het apparaat bewaard voor het geval het een vergissing was. Als je ze daar ook verwijdert, zijn ze overal weg, samen met hun oudere versies. Dit kan niet ongedaan worden gemaakt.",
+    "en": "They were deleted from this folder all at once, so Off The Cloud kept them on the device in case that was a mistake. Deleting them there too removes them everywhere, with their older versions. This can't be undone.",
+    "reviewed": "claude-backtranslation 2026-11-04 #13b62c4d"
+  },
+  "desk.main.delete_held_tip": {
+    "text": "De hier in één keer verwijderde bestanden ook op het apparaat verwijderen (vraagt eerst)",
+    "en": "Delete the files deleted here at once on the device too (asks first)"
+  },
+  "desk.main.delete_held_title": {
+    "text": "{files} bestanden ook op het apparaat verwijderen?",
+    "en": "Delete {files} files on the device too?",
+    "reviewed": "claude-backtranslation 2026-11-04 #6a4b8d00"
+  },
   "desk.main.deletes_held": {
     "text": "{files} bestanden die hier in één keer zijn verwijderd, blijven op het apparaat staan – als dat de bedoeling was, verwijder ze daar dan ook",
     "en": "{files} files deleted here at once are kept on the device - if that was meant, delete them there too"

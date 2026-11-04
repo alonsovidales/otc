@@ -700,6 +700,39 @@ struct SyncPathsTests {
         #expect(SyncPaths.overMassDelete(21, of: 83) && !SyncPaths.overMassDelete(21, of: 84) && !SyncPaths.overMassDelete(20, of: 21))
     }
 
+    // MARK: "Delete Them on the Device Too…"
+
+    /// The key is the set: the same paths and hashes in any order give the
+    /// same key - otc-sync's, byte for byte (its TestHeldDeletesKey) - and a
+    /// path more, one less or another hash give another; deletes not held
+    /// (moves) don't count. As otc-sync's TestHeldDeletesKey.
+    @Test func heldDeletesKeyIsTheSet() {
+        let deletes = [(relative: "b.jpg", hash: "hb"), (relative: "a.jpg", hash: "ha"), (relative: "moved.jpg", hash: "hm")]
+        let held: Set<String> = ["a.jpg", "b.jpg"]
+        let key = SyncPaths.heldDeletesKey(deletes, held: held)
+        #expect(key.count == 64)
+        #expect(SyncPaths.heldDeletesKey(Array(deletes.reversed()), held: held) == key)
+        #expect(SyncPaths.heldDeletesKey(deletes, held: []).isEmpty)
+        #expect(SyncPaths.heldDeletesKey(deletes, held: held.union(["moved.jpg"])) != key)
+        #expect(SyncPaths.heldDeletesKey(deletes, held: ["a.jpg"]) != key)
+        #expect(SyncPaths.heldDeletesKey([(relative: "b.jpg", hash: "hb2"), (relative: "a.jpg", hash: "ha")], held: held) != key)
+        #expect(SyncPaths.heldDeletesKey([(relative: "ab", hash: "h")], held: ["ab"]) != SyncPaths.heldDeletesKey([(relative: "a", hash: "bh")], held: ["a"]))
+        let accented = [(relative: "caf\u{e9}/\u{e9}t\u{e9}.jpg", hash: "hc")] + deletes
+        #expect(SyncPaths.heldDeletesKey(accented, held: held.union(["caf\u{e9}/\u{e9}t\u{e9}.jpg"]))
+            == "862349950f42ffd650ac986edd734204b0c9c349e3d2b49c26ff25f61da6d391")
+    }
+
+    /// An approval goes only for the very set held now; for another one, or
+    /// with nothing held, it is stale and the hold stays. As otc-sync's
+    /// TestJudgeDeleteApproval.
+    @Test func anApprovalIsOfTheSetShown() {
+        #expect(SyncPaths.heldApproval(nil, held: "k") == .none)
+        #expect(SyncPaths.heldApproval("", held: "") == .none)
+        #expect(SyncPaths.heldApproval("k", held: "k") == .approved)
+        #expect(SyncPaths.heldApproval("k", held: "k2") == .stale)
+        #expect(SyncPaths.heldApproval("k", held: "") == .stale)
+    }
+
     // MARK: A move on the device is no mass deletion
 
     @Test func movedHashesAreTheNewPaths() {

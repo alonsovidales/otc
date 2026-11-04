@@ -1358,7 +1358,9 @@ final class SyncModel: ObservableObject {
         markFailed.remove(f.id)
         trashFallbacks.remove(f.id)
         goneMountsSeen.removeValue(forKey: f.id)
-        massHeld.removeValue(forKey: f.id)
+        heldOnDevice.removeValue(forKey: f.id)
+        deleteHeldApprovals.removeValue(forKey: f.id)
+        remotePassAgain.remove(f.id)
         unconfirmed.removeValue(forKey: f.id)
         forgetFailedUnder(f.localURL.standardizedFileURL.path, keeping: [])
 
@@ -2034,7 +2036,17 @@ final class SyncModel: ObservableObject {
         // each act on the same differences.
         guard !remoteFoldersBusy.contains(start.id) else { return }
         remoteFoldersBusy.insert(start.id)
-        defer { remoteFoldersBusy.remove(start.id) }
+        // This pass is the one passSoon asked for: it reads the approval as
+        // it reaches the guard.
+        remotePassAgain.remove(start.id)
+        defer {
+            remoteFoldersBusy.remove(start.id)
+            // Asked for while this pass ran (passSoon): it may have looked
+            // at the guard already, so another goes now.
+            if remotePassAgain.remove(start.id) != nil, let current = remoteFolders.first(where: { $0.id == start.id }) {
+                Task { @MainActor in await self.reconcileRemoteFolder(current) }
+            }
+        }
 
         remoteErrorRetryTasks[start.id]?.cancel()
         remoteErrorRetryTasks[start.id] = nil
@@ -2484,9 +2496,10 @@ final class SyncModel: ObservableObject {
             // The same guard the other way (SyncPaths.heldDeviceDeletes):
             // files gone from here in numbers are held on the device, their
             // baselines kept here, and the folder says so until they are
-            // back here or deleted there too, which agrees. Files new here
-            // are hashed for it only when the count says it may hold (moves
-            // don't count, and only their hashes tell).
+            // back here or deleted there too (from the web or a phone, or
+            // the row's "Delete Them on the Device Too…"), which agrees.
+            // Files new here are hashed for it only when the count says it
+            // may hold (moves don't count, and only their hashes tell).
             let deviceDeletes = actions.filter { $0.kind == .deleteRemote }.map { (relative: $0.relative, hash: $0.hash ?? "") }
             var held = Set<String>()
             if SyncPaths.overMassDelete(deviceDeletes.count, of: remoteByRelative.count) {
@@ -2496,7 +2509,20 @@ final class SyncModel: ObservableObject {
                 }
                 held = SyncPaths.heldDeviceDeletes(deviceDeletes, deviceFiles: remoteByRelative.count, here: here)
             }
-            noteMassHeld(folder, held.count)
+            var heldKey = SyncPaths.heldDeletesKey(deviceDeletes, held: held)
+            // The owner's "Delete Them on the Device Too…": the set held now
+            // is the one they were shown - its deletes go, subject to what
+            // follows like any other; another set, the hold stays. Settled
+            // once the pin's wait below has had its say.
+            let approval = deleteHeldApprovals[folder.id]
+            let approvalSaid = SyncPaths.heldApproval(approval, held: heldKey)
+            var approvedCount = 0
+            if approvalSaid == .approved {
+                approvedCount = held.count
+                held = []
+                heldKey = ""
+            }
+            noteMassHeld(folder, held.count, key: heldKey)
             if !held.isEmpty {
                 actions.removeAll { $0.kind == .deleteRemote && held.contains($0.relative) }
                 for relative in held {
@@ -2523,6 +2549,9 @@ final class SyncModel: ObservableObject {
                 actions = kept
             }
             noteUnconfirmed(folder, waiting)
+            // The count it let go, or (held is empty then) what the guard
+            // holds now.
+            settleDeleteApproval(folder, approval, approvalSaid, count: approvedCount + held.count, uncertain: uncertain)
             // Local deletes first: a rename on another client that only
             // changes case ("Photo.jpg" -> "photo.jpg") then trashes the
             // old name before the new one comes down, in one pass.
@@ -2897,16 +2926,70 @@ final class SyncModel: ObservableObject {
         syncLog.notice("\(folder.localURL.path, privacy: .public): nothing is mounted on \(gone.joined(separator: ", "), privacy: .public) now (a disk or share not connected?) - what was synced under it is left as it is on both sides until it is back") // i18n-ignore: a log line
     }
 
-    /// Deletes held by the guard the other way, and changes waiting for the
-    /// device's pin, per folder, as last logged.
-    private var massHeld: [UUID: Int] = [:]
+    /// Deletes held by the guard the other way, with their set's key
+    /// (SyncPaths.heldDeletesKey), per folder - what the row's "Delete Them
+    /// on the Device Too…" asks about - and changes waiting for the
+    /// device's pin, as last logged.
+    @Published private(set) var heldOnDevice: [UUID: SyncPaths.HeldDeletes] = [:]
     private var unconfirmed: [UUID: Int] = [:]
+    /// "Delete Them on the Device Too…" confirmed: the key of the set the
+    /// row showed, for the folder's next pass (settleDeleteApproval). In
+    /// memory only - otc-sync's goes through config.json, as its tray may
+    /// be another process.
+    private var deleteHeldApprovals: [UUID: String] = [:]
+    /// Two-way folders whose pass runs again once the one under way is over
+    /// (passSoon).
+    private var remotePassAgain: Set<UUID> = []
 
-    private func noteMassHeld(_ folder: RemoteFolder, _ n: Int) {
-        guard massHeld[folder.id] ?? 0 != n else { return }
-        massHeld[folder.id] = n == 0 ? nil : n
-        guard n > 0 else { return }
+    private func noteMassHeld(_ folder: RemoteFolder, _ n: Int, key: String) {
+        let was = heldOnDevice[folder.id]
+        let now = n == 0 ? nil : SyncPaths.HeldDeletes(count: n, key: key)
+        guard was != now else { return }
+        heldOnDevice[folder.id] = now
+        guard n > 0, was?.count != n else { return }
         syncLog.error("two-way \(folder.remotePath, privacy: .public): \(n) files gone from here at once - not deleted on the device, which keeps them (deleted there too, they are gone everywhere)")
+    }
+
+    /// The row's "Delete Them on the Device Too…" confirmed for the set it
+    /// showed (`key`): recorded, and the folder's pass runs now - or once
+    /// the one under way is over, as it may have looked at the guard
+    /// already. A set that has changed by then is not deleted: the row
+    /// shows the new count to be asked again.
+    func deleteHeldOnDevice(_ id: UUID, key: String) {
+        guard !key.isEmpty, remoteFolders.contains(where: { $0.id == id }) else { return }
+        deleteHeldApprovals[id] = key
+        passSoon(id)
+    }
+
+    /// Folder `id`'s pass now, or once the one under way is over
+    /// (reconcileRemoteFolder's remotePassAgain).
+    private func passSoon(_ id: UUID) {
+        guard let folder = remoteFolders.first(where: { $0.id == id }) else { return }
+        if remoteFoldersBusy.contains(id) {
+            remotePassAgain.insert(id)
+            return
+        }
+        Task { @MainActor in await self.reconcileRemoteFolder(folder) }
+    }
+
+    /// Acts on the verdict once the pass has planned: an approval used or
+    /// stale is dropped - compare-and-clear: one made meanwhile stays - and
+    /// logged. `count` is how many deletes it let go, or, stale, how many
+    /// the guard holds now. One used whose deletes wait for the device's pin
+    /// (uncertain: they all do) stays for the pass that lets them go, as
+    /// long as the set is still the same then. As otc-sync's
+    /// settleDeleteApproval.
+    private func settleDeleteApproval(_ folder: RemoteFolder, _ approval: String?, _ verdict: SyncPaths.HeldApproval, count: Int, uncertain: Bool) {
+        guard let approval, verdict != .none, !(verdict == .approved && uncertain) else { return }
+        switch verdict {
+        case .approved:
+            syncLog.notice("two-way \(folder.remotePath, privacy: .public): deleting on the device too the \(count) files deleted here at once, as asked") // i18n-ignore: a log line
+        case .stale where count > 0:
+            syncLog.notice("two-way \(folder.remotePath, privacy: .public): the files deleted here at once have changed since deleting them on the device too was asked - nothing deleted there; \(count) held now, to be asked about again") // i18n-ignore: a log line
+        default:
+            syncLog.notice("two-way \(folder.remotePath, privacy: .public): deleting the files held on the device too was asked, but none is held now - nothing deleted there") // i18n-ignore: a log line
+        }
+        if deleteHeldApprovals[folder.id] == approval { deleteHeldApprovals[folder.id] = nil }
     }
 
     private func noteUnconfirmed(_ folder: RemoteFolder, _ n: Int) {

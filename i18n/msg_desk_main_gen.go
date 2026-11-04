@@ -159,6 +159,31 @@ func DeskMainCpuLine(percent int) Msg {
 	return Msg{Key: "desk.main.cpu_line", Args: map[string]any{"percent": int64(percent)}}
 }
 
+// DeskMainDeleteHeld is desk.main.delete_held: "Delete Them on the Device Too…".
+func DeskMainDeleteHeld() Msg {
+	return Msg{Key: "desk.main.delete_held"}
+}
+
+// DeskMainDeleteHeldButton is desk.main.delete_held_button: "Delete on Device".
+func DeskMainDeleteHeldButton() Msg {
+	return Msg{Key: "desk.main.delete_held_button"}
+}
+
+// DeskMainDeleteHeldMessage is desk.main.delete_held_message: "They were deleted from this folder all at once, so Off The Cloud kept them on th…".
+func DeskMainDeleteHeldMessage() Msg {
+	return Msg{Key: "desk.main.delete_held_message"}
+}
+
+// DeskMainDeleteHeldTip is desk.main.delete_held_tip: "Delete the files deleted here at once on the device too (asks first)".
+func DeskMainDeleteHeldTip() Msg {
+	return Msg{Key: "desk.main.delete_held_tip"}
+}
+
+// DeskMainDeleteHeldTitle is desk.main.delete_held_title: "Delete {files} files on the device too?".
+func DeskMainDeleteHeldTitle(files int) Msg {
+	return Msg{Key: "desk.main.delete_held_title", Args: map[string]any{"files": int64(files)}}
+}
+
 // DeskMainDeletesHeld is desk.main.deletes_held: "{files} files deleted here at once are kept on the device - if that was meant, d…".
 func DeskMainDeletesHeld(files int) Msg {
 	return Msg{Key: "desk.main.deletes_held", Args: map[string]any{"files": int64(files)}}

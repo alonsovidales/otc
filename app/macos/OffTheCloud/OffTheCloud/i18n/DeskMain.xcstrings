@@ -1458,6 +1458,241 @@
         }
       }
     },
+    "desk.main.delete_held" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auch auf dem Gerät löschen…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Them on the Device Too…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminarlos también en el dispositivo…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les supprimer aussi sur l’appareil…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminali anche sul dispositivo…"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ook op het apparaat verwijderen…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminá-los também no dispositivo…"
+          }
+        }
+      }
+    },
+    "desk.main.delete_held_button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf dem Gerät löschen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete on Device"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar en el dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer sur l’appareil"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elimina sul dispositivo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Op het apparaat verwijderen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar no dispositivo"
+          }
+        }
+      }
+    },
+    "desk.main.delete_held_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sie wurden auf einmal aus diesem Ordner gelöscht, deshalb hat Off The Cloud sie auf dem Gerät behalten, falls das ein Versehen war. Wenn du sie auch dort löschst, sind sie überall weg, samt ihren älteren Versionen. Das kann nicht rückgängig gemacht werden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "They were deleted from this folder all at once, so Off The Cloud kept them on the device in case that was a mistake. Deleting them there too removes them everywhere, with their older versions. This can't be undone."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se eliminaron de esta carpeta de una vez, así que Off The Cloud los conservó en el dispositivo por si era un error. Si los eliminas también allí, desaparecerán de todas partes, junto con sus versiones anteriores. Esto no se puede deshacer."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ils ont été supprimés de ce dossier d’un coup, alors Off The Cloud les a conservés sur l’appareil au cas où il s’agirait d’une erreur. Si vous les supprimez aussi là-bas, ils disparaîtront partout, avec leurs anciennes versions. Cette action est irréversible."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sono stati eliminati da questa cartella tutti insieme, quindi Off The Cloud li ha conservati sul dispositivo nel caso si trattasse di un errore. Se li elimini anche lì, spariranno ovunque, insieme alle loro versioni precedenti. L’operazione non può essere annullata."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ze zijn in één keer uit deze map verwijderd, dus heeft Off The Cloud ze op het apparaat bewaard voor het geval het een vergissing was. Als je ze daar ook verwijdert, zijn ze overal weg, samen met hun oudere versies. Dit kan niet ongedaan worden gemaakt."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foram eliminados desta pasta de uma só vez, por isso o Off The Cloud manteve-os no dispositivo, caso fosse um engano. Se os eliminares também lá, desaparecem de todo o lado, juntamente com as suas versões anteriores. Esta ação não pode ser anulada."
+          }
+        }
+      }
+    },
+    "desk.main.delete_held_tip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die hier auf einmal gelöschten Dateien auch auf dem Gerät löschen (fragt vorher)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete the files deleted here at once on the device too (asks first)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar también en el dispositivo los archivos eliminados aquí de una vez (pregunta antes)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer aussi sur l’appareil les fichiers supprimés ici d’un coup (demande d’abord)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elimina anche sul dispositivo i file eliminati qui tutti insieme (chiede prima)"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De hier in één keer verwijderde bestanden ook op het apparaat verwijderen (vraagt eerst)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar também no dispositivo os ficheiros eliminados aqui de uma só vez (pergunta antes)"
+          }
+        }
+      }
+    },
+    "desk.main.delete_held_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld Dateien auch auf dem Gerät löschen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete %1$lld files on the device too?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Eliminar también %1$lld archivos en el dispositivo?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer aussi %1$lld fichiers sur l’appareil ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminare %1$lld file anche sul dispositivo?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld bestanden ook op het apparaat verwijderen?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar também %1$lld ficheiros no dispositivo?"
+          }
+        }
+      }
+    },
     "desk.main.deletes_held" : {
       "extractionState" : "manual",
       "localizations" : {

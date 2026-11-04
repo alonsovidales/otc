@@ -16,6 +16,8 @@
 //	                               (backup and add take --keep-out-of-images, issue #192, and add
 //	                               --upload-only, issue #132; a device folder keeps its own)
 //	otc-sync images <id|path> keep-out|show   keep a synced folder out of Images, or show it again
+//	otc-sync delete-held <id|path> [--yes]   delete on the device too the files deleted from a
+//	                               two-way folder at once, which the device kept (deleteheld.go)
 //	otc-sync remove <id|path>      stop syncing a folder (nothing is deleted)
 //	otc-sync ls [remote path]      browse the device
 //	otc-sync open                  the device's web app in the browser
@@ -110,6 +112,8 @@ func main() {
 		err = cmdAddRemote(args)
 	case "images":
 		err = cmdImages(args)
+	case "delete-held":
+		err = cmdDeleteHeld(args)
 	case "remove":
 		err = cmdRemove(args)
 	case "disconnect":
@@ -282,6 +286,12 @@ func usage() {
                                 and faces already found in them are deleted. Shown again, they
                                 are tagged - and searched for faces, if that is on - again.
                                 --keep-out-of-images keeps a folder out when it is added
+  otc-sync delete-held <id|path> [--yes]
+                                many files deleted from a two-way folder at once aren't deleted
+                                on the device, which keeps them in case that was a mistake (the
+                                folder says how many). This deletes them there too, after asking
+                                (--yes doesn't ask): they are gone everywhere, with their older
+                                versions. Files deleted since are asked about again
   otc-sync remove <id|path>     stop syncing a folder (nothing is deleted)
   otc-sync disconnect [--yes]   forget the device: removes every folder (the files stay)
                                 and the device and password, before connecting elsewhere
@@ -898,7 +908,7 @@ func printFolders(st *config.State) {
 		fmt.Printf("  ⬆ %-8s %s  [%s]%s%s\n", f.ID, f.Path, engine.Describe(f), uploadOnlyLabel(f), imagesLabel(f))
 	}
 	for _, f := range st.RemoteFolders {
-		fmt.Printf("  ⇅ %-8s %s  ⇄ %s  [%s]%s%s\n", f.ID, f.Path, f.RemotePath, engine.Describe(f), uploadOnlyLabel(f), imagesLabel(f))
+		fmt.Printf("  ⇅ %-8s %s  ⇄ %s  [%s]%s%s%s\n", f.ID, f.Path, f.RemotePath, engine.Describe(f), deleteHeldLabel(f), uploadOnlyLabel(f), imagesLabel(f))
 	}
 }
 
@@ -1126,7 +1136,8 @@ func cmdFolders() error {
 		fmt.Printf("  ⬆ %-8s %s%s%s\n", f.ID, f.Path, pendingUploadOnlyLabel(f.UploadOnly), pendingImagesLabel(f.OutOfImages))
 	}
 	for _, f := range cfg.RemoteFolders {
-		fmt.Printf("  ⇅ %-8s %s  ⇄ %s%s%s\n", f.ID, f.LocalPath, f.RemotePath, pendingUploadOnlyLabel(f.UploadOnly), pendingImagesLabel(f.OutOfImages))
+		fmt.Printf("  ⇅ %-8s %s  ⇄ %s%s%s%s\n", f.ID, f.LocalPath, f.RemotePath, pendingDeleteHeldLabel(f.DeleteHeld),
+			pendingUploadOnlyLabel(f.UploadOnly), pendingImagesLabel(f.OutOfImages))
 	}
 	fmt.Println("(the sync is not running, so no state is shown)")
 

@@ -195,9 +195,36 @@ extension S {
         L("desk.main.cpu_line", table: "DeskMain", percent)
     }
 
+    /// Delete Them on the Device Too…
+    ///
+    /// Both apps: the action offered while a two-way folder's deletes are held on the device (desk.main.deletes_held): on the Mac a button under the folder's row, in otc-sync an item of the folder's submenu in the tray menu. It asks first (desk.main.delete_held_title), then deletes on the device the files deleted from the folder at once. Title Case; the ellipsis says it asks before doing anything.
+    static var deskMainDeleteHeld: String { L("desk.main.delete_held", table: "DeskMain") }
+
+    /// Delete on Device
+    ///
+    /// Both apps: the button that confirms desk.main.delete_held_title: the files deleted from the folder at once are deleted on the device too. Title Case.
+    static var deskMainDeleteHeldButton: String { L("desk.main.delete_held_button", table: "DeskMain") }
+
+    /// They were deleted from this folder all at once, so Off The Cloud kept them on the device in case that was a mistake. Deleting them there too removes them everywhere, with their older versions. This can't be undone.
+    ///
+    /// Both apps: the text of the question desk.main.delete_held_title. The app didn't delete them on the device because so many vanished from the folder at once (an unplugged disk, a program that emptied it), which looks like an accident. Deleted there too, they are gone from the device and from every other app and computer that syncs it, with the older versions the device kept of them: the device has no trash.
+    static var deskMainDeleteHeldMessage: String { L("desk.main.delete_held_message", table: "DeskMain") }
+
+    /// Delete the files deleted here at once on the device too (asks first)
+    ///
+    /// otc-sync: tooltip of Delete Them on the Device Too… (desk.main.delete_held) in a folder's submenu of the tray menu; the Mac shows it as that button's tooltip.
+    static var deskMainDeleteHeldTip: String { L("desk.main.delete_held_tip", table: "DeskMain") }
+
+    /// Delete {files} files on the device too?
+    ///
+    /// Both apps: the title of the question before the files deleted from a two-way folder all at once (kept on the device: desk.main.deletes_held) are deleted on the device too. {files} is how many (always more than 20).
+    static func deskMainDeleteHeldTitle(files: Int) -> String {
+        L("desk.main.delete_held_title", table: "DeskMain", files)
+    }
+
     /// {files} files deleted here at once are kept on the device - if that was meant, delete them there too
     ///
-    /// Both apps: a two-way folder's state after many of its files vanished from this computer in one go (always more than 20, and more than a quarter of the folder). The app did not delete them on the device, where they stay; if the person meant to delete them, they delete them on the device too (from the web app or a phone). {files} is how many.
+    /// Both apps: a two-way folder's state after many of its files vanished from this computer in one go (always more than 20, and more than a quarter of the folder). The app did not delete them on the device, where they stay; if the person meant to delete them, they delete them on the device too: with Delete Them on the Device Too… beside it (desk.main.delete_held), or from the web app or a phone. {files} is how many.
     static func deskMainDeletesHeld(files: Int) -> String {
         L("desk.main.deletes_held", table: "DeskMain", files)
     }
