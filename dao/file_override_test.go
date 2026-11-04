@@ -24,7 +24,7 @@ func TestOverrideFileReplacesTheRowInPlace(t *testing.T) {
 	}
 	defer db.Close()
 	mock.ExpectBegin()
-	mock.ExpectQuery("select `hash` from `files` where `path` = \\? for update").WithArgs("/backup/a.txt").
+	mock.ExpectQuery("select `hash` from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\) for update").WithArgs("/backup/a.txt", "/backup/a.txt").
 		WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow("old"))
 	mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\? for update").WithArgs("old").
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
@@ -32,8 +32,8 @@ func TestOverrideFileReplacesTheRowInPlace(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec("delete from `file_tags` where `hash` = \\?").WithArgs("old").
 		WillReturnResult(sqlmock.NewResult(0, 2))
-	mock.ExpectExec("update `files` set `hash` = \\?, `mime` = \\?, `size` = \\?, `created` = \\?, `modified` = \\?, `cloud_id` = \\? where `path` = \\?").
-		WithArgs("new", "text/plain", int32(3), sqlmock.AnyArg(), sqlmock.AnyArg(), sql.NullString{}, "/backup/a.txt").
+	mock.ExpectExec("update `files` set `hash` = \\?, `mime` = \\?, `size` = \\?, `created` = \\?, `modified` = \\?, `cloud_id` = \\? where `path` = \\? and length\\(`path`\\) = length\\(\\?\\)").
+		WithArgs("new", "text/plain", int32(3), sqlmock.AnyArg(), sqlmock.AnyArg(), sql.NullString{}, "/backup/a.txt", "/backup/a.txt").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	old, err := NewWithDB(db).OverrideFile(overrideFile(), "")
@@ -53,7 +53,7 @@ func TestOverrideFileKeepsTagsOfContentStillUsed(t *testing.T) {
 	}
 	defer db.Close()
 	mock.ExpectBegin()
-	mock.ExpectQuery("select `hash` from `files` where `path` = \\? for update").
+	mock.ExpectQuery("select `hash` from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\) for update").
 		WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow("old"))
 	mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\? for update").
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
@@ -77,7 +77,7 @@ func TestOverrideFileInsertsWhenTheRowWentMeanwhile(t *testing.T) {
 	}
 	defer db.Close()
 	mock.ExpectBegin()
-	mock.ExpectQuery("select `hash` from `files` where `path` = \\? for update").
+	mock.ExpectQuery("select `hash` from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\) for update").
 		WillReturnRows(sqlmock.NewRows([]string{"hash"}))
 	mock.ExpectExec("insert into `files`").WithArgs("new", "text/plain", sqlmock.AnyArg(), sqlmock.AnyArg(), "/backup/a.txt", int32(3), sql.NullString{String: "c", Valid: true}).
 		WillReturnResult(sqlmock.NewResult(1, 1))

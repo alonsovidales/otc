@@ -1,0 +1,157 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package filesmanager
+
+import (
+	"database/sql"
+	"errors"
+	"path"
+	"strings"
+
+	"github.com/alonsovidales/otc/alerttext"
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
+)
+
+// What a file's path may be. A path reaches the files table only through
+// an upload (UploadFile, and FinishUpload after BeginUpload, both through
+// registerUpload) or a LinkFile: nothing renames, moves or makes a folder
+// on the device - a client moves or copies a file with a LinkFile of its
+// content and a DelFile, and a folder is only the paths of its files.
+// Shared galleries, share archives and posts only name files that exist.
+// checkNewPath is the one rule all of them go by.
+
+// validNewPath reports whether a new file may be stored at p: an absolute
+// path ("/" first) of a file (not ending in "/"), none of whose names is
+// "." or "..", with no NUL. A ".." in a path went into a share archive's
+// entry names as it was; no client makes one (otc-sync and the Mac send a
+// cleaned local path, the phones and the web a folder and a name).
+// An empty name inside a path ("//") is taken: otc-sync on Windows makes
+// one for a folder on a network share - "\\NAS\Photos" cleaned is
+// "//NAS/Photos", so its files are "/windows/<host>//NAS/Photos/..." - and
+// a folder typed on the web with two "/" in a row has one. It leads
+// nowhere outside a folder, and share archives leave it out
+// (zipEntryName).
+func validNewPath(p string) bool {
+	if !strings.HasPrefix(p, "/") || strings.HasSuffix(p, "/") || strings.ContainsRune(p, 0) {
+		return false
+	}
+	for _, name := range strings.Split(p[1:], "/") {
+		if name == "." || name == ".." {
+			return false
+		}
+	}
+	return true
+}
+
+// BadPathError is the refusal of a path no new file may have
+// (validNewPath).
+type BadPathError struct{ Path string }
+
+func (e *BadPathError) msg() i18n.Msg { return i18n.DevFilesBadPath(e.Path) }
+
+func (e *BadPathError) Error() string { return alerttext.EnglishOf(e.msg()) }
+
+// Localized is the refusal in lang (devtext.Text, for the reply).
+func (e *BadPathError) Localized(lang string) string {
+	if devtext.English(lang) {
+		return e.Error()
+	}
+	return e.msg().Render(lang)
+}
+
+// checkNewPath refuses (BadPathError) a path a new file may not have,
+// unless a file is at that very path already: a row stored before paths
+// were checked stays its client's to replace, read and delete.
+func (mg *Manager) checkNewPath(p string) error {
+	if validNewPath(p) {
+		return nil
+	}
+	if mg.dao != nil {
+		if _, err := mg.dao.GetFileByPath(p); err == nil {
+			return nil
+		}
+	}
+	return &BadPathError{Path: p}
+}
+
+// SpacesNameError is an upload's or a link's refusal when its path is
+// taken by a file whose name differs from it only by spaces at its end
+// ("notes.txt" and "notes.txt "). The database keeps the two as one key
+// (dao.exactPath), so the second can't be stored: with override (a sync
+// client's edit) it used to replace the first one's content.
+type SpacesNameError struct {
+	Path string
+	// Override is whether the upload or link asked to replace what is at
+	// its path (forceOverride: the sync clients always do).
+	Override bool
+}
+
+func (e *SpacesNameError) msg() i18n.Msg { return i18n.DevFilesNameDiffersBySpaces(path.Base(e.Path)) }
+
+func (e *SpacesNameError) Error() string { return alerttext.EnglishOf(e.msg()) }
+
+// Localized is the refusal in lang (devtext.Text, for the reply).
+func (e *SpacesNameError) Localized(lang string) string {
+	if devtext.English(lang) {
+		return e.Error()
+	}
+	return e.msg().Render(lang)
+}
+
+// Is makes the refusal of an upload or link that didn't ask to override a
+// duplicate (ErrDuplicatedFile, error_code duplicated_file), as it always
+// was: the phones' photo sync and the web's "keep both" then store the
+// file under another name. One that asked is refused outright - nothing
+// else may take the other file's place - with no code, and a sync client
+// says why and tries again on its next pass.
+func (e *SpacesNameError) Is(target error) bool {
+	return target == ErrDuplicatedFile && !e.Override
+}
+
+// spacesNameTaken is the SpacesNameError of an upload or link to p
+// (override: its forceOverride) when the key takes p for a file stored
+// under another name; nil when it doesn't, or can't be asked.
+func (mg *Manager) spacesNameTaken(p string, override bool) error {
+	if mg.dao == nil {
+		return nil
+	}
+	if stored, err := mg.dao.SamePathAs(p); err == nil && stored != p {
+		return &SpacesNameError{Path: p, Override: override}
+	}
+	return nil
+}
+
+// takenByAnotherName is what an insert at p refused as duplicated says
+// when no row is at p itself, byte for byte (err, GetFileByPath's
+// sql.ErrNoRows): a SpacesNameError when the row the key found has
+// another name; err itself when there is none (deleted in between).
+func (mg *Manager) takenByAnotherName(p string, override bool, err error) error {
+	if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if serr := mg.spacesNameTaken(p, override); serr != nil {
+		return serr
+	}
+	return err
+}
+
+// zipEntryName is a share archive's name for the file at p, the folder the
+// share's files have in common (prefix) taken off: its names joined by
+// "/", leaving out any that is empty, "." or ".." - a path stored before
+// paths were checked could hold one, and an unzipper that doesn't check
+// writes "../" outside the folder it unpacks to - and with a "\" made
+// "_", which unzippers on Windows take for a folder's end.
+func zipEntryName(p, prefix string) string {
+	var names []string
+	for _, name := range strings.Split(strings.TrimPrefix(p, prefix), "/") {
+		if name == "" || name == "." || name == ".." {
+			continue
+		}
+		names = append(names, strings.ReplaceAll(name, `\`, "_"))
+	}
+	if len(names) == 0 {
+		return "file"
+	}
+	return strings.Join(names, "/")
+}

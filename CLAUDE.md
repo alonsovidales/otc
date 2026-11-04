@@ -487,7 +487,18 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   `DelEveryCopy` checks it before `PathsOfHash`, `DelPath` before the upload-only check, with or
   without every_copy - and the answer is `ContentChangedError`, `error_code` `changed`, message
   `dev.files.content_changed` ("refresh and try again"). Ignored when empty and for a folder's
-  path. A folder's path is DelPath as before; older devices ignore both fields. Measured
+  path. A folder's path is DelPath as before; older devices ignore both fields. Every delete is
+  bound to the content it means (2026-11, `delFileIf` -> `dao.DelFileIfHash`, the row read `for
+  update` in the delete's own transaction; it deleted by path alone, so a sync app's edit landing
+  between the check and the delete was deleted unseen): a file's to `DelFile.hash` when sent (the
+  check is the delete's, not only a look beforehand), a folder's files each to what was listed
+  under it - one given other content meanwhile stays, and so does the folder's keep-out flag - and
+  every_copy's to the content shown, the asked path first: changed, nothing is deleted
+  (`ContentChangedError`); another copy changed is no copy any more and stays. A DelFile of ""
+  or "/" (every file: neither has a row, so `resolvePaths` took it for the folder of them all) is
+  refused before anything is read (`ErrWholeLibrary`, `dev.files.whole_library`): no app's delete
+  names it, and a sync client's empty relative path would have taken every file, version and
+  content with no way back. Measured
   on 112k rows with 14k photos at several paths (Lima VM, MariaDB 11.8): browsing 291 ms of SQL as
   before (282), the buckets 154 ms (were 327), two people 1.8 ms (5.4), a page's copies 0.3-0.6 ms.
 - Dates taken (release 152's `updates/152.sh`; `files_manager/date_taken.go`, `exifinfo/taken.go`): for a
@@ -511,9 +522,14 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   (it stops for a reprocess), saving its place in `settings.dates_taken_cursor` after each page and
   setting `dates_taken_backfilled` at the end; a database without them is skipped (`ErrSchemaBehind`);
   content not read this time is counted, not retried (Reprocess applies the rule); one Info line at the
-  end. Lima VM: 311 stored photos and videos in 9 s, ~7 ms of work a photo besides the pause. Each
-  application is one `dao.MoveToDateTaken` (`update files set created = T where hash = ? and created >
-  T + 26 h`: every `files` row of the content, rechecked in SQL; `file_versions` keep theirs), then
+  end. Each read is the processing guard's job (`beginProcessing(hash, jobMetadata)`, as Places'
+  reads are): after a death the content being read is recorded in flight, so what takes the process
+  down twice is set aside (runstate.go) instead of stopping the pass at every start, and set-aside
+  content is passed over (the processing that tries it again applies the rule); a parser's panic is
+  content not read (`readMetadataSafely`, for both passes). Lima VM: 311 stored photos and videos in
+  9 s, ~7 ms of work a photo besides the pause. Each application is one `dao.MoveToDateTaken`
+  (`update files set created = T where hash = ? and created > T + 26 h`: every `files` row of the
+  content, rechecked in SQL; `file_versions` keep theirs), then
   `memories.changed()` and `places.changed()` when a row moved. So Images' order, month counts, the
   scrubber, `before`/`newer_than`, the oldest copy (#201), On this day and Places' covers have the date
   taken with no query changed; Files' Created column shows it too, and the sync clients give it to a file
@@ -521,8 +537,31 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   again) keeps its own date; Images still shows the oldest copy. Known limit: a photo with neither an
   offset nor a GPS clock is placed at its clock read as UTC, and the apps show `created` in the viewer's
   zone, so east of UTC its last hours of a day show on the next day (one or two in Spain), west of UTC
-  its first hours on the day before. Tests: `date_taken_test.go`, exifinfo's `taken_test.go`, dao's
-  `TestMoveToDateTakenMySQL` and `TestDatesTakenBackfillMySQL`.
+  its first hours on the day before. Tests: `date_taken_test.go` (`TestMetadataPassesRecordWhatTheyRead`
+  too), exifinfo's `taken_test.go`, dao's `TestMoveToDateTakenMySQL` and `TestDatesTakenBackfillMySQL`.
+- EXIF is never parsed from a file's own bytes (2026-11, `exifinfo/tiff.go`): goexif works out a tag's
+  size in 32 bits and then allocates for its count - a 48-byte JPEG asked for 4 to 16 GiB, an
+  out-of-memory death no `recover()` catches - follows a chain of directories that name each other
+  forever, and decodes every tag of every directory, however many share the same bytes (a 64 KiB
+  segment of them took 812 MiB). `compactTIFF` reads, with 64-bit bounds, only the tags `fromExif`
+  reads (`keptMain`, `keptGPS`, `keptOffsets`: a new field read there goes in them), from where goexif
+  takes them - IFD0 and the Exif sub-IFD into one table, the last tag of an id winning; the GPS
+  sub-IFD; the offset tags of the directory that table names last - at most the last of each id (8
+  of an offset's), each value cut to 4 KiB, and writes them into a small TIFF of its own, which is
+  what goexif decodes: a few hundred KiB whatever the file says. A malformed tag or directory is
+  left out on its own (goexif refused the whole file). Every reader goes through it (`FromJPEG`,
+  `FromJPEGReader`, `FromHEIC`, `FromHEICReader`: uploads, More info, the dates' and Places' passes,
+  On this day's camera check, shared galleries, Reprocess). A JPEG's segment is found by following
+  its markers - past XMP's own APP1, which goexif took for EXIF's - then byte by byte from where they
+  stop making sense, as goexif looked (a camera raw with a JPEG inside); a TIFF (a scan, a camera
+  raw) is read at its directories through the blob's `ReaderAt`, wherever they are, never whole
+  (it was parsed whole, three copies: `exifOfBlob` holds `cExifReadBytes`, 8 MiB, of the content
+  budget instead of three times the file); a goheif panic on a short Exif item is an error. Checked
+  against goexif itself on its own samples, x/image's test images and the fixtures: the same `Info`
+  for every file goexif read, and one more read (a TIFF with a short tag goexif refused whole);
+  `TestCompactReadsWhatGoexifRead` keeps the fixtures' and every field's case, and
+  `TestCraftedEXIFIsCheapToRead` reads the crafted shapes as a JPEG, an Exif item and a TIFF within
+  8 MiB each.
 - Scrolling up after a jump (issue #194): `SearchPhotos.newer_than` (11) asks for the photos dated
   strictly after the instant, served OLDEST first, and every answer to it has
   `ListOfFiles.oldest_first` (6) true - its last page and an empty one too; devices before #194
@@ -700,7 +739,8 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     `startBackfillOnce`, because it needs the key, and when Places is turned on, and sets
     `settings.locations_backfilled` when done.
     - It reads only content that has a thumbnail and no row (`MediaWithoutLocation`), and only the
-      metadata: a photo up to its EXIF (`exifOfBlob`), a video by ffprobe on its stream.
+      metadata: a photo up to its EXIF (`exifOfBlob`), a video by ffprobe on its stream - each read
+      the processing guard's job (`jobMetadata`, as the dates' pass), set-aside content passed over.
     - It pauses 20 ms after each photo and 250 ms after each video.
     - A missing blob is skipped. A read that failed (a blob error, ffprobe not running or not
       answering) leaves the flag unset, so the next start reads it again. A row is never re-read,
@@ -1066,7 +1106,12 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   placing a 10-bit grid's tiles (`TestDecodeHeicGridAtTenBits`); AV1 still goes to goheif. A camera
   raw (a DNG - Apple ProRAW, whose IFD0 x/image/tiff refused as "color model" - or a TIFF with a
   CFA/linear-raw directory) is its largest embedded 8-bit JPEG (`rawPreview`, raw_preview.go), first;
-  any other TIFF Go can't read is tried for one before ffmpeg. A preview
+  any other TIFF Go can't read is tried for one before ffmpeg. Its parse reads only the values it
+  looks at (`maxValues`: a scalar's first, 16 bits-per-sample, 2 strip entries - one strip or more -,
+  64 sub-image offsets, 64 KiB of JPEG tables) and 256K values in all (`cMaxRawValues`), and puts
+  together only the largest preview (a strip with its tables is a copy): a crafted 1 MB TIFF of 64
+  directories, every tag a million values on the same bytes, held 3.4 GB before the decode budget
+  was asked for anything (`TestCraftedRawIsCheapToRead`). A preview
   that failed leaves `<hash>.nothumb` holding `cDecoders`: `BackfillMissingThumbnails` skips it
   until a release adds to `cDecoders` (heic10 did), then retries it once. The clients show one line per row and the full list on hover (web)
   or tap (iOS/Android). Never push-notify these - the one exception is `raidwatch`'s disk failure below. `AddErrorNotification` is serialised in-process,
@@ -1100,6 +1145,33 @@ no 0-byte blob after a crash, and a blob owned by another account (a recovered o
 installation's `pi`) can still be replaced; release 22's script hands such files to `otc`. The
 folder is synced after each rename too (`blobstore.SyncDir`: `Commit`, `writeBlob`, social's
 `writeFileAtomic`, the posts' copies), so a power cut can't take a name back while its row stays.
+**Paths** (2026-11, `paths.go`): a path reaches `files` only through `registerUpload` (UploadFile,
+FinishUpload) or `LinkFile` - nothing renames, moves or makes folders on the device (a client moves or
+copies with LinkFile and DelFile; a folder is only its files' paths) - and `checkNewPath` is the one
+rule for all of them, BeginUpload asking it before any content comes: a new file's path starts with
+"/", doesn't end in "/", none of its names is "." or "..", and it has no NUL (`BadPathError`,
+`dev.files.bad_path`). No client builds a "." or ".." name (otc-sync and the Mac send a cleaned local
+path, the phones and the web a folder and a name). An empty name inside a path ("//") is taken, as
+before: otc-sync on Windows sends one for a folder on a network share (`\\NAS\Photos` cleaned is
+`//NAS/Photos`, its files `/windows/<host>//NAS/Photos/...`), and a web folder typed with "//" has one;
+it leads nowhere outside a folder. A path already in `files`, byte for byte, stays its client's to
+replace, read and delete whatever it looks like: rows stored before are left as they are, and a share
+archive's entry names drop any empty, "." or ".." name and turn a `\` into `_` (`zipEntryName`), so no
+entry unpacks outside its folder. The path columns are `utf8mb4_bin`, which MariaDB compares PAD
+SPACE: "/a.txt" = "/a.txt " holds and the unique key takes them for one path, so an upload of "notes.txt "
+next to "notes.txt" with override replaced the other file's content, and a DelFile of the one deleted
+the other. Every lookup, change and delete of one path is now exact (`dao.exactPath`: `path = ? and
+length(path) = length(?)`, still a unique-key lookup; `GetFileByPath` checks the row's path), and an
+upload or link whose path the key finds under another name is refused (`SpacesNameError`,
+`dev.files.name_differs_by_spaces`, `dao.SamePathAs`), a chunked one at BeginUpload, before its content
+comes: with override (the sync clients) outright, with no code; without it as a duplicate (`errors.Is`
+`ErrDuplicatedFile`, error_code `duplicated_file`, from BeginUpload too), so the phones' photo sync,
+the post composer and the web's "keep both" store it under another name, as they always did. Two names
+that differ only by spaces at their end can't both be on a device (no collation change: a rebuild of
+`files`, `file_versions` and the folder tables on every database, with UNIONs failing on a mix if one
+stopped halfway). Lists of paths (`path in (...)`: favourites, collections, thumbnails) still match
+PAD SPACE: they name rows the client was just given. Tests: `paths_test.go`, dao's `exactpath_test.go`
+(`TestPathsAreExactMySQL` against MariaDB), websocket's `duplicated_file_test.go`.
 **Disk space** (`freespace.go`): a write that would leave less than a reserve free - 1 GiB, or 2%
 of a disk under 50 GB, at least 64 MiB: room for MariaDB on the same disk, the thumbnails and the
 alert itself - is refused before it starts: `BeginUpload` (its size plus what the uploads under way
@@ -1107,7 +1179,11 @@ still have to write, those kept for a resume too - which give way, least recentl
 when it doesn't fit with them: `uploads.roomFor`), `UploadFile` (the same), `GetSharedLink`'s archive, `StartSharedGallery` and a post's
 video copy, with `RespEnvelope.error_code` "storage_full" (also for a write that hit ENOSPC) and
 `dev.files.storage_full`'s "this needs …, and only … is left". The sync clients don't yet pause on
-it. What is left is statfs' f_bavail in f_frsize units (package `diskspace`: f_bfree counts ext4's
+it. A size is the client's to say: BeginUpload refuses one over a pebibyte (`cMaxUploadSize`, "bad
+size"), and what a write needs saturates at MaxInt64 rather than wrapping (`sealedSize` past an
+exbibyte, `addSizes` for the uploads under way) - a size near MaxInt64 came out negative, nothing to
+write, and turned the reserve off for every upload while its own lived (`TestImpossibleSizesDontWrap`).
+What is left is statfs' f_bavail in f_frsize units (package `diskspace`: f_bfree counts ext4's
 5% for root, which neither otc nor MariaDB can use - a 4 TB mirror showed ~200 GB free while
 uploads failed); Status' raid/disk size is used plus available, so the apps' free (size - usage)
 is what can be written, and Settings > Users' share is of that size. `storagewatch` (main instance,
@@ -1378,15 +1454,28 @@ start takes its file.
   over the whole budget run alone, and a 1.5 GB TIFF in a viewer, or a friend syncing a multi-GB
   post video, killed the device): `GetPublicationMedia` refuses a post's file over
   `MaxPublicationMedia` (256 MB, or a third of the budget: 85 MB on a 4 GB Pi) and `GetFile` one over
-  `shownWholeLimit` (a third of the budget, at least 64 MB) - never a HEIC (sent as its JPEG, which the
-  decode budget bounds) nor, for now, a video (the web composer's trimmer, `NewPostPicker`, fetches
-  a library video whole and has no other way to read it; every viewer streams videos) - with
+  `shownWholeLimit` (a third of the budget, at least 64 MB), whatever it is - a video and a HEIC (read
+  whole to be converted) too since 2026-11: the web composer's trimmer streams a library video or
+  reads it in ReadFile pieces since release 143, as the viewers do, and the apps ask GetFile only for
+  photos (iOS's `FileDownload` and Android's `ChunkedDownload` fall back to it only on a device from
+  before ReadFile), the sync apps never - with
   `RespEnvelope.error_code` "too_large" (`websocket/content_codes.go`), reserving nothing. The
   viewers keep the thumbnail, downloads read in parts, a friend's device keeps the post's thumbnail
   (its sync logs the refusal; fetching it through GetMediaURL is still to do). `GetFileInfo` reads a
   photo's EXIF through the blob's ReaderAt (`exifFrom`, by its first bytes: a JPEG up to its EXIF
-  segment, a HEIC its boxes; a TIFF, which goexif reads whole, up to `shownWholeLimit`), and
-  `exifinfo.FromVideoSource`'s ffprobe has a deadline (`ProbeTimeout`, a minute). A post's video is
+  segment, a HEIC its boxes, a TIFF at its directories wherever they are - exifinfo's `compactTIFF`;
+  the byte-by-byte search for an EXIF segment goes no further than `shownWholeLimit`), and
+  `exifinfo.FromVideoSource`'s ffprobe has a deadline (`ProbeTimeout`, a minute). Processing reads an
+  image whole only within the content budget (2026-11; it read any size, held from nothing, and a 2-3
+  GB scan or Photoshop file took a 4 GB device down at every start until it was set aside): the lanes,
+  Reprocess and the thumbnail backfill hold its size from the content budget until it is decoded
+  (`readForProcessing`; `processMedia` gives it back right after the decode, so the thumbnails, a wait
+  for the tagger, the tagging, faces and the rest don't keep downloads waiting) and read nothing over
+  the decode budget's size (`processedWholeLimit` - such a picture never fits its decode),
+  which is alerted as not processed, "the file is 2.1 GB, more than this device can process at once
+  (at most 760 MB)" (`dev.files.too_large_to_process`); a shared gallery's preview, read whole as
+  GetFile reads a photo, stops at `shownWholeLimit` (the item keeps its original and thumbnail).
+  ffmpeg's fallback for stills still gets its own temporary copy. A post's video is
   never loaded: `ExportVideoForPost` re-encodes it from the loopback
   stream straight into the posts' directory (named by hash) or decrypts the original there a
   segment at a time, one transcode at a time (`transcodeSlots`, taken before the stream token).
@@ -2139,7 +2228,7 @@ that moves text into the catalog) and builds what embeds the catalog. It gates
 `web/node_modules`), `scripts/desktop-release.sh` (needs `i18n/` committed), `make -C bridge
 bridge`, `make android-release` and CI (`.github/workflows/i18n.yml`). Codes before prose: clients check `error_code` first and read
 the English message only when the code is empty (`duplicated_file` on UploadFile/FinishUpload/
-LinkFile, from `filesmanager.ErrDuplicatedFile`; `unknown_payload`) - iOS/macOS `ErrorCodes.swift`,
+LinkFile, from `filesmanager.ErrDuplicatedFile`, and on BeginUpload for `SpacesNameError`; `unknown_payload`) - iOS/macOS `ErrorCodes.swift`,
 Android `net/ErrorCodes.kt`, otc-sync `engine/requests.go`. Machine alerts (update, RAID, disk
 space, Wi-Fi wiring) live in `websocket/machine_alerts.go`; `raidwatch.MissingPorts()` keeps the failed disks'
 ports as data; update alerts are one per `notifications.update_version`, with the legacy English
@@ -4513,7 +4602,7 @@ Bluetooth, a Location hint below Android 12 and `Phase.ScanFailed` with Try agai
 "unknown_payload"`, sent since v9 (Android also takes the older bare message) - no device that old
 exists. Optional items skipped: device - no `IsContentHash` guard in `mediastream/reader.go`, no
 write deadlines in its own HTTP server (`api/`), `cloud_id` kept by
-`ReplaceFileKeepingVersion`, no rejection of `.`/`..`/empty path components; bridge - no `interpolateParams`,
+`ReplaceFileKeepingVersion` (`.`/`..` path components and a trailing `/` are refused since 2026-11); bridge - no `interpolateParams`,
 `admin/ratelimit.go` `purgeLocked` scans on every attempt, `Admin.Logout` answers ok
 when ending the other sessions failed and `SetAdminPassword` doesn't bump the admin epoch;
 clients - no final-path check on otc-sync's flash status file, no "could not be read" status on the

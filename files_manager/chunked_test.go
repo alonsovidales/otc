@@ -152,7 +152,7 @@ func TestOverrideKeepsThePathsVersions(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows(cols).AddRow(oldHash, "text/plain", now, now, "/backup/a.txt", 5))
 	mock.ExpectQuery("select `path` from `upload_only_folders`").WillReturnRows(sqlmock.NewRows([]string{"path"}))
 	mock.ExpectBegin()
-	mock.ExpectQuery("select `hash` from `files` where `path` = \\? for update").
+	mock.ExpectQuery("select `hash` from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\) for update").
 		WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow(oldHash))
 	mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\? for update").
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))

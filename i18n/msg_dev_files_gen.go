@@ -19,6 +19,11 @@ func DevFilesAssetNotFound() Msg {
 	return Msg{Key: "dev.files.asset_not_found"}
 }
 
+// DevFilesBadPath is dev.files.bad_path: "no file can be saved as {path}: a path starts with /, doesn't end in /, and none…".
+func DevFilesBadPath(path string) Msg {
+	return Msg{Key: "dev.files.bad_path", Args: map[string]any{"path": path}}
+}
+
 // DevFilesBadSize is dev.files.bad_size: "bad size".
 func DevFilesBadSize() Msg {
 	return Msg{Key: "dev.files.bad_size"}
@@ -172,6 +177,11 @@ func DevFilesMemoriesBadHide() Msg {
 // DevFilesMemoriesOff is dev.files.memories_off: "On this day is off: turn it on in Settings to see your memories".
 func DevFilesMemoriesOff() Msg {
 	return Msg{Key: "dev.files.memories_off"}
+}
+
+// DevFilesNameDiffersBySpaces is dev.files.name_differs_by_spaces: "\"{name}\" can't be saved: a file here has the same name with or without spaces at…".
+func DevFilesNameDiffersBySpaces(name string) Msg {
+	return Msg{Key: "dev.files.name_differs_by_spaces", Args: map[string]any{"name": name}}
 }
 
 // DevFilesNoLowResPhotos is dev.files.no_low_res_photos: "there are no photos to share in low resolution there".
@@ -389,6 +399,11 @@ func DevFilesTooLargeToOpen(size int64) Msg {
 	return Msg{Key: "dev.files.too_large_to_open", Args: map[string]any{"size": size}}
 }
 
+// DevFilesTooLargeToProcess is dev.files.too_large_to_process: "the file is {size}, more than this device can process at once (at most {limit})".
+func DevFilesTooLargeToProcess(size int64, limit int64) Msg {
+	return Msg{Key: "dev.files.too_large_to_process", Args: map[string]any{"size": size, "limit": limit}}
+}
+
 // DevFilesUploadBadHash is dev.files.upload_bad_hash: "the upload's content doesn't match its hash".
 func DevFilesUploadBadHash() Msg {
 	return Msg{Key: "dev.files.upload_bad_hash"}
@@ -477,4 +492,9 @@ func DevFilesVideoNotCut() Msg {
 // DevFilesVideoNotReduced is dev.files.video_not_reduced: "the video could not be made smaller for the post, and at {size} it is too large …".
 func DevFilesVideoNotReduced(size int64) Msg {
 	return Msg{Key: "dev.files.video_not_reduced", Args: map[string]any{"size": size}}
+}
+
+// DevFilesWholeLibrary is dev.files.whole_library: "the whole library can't be deleted at once: delete its folders or files instead".
+func DevFilesWholeLibrary() Msg {
+	return Msg{Key: "dev.files.whole_library"}
 }

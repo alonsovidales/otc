@@ -46,7 +46,37 @@ const (
 	// Enough for any camera's IFD0 chain and sub-images; a loop in a
 	// damaged file ends here.
 	cMaxRawIFDs = 64
+
+	// cMaxJPEGTables is the most of a directory's JPEG tables read: a
+	// JPEG's quantization and Huffman tables take a few hundred bytes.
+	cMaxJPEGTables = 64 << 10
+
+	// cMaxRawValues is the most values tiffIFDs reads in all, every
+	// directory's together: a camera's raw holds a few dozen.
+	cMaxRawValues = 1 << 18
 )
+
+// What a crafted TIFF of a megabyte held before the values were capped:
+// each of a directory's 13 tags up to a million values (4 MiB), 64
+// directories, every tag pointing at the same bytes - 3.4 GB, read before
+// the decode budget is asked for anything (a header that says 1 x 1
+// costs nothing to decode). maxValues is how many of a tag's values
+// rawPreview ever looks at.
+func maxValues(tag uint16) uint64 {
+	switch tag {
+	case tagBitsPerSample:
+		return 16 // a sample's bits, for each of a pixel's samples
+	case tagStripOffsets, tagStripByteCounts:
+		return 2 // one strip, or more: not a preview
+	case tagSubIFDs:
+		return cMaxRawIFDs
+	case tagJPEGTables:
+		return cMaxJPEGTables
+	case tagDNGVersion:
+		return 4
+	}
+	return 1 // the first value only (tiffIFD.first)
+}
 
 // tiffIFD is the tags of one image directory rawPreview reads.
 type tiffIFD map[uint16][]uint32
@@ -85,39 +115,42 @@ func isCameraRaw(b []byte) bool {
 // chain and their sub-images (tag 330), each one strip of JPEG
 // (compression 7, with the directory's JPEG tables put back in) or an
 // old-style JPEG (compression 6, at its JPEGInterchangeFormat offset).
+// Only the largest is put together - a strip with its tables is a copy.
 func rawPreview(b []byte) ([]byte, error) {
 	ifds, err := tiffIFDs(b)
 	if err != nil {
 		return nil, err
 	}
-	var best []byte
+	var best, bestTables []byte
 	var bestPixels uint64
+	found := false
 	for _, d := range ifds {
-		jpg := previewJPEG(b, d)
-		if jpg == nil {
+		jpg, tables, ok := previewOf(b, d)
+		if !ok {
 			continue
 		}
-		if px := uint64(d.first(tagImageWidth)) * uint64(d.first(tagImageLength)); best == nil || px > bestPixels {
-			best, bestPixels = jpg, px
+		if px := uint64(d.first(tagImageWidth)) * uint64(d.first(tagImageLength)); !found || px > bestPixels {
+			best, bestTables, bestPixels, found = jpg, tables, px, true
 		}
 	}
-	if best == nil {
+	if !found {
 		return nil, errNoRawPreview
 	}
-	return best, nil
+	return joinedJPEG(best, bestTables), nil
 }
 
-// previewJPEG is d's image as a JPEG stream when it is an 8-bit JPEG
-// one, nil otherwise.
-func previewJPEG(b []byte, d tiffIFD) []byte {
+// previewOf is d's image when it is an 8-bit JPEG one: its JPEG stream's
+// bytes in b, and the tables kept apart from it that go back in (nil when
+// there are none); ok false otherwise.
+func previewOf(b []byte, d tiffIFD) (jpg, tables []byte, ok bool) {
 	switch d.first(tagPhotometric) {
 	case cPhotometricYCbCr, cPhotometricRGB, cPhotometricGray:
 	default:
-		return nil // linear raw, a sensor's mosaic, Apple's depth map...
+		return nil, nil, false // linear raw, a sensor's mosaic, Apple's depth map...
 	}
 	for _, bits := range d[tagBitsPerSample] {
 		if bits != 8 {
-			return nil
+			return nil, nil, false
 		}
 	}
 	slice := func(off, n uint32) []byte {
@@ -126,32 +159,40 @@ func previewJPEG(b []byte, d tiffIFD) []byte {
 		}
 		return b[off : off+n]
 	}
-	var jpg []byte
 	switch d.first(tagCompression) {
 	case cCompressionJPEG:
 		offs, counts := d[tagStripOffsets], d[tagStripByteCounts]
 		if len(offs) != 1 || len(counts) != 1 {
-			return nil // tiled or in strips: not a preview
+			return nil, nil, false // tiled or in strips: not a preview
 		}
 		jpg = slice(offs[0], counts[0])
 		// The tables may be kept apart, once for every strip: SOI, the
 		// tables, EOI, which go back between the strip's SOI and the rest.
 		if t := d[tagJPEGTables]; jpg != nil && len(t) > 4 {
-			tables := make([]byte, len(t))
+			tb := make([]byte, len(t))
 			for i, v := range t {
-				tables[i] = byte(v)
+				tb[i] = byte(v)
 			}
-			if bytes.HasPrefix(tables, []byte{0xff, 0xd8}) && bytes.HasSuffix(tables, []byte{0xff, 0xd9}) {
-				jpg = append(append([]byte{}, tables[:len(tables)-2]...), jpg[2:]...)
+			if bytes.HasPrefix(tb, []byte{0xff, 0xd8}) && bytes.HasSuffix(tb, []byte{0xff, 0xd9}) {
+				return jpg, tb, true
 			}
 		}
 	case cCompressionOldJPEG:
 		jpg = slice(d.first(tagJPEGIF), d.first(tagJPEGIFLength))
 	}
 	if !bytes.HasPrefix(jpg, []byte{0xff, 0xd8}) {
-		return nil
+		return nil, nil, false
 	}
-	return jpg
+	return jpg, nil, true
+}
+
+// joinedJPEG is the JPEG stream previewOf's parts make: jpg itself, or
+// with tables put back between its SOI and the rest.
+func joinedJPEG(jpg, tables []byte) []byte {
+	if tables == nil {
+		return jpg
+	}
+	return append(append([]byte{}, tables[:len(tables)-2]...), jpg[2:]...)
 }
 
 // tiffIFDs reads b's IFD0 chain and every sub-image directory, each once.
@@ -166,6 +207,7 @@ func tiffIFDs(b []byte) ([]tiffIFD, error) {
 	var out []tiffIFD
 	seen := map[uint32]bool{}
 	queue := []uint32{bo.Uint32(b[4:8])}
+	left := uint64(cMaxRawValues)
 	for len(queue) > 0 && len(out) < cMaxRawIFDs {
 		off := queue[0]
 		queue = queue[1:]
@@ -173,7 +215,7 @@ func tiffIFDs(b []byte) ([]tiffIFD, error) {
 			continue
 		}
 		seen[off] = true
-		d, next, ok := readIFD(b, bo, off)
+		d, next, ok := readIFD(b, bo, off, &left)
 		if !ok {
 			continue
 		}
@@ -186,9 +228,10 @@ func tiffIFDs(b []byte) ([]tiffIFD, error) {
 	return out, nil
 }
 
-// readIFD reads the directory at off: the tags rawPreview uses, and the
-// next directory's offset.
-func readIFD(b []byte, bo binary.ByteOrder, off uint32) (d tiffIFD, next uint32, ok bool) {
+// readIFD reads the directory at off: the tags rawPreview uses - as many
+// values of each as it looks at (maxValues), out of the left the whole
+// parse may still read - and the next directory's offset.
+func readIFD(b []byte, bo binary.ByteOrder, off uint32, left *uint64) (d tiffIFD, next uint32, ok bool) {
 	if uint64(off)+2 > uint64(len(b)) {
 		return nil, 0, false
 	}
@@ -207,7 +250,15 @@ func readIFD(b []byte, bo binary.ByteOrder, off uint32) (d tiffIFD, next uint32,
 		default:
 			continue
 		}
-		size := map[uint16]uint64{1: 1, 3: 2, 4: 4, 7: 1, 13: 4}[typ]
+		var size uint64
+		switch typ {
+		case 1, 7: // BYTE, UNDEFINED
+			size = 1
+		case 3: // SHORT
+			size = 2
+		case 4, 13: // LONG, IFD
+			size = 4
+		}
 		if size == 0 || count == 0 || count > 1<<20 {
 			continue
 		}
@@ -219,6 +270,11 @@ func readIFD(b []byte, bo binary.ByteOrder, off uint32) (d tiffIFD, next uint32,
 			}
 			data = b[at : at+count*size]
 		}
+		count = min(count, maxValues(tag))
+		if count > *left {
+			continue
+		}
+		*left -= count
 		vals := make([]uint32, count)
 		for j := range vals {
 			switch size {

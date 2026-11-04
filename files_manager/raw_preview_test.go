@@ -9,6 +9,7 @@ import (
 	"image/color"
 	"image/jpeg"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -303,4 +304,98 @@ func TestDecodeStillOfARealRaw(t *testing.T) {
 	if img.Bounds().Dx() < 1000 {
 		t.Fatalf("decoded %v: a thumbnail, not the preview", img.Bounds())
 	}
+}
+
+// rawBomb is a little-endian TIFF of a region of 1 MiB, then dirs
+// directories chained, each with every tag rawPreview reads, each a
+// million BYTEs on that region - or, with preview, each directory a JPEG
+// strip of the whole region, its first 4 KiB the JPEG tables to put back
+// in.
+func rawBomb(dirs int, preview bool) []byte {
+	le := binary.LittleEndian
+	const region, tables = 1 << 20, 4 << 10
+	tags := []uint16{tagSubfileType, tagImageWidth, tagImageLength, tagBitsPerSample, tagCompression, tagPhotometric,
+		tagStripOffsets, tagStripByteCounts, tagSubIFDs, tagJPEGTables, tagJPEGIF, tagJPEGIFLength, tagDNGVersion}
+	b := make([]byte, 8+region)
+	copy(b, "II*\x00")
+	le.PutUint32(b[4:], uint32(len(b)))
+	copy(b[8:], []byte{0xff, 0xd8})
+	copy(b[8+tables-2:], []byte{0xff, 0xd9})
+	one := map[uint16]uint32{tagCompression: cCompressionJPEG, tagPhotometric: cPhotometricYCbCr, tagBitsPerSample: 8,
+		tagStripOffsets: 8, tagStripByteCounts: region, tagImageWidth: 1, tagImageLength: 1}
+	for i := 0; i < dirs; i++ {
+		at := uint32(len(b))
+		entries := make([]byte, 2+len(tags)*12+4)
+		le.PutUint16(entries, uint16(len(tags)))
+		for j, tag := range tags {
+			e := entries[2+j*12:]
+			le.PutUint16(e, tag)
+			le.PutUint16(e[2:], 1)     // BYTE
+			le.PutUint32(e[4:], 1<<20) // a million of them
+			le.PutUint32(e[8:], 8)     // all on the region
+			if v, ok := one[tag]; ok && preview {
+				le.PutUint16(e[2:], 4) // one LONG
+				le.PutUint32(e[4:], 1)
+				le.PutUint32(e[8:], v)
+			}
+			if tag == tagJPEGTables && preview {
+				le.PutUint32(e[4:], tables)
+			}
+		}
+		next := uint32(0)
+		if i < dirs-1 {
+			next = at + uint32(len(entries))
+		}
+		le.PutUint32(entries[len(entries)-4:], next)
+		b = append(b, entries...)
+	}
+	return b
+}
+
+// A crafted camera raw of a megabyte - 64 directories of every tag the
+// parser reads, each a million values on the same bytes - held 3.4 GB
+// before the values were capped (maxValues, cMaxRawValues): it is read
+// within a few MiB, and a preview put together once, not once for each
+// directory that has one.
+func TestCraftedRawIsCheapToRead(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		preview bool
+	}{{"every tag a million values", false}, {"64 previews with tables", true}} {
+		b := rawBomb(cMaxRawIFDs, c.preview)
+		var ifds []tiffIFD
+		var jpg []byte
+		var err error
+		n := allocatedBy(func() {
+			ifds, _ = tiffIFDs(b)
+			_ = isCameraRaw(b)
+			jpg, err = rawPreview(b)
+		})
+		if len(ifds) != cMaxRawIFDs {
+			t.Fatalf("%s: %d directories read", c.name, len(ifds))
+		}
+		if c.preview && (err != nil || len(jpg) != 1<<20+4<<10-4) {
+			t.Fatalf("%s: a preview of %d bytes, %v", c.name, len(jpg), err)
+		}
+		if n > 12<<20 {
+			t.Errorf("%s: %d MiB allocated for a %d KiB file", c.name, n>>20, len(b)>>10)
+		}
+		for _, d := range ifds {
+			for tag, v := range d {
+				if uint64(len(v)) > maxValues(tag) {
+					t.Fatalf("%s: tag %d kept %d values", c.name, tag, len(v))
+				}
+			}
+		}
+	}
+}
+
+// allocatedBy is what f allocates, in bytes.
+func allocatedBy(f func()) uint64 {
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	f()
+	runtime.ReadMemStats(&after)
+	return after.TotalAlloc - before.TotalAlloc
 }

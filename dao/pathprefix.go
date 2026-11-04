@@ -40,3 +40,14 @@ func underPrefix(col, prefix string, direct bool) (string, []any) {
 	}
 	return cond, args
 }
+
+// exactPath is the condition for col holding exactly one path, whose
+// arguments are that path twice. The path columns are utf8mb4_bin, which
+// MariaDB compares PAD SPACE: "/a.txt" = "/a.txt " holds, and the unique
+// key on files.path takes the two for one path - so a change or a delete
+// of a name ending in spaces reached the file without them, or the other
+// way round. Their lengths compared too, only the same bytes match, and =
+// still reads the index.
+func exactPath(col string) string {
+	return col + " = ? and length(" + col + ") = length(?)"
+}

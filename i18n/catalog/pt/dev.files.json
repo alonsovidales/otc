@@ -2,6 +2,7 @@
   "dev.files.archive_offset": {"text": "a posição {offset} está fora do ficheiro comprimido"},
   "dev.files.archive_too_big": {"text": "o ficheiro comprimido tem {size} bytes: transfere-o por partes"},
   "dev.files.asset_not_found": {"text": "recurso não encontrado"},
+  "dev.files.bad_path": {"text": "nenhum ficheiro pode ser guardado como {path}: um caminho começa por /, não termina em / e nenhum dos seus nomes é . ou .."},
   "dev.files.bad_size": {"text": "tamanho inválido"},
   "dev.files.chunk_too_big": {"text": "bloco com mais de {limit} bytes"},
   "dev.files.cloud_ids_failed": {"text": "erro ao verificar os IDs do iCloud: {detail}"},
@@ -33,6 +34,7 @@
   "dev.files.memories_bad_date": {"text": "o pedido precisa de uma data no formato YYYY-MM-DD e de um período de um dia, uma semana ou um mês"},
   "dev.files.memories_bad_hide": {"text": "nada para ocultar: o pedido não indica uma foto, um dia, uma memória nem uma pessoa"},
   "dev.files.memories_off": {"text": "Neste dia está desativado: ativa-o nas Definições para veres as tuas memórias"},
+  "dev.files.name_differs_by_spaces": {"text": "não é possível guardar «{name}»: há aqui um ficheiro com o mesmo nome com ou sem espaços no fim, e o dispositivo guarda apenas um deles: muda o nome de um"},
   "dev.files.no_low_res_photos": {"text": "aí não há fotos para partilhar em baixa resolução"},
   "dev.files.no_media_to_share": {"text": "aí não há fotos nem vídeos para partilhar"},
   "dev.files.no_path": {"text": "sem caminho"},
@@ -76,6 +78,7 @@
   "dev.files.storage_full": {"text": "não há espaço suficiente no dispositivo: isto precisa de {need} e só restam {left}"},
   "dev.files.stream_failed": {"text": "não foi possível preparar a reprodução"},
   "dev.files.too_large_to_open": {"text": "este ficheiro é demasiado grande para abrir aqui ({size}): transfere-o em vez disso"},
+  "dev.files.too_large_to_process": {"text": "o ficheiro tem {size}, mais do que este dispositivo consegue processar de uma vez (no máximo {limit})"},
   "dev.files.upload_bad_hash": {"text": "o conteúdo do carregamento não corresponde ao seu hash"},
   "dev.files.upload_failed": {"text": "erro ao tentar carregar o ficheiro: {detail}"},
   "dev.files.upload_finish_failed": {"text": "erro ao concluir o carregamento: {detail}"},
@@ -93,5 +96,6 @@
   "dev.files.video_no_frames": {"text": "não foi possível extrair nenhum fotograma do vídeo"},
   "dev.files.video_no_frames_extracted": {"text": "nenhum fotograma extraído do vídeo"},
   "dev.files.video_not_cut": {"text": "não foi possível cortar o vídeo, por isso nada foi publicado: tenta novamente ou publica-o sem o cortar"},
-  "dev.files.video_not_reduced": {"text": "não foi possível reduzir o vídeo para a publicação e, com {size}, é demasiado grande para o partilhar tal como está"}
+  "dev.files.video_not_reduced": {"text": "não foi possível reduzir o vídeo para a publicação e, com {size}, é demasiado grande para o partilhar tal como está"},
+  "dev.files.whole_library": {"text": "não é possível eliminar toda a biblioteca de uma vez: elimina antes as suas pastas ou ficheiros"}
 }

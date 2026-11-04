@@ -176,7 +176,7 @@ func TestProcessingAVideoWritesBothThumbnails(t *testing.T) {
 	file := storedFile(t, ses, h, "/Phone/clip.mp4", "video/mp4", content)
 	referenced(mock, h)
 	expectNoAlert(mock)
-	if !mg.processMedia(ses, file, blobPath(h), content, stageThumbnail) {
+	if !mg.processMedia(ses, file, blobPath(h), content, nil, stageThumbnail) {
 		t.Fatal("processing failed")
 	}
 	noAlert(t, mock)
@@ -206,7 +206,7 @@ func TestKeptOutContentGetsBothThumbnails(t *testing.T) {
 	referenced(mock, h) // dropIfOrphaned
 	pendingCleared(mock, h)
 
-	mg.processMediaContent(ses, file, blobPath(h), testJPEG(t, 1200, 900, 0))
+	mg.processMediaContent(ses, file, blobPath(h), testJPEG(t, 1200, 900, 0), nil)
 	allMet(t, mock)
 	if w, hh := storedSize(t, ses, thumbnailPath(h)); w != 1000 || hh != 750 {
 		t.Errorf("big thumbnail %dx%d", w, hh)

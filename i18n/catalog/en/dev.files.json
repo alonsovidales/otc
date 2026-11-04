@@ -2,6 +2,7 @@
   "dev.files.archive_offset": {"text": "offset {offset} outside the archive", "args": [["offset", "int"]]},
   "dev.files.archive_too_big": {"text": "the archive is {size} bytes: download it in parts", "args": [["size", "int"]]},
   "dev.files.asset_not_found": {"text": "asset not found"},
+  "dev.files.bad_path": {"text": "no file can be saved as {path}: a path starts with /, doesn't end in /, and none of the names in it is . or ..", "args": [["path", "user"]]},
   "dev.files.bad_size": {"text": "bad size"},
   "dev.files.chunk_too_big": {"text": "chunk over {limit} bytes", "args": [["limit", "int"]]},
   "dev.files.cloud_ids_failed": {"text": "error checking cloud ids: {detail}", "args": [["detail", "text"]]},
@@ -33,6 +34,7 @@
   "dev.files.memories_bad_date": {"text": "the request needs a date written YYYY-MM-DD and a period of a day, a week or a month"},
   "dev.files.memories_bad_hide": {"text": "nothing to hide: the request doesn't name a photo, a day, a memory or a person"},
   "dev.files.memories_off": {"text": "On this day is off: turn it on in Settings to see your memories"},
+  "dev.files.name_differs_by_spaces": {"text": "\"{name}\" can't be saved: a file here has the same name with or without spaces at its end, and the device keeps only one of them - rename one", "args": [["name", "user"]]},
   "dev.files.no_low_res_photos": {"text": "there are no photos to share in low resolution there"},
   "dev.files.no_media_to_share": {"text": "there are no photos or videos to share there"},
   "dev.files.no_path": {"text": "no path"},
@@ -76,6 +78,7 @@
   "dev.files.storage_full": {"text": "not enough space on the device: this needs {need}, and only {left} is left", "args": [["need", "bytes"], ["left", "bytes"]]},
   "dev.files.stream_failed": {"text": "could not prepare the stream"},
   "dev.files.too_large_to_open": {"text": "this file is too large to open here ({size}): download it instead", "args": [["size", "bytes"]]},
+  "dev.files.too_large_to_process": {"text": "the file is {size}, more than this device can process at once (at most {limit})", "args": [["size", "bytes"], ["limit", "bytes"]]},
   "dev.files.upload_bad_hash": {"text": "the upload's content doesn't match its hash"},
   "dev.files.upload_failed": {"text": "error trying to upload file: {detail}", "args": [["detail", "text"]]},
   "dev.files.upload_finish_failed": {"text": "error finishing the upload: {detail}", "args": [["detail", "text"]]},
@@ -93,5 +96,6 @@
   "dev.files.video_no_frames": {"text": "could not extract any frames from video"},
   "dev.files.video_no_frames_extracted": {"text": "no frames extracted from video"},
   "dev.files.video_not_cut": {"text": "the video could not be cut, so nothing was posted: try again, or post it without cutting it"},
-  "dev.files.video_not_reduced": {"text": "the video could not be made smaller for the post, and at {size} it is too large to share as it is", "args": [["size", "bytes"]]}
+  "dev.files.video_not_reduced": {"text": "the video could not be made smaller for the post, and at {size} it is too large to share as it is", "args": [["size", "bytes"]]},
+  "dev.files.whole_library": {"text": "the whole library can't be deleted at once: delete its folders or files instead"}
 }

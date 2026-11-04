@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -134,7 +136,7 @@ func TestProcessingGivesThePhotoItsDateTaken(t *testing.T) {
 	referenced(mock, h)
 	expectNoAlert(mock)
 	mem := mg.memories.gen.Load()
-	if !mg.processMedia(ses, file, blobPath(h), gps, stageThumbnail) {
+	if !mg.processMedia(ses, file, blobPath(h), gps, nil, stageThumbnail) {
 		t.Fatal("processing failed")
 	}
 	noAlert(t, mock)
@@ -155,7 +157,7 @@ func TestProcessingGivesThePhotoItsDateTaken(t *testing.T) {
 	expectMove(mock, h, at(2021, 4, 11, 20, 47, 53), 1)
 	mock.MatchExpectationsInOrder(false)
 	mem = mg.memories.gen.Load()
-	mg.processMedia(ses, file, blobPath(h), heic, stageThumbnail)
+	mg.processMedia(ses, file, blobPath(h), heic, nil, stageThumbnail)
 	if mg.memories.gen.Load() == mem {
 		t.Error("a lower-case .heic's date not read")
 	}
@@ -319,5 +321,110 @@ func TestReadStoredMetadata(t *testing.T) {
 	}
 	if _, err := mg.readStoredMetadata(ses, &pb.File{Hash: "x", Mime: "video/mp4"}); !errors.Is(err, errMetadataUnread) {
 		t.Errorf("a video with no stream: %v", err)
+	}
+}
+
+// trackedReads is a guard that records the content each job holds, in
+// order ("<hash> true" when it starts, "<hash> false" when it ends).
+func trackedReads(mg *Manager) func() []string {
+	var mu sync.Mutex
+	var seen []string
+	mg.guard = newProcessingGuard(func(hash string, on bool) {
+		mu.Lock()
+		defer mu.Unlock()
+		seen = append(seen, fmt.Sprintf("%s %v", hash, on))
+	}, false)
+	return func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Clone(seen)
+	}
+}
+
+// putAside sets hash aside for the test, as two deaths while it was
+// processed would.
+func putAside(t *testing.T, mg *Manager, hash string) {
+	t.Helper()
+	l, path := mg.setAsideList()
+	l.mu.Lock()
+	l.loadLocked(path)
+	l.entries[hash] = setAsideEntry{At: time.Now(), Binary: binaryID()}
+	l.saveLocked(path)
+	l.mu.Unlock()
+	t.Cleanup(func() {
+		l.mu.Lock()
+		delete(l.entries, hash)
+		l.saveLocked(path)
+		l.mu.Unlock()
+	})
+}
+
+// The passes that read metadata - the dates taken, Places' positions -
+// read each content as the processing guard's job, so that after a death
+// what is being read is recorded (and set aside at a second one, instead
+// of stopping the pass at every start), and neither reads content set
+// aside.
+func TestMetadataPassesRecordWhatTheyRead(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	noUploadsLately()
+	gps, err := os.ReadFile("../exifinfo/testdata/gps_test.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := func(i int) string { return fmt.Sprintf("%064x", 0xda80+i) }
+	photo, aside := h(1), h(2)
+	for _, hash := range []string{photo, aside} {
+		if err := blobstore.WriteBytes(blobPath(hash), ses, gps); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(thumbnailPath(hash), []byte("thumb"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() {
+		for _, hash := range []string{photo, aside} {
+			os.Remove(blobPath(hash))
+			os.Remove(thumbnailPath(hash))
+		}
+	})
+	want := []string{photo + " true", photo + " false"}
+
+	db, mock, _ := sqlmock.New()
+	t.Cleanup(func() { db.Close() })
+	mg := &Manager{dao: dao.NewWithDB(db)}
+	reads := trackedReads(mg)
+	putAside(t, mg, aside)
+	datesBackfillState(mock, "", 0)
+	mediaPage(mock, "",
+		&pb.File{Hash: photo, Mime: "image/jpeg", Path: "/Drive/a.jpg"},
+		&pb.File{Hash: aside, Mime: "image/jpeg", Path: "/Drive/b.jpg"},
+	)
+	expectMove(mock, photo, at(2008, 10, 22, 16, 28, 39), 1)
+	mock.ExpectExec("update `settings` set `dates_taken_backfilled` = 1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mg.BackfillDatesTaken(ses)
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+	if got := reads(); !slices.Equal(got, want) {
+		t.Errorf("the dates' pass held %v, want %v", got, want)
+	}
+
+	db2, mock2, _ := sqlmock.New()
+	t.Cleanup(func() { db2.Close() })
+	mg = placesOn(&Manager{dao: dao.NewWithDB(db2)})
+	reads = trackedReads(mg)
+	mock2.ExpectQuery("select `locations_backfilled` from `settings`").WillReturnRows(sqlmock.NewRows([]string{"d"}).AddRow(0))
+	when := at(2020, 1, 2, 3, 4, 5)
+	mock2.ExpectQuery("left join `photo_locations`").WithArgs("", cLocationBackfillPage).
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).
+			AddRow(photo, "image/jpeg", when, when, "/p/a.jpg", 10).AddRow(aside, "image/jpeg", when, when, "/p/b.jpg", 10))
+	mock2.ExpectExec("insert into `photo_locations`").WithArgs(photo, sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock2.ExpectExec("update `settings` set `locations_backfilled` = 1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mg.BackfillLocations(ses)
+	if err := mock2.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+	if got := reads(); !slices.Equal(got, want) {
+		t.Errorf("Places' pass held %v, want %v", got, want)
 	}
 }

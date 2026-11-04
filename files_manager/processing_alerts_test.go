@@ -4,6 +4,7 @@ package filesmanager
 
 import (
 	"bytes"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"image"
@@ -317,7 +318,7 @@ func TestKeptOutFailureInReprocessIsNotAlerted(t *testing.T) {
 	referenced(mock, h)
 	expectNoAlert(mock)
 
-	mg.processMediaContent(ses, file, blobPath(h), corruptJPEG(t))
+	mg.processMediaContent(ses, file, blobPath(h), corruptJPEG(t), nil)
 	noAlert(t, mock)
 }
 
@@ -331,7 +332,7 @@ func TestHEICConversionFailure(t *testing.T) {
 	keptOut(mg)
 	expectAlert(mock, "IMG_1.HEIC could not be converted from HEIC")
 	referenced(mock, h)
-	if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Phone/IMG_1.HEIC", Mime: "image/heic"}, blobPath(h), heicJunk, stageThumbnail) {
+	if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Phone/IMG_1.HEIC", Mime: "image/heic"}, blobPath(h), heicJunk, nil, stageThumbnail) {
 		t.Error("a broken HEIC reported success")
 	}
 	allMet(t, mock)
@@ -342,7 +343,7 @@ func TestHEICConversionFailure(t *testing.T) {
 	mock.ExpectQuery(reUnder).WillReturnRows(hashRows(h))
 	referenced(mock, h)
 	expectNoAlert(mock)
-	if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Private/IMG_1.HEIC", Mime: "image/heic"}, blobPath(h), heicJunk, stageThumbnail) {
+	if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Private/IMG_1.HEIC", Mime: "image/heic"}, blobPath(h), heicJunk, nil, stageThumbnail) {
 		t.Error("a broken HEIC reported success")
 	}
 	noAlert(t, mock)
@@ -358,7 +359,7 @@ func TestKeptOutVideoFailureIsNotAlerted(t *testing.T) {
 	mock.ExpectQuery(reUnder).WillReturnRows(hashRows(h))
 	referenced(mock, h)
 	expectNoAlert(mock)
-	if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Private/clip.mp4", Mime: "video/mp4"}, blobPath(h), []byte("not a video"), stageThumbnail) {
+	if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Private/clip.mp4", Mime: "video/mp4"}, blobPath(h), []byte("not a video"), nil, stageThumbnail) {
 		t.Error("an unreadable video reported success")
 	}
 	noAlert(t, mock)
@@ -414,7 +415,7 @@ func TestHEICByNameStillAlerts(t *testing.T) {
 		keptOut(mg)
 		expectAlert(mock, "IMG_9.HEIC could not be converted from HEIC")
 		referenced(mock, h)
-		if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Phone/IMG_9.HEIC", Mime: c.mime}, blobPath(h), c.content, stageThumbnail) {
+		if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Phone/IMG_9.HEIC", Mime: c.mime}, blobPath(h), c.content, nil, stageThumbnail) {
 			t.Errorf("%s: a broken HEIC reported success", c.mime)
 		}
 		allMet(t, mock)
@@ -608,5 +609,110 @@ func TestResumePendingAnalysisKeepsWhatItCannotRead(t *testing.T) {
 	allMet(t, mock)
 	if len(lanes.fast.jobs) != 1 || lanes.fast.jobs[0].hash != b {
 		t.Errorf("queued: fast %d, analysis %d - want only b", len(lanes.fast.jobs), len(lanes.analysis.jobs))
+	}
+}
+
+// containing matches a text argument that holds the words.
+type containing string
+
+func (c containing) Match(v driver.Value) bool {
+	s, ok := v.(string)
+	return ok && strings.Contains(s, string(c))
+}
+
+// Processing reads content whole within the content budget, and none
+// larger than a decode may hold: the lanes and Reprocess (and the
+// thumbnail backfill, through it) alert it as too large to process,
+// reading nothing of it, and give the budget back once done.
+func TestProcessingReadsWithinTheBudget(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	prev := processedWholeLimit
+	processedWholeLimit = func() int64 { return 1 << 20 }
+	t.Cleanup(func() { processedWholeLimit = prev })
+
+	h := testHash("8")
+	file := storedFile(t, ses, h, "/Scans/huge.tif", "image/tiff", make([]byte, 2<<20))
+	for _, lane := range []string{"thumbnail lane", "reprocess"} {
+		mg, mock, _ := recordingMock(t)
+		mg.contentBudget = newMemBudget(64 << 20)
+		keptOut(mg)
+		mock.ExpectBegin()
+		mock.ExpectQuery("select `uuid`, coalesce\\(length\\(`details`\\), 0\\), `msg_key`, `msg_lines` from `notifications`").
+			WillReturnRows(sqlmock.NewRows([]string{"uuid", "size", "msg_key", "msg_lines"}))
+		mock.ExpectExec("insert into `notifications`").
+			WithArgs(sqlmock.AnyArg(), "", "huge.tif could not be processed", containing("the file is 2.1 MB, more than this device can process at once (at most 1.0 MB)"), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+		if lane == "reprocess" {
+			mg.reprocessOneFile(ses, file, filepath.Dir(blobPath(h)))
+		} else {
+			pendingCleared(mock, h)
+			if mg.thumbnailOf(ses, file) {
+				t.Errorf("%s: content too large to process went on to the analysis", lane)
+			}
+		}
+		allMet(t, mock)
+		if used := mg.contentBudget.used; used != 0 {
+			t.Errorf("%s: %d bytes of the budget held after", lane, used)
+		}
+	}
+
+	// A shared gallery's preview is read whole as GetFile sends a photo:
+	// nothing over what one reply may hold, refused before it is read.
+	big := sized("/Scans/big.tif", "image/tiff", 100<<20)
+	gallery := &Manager{contentBudget: newMemBudget(30 << 20)}
+	gallery.sizesBackfilled.Store(true)
+	if _, _, err := gallery.galleryPreview(ses, big); !errors.Is(err, errTooLargeToProcess) {
+		t.Errorf("a gallery preview of a 100 MB scan: %v", err)
+	}
+
+	// What fits is read, holding its size until it is decoded.
+	mg := &Manager{contentBudget: newMemBudget(64 << 20)}
+	small := storedFile(t, ses, testHash("9"), "/Scans/small.tif", "image/tiff", make([]byte, 512<<10))
+	content, release, err := mg.readForProcessing(ses, blobPath(small.Hash))
+	if err != nil || len(content) != 512<<10 {
+		t.Fatalf("read %d bytes, %v", len(content), err)
+	}
+	if used := mg.contentBudget.used; used != 512<<10 {
+		t.Errorf("held %d bytes while processing", used)
+	}
+	release()
+	if used := mg.contentBudget.used; used != 0 {
+		t.Errorf("held %d bytes after", used)
+	}
+}
+
+// Once decoded, the content's hold on the content budget is given back:
+// the thumbnails, a wait for the tagger still loading, the tagging, faces
+// and the rest ran holding it, and downloads that didn't fit next to a
+// large image waited for its whole analysis.
+func TestProcessingGivesTheBudgetBackOnceDecoded(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	photo := storedFile(t, ses, testHash("a"), "/Photos/p.jpg", "image/jpeg", jpegBytes(t))
+	for _, run := range []string{"analysis lane", "reprocess"} {
+		mg, _, _ := recordingMock(t) // every statement refused: logged
+		mg.contentBudget = newMemBudget(64 << 20)
+		keptOut(mg)
+		held := int64(-1)
+		tg := &fakeTagger{during: func() {
+			mg.contentBudget.mu.Lock()
+			held = mg.contentBudget.used
+			mg.contentBudget.mu.Unlock()
+		}}
+		readyTagger(mg, tg)
+		if run == "reprocess" {
+			mg.reprocessOneFile(ses, photo, filepath.Dir(blobPath(photo.Hash)))
+		} else {
+			mg.processStoredStages(ses, photo, blobPath(photo.Hash), stageAnalysis)
+		}
+		if tg.calls != 1 {
+			t.Fatalf("%s: %d tagging passes", run, tg.calls)
+		}
+		if held != 0 {
+			t.Errorf("%s: %d bytes of the content budget held while tagging", run, held)
+		}
+		if used := mg.contentBudget.used; used != 0 {
+			t.Errorf("%s: %d bytes held after", run, used)
+		}
 	}
 }

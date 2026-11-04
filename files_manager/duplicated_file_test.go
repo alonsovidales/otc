@@ -78,6 +78,8 @@ func TestTakenPathIsErrDuplicatedFile(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
 		mg := keptOut(&Manager{dao: dao.NewWithDB(db)})
+		// No other name the key takes it for (paths.go).
+		mock.ExpectQuery("select `path` from `files` where `path` = \\?").WithArgs("/docs/b.txt").WillReturnRows(sqlmock.NewRows([]string{"path"}))
 		id, _, err := mg.BeginUpload(ses, "/docs/b.txt", int64(len(content)), false, nil, nil, "", "", nil)
 		if err != nil {
 			t.Fatal(err)

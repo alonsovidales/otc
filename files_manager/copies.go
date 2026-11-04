@@ -5,8 +5,10 @@ package filesmanager
 import (
 	"database/sql"
 	"errors"
+	"slices"
 	"strings"
 
+	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -105,8 +107,11 @@ func outermostFolder(path string, folders []string) string {
 // deleted and the answer is a CopyUploadOnlyError naming that folder. Nor
 // when shown (DelFile.hash, the content the client showed for path) is set
 // and path holds other content now: a ContentChangedError, checked before
-// the copies are even looked up. A copy linked after the paths were read
-// stays; one deleted meanwhile is skipped. A folder's path (no file there)
+// the copies are even looked up, and again by the asked path's own delete,
+// which goes first. Every copy is deleted only while it holds that content
+// (delFileIf): one given other content since the paths were read - a sync
+// app's edit - is no copy any more and stays, as one linked after them
+// does; one deleted meanwhile is skipped. A folder's path (no file there)
 // is DelPath's, the flag and shown ignored (issue #116).
 func (mg *Manager) DelEveryCopy(session *session.Session, path, shown string) error {
 	file, err := mg.dao.GetFileByPath(path)
@@ -132,18 +137,28 @@ func (mg *Manager) DelEveryCopy(session *session.Session, path, shown string) er
 			return &CopyUploadOnlyError{Folder: f}
 		}
 	}
+	// The asked path no longer holds the content: given other content
+	// between its row and the copies being read.
+	if !slices.Contains(paths, path) {
+		return &ContentChangedError{}
+	}
 	log.Debug("Deleting every copy of", file.Hash, "-", len(paths), "paths")
 	// Issue #192: what the deleted rows held is checked against the
 	// folders kept out of Images once, as DelPath does.
 	var touched []string
 	defer func() { mg.reconcileAnalysis(session, touched) }()
-	for _, p := range paths {
-		hashes, err := mg.delFile(p)
+	ordered := append([]string{path}, slices.DeleteFunc(slices.Clone(paths), func(p string) bool { return p == path })...)
+	for _, p := range ordered {
+		hashes, err := mg.delFileIf(p, file.Hash)
 		touched = append(touched, hashes...)
-		if errors.Is(err, sql.ErrNoRows) && len(hashes) == 0 {
+		switch {
+		case errors.Is(err, dao.ErrOtherContent) && p == path:
+			return &ContentChangedError{} // before any other copy went
+		case errors.Is(err, dao.ErrOtherContent):
+			continue // given other content meanwhile: no copy any more
+		case errors.Is(err, sql.ErrNoRows) && len(hashes) == 0:
 			continue // deleted meanwhile
-		}
-		if err != nil {
+		case err != nil:
 			return err
 		}
 	}

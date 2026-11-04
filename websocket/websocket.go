@@ -74,7 +74,10 @@ const (
 	// FinishUpload or LinkFile refused because the path already holds
 	// other content (filesmanager.ErrDuplicatedFile). The message beside
 	// it stays as it was, ending in "Duplicated file", which is what apps
-	// released before the code match.
+	// released before the code match. A BeginUpload, an UploadFile, a
+	// FinishUpload or a LinkFile without override whose name another
+	// file's differs from only by spaces at its end carries it too, with
+	// its own message (filesmanager.SpacesNameError).
 	cCodeDuplicatedFile = "duplicated_file"
 
 	// cCodeCopyUploadOnly is RespEnvelope.error_code on a DelFile with
@@ -2665,6 +2668,12 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = i18n.DevFilesUploadStartFailed(devtext.Text(lang, err)).Render(lang)
+			// A name another file's differs from only by spaces at its
+			// end, without override (filesmanager.SpacesNameError): the
+			// clients take it from any step of an upload.
+			if errors.Is(err, filesmanager.ErrDuplicatedFile) {
+				resp.ErrorCode = cCodeDuplicatedFile
+			}
 			contentCode(resp, err)
 			break
 		}

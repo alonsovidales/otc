@@ -380,7 +380,7 @@ func TestKeptOutContentGetsAThumbnailButNoAnalysis(t *testing.T) {
 	expectSentinel(mock)
 
 	file := &pb.File{Hash: hash, Mime: "image/jpeg", Path: "/Private/a.jpg"}
-	mg.processMediaContent(ses, file, blobPath(hash), content)
+	mg.processMediaContent(ses, file, blobPath(hash), content, nil)
 
 	if !mg.hasThumbnail(hash) {
 		t.Error("no thumbnail: Files shows it")
@@ -564,12 +564,12 @@ func TestHandBackOfNonMediaClearsItsPendingRow(t *testing.T) {
 // many other files hold it), with no versions, its content still used.
 func expectDelFile(mock sqlmock.Sqlmock, path, hash string, others int) {
 	mock.ExpectBegin()
-	mock.ExpectQuery("select `hash` from `files` where `path` = \\?").WithArgs(path).WillReturnRows(hashRows(hash))
+	mock.ExpectQuery("select `hash` from `files` where `path` = \\?").WithArgs(path, path).WillReturnRows(hashRows(hash))
 	mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\?").WithArgs(hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(others + 1))
 	mock.ExpectQuery("select count\\(\\*\\) from `file_versions` where `hash` = \\?").WithArgs(hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
-	mock.ExpectExec("delete from `files` where `path` = \\?").WithArgs(path).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `files` where `path` = \\?").WithArgs(path, path).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
-	mock.ExpectQuery("select `hash` from `file_versions` where `path` = \\?").WithArgs(path).WillReturnRows(hashRows())
+	mock.ExpectQuery("select `hash` from `file_versions` where `path` = \\?").WithArgs(path, path).WillReturnRows(hashRows())
 	mock.ExpectQuery(reReferenced).WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(others))
 }
 
@@ -711,7 +711,7 @@ func TestOverrideLeavingContentKeptOut(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows(fileCols).AddRow(oldHash, "image/jpeg", now, now, "/Photos/a.jpg", 5))
 	mock.ExpectQuery("select `path` from `upload_only_folders`").WillReturnRows(pathRows())
 	mock.ExpectBegin()
-	mock.ExpectQuery("select `hash` from `files` where `path` = \\? for update").WillReturnRows(hashRows(oldHash))
+	mock.ExpectQuery("select `hash` from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\) for update").WillReturnRows(hashRows(oldHash))
 	mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\? for update").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(2))
 	mock.ExpectQuery("select count\\(\\*\\) from `file_versions` where `hash` = \\?").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec("update `files` set").WillReturnResult(sqlmock.NewResult(0, 1))
@@ -787,7 +787,7 @@ func TestFlagDuringAnalysisDropsWhatItWrote(t *testing.T) {
 	expectSentinel(mock)
 
 	file := &pb.File{Hash: h, Mime: "image/jpeg", Path: "/Private/p.jpg"}
-	mg.processMedia(ses, file, blobPath(h), jpegBytes(t), stageAnalysis)
+	mg.processMedia(ses, file, blobPath(h), jpegBytes(t), nil, stageAnalysis)
 	if tg.calls != 1 {
 		t.Fatalf("%d tagging passes", tg.calls)
 	}

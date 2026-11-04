@@ -13,9 +13,14 @@
     "text": "asset not found",
     "note": "Error reply when a file of the web app itself (a script, a picture) asked through the bridge doesn't exist on the device."
   },
+  "dev.files.bad_path": {
+    "text": "no file can be saved as {path}: a path starts with /, doesn't end in /, and none of the names in it is . or ..",
+    "args": [["path", "user"]],
+    "note": "Error shown after \"error trying to upload file: \" or \"error trying to link file: \" when an app asks to save a file at a path the device refuses: one that doesn't start with /, ends with / (no file name), or has a folder or file named . or ... An app fault. {path} is the path asked for, such as /Photos/../a.jpg."
+  },
   "dev.files.bad_size": {
     "text": "bad size",
-    "note": "Error shown after \"error starting the upload: \" when an app starts an upload with a negative size (an app fault)."
+    "note": "Error shown after \"error starting the upload: \" when an app starts an upload with a negative size, or one larger than any disk (an app fault)."
   },
   "dev.files.chunk_too_big": {
     "text": "chunk over {limit} bytes",
@@ -158,6 +163,11 @@
   "dev.files.memories_off": {
     "text": "On this day is off: turn it on in Settings to see your memories",
     "note": "Error reply when the memories (On this day: photos taken on this day in earlier years) are asked for while the user has the feature turned off in Settings. The apps hide them then, so it is rarely shown. On this day is the feature's name, as in the apps' Settings."
+  },
+  "dev.files.name_differs_by_spaces": {
+    "text": "\"{name}\" can't be saved: a file here has the same name with or without spaces at its end, and the device keeps only one of them - rename one",
+    "args": [["name", "user"]],
+    "note": "Error shown after \"error trying to upload file: \" when a computer or phone uploads a file whose name differs from a file already in the same folder only by spaces at the end of the name (\"notes.txt\" and \"notes.txt \"): the device can't keep both. {name} is the file's name, in quotes so that the spaces at its end show."
   },
   "dev.files.no_low_res_photos": {
     "text": "there are no photos to share in low resolution there",
@@ -349,6 +359,11 @@
     "args": [["size", "bytes"]],
     "note": "Error shown after \"error trying to retrieve file: \" when the app asks the device for a whole photo or file to show it and it is too large for the device to send in one piece (the apps download large files in parts). {size} is the file's size, such as 1.2 GB."
   },
+  "dev.files.too_large_to_process": {
+    "text": "the file is {size}, more than this device can process at once (at most {limit})",
+    "args": [["size", "bytes"], ["limit", "bytes"]],
+    "note": "Error shown after \"{name} could not be processed\" in Alerts, or logged, when a photo or image file is too large for the device to read into memory to make its thumbnail and find what is in it: it is not processed and has no thumbnail. {size} is the file's size and {limit} the largest the device processes, both sizes such as 1.2 GB."
+  },
   "dev.files.upload_bad_hash": {
     "text": "the upload's content doesn't match its hash",
     "note": "Error shown after \"error finishing the upload: \" when the uploaded file arrived damaged: its fingerprint (hash) isn't the one the app computed. The app sends it again."
@@ -429,5 +444,9 @@
     "text": "the video could not be made smaller for the post, and at {size} it is too large to share as it is",
     "args": [["size", "bytes"]],
     "note": "Error shown after \"error trying to create publication: \" when a large video is posted: the device makes a smaller copy for friends, and here it could not, and the original is too large to send to friends instead. {size} is the original video's size, such as 3.2 GB."
+  },
+  "dev.files.whole_library": {
+    "text": "the whole library can't be deleted at once: delete its folders or files instead",
+    "note": "Error shown after \"error trying to delete file: \" when an app asks the device to delete everything in it at once (the path of the whole library, which no app's delete names: an app fault). Nothing is deleted."
   }
 }

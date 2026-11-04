@@ -134,13 +134,13 @@ func TestImageSearchPageServedWithoutItsCopies(t *testing.T) {
 // skipped row) its blob and thumbnails.
 func expectLastDelFile(mock sqlmock.Sqlmock, path, hash string) {
 	mock.ExpectBegin()
-	mock.ExpectQuery("select `hash` from `files` where `path` = \\?").WithArgs(path).WillReturnRows(hashRows(hash))
+	mock.ExpectQuery("select `hash` from `files` where `path` = \\?").WithArgs(path, path).WillReturnRows(hashRows(hash))
 	mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\?").WithArgs(hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 	mock.ExpectQuery("select count\\(\\*\\) from `file_versions` where `hash` = \\?").WithArgs(hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec("delete from `file_tags` where `hash` = \\?").WithArgs(hash).WillReturnResult(sqlmock.NewResult(0, 3))
-	mock.ExpectExec("delete from `files` where `path` = \\?").WithArgs(path).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `files` where `path` = \\?").WithArgs(path, path).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
-	mock.ExpectQuery("select `hash` from `file_versions` where `path` = \\?").WithArgs(path).WillReturnRows(hashRows())
+	mock.ExpectQuery("select `hash` from `file_versions` where `path` = \\?").WithArgs(path, path).WillReturnRows(hashRows())
 	mock.ExpectQuery(reReferenced).WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs(hash).WillReturnRows(sqlmock.NewRows([]string{"id", "person_id"}))
 	mock.ExpectExec("delete from `skipped_analysis` where `hash` in").WithArgs(hash).WillReturnResult(sqlmock.NewResult(0, 0))
@@ -155,11 +155,12 @@ func expectCopiesOf(mock sqlmock.Sqlmock, path, hash string, paths []string, upl
 	mock.ExpectQuery("select `path` from `upload_only_folders`").WillReturnRows(pathRows(uploadOnly...))
 }
 
-// Every path holding the content goes - one kept out of Images too, its
-// flag kept - each as DelFile would, the content with the last one; each
-// counts as a delete for the search tokens, and what they held is checked
-// against the folders kept out once. The hash the client showed (DelFile.
-// hash) is the path's content, so the delete goes ahead.
+// Every path holding the content goes - the one asked for first, one kept
+// out of Images too, its flag kept - each as DelFile would, the content
+// with the last one; each counts as a delete for the search tokens, and
+// what they held is checked against the folders kept out once. The hash
+// the client showed (DelFile.hash) is the path's content, so the delete
+// goes ahead.
 func TestDelEveryCopyDeletesEveryPath(t *testing.T) {
 	_, ses := galleryTestEnv(t)
 	mg, mock, seen := recordingMock(t)
@@ -170,9 +171,9 @@ func TestDelEveryCopyDeletesEveryPath(t *testing.T) {
 	paths := []string{"/Phone/a.jpg", "/Private/a.jpg", "/android/x/Download/a.jpg"}
 
 	expectCopiesOf(mock, "/android/x/Download/a.jpg", h, paths, "/Backups/")
-	expectDelFile(mock, paths[0], h, 2)
-	expectDelFile(mock, paths[1], h, 1)
-	expectLastDelFile(mock, paths[2], h)
+	expectDelFile(mock, paths[2], h, 2)
+	expectDelFile(mock, paths[0], h, 1)
+	expectLastDelFile(mock, paths[1], h)
 	mock.ExpectQuery(reVisible).WillReturnRows(hashRows())
 	mock.ExpectQuery(reUnder).WillReturnRows(hashRows())
 	expectSentinel(mock)
@@ -242,10 +243,10 @@ func TestDelEveryCopySkipsACopyGoneMeanwhile(t *testing.T) {
 	h := testHash("6")
 	onDisk(t, h, true)
 	expectCopiesOf(mock, "/b.jpg", h, []string{"/a.jpg", "/b.jpg"})
-	mock.ExpectBegin()
-	mock.ExpectQuery("select `hash` from `files` where `path` = \\?").WithArgs("/a.jpg").WillReturnError(sql.ErrNoRows)
-	mock.ExpectRollback()
 	expectLastDelFile(mock, "/b.jpg", h)
+	mock.ExpectBegin()
+	mock.ExpectQuery("select `hash` from `files` where `path` = \\?").WithArgs("/a.jpg", "/a.jpg").WillReturnError(sql.ErrNoRows)
+	mock.ExpectRollback()
 	expectSentinel(mock)
 
 	if err := mg.DelEveryCopy(ses, "/b.jpg", ""); err != nil {
@@ -254,6 +255,82 @@ func TestDelEveryCopySkipsACopyGoneMeanwhile(t *testing.T) {
 	metUpToSentinel(t, mock)
 	if _, err := os.Stat(blobPath(h)); !os.IsNotExist(err) {
 		t.Errorf("the content is still there: %v", err)
+	}
+}
+
+// otherContentAt is a delete's transaction finding path given other
+// content (now) since it was read: rolled back, nothing deleted.
+func otherContentAt(mock sqlmock.Sqlmock, path, now string) {
+	mock.ExpectBegin()
+	mock.ExpectQuery("select `hash` from `files` where `path` = \\? and length").WithArgs(path, path).WillReturnRows(hashRows(now))
+	mock.ExpectRollback()
+}
+
+// A copy given other content while the copies are deleted - a sync app's
+// edit - is no copy any more: it stays, with what it holds now, and the
+// rest go. The path asked for goes first, and given other content itself,
+// nothing at all is deleted.
+func TestDelEveryCopyLeavesContentGivenMeanwhile(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	mg, mock, seen := recordingMock(t)
+	keptOut(mg)
+	h, edited := testHash("6"), testHash("f")
+	onDisk(t, h, true)
+	expectCopiesOf(mock, "/b.jpg", h, []string{"/a.jpg", "/b.jpg"})
+	expectLastDelFile(mock, "/b.jpg", h)
+	otherContentAt(mock, "/a.jpg", edited)
+	expectSentinel(mock)
+	if err := mg.DelEveryCopy(ses, "/b.jpg", h); err != nil {
+		t.Fatal(err)
+	}
+	metUpToSentinel(t, mock)
+	if !seen.ran("delete from `files` where `path` = ? and length(`path`) = length(?)") {
+		t.Error("the asked path wasn't deleted")
+	}
+
+	mg, mock, seen = recordingMock(t)
+	keptOut(mg)
+	onDisk(t, h, true)
+	expectCopiesOf(mock, "/b.jpg", h, []string{"/a.jpg", "/b.jpg"})
+	otherContentAt(mock, "/b.jpg", edited)
+	expectSentinel(mock)
+	checkContentChanged(t, "the asked path edited meanwhile", mg.DelEveryCopy(ses, "/b.jpg", h))
+	metUpToSentinel(t, mock)
+	if seen.ran("delete from") {
+		t.Error("a copy was deleted after the asked path was found changed")
+	}
+	if _, err := os.Stat(blobPath(h)); err != nil {
+		t.Errorf("the content went: %v", err)
+	}
+}
+
+// A folder's file given other content since the folder was listed stays,
+// and so does the folder's flag kept out of Images, the folder not being
+// gone; the rest go.
+func TestDelOfAFolderLeavesAFileGivenOtherContent(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	mg, mock, seen := recordingMock(t)
+	keptOut(mg, "/Trip/")
+	a, b, edited := testHash("1"), testHash("2"), testHash("f")
+	onDisk(t, a, true)
+	onDisk(t, b, true)
+	now := time.Now()
+	mock.ExpectQuery(reByPath).WithArgs("/Trip").WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery("select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` >= \\?").
+		WillReturnRows(sqlmock.NewRows(fileCols).AddRow(a, "image/jpeg", now, now, "/Trip/a.jpg", 7).AddRow(b, "image/jpeg", now, now, "/Trip/b.jpg", 7))
+	mock.ExpectQuery("select `path` from `upload_only_folders`").WillReturnRows(pathRows())
+	expectLastDelFile(mock, "/Trip/a.jpg", a)
+	otherContentAt(mock, "/Trip/b.jpg", edited)
+	expectSentinel(mock)
+	if err := mg.DelPath(ses, "/Trip", ""); err != nil {
+		t.Fatal(err)
+	}
+	metUpToSentinel(t, mock)
+	if seen.ran("out_of_images_folders") {
+		t.Error("the folder's flag went with a file of it left")
+	}
+	if _, err := os.Stat(blobPath(b)); err != nil {
+		t.Errorf("the edited file's old content went: %v", err)
 	}
 }
 
@@ -407,5 +484,58 @@ func TestOutermostFolder(t *testing.T) {
 		if got := outermostFolder(path, folders); got != want {
 			t.Errorf("%s: %q, want %q", path, got, want)
 		}
+	}
+}
+
+// The content shown is checked again by the delete itself: a file given
+// other content between its row being read and the delete is refused as
+// changed, nothing deleted.
+func TestDelPathOfAFileChangedMeanwhile(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	mg, mock, seen := recordingMock(t)
+	keptOut(mg)
+	h, edited := testHash("2"), testHash("f")
+	onDisk(t, h, true)
+	mock.ExpectQuery(reByPath).WithArgs("/Phone/a.jpg").WillReturnRows(fileRow(h, "/Phone/a.jpg"))
+	mock.ExpectQuery("select `path` from `upload_only_folders`").WillReturnRows(pathRows())
+	otherContentAt(mock, "/Phone/a.jpg", edited)
+	expectSentinel(mock)
+	checkContentChanged(t, "edited meanwhile", mg.DelPath(ses, "/Phone/a.jpg", h))
+	metUpToSentinel(t, mock)
+	if seen.ran("delete from") {
+		t.Error("something was deleted")
+	}
+}
+
+// A delete of "" or "/" - which resolvePaths takes for the folder holding
+// every file - is refused before anything is read, with every_copy too:
+// a client's empty relative path used to delete the whole library.
+func TestDelOfTheWholeLibraryIsRefused(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	for _, path := range []string{"", "/", "//"} {
+		for _, everyCopy := range []bool{false, true} {
+			mg, mock, seen := recordingMock(t)
+			keptOut(mg)
+			if everyCopy {
+				mock.ExpectQuery(reByPath).WithArgs(path).WillReturnError(sql.ErrNoRows)
+			}
+			expectSentinel(mock)
+			var err error
+			if everyCopy {
+				err = mg.DelEveryCopy(ses, path, "")
+			} else {
+				err = mg.DelPath(ses, path, "")
+			}
+			if !errors.Is(err, ErrWholeLibrary) {
+				t.Errorf("%q, every copy %v: %v", path, everyCopy, err)
+			}
+			metUpToSentinel(t, mock)
+			if seen.ran("`path` >=") || seen.ran("delete from") {
+				t.Errorf("%q, every copy %v: the library was listed or deleted from", path, everyCopy)
+			}
+		}
+	}
+	if got, want := ErrWholeLibrary.Error(), "the whole library can't be deleted at once: delete its folders or files instead"; got != want {
+		t.Errorf("English %q, want %q", got, want)
 	}
 }

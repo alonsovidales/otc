@@ -11,6 +11,10 @@
     "text": "Datei der Web-App nicht gefunden",
     "en": "asset not found"
   },
+  "dev.files.bad_path": {
+    "text": "keine Datei kann als {path} gespeichert werden: Ein Pfad beginnt mit /, endet nicht auf / und keiner seiner Namen ist . oder ..",
+    "en": "no file can be saved as {path}: a path starts with /, doesn't end in /, and none of the names in it is . or .."
+  },
   "dev.files.bad_size": {
     "text": "ungültige Größe",
     "en": "bad size"
@@ -136,6 +140,10 @@
   "dev.files.memories_off": {
     "text": "An diesem Tag ist ausgeschaltet: Schalte es in den Einstellungen ein, um deine Erinnerungen zu sehen",
     "en": "On this day is off: turn it on in Settings to see your memories"
+  },
+  "dev.files.name_differs_by_spaces": {
+    "text": "„{name}“ kann nicht gespeichert werden: Hier liegt eine Datei mit demselben Namen mit oder ohne Leerzeichen am Ende, und das Gerät behält nur eine davon – benenne eine um",
+    "en": "\"{name}\" can't be saved: a file here has the same name with or without spaces at its end, and the device keeps only one of them - rename one"
   },
   "dev.files.no_low_res_photos": {
     "text": "dort gibt es keine Fotos, die in niedriger Auflösung geteilt werden können",
@@ -309,6 +317,10 @@
     "text": "diese Datei ist zu groß, um sie hier zu öffnen ({size}): Lade sie stattdessen herunter",
     "en": "this file is too large to open here ({size}): download it instead"
   },
+  "dev.files.too_large_to_process": {
+    "text": "die Datei ist {size} groß, mehr als dieses Gerät auf einmal verarbeiten kann (höchstens {limit})",
+    "en": "the file is {size}, more than this device can process at once (at most {limit})"
+  },
   "dev.files.upload_bad_hash": {
     "text": "der Inhalt des Uploads stimmt nicht mit seinem Hash überein",
     "en": "the upload's content doesn't match its hash"
@@ -381,5 +393,9 @@
   "dev.files.video_not_reduced": {
     "text": "das Video konnte für den Beitrag nicht verkleinert werden, und mit {size} ist es zu groß, um es so zu teilen",
     "en": "the video could not be made smaller for the post, and at {size} it is too large to share as it is"
+  },
+  "dev.files.whole_library": {
+    "text": "die gesamte Mediathek kann nicht auf einmal gelöscht werden: Lösche stattdessen ihre Ordner oder Dateien",
+    "en": "the whole library can't be deleted at once: delete its folders or files instead"
   }
 }

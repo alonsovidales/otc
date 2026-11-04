@@ -11,6 +11,10 @@
     "text": "onderdeel van de webapp niet gevonden",
     "en": "asset not found"
   },
+  "dev.files.bad_path": {
+    "text": "er kan geen bestand worden opgeslagen als {path}: een pad begint met /, eindigt niet op / en geen van de namen erin is . of ..",
+    "en": "no file can be saved as {path}: a path starts with /, doesn't end in /, and none of the names in it is . or .."
+  },
   "dev.files.bad_size": {
     "text": "ongeldige grootte",
     "en": "bad size"
@@ -136,6 +140,10 @@
   "dev.files.memories_off": {
     "text": "Op deze dag staat uit: zet het aan in Instellingen om je herinneringen te zien",
     "en": "On this day is off: turn it on in Settings to see your memories"
+  },
+  "dev.files.name_differs_by_spaces": {
+    "text": "“{name}” kan niet worden opgeslagen: hier staat een bestand met dezelfde naam met of zonder spaties aan het eind, en het apparaat bewaart er maar één: geef er één een andere naam",
+    "en": "\"{name}\" can't be saved: a file here has the same name with or without spaces at its end, and the device keeps only one of them - rename one"
   },
   "dev.files.no_low_res_photos": {
     "text": "er zijn daar geen foto’s om in lage resolutie te delen",
@@ -309,6 +317,10 @@
     "text": "dit bestand is te groot om hier te openen ({size}): download het in plaats daarvan",
     "en": "this file is too large to open here ({size}): download it instead"
   },
+  "dev.files.too_large_to_process": {
+    "text": "het bestand is {size}, meer dan dit apparaat in één keer kan verwerken (hoogstens {limit})",
+    "en": "the file is {size}, more than this device can process at once (at most {limit})"
+  },
   "dev.files.upload_bad_hash": {
     "text": "de inhoud van de upload komt niet overeen met de hash",
     "en": "the upload's content doesn't match its hash"
@@ -381,5 +393,9 @@
   "dev.files.video_not_reduced": {
     "text": "de video kon niet kleiner worden gemaakt voor het bericht, en met {size} is hij te groot om zo te delen",
     "en": "the video could not be made smaller for the post, and at {size} it is too large to share as it is"
+  },
+  "dev.files.whole_library": {
+    "text": "de hele bibliotheek kan niet in één keer worden verwijderd: verwijder in plaats daarvan de mappen of bestanden",
+    "en": "the whole library can't be deleted at once: delete its folders or files instead"
   }
 }

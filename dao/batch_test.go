@@ -197,14 +197,14 @@ func TestDelFileByPathHash(t *testing.T) {
 	d := NewWithDB(db)
 
 	mock.ExpectBegin()
-	mock.ExpectQuery("select `hash` from `files` where `path` = \\?").
-		WithArgs("/a.jpg").WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow("abc"))
+	mock.ExpectQuery("select `hash` from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\) for update").
+		WithArgs("/a.jpg", "/a.jpg").WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow("abc"))
 	mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\? for update").
 		WithArgs("abc").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(2))
 	mock.ExpectQuery("select count\\(\\*\\) from `file_versions` where `hash` = \\?").
 		WithArgs("abc").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
-	mock.ExpectExec("delete from `files` where `path` = \\?").
-		WithArgs("/a.jpg").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\)").
+		WithArgs("/a.jpg", "/a.jpg").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	if hash, err := d.DelFileByPathHash("/a.jpg"); err != nil || hash != "abc" {
 		t.Fatalf("got %q, %v", hash, err)
@@ -212,8 +212,8 @@ func TestDelFileByPathHash(t *testing.T) {
 
 	for _, viaHash := range []bool{true, false} {
 		mock.ExpectBegin()
-		mock.ExpectQuery("select `hash` from `files` where `path` = \\?").
-			WithArgs("/none").WillReturnRows(sqlmock.NewRows([]string{"hash"}))
+		mock.ExpectQuery("select `hash` from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\) for update").
+			WithArgs("/none", "/none").WillReturnRows(sqlmock.NewRows([]string{"hash"}))
 		mock.ExpectRollback()
 		if viaHash {
 			if _, err := d.DelFileByPathHash("/none"); err != sql.ErrNoRows {

@@ -11,6 +11,10 @@
     "text": "risorsa non trovata",
     "en": "asset not found"
   },
+  "dev.files.bad_path": {
+    "text": "nessun file può essere salvato come {path}: un percorso inizia con /, non finisce con / e nessuno dei suoi nomi è . o ..",
+    "en": "no file can be saved as {path}: a path starts with /, doesn't end in /, and none of the names in it is . or .."
+  },
   "dev.files.bad_size": {
     "text": "dimensione non valida",
     "en": "bad size"
@@ -136,6 +140,10 @@
   "dev.files.memories_off": {
     "text": "Accadde oggi è disattivato: attivalo nelle Impostazioni per vedere i tuoi ricordi",
     "en": "On this day is off: turn it on in Settings to see your memories"
+  },
+  "dev.files.name_differs_by_spaces": {
+    "text": "impossibile salvare «{name}»: qui c’è un file con lo stesso nome con o senza spazi alla fine, e il dispositivo ne conserva solo uno: rinominane uno",
+    "en": "\"{name}\" can't be saved: a file here has the same name with or without spaces at its end, and the device keeps only one of them - rename one"
   },
   "dev.files.no_low_res_photos": {
     "text": "lì non ci sono foto da condividere in bassa risoluzione",
@@ -309,6 +317,10 @@
     "text": "questo file è troppo grande per aprirlo qui ({size}): scaricalo",
     "en": "this file is too large to open here ({size}): download it instead"
   },
+  "dev.files.too_large_to_process": {
+    "text": "il file è di {size}, più di quanto questo dispositivo possa elaborare in una volta (al massimo {limit})",
+    "en": "the file is {size}, more than this device can process at once (at most {limit})"
+  },
   "dev.files.upload_bad_hash": {
     "text": "il contenuto caricato non corrisponde al suo hash",
     "en": "the upload's content doesn't match its hash"
@@ -381,5 +393,9 @@
   "dev.files.video_not_reduced": {
     "text": "non è stato possibile ridurre il video per il post e, con {size}, è troppo grande per condividerlo così com’è",
     "en": "the video could not be made smaller for the post, and at {size} it is too large to share as it is"
+  },
+  "dev.files.whole_library": {
+    "text": "non si può eliminare l’intera libreria in una volta: elimina invece le sue cartelle o i suoi file",
+    "en": "the whole library can't be deleted at once: delete its folders or files instead"
   }
 }

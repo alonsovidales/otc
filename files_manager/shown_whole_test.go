@@ -3,10 +3,12 @@
 package filesmanager
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -27,8 +29,8 @@ func sized(path, mime string, size int64) *pb.File {
 }
 
 // What GetFile sends whole is a third of the content budget, at least
-// 64 MB - never a HEIC (sent as its JPEG, bounded by the decode budget) or
-// a video (the web composer's trimmer has no other way to read one yet).
+// 64 MB, whatever the file is: a video too (every client streams one or
+// reads it in pieces), and a HEIC, read whole to be converted.
 func TestOverShownWhole(t *testing.T) {
 	mg := &Manager{contentBudget: newMemBudget(1500 << 20)}
 	mg.sizesBackfilled.Store(true)
@@ -45,8 +47,10 @@ func TestOverShownWhole(t *testing.T) {
 		{sized("/scans/a.tif", "image/tiff", 1500<<20), true},
 		{sized("/scans/b.tif", "image/tiff", 400<<20), false},
 		{sized("/docs/c.pdf", "application/pdf", 900<<20), true},
-		{sized("/photos/d.HEIC", "image/heic", 900<<20), false},
-		{sized("/videos/e.mov", "video/quicktime", 3<<30), false},
+		{sized("/photos/d.HEIC", "image/heic", 900<<20), true},
+		{sized("/photos/d2.HEIC", "image/heic", 9<<20), false},
+		{sized("/videos/e.mov", "video/quicktime", 3<<30), true},
+		{sized("/videos/f.mov", "video/quicktime", 7<<20), false},
 	} {
 		if got := mg.overShownWhole(c.f); got != c.over {
 			t.Errorf("%s: over %v, want %v", c.f.Path, got, c.over)
@@ -92,8 +96,8 @@ func TestGetFileRefusesWhatItCantSendWhole(t *testing.T) {
 
 // "More info" reads a stored photo's metadata where it is, through the
 // blob, never the photo whole: a JPEG and a HEIC (by their bytes, not
-// their names) give their EXIF; a TIFF is read only up to the limit, and
-// one whose metadata is past it gives an error, not gigabytes in memory.
+// their names) give their EXIF; a TIFF is read at its directory, however
+// far into the file it is - and only there.
 func TestReadExifReadsTheBlobWhereTheMetadataIs(t *testing.T) {
 	_, ses := galleryTestEnv(t)
 	mg := &Manager{}
@@ -121,14 +125,42 @@ func TestReadExifReadsTheBlobWhereTheMetadataIs(t *testing.T) {
 			t.Errorf("%s: %+v, %v", c.name, ex, err)
 		}
 	}
-	// A TIFF whose first directory is 2 MB in, read up to 1 MB.
+	// A scan whose first directory is 2 MB in, past the 1 MB the search
+	// for a JPEG's segment would go: one tag, its camera's make.
 	tiff := make([]byte, 3<<20)
 	copy(tiff, "II*\x00")
-	binary.LittleEndian.PutUint32(tiff[4:], 2<<20)
+	at := uint32(2 << 20)
+	binary.LittleEndian.PutUint32(tiff[4:], at)
+	entry := tiff[at:]
+	binary.LittleEndian.PutUint16(entry, 1)
+	binary.LittleEndian.PutUint16(entry[2:], 0x010F)
+	binary.LittleEndian.PutUint16(entry[4:], 2)
+	binary.LittleEndian.PutUint32(entry[6:], 6)
+	binary.LittleEndian.PutUint32(entry[10:], at+18)
+	copy(tiff[at+18:], "Epson\x00")
 	f := storedBlob(t, ses, "scan.tif", "image/tiff", tiff)
-	if _, err := mg.readExif(ses, f, 1<<20); err == nil {
-		t.Error("a TIFF's metadata past the limit was found")
+	if ex, err := mg.readExif(ses, f, 1<<20); err != nil || ex.CameraMake != "Epson" {
+		t.Errorf("the scan's directory: %+v, %v", ex, err)
 	}
+	read := &readCount{r: bytes.NewReader(tiff)}
+	if ex, err := exifFrom(read, int64(len(tiff)), 1<<20, "image/tiff", "/scans/scan.tif"); err != nil || ex.CameraMake != "Epson" {
+		t.Errorf("exifFrom: %+v, %v", ex, err)
+	}
+	if read.n > 4<<10 {
+		t.Errorf("read %d bytes of the scan's %d", read.n, len(tiff))
+	}
+}
+
+// readCount counts the bytes read through it.
+type readCount struct {
+	r io.ReaderAt
+	n int
+}
+
+func (c *readCount) ReadAt(p []byte, off int64) (int, error) {
+	n, err := c.r.ReadAt(p, off)
+	c.n += n
+	return n, err
 }
 
 // storedBlob stores content as a blob of its own and returns its row.

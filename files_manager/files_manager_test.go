@@ -438,7 +438,7 @@ func TestDelFileKeepsUnderlyingBlobWhenHashStillReferencedByAnotherPath(t *testi
 	// the delete's own transaction.
 	mock.ExpectBegin()
 	mock.ExpectQuery("select `hash` from `files` where `path` = \\?").
-		WithArgs("/photos/a.jpg").
+		WithArgs("/photos/a.jpg", "/photos/a.jpg").
 		WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow(hash))
 	mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\?").
 		WithArgs(hash).
@@ -447,13 +447,13 @@ func TestDelFileKeepsUnderlyingBlobWhenHashStillReferencedByAnotherPath(t *testi
 		WithArgs(hash).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
 	mock.ExpectExec("delete from `files` where `path` = \\?").
-		WithArgs("/photos/a.jpg").
+		WithArgs("/photos/a.jpg", "/photos/a.jpg").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
 	// Issue #132: the path's kept versions go with it (none here)...
 	mock.ExpectQuery("select `hash` from `file_versions` where `path` = \\?").
-		WithArgs("/photos/a.jpg").
+		WithArgs("/photos/a.jpg", "/photos/a.jpg").
 		WillReturnRows(sqlmock.NewRows([]string{"hash"}))
 	// ...and the check DelFile actually needs: does anything else still
 	// reference this hash - another path or a kept version. 1 means yes.

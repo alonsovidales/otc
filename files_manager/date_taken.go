@@ -165,10 +165,12 @@ var datesBackfillMu sync.Mutex
 // only, paced, giving way to uploads and the processing lanes and stopping
 // for a full reprocess (which applies the rule itself); its place is kept
 // in settings.dates_taken_cursor, so a restart goes on from there, and
-// settings.dates_taken_backfilled ends it. A database before those columns
-// is left alone until its release's script has run. Content whose
-// metadata couldn't be read this time is counted, not retried: processing
-// it again (Reprocess) applies the rule.
+// settings.dates_taken_backfilled ends it. Each read takes the processing
+// guard's turn (jobMetadata): after a death the content being read is
+// recorded, and set aside at a second one, as the lanes' is. A database
+// before those columns is left alone until its release's script has run.
+// Content whose metadata couldn't be read this time is counted, not
+// retried: processing it again (Reprocess) applies the rule.
 func (mg *Manager) BackfillDatesTaken(ses *session.Session) {
 	// blobPath needs the storage path: nothing to read without one (a test
 	// binary's websocket layer has neither).
@@ -218,10 +220,18 @@ func (mg *Manager) BackfillDatesTaken(ses *session.Session) {
 			}
 			after = file.Hash
 			pass.Step(1)
-			if !isMedia(file) {
+			// Content set aside after it was being read at two deaths
+			// (runstate.go) isn't read again: what tries it again (an
+			// update, retrySetAside) processes it, which applies the rule.
+			if !isMedia(file) || mg.isSetAside(file.Hash) {
 				continue
 			}
+			// Each read is the guard's job, the content recorded as in
+			// flight: a file whose metadata takes the process down is set
+			// aside instead of stopping the pass at every start.
+			done := mg.beginProcessing(file.Hash, jobMetadata)
 			ex, err := mg.readMetadataSafely(ses, file)
+			done()
 			if errors.Is(err, os.ErrNotExist) {
 				// Its blob is gone (alerted elsewhere): what brings it
 				// back processes it, and that applies the rule.
@@ -272,12 +282,13 @@ func (mg *Manager) saveDatesCursor(after string) bool {
 }
 
 // readMetadataSafely is readStoredMetadata with a panic in a metadata
-// parser (malformed EXIF) taken as content not read, rather than the end
-// of the process: the backfill runs outside the lanes' guard.
+// parser (a malformed HEIF) taken as content not read, rather than the end
+// of the process: the passes that read metadata (the dates taken, Places)
+// run outside the lanes' recovery.
 func (mg *Manager) readMetadataSafely(ses *session.Session, file *pb.File) (ex *exifinfo.Info, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Error("dates taken: recovered from a panic reading the metadata of", file.Hash, ":", r)
+			log.Error("recovered from a panic reading the metadata of", file.Hash, ":", r)
 			ex, err = nil, errors.Join(errMetadataUnread, fmt.Errorf("%v", r))
 		}
 	}()

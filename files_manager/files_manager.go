@@ -879,7 +879,7 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 	})
 	for _, file := range files {
 		level = zipLevelFor(file.Mime)
-		h := &zip.FileHeader{Name: strings.TrimPrefix(file.Path, prefix), Method: zip.Deflate}
+		h := &zip.FileHeader{Name: zipEntryName(file.Path, prefix), Method: zip.Deflate}
 		h.SetModTime(file.Modified.AsTime())
 		h.SetMode(0644)
 		wr, err := zw.CreateHeader(h)
@@ -1670,9 +1670,10 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 	} else {
 		// Read where the metadata is, never whole (blobstore decrypts only
 		// what a read covers): a JPEG up to its EXIF segment, a HEIC its
-		// boxes and Exif item. A TIFF (a scan, a camera raw) is parsed whole
-		// by the EXIF reader, three copies of it: at most shownWholeLimit of
-		// it is read, within the budget - a 1.5 GB scan took 4.5 GB.
+		// boxes and Exif item, a TIFF (a scan, a camera raw) its
+		// directories. The EXIF parser parsed a TIFF whole, three copies
+		// of it - a 1.5 GB scan took 4.5 GB - and believed what a file
+		// said about its own tags: exifinfo reads only the tags it shows.
 		ex, err = mg.readExif(session, file, mg.shownWholeLimit())
 	}
 	if err != nil {
@@ -1705,8 +1706,8 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 }
 
 // readExif is a stored photo's metadata, read from its blob where it is
-// (exifFrom), never more than limit bytes of it - holding the content
-// budget for the three copies of what a TIFF's parser takes.
+// (exifFrom): the search for a JPEG's EXIF segment goes no further than
+// limit bytes into it.
 func (mg *Manager) readExif(ses *session.Session, file *pb.File, limit int64) (*exifinfo.Info, error) {
 	blob, err := blobstore.Open(blobPath(file.Hash), ses)
 	if err != nil {
@@ -1716,29 +1717,39 @@ func (mg *Manager) readExif(ses *session.Session, file *pb.File, limit int64) (*
 	return mg.exifOfBlob(blob, file, limit)
 }
 
+// cExifReadBytes is what reading a stored photo's metadata holds of the
+// content budget: a JPEG's EXIF segment, a HEIC's boxes, a TIFF's
+// directories and the few values read of them (exifinfo), and the 1 MiB
+// segments the blob decrypts for those reads - never the photo.
+const cExifReadBytes = 8 << 20
+
 // exifOfBlob is readExif of file's blob, already open.
 func (mg *Manager) exifOfBlob(blob blobstore.Blob, file *pb.File, limit int64) (*exifinfo.Info, error) {
-	n := min(blob.Size(), limit)
-	defer mg.ReserveBytes(3 * n)()
-	return exifFrom(blob, n, file.Mime, file.Path)
+	defer mg.ReserveBytes(min(blob.Size(), cExifReadBytes))()
+	return exifFrom(blob, blob.Size(), limit, file.Mime, file.Path)
 }
 
-// exifFrom is extractExif for a photo read at r, size bytes of it at most,
-// told apart by its first bytes: a JPEG is read up to its EXIF segment, a
+// exifFrom is extractExif for a photo read at r (size bytes), told apart
+// by its first bytes: a TIFF (a scan, a camera raw) is read where its
+// directories are, however far into it; a JPEG up to its EXIF segment; a
 // HEIC (or HEIF, AVIF) by its boxes - one named .heic or stored as
-// application/octet-stream included - and anything else as extractExif
-// reads it, a TIFF by the EXIF parser, which reads it whole.
-func exifFrom(r io.ReaderAt, size int64, mime, path string) (*exifinfo.Info, error) {
+// application/octet-stream included; any other image as extractExif reads
+// it, its EXIF segment looked for byte by byte. No read but a TIFF's goes
+// further than limit bytes into the file.
+func exifFrom(r io.ReaderAt, size, limit int64, mime, path string) (*exifinfo.Info, error) {
 	head := make([]byte, 12)
 	n, _ := r.ReadAt(head, 0)
 	head = head[:n]
+	near := io.NewSectionReader(r, 0, min(size, limit))
 	switch {
+	case isTIFF(head):
+		return exifinfo.FromJPEGReader(io.NewSectionReader(r, 0, size))
 	case isJPEGContent(head):
-		return exifinfo.FromJPEGReader(io.NewSectionReader(r, 0, size))
+		return exifinfo.FromJPEGReader(near)
 	case isHeif(head), strings.HasSuffix(path, ".HEIC"):
-		return exifinfo.FromHEICReader(io.NewSectionReader(r, 0, size))
+		return exifinfo.FromHEICReader(near)
 	case strings.HasPrefix(mime, "image/"):
-		return exifinfo.FromJPEGReader(io.NewSectionReader(r, 0, size))
+		return exifinfo.FromJPEGReader(near)
 	default:
 		return nil, devtext.New(i18n.DevFilesExifUnsupported(mime))
 	}
@@ -1786,6 +1797,14 @@ func locationTags(ex *exifinfo.Info) []imagestagger.RAMTag {
 // file's path: when set and the file holds other content now, nothing is
 // deleted (ContentChangedError). A directory's path ignores it.
 func (mg *Manager) DelPath(session *session.Session, path, shown string) error {
+	// Never the whole library: "" and "/" have no row, so resolvePaths
+	// takes them for the folder holding every file. No app's delete names
+	// them; one that did - a client's relative path worked out empty, a
+	// folder synced at the root - took every file, kept version and
+	// content, for good.
+	if strings.Trim(path, "/") == "" {
+		return ErrWholeLibrary
+	}
 	entries, err := mg.resolvePaths([]string{path})
 	if err != nil {
 		return err
@@ -1815,9 +1834,28 @@ func (mg *Manager) DelPath(session *session.Session, path, shown string) error {
 	// Images in one go, rather than per file.
 	var touched []string
 	defer func() { mg.reconcileAnalysis(session, touched) }()
+	kept := false
 	for _, entry := range entries {
-		hashes, err := mg.delFile(entry.Path)
+		// Each file only while it holds what the client showed for it, or
+		// what was found under the folder a moment ago: content synced
+		// over or edited meanwhile is new to whoever is deleting, and
+		// stays. The file asked for is then refused as changed, a file of
+		// the folder skipped.
+		expected := entry.Hash
+		if isFile {
+			expected = shown
+		}
+		hashes, err := mg.delFileIf(entry.Path, expected)
 		touched = append(touched, hashes...)
+		if errors.Is(err, dao.ErrOtherContent) {
+			if isFile {
+				return &ContentChangedError{}
+			}
+			kept = true
+			log.Info("a file of a deleted folder holds other content since it was listed: kept")
+			log.Debug("kept, holding other content now:", entry.Path)
+			continue
+		}
 		if err != nil {
 			return err
 		}
@@ -1826,11 +1864,14 @@ func (mg *Manager) DelPath(session *session.Session, path, shown string) error {
 	// whole delete worked - so it doesn't secretly keep a future folder of
 	// the same name out of Images. Not a deleted file's: "/a/b" can be a
 	// file row next to the folder "/a/b/" (resolvePaths took the file).
-	if !isFile {
+	if !isFile && !kept {
 		mg.clearOutOfImagesUnder(folderPath(path))
 	}
 	return nil
 }
+
+// ErrWholeLibrary is DelPath's refusal of the whole library at once.
+var ErrWholeLibrary error = devtext.New(i18n.DevFilesWholeLibrary())
 
 // DelFile deletes the file at path, with its kept versions and whatever
 // content nothing uses any more.
@@ -1847,12 +1888,20 @@ func (mg *Manager) DelFile(session *session.Session, path string) error {
 // delFile is DelFile, returning the content hashes the deleted rows held
 // (none when nothing was deleted).
 func (mg *Manager) delFile(path string) (hashes []string, err error) {
+	return mg.delFileIf(path, "")
+}
+
+// delFileIf is delFile of path only while it holds expected (any content
+// when ""): a path holding other content - given it since it was read -
+// is left as it is, with dao.ErrOtherContent. The delete's transaction
+// checks and deletes the row it holds locked, so nothing comes between.
+func (mg *Manager) delFileIf(path, expected string) (hashes []string, err error) {
 	// Issue #173: the deleted row's hash comes back from the delete's own
 	// transaction instead of a GetFileByPath beforehand - one query less
 	// per file (every file of a deleted folder comes through here), and
 	// the hash is the one of the row actually deleted. A missing path
 	// still fails with sql.ErrNoRows, as that GetFileByPath did.
-	hash, err := mg.dao.DelFileByPathHash(path)
+	hash, err := mg.dao.DelFileIfHash(path, expected)
 	if err != nil {
 		return nil, err
 	}
@@ -1900,6 +1949,10 @@ func (mg *Manager) delFile(path string) (hashes []string, err error) {
 func (mg *Manager) UploadFile(session *session.Session, path string, content []byte, forceOverride bool, created, modified *timestamppb.Timestamp, cloudID string) (file *pb.File, err error) {
 	// The thumbnails pass waits for uploads to stop (thumbnail_pass.go).
 	noteUploadActivity()
+	// Before anything is written (paths.go).
+	if err := mg.checkNewPath(path); err != nil {
+		return nil, err
+	}
 	mimeType := mimetype.Detect(content)
 	log.Debug("Mime type:", mimeType.String())
 
@@ -2012,6 +2065,9 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 	if modified == nil {
 		modified = timestamppb.Now()
 	}
+	if err := mg.checkNewPath(path); err != nil {
+		return nil, false, err
+	}
 
 	file = &pb.File{
 		Created:  created,
@@ -2040,7 +2096,7 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 		// content's metadata (see git history for the full story).
 		existing, err := mg.dao.GetFileByPath(path)
 		if err != nil {
-			return nil, false, err
+			return nil, false, mg.takenByAnotherName(path, forceOverride, err)
 		}
 		if existing.Hash == hash {
 			if mg.hasBlob(hash) {
@@ -2101,10 +2157,10 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 // that inevitably drifts. content is the file's original, undecoded bytes
 // (whatever format it was stored in - HEIC handling happens right here,
 // same as it always did); targetPath is only used to derive the
-// "<hash>_thumbnail" sibling path.
-func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, targetPath string, content []byte) {
+// "<hash>_thumbnail" sibling path. release is processMedia's.
+func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, targetPath string, content []byte, release func()) {
 	// Issue #192: content kept out of Images gets its thumbnail only.
-	if mg.processMedia(session, file, targetPath, content, mg.guardAnalysis(file.Hash, stageAll)) {
+	if mg.processMedia(session, file, targetPath, content, release, mg.guardAnalysis(file.Hash, stageAll)) {
 		mg.donePendingAnalysis(file.Hash)
 	}
 }
@@ -2144,7 +2200,18 @@ const (
 // callers (processMediaContent, processStoredStages) take the analysis
 // out of stages first for content kept out of Images (guardAnalysis,
 // issue #192), before anything is read or decoded.
-func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetPath string, content []byte, stages mediaStages) bool {
+//
+// release (nil when content holds nothing) gives back what content holds
+// of the content budget (readForProcessing): it is called once content is
+// decoded and no longer needed, so the thumbnails, a wait for the tagger
+// still loading, the tagging, faces, quality and embedding don't keep
+// downloads waiting for room - an image near the limit held nearly all of
+// it for the whole analysis. It must be idempotent: the caller also
+// defers it, for a return before the decode.
+func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetPath string, content []byte, release func(), stages mediaStages) bool {
+	if release == nil {
+		release = func() {}
+	}
 	// Issue #171: the file may be deleted while this runs - its content,
 	// thumbnail and tags were then written for a hash nothing uses.
 	defer mg.dropIfOrphaned(file.Hash)
@@ -2212,6 +2279,9 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			mg.stillFailed(i18n.DevAlertFileNotProcessed, file, content, err)
 			return false
 		}
+		// Nothing below reads the content, only the pixels and exif: the
+		// budget it holds is given back (and the memory is free to go).
+		release()
 
 		// Issue #66 follow-up: a plain JPEG straight from the phone (no
 		// HEIC involved at all - this is what actually reproduced the
@@ -2320,6 +2390,7 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			if err == nil {
 				exif, _ = exifinfo.FromVideo(content)
 			}
+			release()
 		}
 		if err != nil {
 			mg.processingAlert(i18n.DevAlertFileNotProcessed, file, err)
@@ -2595,6 +2666,9 @@ func (mg *Manager) hasBlob(hash string) bool {
 // forceOverride) — the one difference is this never touches disk at all.
 func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOverride bool, created, modified *timestamppb.Timestamp, cloudID string) (file *pb.File, err error) {
 	noteUploadActivity() // a sync's hash-first upload
+	if err := mg.checkNewPath(path); err != nil {
+		return nil, err
+	}
 	existing, err := mg.dao.GetFileByHash(hash)
 	if err == sql.ErrNoRows {
 		return nil, devtext.New(i18n.DevFilesNoSuchHash())
@@ -2633,7 +2707,7 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 	if duplicated {
 		existingAtPath, err := mg.dao.GetFileByPath(path)
 		if err != nil {
-			return nil, err
+			return nil, mg.takenByAnotherName(path, forceOverride, err)
 		}
 		if existingAtPath.Hash == hash {
 			log.Debug("Same file already linked at:", path, hash)

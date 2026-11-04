@@ -2,6 +2,7 @@
   "dev.files.archive_offset": {"text": "Position {offset} außerhalb des Archivs"},
   "dev.files.archive_too_big": {"text": "das Archiv ist {size} Byte groß: Lade es in Teilen herunter"},
   "dev.files.asset_not_found": {"text": "Datei der Web-App nicht gefunden"},
+  "dev.files.bad_path": {"text": "keine Datei kann als {path} gespeichert werden: Ein Pfad beginnt mit /, endet nicht auf / und keiner seiner Namen ist . oder .."},
   "dev.files.bad_size": {"text": "ungültige Größe"},
   "dev.files.chunk_too_big": {"text": "Teil größer als {limit} Byte"},
   "dev.files.cloud_ids_failed": {"text": "Fehler beim Prüfen der Cloud-IDs: {detail}"},
@@ -33,6 +34,7 @@
   "dev.files.memories_bad_date": {"text": "die Anfrage braucht ein Datum im Format YYYY-MM-DD und einen Zeitraum von einem Tag, einer Woche oder einem Monat"},
   "dev.files.memories_bad_hide": {"text": "nichts auszublenden: Die Anfrage nennt kein Foto, keinen Tag, keine Erinnerung und keine Person"},
   "dev.files.memories_off": {"text": "An diesem Tag ist ausgeschaltet: Schalte es in den Einstellungen ein, um deine Erinnerungen zu sehen"},
+  "dev.files.name_differs_by_spaces": {"text": "„{name}“ kann nicht gespeichert werden: Hier liegt eine Datei mit demselben Namen mit oder ohne Leerzeichen am Ende, und das Gerät behält nur eine davon – benenne eine um"},
   "dev.files.no_low_res_photos": {"text": "dort gibt es keine Fotos, die in niedriger Auflösung geteilt werden können"},
   "dev.files.no_media_to_share": {"text": "dort gibt es keine Fotos oder Videos zum Teilen"},
   "dev.files.no_path": {"text": "kein Pfad"},
@@ -76,6 +78,7 @@
   "dev.files.storage_full": {"text": "nicht genug Speicherplatz auf dem Gerät: Das braucht {need}, und es sind nur noch {left} frei"},
   "dev.files.stream_failed": {"text": "die Wiedergabe konnte nicht vorbereitet werden"},
   "dev.files.too_large_to_open": {"text": "diese Datei ist zu groß, um sie hier zu öffnen ({size}): Lade sie stattdessen herunter"},
+  "dev.files.too_large_to_process": {"text": "die Datei ist {size} groß, mehr als dieses Gerät auf einmal verarbeiten kann (höchstens {limit})"},
   "dev.files.upload_bad_hash": {"text": "der Inhalt des Uploads stimmt nicht mit seinem Hash überein"},
   "dev.files.upload_failed": {"text": "Fehler beim Hochladen der Datei: {detail}"},
   "dev.files.upload_finish_failed": {"text": "Fehler beim Abschließen des Uploads: {detail}"},
@@ -93,5 +96,6 @@
   "dev.files.video_no_frames": {"text": "aus dem Video konnten keine Einzelbilder gewonnen werden"},
   "dev.files.video_no_frames_extracted": {"text": "keine Einzelbilder aus dem Video gewonnen"},
   "dev.files.video_not_cut": {"text": "das Video konnte nicht gekürzt werden, deshalb wurde nichts veröffentlicht: Versuche es erneut oder veröffentliche es, ohne es zu kürzen"},
-  "dev.files.video_not_reduced": {"text": "das Video konnte für den Beitrag nicht verkleinert werden, und mit {size} ist es zu groß, um es so zu teilen"}
+  "dev.files.video_not_reduced": {"text": "das Video konnte für den Beitrag nicht verkleinert werden, und mit {size} ist es zu groß, um es so zu teilen"},
+  "dev.files.whole_library": {"text": "die gesamte Mediathek kann nicht auf einmal gelöscht werden: Lösche stattdessen ihre Ordner oder Dateien"}
 }

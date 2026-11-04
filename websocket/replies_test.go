@@ -104,6 +104,9 @@ var headEnglish = []struct {
 	{"dev.files.archive_offset", i18n.DevFilesArchiveOffset(512), fmt.Sprintf("offset %d outside the archive", 512)},
 	{"dev.files.archive_too_big", i18n.DevFilesArchiveTooBig(999), fmt.Sprintf("the archive is %d bytes: download it in parts", 999)},
 	{"dev.files.asset_not_found", i18n.DevFilesAssetNotFound(), "asset not found"},
+	// Paths checked and exact (2026-11): new, so their English is the
+	// catalog's from the start.
+	{"dev.files.bad_path", i18n.DevFilesBadPath("/a/../b.txt"), "no file can be saved as /a/../b.txt: a path starts with /, doesn't end in /, and none of the names in it is . or .."},
 	{"dev.files.bad_size", i18n.DevFilesBadSize(), "bad size"},
 	{"dev.files.chunk_too_big", i18n.DevFilesChunkTooBig(400), fmt.Sprintf("chunk over %d bytes", 400)},
 	{"dev.files.cloud_ids_failed", i18n.DevFilesCloudIdsFailed("boom"), fmt.Sprintf("error checking cloud ids: %s", "boom")},
@@ -132,6 +135,7 @@ var headEnglish = []struct {
 	{"dev.files.locked_by_parent", i18n.DevFilesLockedByParent("Trip", "/Photos"), fmt.Sprintf("%s is inside the upload-only folder %s - unlock %s to unlock it", "Trip", "/Photos", "/Photos")},
 	{"dev.files.locked_by_parent_own", i18n.DevFilesLockedByParentOwn("Trip", "/Photos"), fmt.Sprintf("%s is inside the upload-only folder %s - unlock %s first, then %s", "Trip", "/Photos", "/Photos", "Trip")},
 	{"dev.files.media_not_found", i18n.DevFilesMediaNotFound(), "media not found"},
+	{"dev.files.name_differs_by_spaces", i18n.DevFilesNameDiffersBySpaces("notes.txt "), "\"notes.txt \" can't be saved: a file here has the same name with or without spaces at its end, and the device keeps only one of them - rename one"},
 	{"dev.files.no_low_res_photos", i18n.DevFilesNoLowResPhotos(), "there are no photos to share in low resolution there"},
 	{"dev.files.no_media_to_share", i18n.DevFilesNoMediaToShare(), "there are no photos or videos to share there"},
 	{"dev.files.no_path", i18n.DevFilesNoPath(), "no path"},
@@ -162,7 +166,11 @@ var headEnglish = []struct {
 	{"dev.files.storage_full", i18n.DevFilesStorageFull(3_400_000_000, 1_200_000_000), "not enough space on the device: this needs 3.4 GB, and only 1.2 GB is left"},
 	{"dev.files.stream_failed", i18n.DevFilesStreamFailed(), "could not prepare the stream"},
 	{"dev.files.too_large_to_open", i18n.DevFilesTooLargeToOpen(1_500_000_000), "this file is too large to open here (1.5 GB): download it instead"},
+	// Processing within the content budget (2026-11): new.
+	{"dev.files.too_large_to_process", i18n.DevFilesTooLargeToProcess(2_100_000_000, 760_000_000), "the file is 2.1 GB, more than this device can process at once (at most 760 MB)"},
 	{"dev.files.upload_bad_hash", i18n.DevFilesUploadBadHash(), "the upload's content doesn't match its hash"},
+	// The whole library refused as one delete (2026-11): new.
+	{"dev.files.whole_library", i18n.DevFilesWholeLibrary(), "the whole library can't be deleted at once: delete its folders or files instead"},
 	{"dev.files.upload_failed", i18n.DevFilesUploadFailed("boom"), fmt.Sprintf("error trying to upload file: %s", "boom")},
 	{"dev.files.upload_finish_failed", i18n.DevFilesUploadFinishFailed("boom"), fmt.Sprintf("error finishing the upload: %s", "boom")},
 	{"dev.files.upload_incomplete", i18n.DevFilesUploadIncomplete(10, 900), fmt.Sprintf("upload incomplete: %d of %d bytes", 10, 900)},

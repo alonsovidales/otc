@@ -68,11 +68,11 @@ func (mg *Manager) storeLocation(hash string, ex *exifinfo.Info) {
 }
 
 // readLocation reads the position of stored content from its metadata
-// only (readStoredMetadata). Metadata that is there but holds no position,
+// only (readMetadataSafely). Metadata that is there but holds no position,
 // or can't be parsed, is ok false with no error - read, and never read
 // again; errMetadataUnread is a read to try again.
 func (mg *Manager) readLocation(ses *session.Session, file *pb.File) (lat, lon float64, ok bool, err error) {
-	ex, err := mg.readStoredMetadata(ses, file)
+	ex, err := mg.readMetadataSafely(ses, file)
 	if err != nil {
 		return 0, 0, false, err
 	}
@@ -148,10 +148,15 @@ func (mg *Manager) BackfillLocations(ses *session.Session) {
 			}
 			after = file.Hash
 			bg.Step(1)
-			if _, err := os.Stat(thumbnailPath(file.Hash)); err != nil {
+			// Content set aside (runstate.go) isn't read: the processing
+			// that tries it again writes its row.
+			if _, err := os.Stat(thumbnailPath(file.Hash)); err != nil || mg.isSetAside(file.Hash) {
 				continue
 			}
+			// The guard's job, recorded as the dates' pass is (jobMetadata).
+			done := mg.beginProcessing(file.Hash, jobMetadata)
 			lat, lon, ok, err := mg.readLocation(ses, file)
+			done()
 			if errors.Is(err, os.ErrNotExist) {
 				// Its blob is gone (alerted elsewhere): what brings it
 				// back processes it, and that writes the row.
