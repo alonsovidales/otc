@@ -86,6 +86,7 @@ import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SharedGalleryJob
 import cloud.offthe.otc.proto.SharedGalleryPreview
 import cloud.offthe.otc.proto.SharedGallerySource
+import cloud.offthe.otc.ui.common.SwitchRow
 import cloud.offthe.otc.ui.common.OTCTextField
 import cloud.offthe.otc.ui.common.Share
 import cloud.offthe.otc.ui.common.formatBytes
@@ -100,8 +101,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.foundation.clickable
-import androidx.compose.material3.Switch
 
 /*
  * Port of SharedGalleryShareFlow.swift (issue #180): "Share as gallery" for
@@ -365,10 +364,7 @@ private fun ConfirmContent(preview: SharedGalleryPreview, st: SharedGalleryShare
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
     )
     Spacer(Modifier.height(12.dp))
-    Row(Modifier.fillMaxWidth().clickable { vm.setLowRes(!st.lowRes) }, verticalAlignment = Alignment.CenterVertically) {
-        Text(S.appFilesGalleryLowRes().resolve(), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        Switch(checked = st.lowRes, onCheckedChange = vm::setLowRes)
-    }
+    SwitchRow(S.appFilesGalleryLowRes().resolve(), st.lowRes, vm::setLowRes, style = MaterialTheme.typography.bodyLarge)
     Text(
         when {
             !st.lowRes -> S.appFilesGalleryFullResNote()
@@ -380,10 +376,7 @@ private fun ConfirmContent(preview: SharedGalleryPreview, st: SharedGalleryShare
     // Rating: a collection's link can take the visitors' stars and comments (never a selection's or a folder's).
     if (st.ratable) {
         Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth().clickable { vm.setRating(!st.rating) }, verticalAlignment = Alignment.CenterVertically) {
-            Text(S.appFilesGalleryRating().resolve(), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            Switch(checked = st.rating, onCheckedChange = vm::setRating)
-        }
+        SwitchRow(S.appFilesGalleryRating().resolve(), st.rating, vm::setRating, style = MaterialTheme.typography.bodyLarge)
         Text(
             S.appFilesGalleryRatingNote().resolve(),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,

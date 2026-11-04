@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import cloud.offthe.otc.ui.common.SwitchRow
 import cloud.offthe.otc.ui.common.THUMB_CACHE_CHOICES
 import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.formatCacheBytes
@@ -68,7 +69,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import cloud.offthe.otc.ui.common.OTCTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -694,20 +694,20 @@ fun SettingsView(secrets: SecretsStore) {
             // Off and disabled on a device with too little memory for it (the
             // footer says how much it needs).
             Section(S.appSettingsTaggingTitle().resolve(), S.appSettingsTaggingFooter().resolve()) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(S.appSettingsTaggingTitle().resolve(), Modifier.weight(1f))
-                    Switch(checked = dst.imageTaggingAvailable && dst.imageTaggingEnabled, enabled = dst.imageTaggingAvailable && !dst.savingImageTagging, onCheckedChange = { v -> scope.launch { device.toggleImageTagging(v) } })
-                }
+                SwitchRow(
+                    S.appSettingsTaggingTitle().resolve(), checked = dst.imageTaggingAvailable && dst.imageTaggingEnabled,
+                    enabled = dst.imageTaggingAvailable && !dst.savingImageTagging, onChange = { v -> scope.launch { device.toggleImageTagging(v) } },
+                )
                 // Issue #209: on a 4 GB device it is the user's choice, and
                 // this says what it costs there.
                 if (dst.imageTaggingHeavy) Caption(S.appSettingsTaggingHeavy().resolve())
             }
 
             Section(S.appSettingsFacesTitle().resolve(), S.appSettingsFacesFooter().resolve()) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(S.appSettingsFacesToggle().resolve(), Modifier.weight(1f))
-                    Switch(checked = dst.faceRecognitionEnabled, enabled = !dst.savingFaceRecognition, onCheckedChange = { v -> scope.launch { device.toggleFaceRecognition(v) } })
-                }
+                SwitchRow(
+                    S.appSettingsFacesToggle().resolve(), checked = dst.faceRecognitionEnabled, enabled = !dst.savingFaceRecognition,
+                    onChange = { v -> scope.launch { device.toggleFaceRecognition(v) } },
+                )
             }
 
             // Places, the map in Images: only on a device that has it, off
@@ -715,10 +715,7 @@ fun SettingsView(secrets: SecretsStore) {
             // unencrypted, and that turning it off deletes them).
             dst.placesEnabled?.let { on ->
                 Section(S.appSettingsPlacesTitle().resolve(), S.appSettingsPlacesFooter().resolve()) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(S.appSettingsPlacesTitle().resolve(), Modifier.weight(1f))
-                        Switch(checked = on, enabled = !dst.savingPlaces, onCheckedChange = { v -> scope.launch { device.togglePlaces(v) } })
-                    }
+                    SwitchRow(S.appSettingsPlacesTitle().resolve(), checked = on, enabled = !dst.savingPlaces, onChange = { v -> scope.launch { device.togglePlaces(v) } })
                 }
             }
 
@@ -727,10 +724,7 @@ fun SettingsView(secrets: SecretsStore) {
             // again while something is hidden.
             dst.memoriesEnabled?.let { on ->
                 Section(S.appSettingsMemoriesTitle().resolve(), S.appSettingsMemoriesFooter().resolve()) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(S.appSettingsMemoriesToggle().resolve(), Modifier.weight(1f))
-                        Switch(checked = on, enabled = !dst.savingMemories, onCheckedChange = { v -> scope.launch { device.toggleMemories(v) } })
-                    }
+                    SwitchRow(S.appSettingsMemoriesToggle().resolve(), checked = on, enabled = !dst.savingMemories, onChange = { v -> scope.launch { device.toggleMemories(v) } })
                     if (on && dst.memoriesHidden > 0) {
                         TextButton(onClick = { scope.launch { device.showHiddenMemories() } }, enabled = !dst.showingHidden) {
                             Text(S.appSettingsMemoriesShowHidden(dst.memoriesHidden).resolve())
@@ -940,12 +934,8 @@ private fun ThumbnailCacheSection() {
 }
 
 @Composable
-private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChange)
-    }
-}
+private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) =
+    SwitchRow(label, checked, onChange, modifier)
 
 /**
  * Log Out (the same as SettingsView.swift's logOut): stop everything that
@@ -1562,12 +1552,11 @@ internal fun SmartSearchSection(
 ) {
     val title = S.appSettingsSmartSearchTitle().resolve()
     Section(title, S.appSettingsSmartSearchFooter().resolve(), below = { SmartSearchModelLines(on, model) }) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        SwitchRow(on, onToggle, enabled = !saving) {
             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                 Text(title, Modifier.weight(1f, fill = false))
                 BetaBadge(S.appSettingsSmartSearchBeta().resolve())
             }
-            Switch(checked = on, enabled = !saving, onCheckedChange = onToggle)
         }
     }
     if (confirmOff) {
