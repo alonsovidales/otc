@@ -357,7 +357,6 @@ apt-get install -y mariadb-server build-essential git curl wget rsync ca-certifi
 OPENCV_MIN=4.10
 OPENCV_SRC_VERSION=4.10.0
 OPENCV_SRC_SHA=b2171af5be6b26f7a06b1229948bbb2bdaa74fcf5cd097e0af6378fce50a6eb9
-OPENCV_BUILD_DIR=/var/tmp/otc-opencv
 opencv_ok() {
     local v
     v=$(pkg-config --modversion opencv4 2>/dev/null || true)
@@ -368,8 +367,15 @@ if ! opencv_ok; then
     log "[1/10] OpenCV $OPENCV_SRC_VERSION, built from source because the system's is too old (5 to 30 minutes)"
     log "this system's OpenCV: $(pkg-config --modversion opencv4 2>/dev/null || echo none), face recognition needs $OPENCV_MIN or newer"
     apt-get install -y cmake libjpeg-dev libpng-dev
-    rm -rf "$OPENCV_BUILD_DIR"
-    mkdir -p "$OPENCV_BUILD_DIR"
+    # The build happens in a directory mktemp makes (0700, root's): /var/tmp
+    # is everyone's, and another account could make a fixed name there
+    # first - then swap the sources after their hash was checked, and root
+    # would build and install its code into /usr/local. Earlier runs'
+    # directories (and the log of the fixed name before) go first, root's
+    # only.
+    find /var/tmp -maxdepth 1 -user root \( \( -type d \( -name otc-opencv -o -name 'otc-opencv.??????' \) \) \
+        -o \( -type f -name otc-opencv-build.log \) \) -exec rm -rf -- {} + 2>/dev/null || true
+    OPENCV_BUILD_DIR="$(mktemp -d /var/tmp/otc-opencv.XXXXXX)" || die "could not make a directory in /var/tmp to build OpenCV in"
     if [ "$(df -Pk "$OPENCV_BUILD_DIR" | awk 'NR == 2 {print $4}')" -lt $((2 * 1024 * 1024)) ]; then
         wiz_error opencv_space path "$OPENCV_BUILD_DIR"
         die "not enough free space in $OPENCV_BUILD_DIR to build OpenCV: it needs 2 GB"
@@ -381,7 +387,7 @@ if ! opencv_ok; then
     ocv_mem=$(awk '/^MemAvailable:/ {print int($2 / 1048576)}' /proc/meminfo)
     [ "$ocv_mem" -lt "$ocv_jobs" ] && ocv_jobs=$ocv_mem
     [ "$ocv_jobs" -ge 1 ] || ocv_jobs=1
-    ocv_log=/var/tmp/otc-opencv-build.log
+    ocv_log="$OPENCV_BUILD_DIR/build.log"
     log "building OpenCV with $ocv_jobs jobs (full output in $ocv_log)"
     # The build's own output goes to the log; its progress shows here
     # every 10%, so a long build doesn't look stuck.
@@ -1075,14 +1081,24 @@ else
     DEVICE_UUID=$(command -v uuidgen >/dev/null 2>&1 && uuidgen || cat /proc/sys/kernel/random/uuid)
     BRIDGE_SECRET=$(openssl rand -hex 24)
     OTC_DB_PASS=$(openssl rand -base64 24 | tr -d '=+/')
-    {
-        echo "# Generated $(date -u +%FT%TZ) by scripts/install.sh."
-        echo "# Keep this file out of git — it holds this device's DB password and bridge secret."
-        echo "DEVICE_UUID=$DEVICE_UUID"
-        echo "BRIDGE_SECRET=$BRIDGE_SECRET"
-        echo "OTC_DB_PASS=$OTC_DB_PASS"
-    } > "$ENV_FILE"
-    chmod 600 "$ENV_FILE"
+    # Like the config below: made unreadable to other accounts from the
+    # start (umask 077; a chmod after the write left it readable for a
+    # moment), flushed, and renamed into place.
+    env_tmp="$ENV_FILE.tmp.$$"
+    rm -f "$env_tmp"
+    (
+        umask 077
+        {
+            echo "# Generated $(date -u +%FT%TZ) by scripts/install.sh."
+            echo "# Keep this file out of git — it holds this device's DB password and bridge secret."
+            echo "DEVICE_UUID=$DEVICE_UUID"
+            echo "BRIDGE_SECRET=$BRIDGE_SECRET"
+            echo "OTC_DB_PASS=$OTC_DB_PASS"
+        } > "$env_tmp"
+    )
+    chmod 600 "$env_tmp"
+    sync "$env_tmp" 2>/dev/null || sync
+    mv -Tf "$env_tmp" "$ENV_FILE"
 fi
 
 # A heredoc, not `mysql -e "..."`, because this SQL carries prose comments
