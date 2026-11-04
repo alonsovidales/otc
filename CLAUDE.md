@@ -362,7 +362,7 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   keep accepting fragmented messages.
 - Passwords never cross in the clear (issue #2): each connection gets an ephemeral RSA-2048 key
   (`GetPubKey`, `rsaKeyPool`: one generator, a few made ahead; taken in turn by address -
-  `keyTurns`, one connection of an address, an IPv6 /64, waiting at once, so connections opened to
+  `keyTurns`, one connection of an address (`anonBucket`) waiting at once, so connections opened to
   ask for keys put another address's sign-in behind one of theirs, not all - and never for a
   connection that went while it waited), and the clients seal `ReqAuth`'s and `ReqChangeKey`'s keys with
   RSA-OAEP-SHA-256 (`pwCrypto.ts`, `PwCrypto.swift`, `PwCrypto.kt`, otc-sync's `pwcrypto.go`). So
@@ -2005,8 +2005,10 @@ start takes its file.
   new socket at their next request (signing in on it as before) and the apps sign in at once; through
   a bridge that only notices the relay gone at the client's next request, that request gets
   `device_unreachable` (hence the bridge's longer time). The device's own listener also takes at most
-  `cMaxAnonPerAddr` (256) sockets from one address (an IPv6 /64; `clientAddr`) before they sign in
-  (`anonSlots`): past that `Listen` answers 503 before the upgrade. Past `cMaxAnonDirect` (2048) in
+  `cMaxAnonPerAddr` (256) sockets from one address (`clientAddr`, `anonBucket`: a global IPv6
+  address's /64, but the home network's own IPv6 addresses - fc00::/7, link-local, loopback and the
+  device's own on-link networks, `onLinkV6` - one by one, as IPv4 ones, since every device of a home
+  shares its /64) before they sign in (`anonSlots`): past that `Listen` answers 503 before the upgrade. Past `cMaxAnonDirect` (2048) in
   all, a newcomer gets in and one socket is closed for it (`pushOut`): of the address holding the
   most - the newcomer's own when it holds as many - the longest idle, one answering a request last.
   Refusing every newcomer at the total let a few addresses keeping their sockets busy lock out the

@@ -3,6 +3,7 @@
 package websocket
 
 import (
+	"net"
 	"net/netip"
 	"strings"
 	"sync"
@@ -26,7 +27,8 @@ import (
 //     answered is closed. The web app's pages and the shared ones open a
 //     new socket at their next request, signing in on it as before; the
 //     apps sign in at once.
-//   - anonSlots: one address (an IPv6 /64) holds at most cMaxAnonPerAddr
+//   - anonSlots: one address (a global IPv6 one's /64, anonBucket) holds
+//     at most cMaxAnonPerAddr
 //     sockets to the device's own listener before they sign in - past
 //     that a new one is answered 503 before the upgrade - and all of them
 //     together cMaxAnonDirect: past that a new one gets in and the longest
@@ -289,19 +291,108 @@ func (slot *anonSlot) release() {
 	slot.s.drop(slot)
 }
 
-// anonBucket is what anonSlots counts an address under: the address, or
-// for IPv6 its /64 - one subscriber's prefix, whose addresses cost nothing
-// to change.
+// anonBucket is what anonSlots and keyTurns count an address under: the
+// address, or for a global IPv6 one its /64 - one subscriber's prefix,
+// whose addresses cost nothing to change. The home network's own IPv6
+// addresses count one by one, as IPv4 ones do: every device of a home
+// shares its /64, and one of them filling that bucket would leave every
+// other one's new socket a 503, and put their sign-ins behind all of its
+// key requests. Those are unique local (fc00::/7, Tailscale's too),
+// link-local, loopback, and the device's own networks (onLinkV6).
 func anonBucket(addr string) string {
 	a, err := netip.ParseAddr(strings.TrimSpace(addr))
 	if err != nil {
 		return addr
 	}
 	a = a.Unmap()
-	if a.Is6() {
+	if a.Is6() && !homeV6(a) {
 		if p, err := a.Prefix(64); err == nil {
 			return p.String()
 		}
 	}
 	return a.String()
+}
+
+// homeV6 reports whether a is an IPv6 address of the home network's own.
+func homeV6(a netip.Addr) bool {
+	if a.IsPrivate() || a.IsLinkLocalUnicast() || a.IsLoopback() {
+		return true
+	}
+	a = a.WithZone("")
+	for _, p := range onLinkV6() {
+		if p.Contains(a) {
+			return true
+		}
+	}
+	return false
+}
+
+// onLinkV6 is the device's own global IPv6 networks (onLinkNets), read
+// again at most once a minute: the prefix a router hands out can change.
+// A var for tests.
+var onLinkV6 = (&onLinkCache{every: time.Minute, read: interfaceV6Nets}).get
+
+type onLinkCache struct {
+	every time.Duration
+	read  func() []netip.Prefix
+
+	mu   sync.Mutex
+	at   time.Time
+	nets []netip.Prefix
+}
+
+func (c *onLinkCache) get() []netip.Prefix {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.at.IsZero() || time.Since(c.at) >= c.every {
+		c.nets, c.at = c.read(), time.Now()
+	}
+	return c.nets
+}
+
+// interfaceV6Nets is onLinkNets of the addresses of this machine's up
+// interfaces, loopback left out.
+func interfaceV6Nets() []netip.Prefix {
+	ifs, err := net.Interfaces()
+	if err != nil {
+		return nil
+	}
+	var addrs []net.Addr
+	for _, i := range ifs {
+		if i.Flags&net.FlagUp == 0 || i.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		if a, err := i.Addrs(); err == nil {
+			addrs = append(addrs, a...)
+		}
+	}
+	return onLinkNets(addrs)
+}
+
+// onLinkNets is the network of each global IPv6 address in addrs, as the
+// interface has it, at most a /64 (an address on a wider one stands for
+// its own /64): a home's /64, where the router's SLAAC puts every device.
+// An address with no network of its own (a /128, as DHCPv6 and some
+// servers' providers give out) says nothing about who else is on it.
+func onLinkNets(addrs []net.Addr) []netip.Prefix {
+	var out []netip.Prefix
+	for _, a := range addrs {
+		n, ok := a.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		ip, ok := netip.AddrFromSlice(n.IP)
+		if !ok {
+			continue
+		}
+		ip = ip.Unmap()
+		ones, bits := n.Mask.Size()
+		if !ip.Is6() || bits != 128 || ones >= 128 || !ip.IsGlobalUnicast() || ip.IsPrivate() {
+			continue
+		}
+		if p, err := ip.Prefix(max(ones, 64)); err == nil {
+			out = append(out, p)
+		}
+	}
+	return out
 }

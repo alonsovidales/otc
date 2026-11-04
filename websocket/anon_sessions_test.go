@@ -3,6 +3,8 @@
 package websocket
 
 import (
+	"net"
+	"net/netip"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -114,15 +116,81 @@ func TestAnonSlots(t *testing.T) {
 	var none *anonSlot
 	none.release()
 	none.attach(func() {}, nil)
+}
+
+// A global IPv6 address counts as its /64; the home network's own - unique
+// local, link-local, loopback and the device's own /64 - one by one, as
+// IPv4 ones do: one device at home can't fill a bucket every other one
+// shares.
+func TestAnonBucket(t *testing.T) {
+	saved := onLinkV6
+	onLinkV6 = func() []netip.Prefix { return []netip.Prefix{netip.MustParsePrefix("2001:db8:aa:bb::/64")} }
+	t.Cleanup(func() { onLinkV6 = saved })
 	for addr, want := range map[string]string{
-		"192.168.1.5":       "192.168.1.5",
-		"::ffff:10.0.0.1":   "10.0.0.1",
-		"2001:db8:1:2:3::4": "2001:db8:1:2::/64",
-		"not an address":    "not an address",
-		" 2001:db8::1 ":     "2001:db8::/64",
+		"192.168.1.5":         "192.168.1.5",
+		"::ffff:10.0.0.1":     "10.0.0.1",
+		"2001:db8:1:2:3::4":   "2001:db8:1:2::/64",
+		"not an address":      "not an address",
+		" 2001:db8::1 ":       "2001:db8::/64",
+		"fd00:1:2:3:4:5:6:7":  "fd00:1:2:3:4:5:6:7",
+		"fd7a:115c:a1e0::9":   "fd7a:115c:a1e0::9",
+		"fe80::1%eth0":        "fe80::1%eth0",
+		"::1":                 "::1",
+		"2001:db8:aa:bb::5":   "2001:db8:aa:bb::5",
+		"2001:db8:aa:bc::5":   "2001:db8:aa:bc::/64",
+		"::ffff:192.168.1.30": "192.168.1.30",
 	} {
 		if got := anonBucket(addr); got != want {
 			t.Errorf("%q: %q, want %q", addr, got, want)
+		}
+	}
+
+	// Two devices of the home's /64: one filling its own bucket leaves the
+	// other's sockets alone.
+	s := &anonSlots{perAddr: 1, total: 10}
+	if _, ok := s.take("2001:db8:aa:bb::5"); !ok {
+		t.Fatal("refused")
+	}
+	if _, ok := s.take("2001:db8:aa:bb::6"); !ok {
+		t.Fatal("another device at home shares a bucket with the first")
+	}
+	if _, ok := s.take("2001:db8:1:2::6"); !ok {
+		t.Fatal("refused")
+	}
+	if _, ok := s.take("2001:db8:1:2::7"); ok {
+		t.Fatal("a stranger's /64 counted address by address")
+	}
+}
+
+// The device's own networks are its global IPv6 addresses' as configured,
+// at most a /64; an address with no network of its own (a /128) and every
+// other kind say nothing.
+func TestOnLinkNets(t *testing.T) {
+	ipnet := func(s string) net.Addr {
+		ip, n, err := net.ParseCIDR(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		n.IP = ip
+		return n
+	}
+	got := onLinkNets([]net.Addr{
+		ipnet("2001:db8:aa:bb::5/64"),
+		ipnet("2001:db8:cc:dd:1::5/80"),
+		ipnet("2001:db8:ee::5/48"),
+		ipnet("2001:db8:ff::5/128"),
+		ipnet("fd00::5/64"),
+		ipnet("fe80::5/64"),
+		ipnet("192.168.1.5/24"),
+		&net.IPAddr{IP: net.ParseIP("2001:db8:1::1")},
+	})
+	want := []string{"2001:db8:aa:bb::/64", "2001:db8:cc:dd:1::/80", "2001:db8:ee::/64"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i].String() != want[i] {
+			t.Errorf("got %v, want %v", got, want)
 		}
 	}
 }
