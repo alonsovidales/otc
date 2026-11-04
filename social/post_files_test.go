@@ -246,9 +246,15 @@ func TestNewPublicationTakesBackWhatItWrote(t *testing.T) {
 			mock.ExpectExec("insert into `events`").WillReturnError(errors.New("the database is gone"))
 			expectInUse(mock, hash, 0)
 		}
-		_, err = sc.NewPublication(ses, "a post", []string{"/photos/a.jpg"}, nil)
+		uuid, err := sc.NewPublication(ses, "a post", []string{"/photos/a.jpg"}, nil)
 		if made != (err == nil) {
 			t.Fatalf("made %v: %v", made, err)
+		}
+		if made {
+			// Sent again (its answer lost): the same post, nothing written.
+			if again, err := sc.NewPublication(ses, "a post", []string{"/photos/a.jpg"}, nil); err != nil || again != uuid {
+				t.Fatalf("sent again: %q, %v; want %q", again, err, uuid)
+			}
 		}
 		got := names(t, unenc)
 		if !made && len(got) != 0 {

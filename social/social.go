@@ -96,6 +96,9 @@ type Social struct {
 	// the large one.
 	fittedMu sync.Mutex
 	fitted   map[string]fittedPicture
+
+	// posts makes a post sent again once (post_once.go).
+	posts postsOnce
 }
 
 // fittedPicture is a picture as a friend's device sent it (its SHA-256)
@@ -388,7 +391,16 @@ func shouldTrimForSocial(mime string, trim *pb.VideoTrim) bool {
 	return trim.StartSecs > 0 || trim.EndSecs > trim.StartSecs
 }
 
-func (sc *Social) NewPublication(ses *session.Session, text string, paths []string, trims []*pb.VideoTrim) (pubUuID string, err error) {
+// NewPublication makes the owner's post: its files' copies for friends,
+// its event and its row. The same post sent again - its answer lost while
+// it was being made - is made once (post_once.go).
+func (sc *Social) NewPublication(ses *session.Session, text string, paths []string, trims []*pb.VideoTrim) (string, error) {
+	return sc.posts.once(postKey(text, paths, trims), func() (string, error) {
+		return sc.newPublication(ses, text, paths, trims)
+	})
+}
+
+func (sc *Social) newPublication(ses *session.Session, text string, paths []string, trims []*pb.VideoTrim) (pubUuID string, err error) {
 	// Issue #108: at most one trim per path, and a path with no entry is
 	// published whole - so an older client that sends no trims at all
 	// (and a post with no video in it) takes exactly the path it always
@@ -2177,6 +2189,8 @@ func (sc *Social) DeletePublication(pubUuid string) (err error) {
 		return err
 	}
 
+	// The same post may be made again now (post_once.go).
+	sc.posts.forget(pubUuid)
 	return sc.removePublication(pubUuid)
 }
 
