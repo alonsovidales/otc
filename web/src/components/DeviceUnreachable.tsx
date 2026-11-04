@@ -13,7 +13,15 @@
 // icon, while the device answers that it can't reach its storage disks
 // (storage_unavailable): not "unreachable" - it answered - and not a wrong
 // password - it checked nothing.
-import { useEffect } from "react";
+//
+// It lies over the app, which stays as it is underneath (App.tsx): a modal
+// dialog, so the page behind takes no click, key or focus meanwhile, and
+// what was typed or open there - a post being written, a dialog, a
+// download - is still there when the device answers again. The words are
+// the web app's own in the language on screen, never the bridge's (its
+// relay texts are always English): only the device's own explanation of
+// its storage is shown as it comes.
+import { useEffect, useId, useLayoutEffect, useRef } from "react";
 import { useWS } from "../net/useWS";
 import { cStorageUnavailable, recheckMs, type DeviceStatus } from "../net/deviceStatus";
 import { useT } from "../i18n";
@@ -32,12 +40,13 @@ export default function DeviceUnreachable({ status }: { status: DeviceStatus }) 
   const noStorage = status.code === cStorageUnavailable;
   const every = recheckMs(status.code);
 
-  // This screen replaces the whole app (see App.tsx), which means every
-  // component that would normally be polling is unmounted behind it - so
-  // without this, nothing would ever issue the request whose success is
-  // what clears this screen, and it would sit here until a manual reload
-  // even after the device came back. Caught exactly that way in testing:
-  // the device returned, and the page kept insisting it hadn't.
+  // The page behind may have nothing that asks the device anything (a
+  // section with no poll, the composer waiting) - so without this, nothing
+  // would ever issue the request whose success is what clears this
+  // screen, and it would sit here until a manual reload even after the
+  // device came back. Caught exactly that way in testing, when this screen
+  // still replaced the app: the device returned, and the page kept
+  // insisting it hadn't.
   //
   // Any successful response clears the state on its own (see
   // deviceStatus.noteResponse), so this only has to make a request, not
@@ -67,14 +76,54 @@ export default function DeviceUnreachable({ status }: { status: DeviceStatus }) 
     };
   }, [every]);
 
+  // Over everything, the page behind inert; what had the focus there has
+  // it again once the device answers. The browser may close a modal dialog
+  // itself on a second Escape: it comes back while it is still needed.
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useLayoutEffect(() => {
+    const d = dialogRef.current;
+    if (!d) return;
+    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (!d.open) d.showModal();
+    // The screen itself, not the language list (the first control), which
+    // a modal dialog would focus: a screen reader starts at its words.
+    d.focus({ preventScroll: true });
+    // Keys pressed here are this screen's: the page's own shortcuts (a
+    // viewer's arrows, a dialog's Escape) listen on the document and the
+    // window, which this keeps them from.
+    const stop = (e: KeyboardEvent) => e.stopPropagation();
+    d.addEventListener("keydown", stop);
+    return () => {
+      d.removeEventListener("keydown", stop);
+      if (d.open) d.close();
+      if (back?.isConnected && back !== document.body) back.focus({ preventScroll: true });
+    };
+  }, []);
+  const titleId = useId();
+  const textId = useId();
+
   const title = disabled
     ? t("web.shell.unreachable.disabled")
     : noStorage ? t("web.shell.unreachable.storage_title") : t("web.shell.unreachable.title");
-  // The device's or the bridge's own wording, shown as-is; ours only when
-  // a device that can't reach its storage sent none.
-  const message = status.message || (noStorage ? t("web.shell.unreachable.storage_text") : "");
+  // Ours, in the language on screen: the bridge words device_unreachable
+  // and account_disabled in English only. The device that can't reach its
+  // storage says why itself (in the request's language), ours when it
+  // sent nothing.
+  const message = disabled
+    ? t("web.shell.unreachable.disabled_text")
+    : noStorage ? status.message || t("web.shell.unreachable.storage_text") : t("web.shell.unreachable.text");
   return (
-    <div className="du-root">
+    <dialog
+      ref={dialogRef}
+      className="du-root"
+      // Explicit, for the page's own key handling (Files' Escape looks for it).
+      role="dialog"
+      tabIndex={-1}
+      aria-labelledby={titleId}
+      aria-describedby={textId}
+      onCancel={(e) => e.preventDefault()}
+      onClose={() => { const d = dialogRef.current; if (d?.isConnected && !d.open) d.showModal(); }}
+    >
       {/* The language, where the top bar has it: this screen covers the
           app, Settings included, until the device answers again. */}
       <LanguagePicker className="du-lang" />
@@ -107,10 +156,8 @@ export default function DeviceUnreachable({ status }: { status: DeviceStatus }) 
             <path d="M3 3l18 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         )}
-        <h2>{title}</h2>
-        {/* The device/bridge's own wording, shown as-is - it's the half of
-            this that can actually say something specific. */}
-        <p>{message}</p>
+        <h2 id={titleId}>{title}</h2>
+        <p id={textId}>{message}</p>
         {/* For an owner whose router's name or password changed: the
             device can't join it any more, and this is all they see. Right
             after the bridge's words, before "keeps checking", as on the
@@ -122,6 +169,6 @@ export default function DeviceUnreachable({ status }: { status: DeviceStatus }) 
           <p className="du-note">{noStorage ? t("web.shell.unreachable.storage_note") : t("web.shell.unreachable.note")}</p>
         )}
       </div>
-    </div>
+    </dialog>
   );
 }

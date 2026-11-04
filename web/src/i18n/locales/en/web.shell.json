@@ -161,10 +161,12 @@
   "web.shell.top.new_post": "New post",
   "web.shell.top.show_menu": "Show menu",
   "web.shell.unreachable.disabled": "This account has been disabled",
+  "web.shell.unreachable.disabled_text": "The owner of this device has disabled this account. Contact them if you believe this is a mistake.",
   "web.shell.unreachable.note": "Nothing has been lost — everything stays on the device itself. This page keeps checking, and picks up on its own as soon as it's back.",
   "web.shell.unreachable.storage_note": "This page checks again every 30 seconds and picks up on its own once your device is back.",
   "web.shell.unreachable.storage_text": "Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back.",
   "web.shell.unreachable.storage_title": "Your device's storage isn't available",
+  "web.shell.unreachable.text": "It looks like it's switched off, offline, or still starting up.",
   "web.shell.unreachable.title": "This device isn't available right now",
   "web.shell.unreachable.wifi_hint": "Changed your Wi-Fi's name or password? Connect the device to your router with an Ethernet cable, then open Settings › Wi-Fi.",
   "web.shell.update.critical": "\u003cb\u003eCritical update {version} available.\u003c/b\u003e {summary} Install it as soon as possible."

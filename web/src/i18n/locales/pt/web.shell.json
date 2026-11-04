@@ -161,10 +161,12 @@
   "web.shell.top.new_post": "Nova publicação",
   "web.shell.top.show_menu": "Mostrar menu",
   "web.shell.unreachable.disabled": "Esta conta foi desativada",
+  "web.shell.unreachable.disabled_text": "O proprietário deste dispositivo desativou esta conta. Se achas que se trata de um erro, contacta-o.",
   "web.shell.unreachable.note": "Nada se perdeu: tudo continua guardado no próprio dispositivo. Esta página continua a verificar e retoma sozinha assim que ele voltar.",
   "web.shell.unreachable.storage_note": "Esta página volta a verificar a cada 30 segundos e retoma sozinha assim que o teu dispositivo voltar.",
   "web.shell.unreachable.storage_text": "O teu dispositivo não consegue aceder aos seus discos de armazenamento. Verifica se estão ligados e com alimentação; volta a arrancar sozinho assim que estiverem de volta.",
   "web.shell.unreachable.storage_title": "O armazenamento do teu dispositivo não está disponível",
+  "web.shell.unreachable.text": "Parece estar desligado, sem ligação ou ainda a arrancar.",
   "web.shell.unreachable.title": "Este dispositivo não está disponível de momento",
   "web.shell.unreachable.wifi_hint": "Mudaste o nome ou a palavra-passe do teu Wi-Fi? Liga o dispositivo ao teu router com um cabo Ethernet e depois abre Definições › Wi-Fi.",
   "web.shell.update.critical": "\u003cb\u003eAtualização crítica {version} disponível.\u003c/b\u003e {summary} Instala-a o mais depressa possível."

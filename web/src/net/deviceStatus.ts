@@ -18,6 +18,8 @@
 // answer about anything asked, a password included), shown on the same
 // screen in words of its own, and held here too.
 
+import type { RespEnvelope } from "../proto/messages";
+
 export type DeviceStatusCode = "device_unreachable" | "account_disabled" | "storage_unavailable";
 
 export interface DeviceStatus {
@@ -57,6 +59,29 @@ export const cStorageRetryMs = 30_000;
 export function recheckMs(code: DeviceStatusCode): number | null {
   if (code === "account_disabled") return null;
   return code === cStorageUnavailable ? cStorageRetryMs : cUnreachableRetryMs;
+}
+
+/** How long the app waits before the screen comes over it (App.tsx): a
+ *  device the bridge couldn't reach is often back a moment later - a long
+ *  request the bridge stopped waiting for, the device dialling in again
+ *  after a blip - so its screen waits cCoverGraceMs, the device asked
+ *  again meanwhile (cCoverLookMs), and a page whose device answers by then
+ *  never sees it. A switched-off account and a device without its storage
+ *  are a state, not a blip: at once. The app stays as it is under the
+ *  screen either way (what is typed, a dialog, a post on its way). */
+export const cCoverGraceMs = 4_000;
+export const cCoverLookMs = 1_500;
+export function coverAfterMs(code: DeviceStatusCode): number {
+  return code === "device_unreachable" ? cCoverGraceMs : 0;
+}
+
+/** Whether an answer is the bridge's for the device rather than the
+ *  device's own: the bridge couldn't hand the request over, or lost the
+ *  device before its answer came (device_unreachable), or the account is
+ *  switched off. Nothing about what was asked: a request that went may
+ *  have been done, as when the socket closes before the answer. */
+export function isBridgeAnswer(resp: RespEnvelope): boolean {
+  return resp.payload?.$case === "respAck" && isDeviceStatusCode(resp.payload.respAck.code);
 }
 
 let current: DeviceStatus | null = null;

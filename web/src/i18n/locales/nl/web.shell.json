@@ -161,10 +161,12 @@
   "web.shell.top.new_post": "Nieuw bericht",
   "web.shell.top.show_menu": "Menu tonen",
   "web.shell.unreachable.disabled": "Dit account is uitgeschakeld",
+  "web.shell.unreachable.disabled_text": "De eigenaar van dit apparaat heeft dit account uitgeschakeld. Neem contact op met de eigenaar als je denkt dat dit een vergissing is.",
   "web.shell.unreachable.note": "Er is niets verloren gegaan: alles blijft op het apparaat zelf staan. Deze pagina blijft controleren en gaat vanzelf verder zodra het apparaat terug is.",
   "web.shell.unreachable.storage_note": "Deze pagina controleert elke 30 seconden opnieuw en gaat vanzelf verder zodra je apparaat terug is.",
   "web.shell.unreachable.storage_text": "Je apparaat kan zijn opslagschijven niet bereiken. Controleer of ze zijn aangesloten en aanstaan; het start vanzelf weer op zodra ze terug zijn.",
   "web.shell.unreachable.storage_title": "De opslag van je apparaat is niet beschikbaar",
+  "web.shell.unreachable.text": "Het lijkt erop dat het apparaat uitgeschakeld of offline is, of nog aan het opstarten is.",
   "web.shell.unreachable.title": "Dit apparaat is nu niet beschikbaar",
   "web.shell.unreachable.wifi_hint": "Heb je de naam of het wachtwoord van je wifi gewijzigd? Sluit het apparaat met een ethernetkabel aan op je router en open daarna Instellingen › Wifi.",
   "web.shell.update.critical": "\u003cb\u003eKritieke update {version} beschikbaar.\u003c/b\u003e {summary} Installeer deze zo snel mogelijk."

@@ -4,16 +4,34 @@
    device is unreachable there is nothing behind this worth interacting
    with (every view's data comes from that device), and a banner over a
    half-empty app reads as "something glitched" rather than "the device is
-   off". */
+   off". A modal dialog (DeviceUnreachable.tsx), in the top layer over
+   every other layer of the app, which stays as it is underneath: the
+   browser's own dialog look is undone here, the whole window is the
+   screen. */
 .du-root {
   position: fixed;
   inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-sizing: border-box;
+  overflow: auto;
+  overscroll-behavior: contain;
+  color: inherit;
   background: rgba(22, 24, 28, 0.92);
   backdrop-filter: blur(2px);
 }
+.du-root[open] {
+  display: grid;
+  place-items: center;
+}
+.du-root:focus { outline: none; }
+/* The dialog itself dims the page: nothing more behind it. */
+.du-root::backdrop { background: transparent; }
 
 .du-card {
   max-width: 420px;

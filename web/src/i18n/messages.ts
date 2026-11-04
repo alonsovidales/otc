@@ -980,10 +980,12 @@ export type MessageKey =
   | "web.shell.top.new_post"
   | "web.shell.top.show_menu"
   | "web.shell.unreachable.disabled"
+  | "web.shell.unreachable.disabled_text"
   | "web.shell.unreachable.note"
   | "web.shell.unreachable.storage_note"
   | "web.shell.unreachable.storage_text"
   | "web.shell.unreachable.storage_title"
+  | "web.shell.unreachable.text"
   | "web.shell.unreachable.title"
   | "web.shell.unreachable.wifi_hint"
   | "web.social.alerts.collection_gone"
@@ -2170,10 +2172,12 @@ export interface MessageArgs {
   "web.shell.top.new_post": undefined;
   "web.shell.top.show_menu": undefined;
   "web.shell.unreachable.disabled": undefined;
+  "web.shell.unreachable.disabled_text": undefined;
   "web.shell.unreachable.note": undefined;
   "web.shell.unreachable.storage_note": undefined;
   "web.shell.unreachable.storage_text": undefined;
   "web.shell.unreachable.storage_title": undefined;
+  "web.shell.unreachable.text": undefined;
   "web.shell.unreachable.title": undefined;
   "web.shell.unreachable.wifi_hint": undefined;
   "web.shell.update.critical": { version: string; summary: string };

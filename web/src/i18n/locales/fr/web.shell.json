@@ -161,10 +161,12 @@
   "web.shell.top.new_post": "Publier",
   "web.shell.top.show_menu": "Afficher le menu",
   "web.shell.unreachable.disabled": "Ce compte a été désactivé",
+  "web.shell.unreachable.disabled_text": "Le propriétaire de cet appareil a désactivé ce compte. Contactez-le si vous pensez qu’il s’agit d’une erreur.",
   "web.shell.unreachable.note": "Rien n’a été perdu : tout reste sur l’appareil lui-même. Cette page continue de vérifier et reprendra d’elle-même dès qu’il sera de retour.",
   "web.shell.unreachable.storage_note": "Cette page vérifie de nouveau toutes les 30 secondes et reprendra d’elle-même dès que votre appareil sera de retour.",
   "web.shell.unreachable.storage_text": "Votre appareil ne parvient pas à accéder à ses disques de stockage. Vérifiez qu’ils sont branchés et allumés ; il redémarre de lui-même dès qu’ils sont de retour.",
   "web.shell.unreachable.storage_title": "Le stockage de votre appareil n’est pas disponible",
+  "web.shell.unreachable.text": "Il semble éteint, hors ligne ou encore en cours de démarrage.",
   "web.shell.unreachable.title": "Cet appareil n’est pas disponible pour le moment",
   "web.shell.unreachable.wifi_hint": "Vous avez changé le nom ou le mot de passe de votre Wi-Fi ? Reliez l’appareil à votre routeur avec un câble Ethernet, puis ouvrez Paramètres › Wi-Fi.",
   "web.shell.update.critical": "\u003cb\u003eMise à jour critique {version} disponible.\u003c/b\u003e {summary} Installez-la dès que possible."
