@@ -550,7 +550,7 @@ func envelopeID(frame []byte) (int32, error) {
 // The returned release gives the reply's share of replyBudget back: call
 // it once the reply is written on. Never nil.
 func (d *deviceRelay) forward(frame []byte) ([]byte, func(), error) {
-	return d.forwardWithTimeout(frame, cForwardTimeout)
+	return d.forwardWithTimeout(frame, cForwardTimeout, cForwardMaxWait)
 }
 
 func noRelease() {}
@@ -567,7 +567,12 @@ func noRelease() {}
 // ran against a device whose pool had accumulated any (issue #95's own
 // testing, against a device redeployed and restarted many times over one
 // long session).
-func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([]byte, func(), error) {
+//
+// maxWait bounds the wait, from the request's write, however long the
+// device says it is still working on it: cForwardMaxWait for a client's
+// session, far less for a one-off, which holds one of the device's few
+// one-off slots meanwhile (oneOffMaxWait).
+func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout, maxWait time.Duration) ([]byte, func(), error) {
 	id, err := envelopeID(frame)
 	if err != nil {
 		return nil, noRelease, fmt.Errorf("bad proto: %w", err) // i18n-ignore: logged, never sent
@@ -597,9 +602,15 @@ func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([
 	// request: the write, then each pong naming it (busy.go). A device
 	// that stopped answering is given up on as before; one cutting a
 	// post's videos or deleting a big folder is waited for, up to
-	// cForwardMaxWait.
+	// maxWait.
 	w.signOfLife()
-	timer := time.NewTimer(timeout)
+	// As durations since w.since, like alive: the end of the write plus
+	// maxWait is the latest it may end.
+	last := time.Duration(w.alive.Load()) + maxWait
+	left := func() time.Duration {
+		return min(time.Duration(w.alive.Load())+timeout, last) - time.Since(w.since)
+	}
+	timer := time.NewTimer(left())
 	defer timer.Stop()
 	for {
 		select {
@@ -609,9 +620,8 @@ func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([
 			}
 			return resp.frame, resp.release, nil
 		case <-timer.C:
-			waited := time.Since(w.since)
-			if left := timeout - (waited - time.Duration(w.alive.Load())); left > 0 && waited < cForwardMaxWait {
-				timer.Reset(left)
+			if l := left(); l > 0 {
+				timer.Reset(l)
 				continue
 			}
 			d.abandon(id, w)
@@ -1341,6 +1351,15 @@ var cOneOffForwardTimeout = 45 * time.Second
 // stale entries without ever being able to drain the pool.
 const cOneOffMaxAttempts = 3
 
+// oneOffMaxWait bounds how long one one-off request (a static asset, a
+// span of a video) holds its slot, however long the device says it is
+// still working on it (busy.go): what its cOneOffMaxAttempts attempts
+// could take before devices said so. A device names every request still
+// running, one stuck on a disk read included, and waited for up to
+// cForwardMaxWait, three such requests held all of its one-off slots - its
+// pages and videos answered "busy" - for hours.
+func oneOffMaxWait() time.Duration { return cOneOffMaxAttempts * cOneOffForwardTimeout }
+
 // cPairMaxAttempts caps the pool connections a client's first request may
 // spend before it is told the device is unreachable, for the same reason
 // (see TestForwardOneOffCannotDrainThePool): each failed attempt closes
@@ -1554,14 +1573,15 @@ func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte,
 		return nil, ErrDeviceBusy
 	}
 
-	for attempt := 0; attempt < cOneOffMaxAttempts; attempt++ {
-		candidate := takeAvailable(pool, cOneOffConnWait)
+	giveUp := time.Now().Add(oneOffMaxWait())
+	for attempt := 0; attempt < cOneOffMaxAttempts && time.Now().Before(giveUp); attempt++ {
+		candidate := takeAvailable(pool, min(cOneOffConnWait, time.Until(giveUp)))
 		if candidate == nil {
 			return nil, errors.New("no available connections in the pool for this device") // i18n-ignore: logged, never sent
 		}
 
 		var release func()
-		respFrame, release, err = candidate.forwardWithTimeout(frame, cOneOffForwardTimeout)
+		respFrame, release, err = candidate.forwardWithTimeout(frame, cOneOffForwardTimeout, time.Until(giveUp))
 		candidate.Close()
 		if err != nil {
 			log.Error("error forwarding one-off request, trying the next available connection:", err)

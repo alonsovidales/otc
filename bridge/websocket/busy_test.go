@@ -3,6 +3,7 @@
 package websocket
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -161,5 +162,73 @@ func TestALongRequestKeepsTheClientsSession(t *testing.T) {
 		if resp.Id != id || resp.ErrorMessage != "done" {
 			t.Fatalf("request %d: %v", id, resp)
 		}
+	}
+}
+
+// workingPool is a bridge whose device "pit.otc" has n connections to a
+// device that takes work(id) per request and names each while it works.
+func workingPool(t *testing.T, n int, work func(int32) time.Duration) *Manager {
+	t.Helper()
+	url := newWorkingDeviceServer(t, work, self)
+	mg := &Manager{bridges: map[string]*bridgePool{}}
+	for i := 0; i < n; i++ {
+		poolRelayTo(t, mg, "pit.otc", url)
+	}
+	t.Cleanup(func() { stopOfflineTimer(mg, "pit.otc") })
+	return mg
+}
+
+// A one-off the device names is waited for past cOneOffForwardTimeout,
+// up to oneOffMaxWait - not cForwardMaxWait: a device names every request
+// still running, one stuck on a disk read too, and three of them held all
+// of the device's one-off slots (its pages and videos "busy") for hours.
+// The same holds for a session's requests.
+func TestAOneOffTheDeviceKeepsNamingGivesItsSlotBack(t *testing.T) {
+	setVar(t, &cOneOffForwardTimeout, 200*time.Millisecond)
+	setVar(t, &cOneOffSlotWait, 300*time.Millisecond)
+	setVar(t, &cForwardMaxWait, time.Hour)
+
+	slow := workingPool(t, 2, func(int32) time.Duration { return 450 * time.Millisecond })
+	if _, err := slow.ForwardOneOff("pit.otc", envelopeFrame(t, 1)); err != nil {
+		t.Errorf("a one-off named and answered within oneOffMaxWait: %v", err)
+	}
+	s := slow.OpenSession("pit.otc")
+	if _, err := s.Forward(envelopeFrame(t, 2)); err != nil {
+		t.Errorf("a session's request named and answered within oneOffMaxWait: %v", err)
+	}
+	s.Close()
+
+	mg := workingPool(t, 12, func(int32) time.Duration { return time.Hour })
+	start := time.Now()
+	var wg sync.WaitGroup
+	for i := int32(1); i <= cOneOffConcurrent; i++ {
+		wg.Add(1)
+		go func(id int32) {
+			defer wg.Done()
+			var err error
+			if id == 1 {
+				s := mg.OpenSession("pit.otc")
+				defer s.Close()
+				_, err = s.Forward(envelopeFrame(t, id))
+			} else {
+				_, err = mg.ForwardOneOff("pit.otc", envelopeFrame(t, id))
+			}
+			if err == nil {
+				t.Errorf("request %d, never answered, got a reply", id)
+			}
+		}(i)
+	}
+	done := make(chan struct{})
+	go func() { wg.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(cOneOffMaxAttempts*cOneOffForwardTimeout + 2*time.Second):
+		t.Fatalf("requests the device names forever still held the slots after %v", time.Since(start))
+	}
+	if d := time.Since(start); d < 2*cOneOffForwardTimeout {
+		t.Errorf("requests the device named were given up after %v, before their busy pongs could count", d)
+	}
+	if _, err := mg.ForwardOneOff("pit.otc", envelopeFrame(t, 9)); errors.Is(err, ErrDeviceBusy) {
+		t.Errorf("the slots never came back: %v", err)
 	}
 }

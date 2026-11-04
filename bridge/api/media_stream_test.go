@@ -4,6 +4,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -99,6 +100,33 @@ func (d *latentDevice) serve(c *gorilla.Conn, n int) {
 	}
 }
 
+// latentBridge is a real bridge with conns connections of dev registered
+// for domain.
+func latentBridge(t *testing.T, domain string, conns int, dev *latentDevice) *websocket.Manager {
+	t.Helper()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	for i := 0; i < conns; i++ {
+		mock.ExpectQuery("select `owner_uuid`, `secret` from `devices` where `domain` = \\?").WithArgs(domain).
+			WillReturnRows(sqlmock.NewRows([]string{"owner_uuid", "secret"}).AddRow("owner", "secret"))
+	}
+	mg := websocket.Init("", dao.NewWithDB(db))
+	bridge := httptest.NewServer(http.HandlerFunc(mg.Listen))
+	t.Cleanup(bridge.Close)
+	startLatentDevice(t, "ws"+strings.TrimPrefix(bridge.URL, "http")+"/ws", domain, conns, dev)
+	deadline := time.Now().Add(5 * time.Second)
+	for mg.FleetStats().Idle < conns {
+		if time.Now().After(deadline) {
+			t.Fatalf("%d of %d connections registered", mg.FleetStats().Idle, conns)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return mg
+}
+
 func (d *latentDevice) requests() []int {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -116,27 +144,8 @@ func TestAMediaResponseStreamsOverOneConnection(t *testing.T) {
 		spans  = 8
 		conns  = spans + 4
 	)
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	for i := 0; i < conns; i++ {
-		mock.ExpectQuery("select `owner_uuid`, `secret` from `devices` where `domain` = \\?").WithArgs(domain).
-			WillReturnRows(sqlmock.NewRows([]string{"owner_uuid", "secret"}).AddRow("owner", "secret"))
-	}
-	mg := websocket.Init("", dao.NewWithDB(db))
-	bridge := httptest.NewServer(http.HandlerFunc(mg.Listen))
-	t.Cleanup(bridge.Close)
 	dev := &latentDevice{file: mediaFile(spans), rtt: 40 * time.Millisecond, cold: 80 * time.Millisecond}
-	startLatentDevice(t, "ws"+strings.TrimPrefix(bridge.URL, "http")+"/ws", domain, conns, dev)
-	deadline := time.Now().Add(5 * time.Second)
-	for mg.FleetStats().Idle < conns {
-		if time.Now().After(deadline) {
-			t.Fatalf("%d of %d connections registered", mg.FleetStats().Idle, conns)
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+	mg := latentBridge(t, domain, conns, dev)
 
 	// The way it was: a one-off per span, each on a fresh connection, the
 	// next asked for once the last was in.
@@ -180,5 +189,30 @@ func TestAMediaResponseStreamsOverOneConnection(t *testing.T) {
 	// bound leaves room for a loaded machine.
 	if streamed > oneOff*3/4 {
 		t.Errorf("streamed in %v, hardly faster than the one-off way (%v)", streamed, oneOff)
+	}
+}
+
+// A client that hangs up while the device is slow on the response's first
+// span - or a HEAD's byte, or a suffix's probe - ends the response at once,
+// and its request gives the device's one-off slot back: it was held until
+// the device answered.
+func TestAMediaResponseEndsWhenItsClientHangsUpBeforeTheFirstSpan(t *testing.T) {
+	const domain = "ria.off-the.cloud"
+	dev := &latentDevice{file: mediaFile(1), rtt: 5 * time.Second}
+	mg := latentBridge(t, domain, 2, dev)
+	api := &API{websocket: mg}
+	for _, rng := range []string{"bytes=0-", "bytes=-1024"} {
+		ctx, cancel := context.WithCancel(context.Background())
+		req := httptest.NewRequest(http.MethodGet, "/media/tok", nil).WithContext(ctx)
+		req.Host = domain
+		req.SetPathValue("token", "tok")
+		req.Header.Set("Range", rng)
+		time.AfterFunc(100*time.Millisecond, cancel)
+		start := time.Now()
+		api.proxyMedia(httptest.NewRecorder(), req)
+		if d := time.Since(start); d > 2*time.Second {
+			t.Errorf("%s: a client gone after 100 ms held the response for %v", rng, d)
+		}
+		cancel()
 	}
 }

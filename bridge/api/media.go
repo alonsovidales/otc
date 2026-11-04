@@ -3,6 +3,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -94,6 +95,12 @@ func (api *API) proxyMedia(w http.ResponseWriter, r *http.Request) {
 	}
 	m := &mediaFetch{src: api.openSpans(r.Host), token: token, host: r.Host}
 	defer m.src.Close()
+	// A client that hangs up ends the session at once, its first span, a
+	// HEAD's byte and a suffix's probe included: each request holds one
+	// of the device's few one-off slots, and one the device is slow on
+	// kept it after the player had given up.
+	stop := context.AfterFunc(r.Context(), m.src.Close)
+	defer stop()
 
 	offset := spec.start
 	// Never more than the device would hand over in one go, and never

@@ -31,7 +31,10 @@ import (
 //     once; a session that finds none free sends its requests the one-off
 //     way, as before;
 //   - a session idle for cSessionIdle (a paused player) gives its
-//     connection back, and takes another when it is asked again.
+//     connection back, and takes another when it is asked again;
+//   - a request is waited for at most oneOffMaxWait, however long the
+//     device says it works on it, and Close (the client hung up) ends the
+//     ones in flight at once, so a slot is never held for nobody.
 
 // cMaxSessionConns caps the connections a device keeps for sessions; the
 // rest of its pool stays for the clients and the one-offs. Var so tests
@@ -63,6 +66,11 @@ type Session struct {
 	inFlight int
 	idle     *time.Timer
 	closed   bool
+	// loose are the connections taken for one request alone (the
+	// device's session places all taken), closed with the session.
+	loose map[*deviceRelay]struct{}
+	// done is closed by Close: a request waiting for a slot stops.
+	done chan struct{}
 }
 
 // OpenSession starts a session with domain's device. It costs nothing
@@ -71,7 +79,7 @@ func (mg *Manager) OpenSession(domain string) *Session {
 	mg.bridgesMu.RLock()
 	pool := mg.bridges[domain]
 	mg.bridgesMu.RUnlock()
-	s := &Session{mg: mg, domain: domain, pool: pool}
+	s := &Session{mg: mg, domain: domain, pool: pool, done: make(chan struct{})}
 	s.cond = sync.NewCond(&s.mu)
 	return s
 }
@@ -84,8 +92,9 @@ func (mg *Manager) sessionPlaces(domain string) chan struct{} {
 
 // Forward sends frame to the device and returns its reply, as
 // ForwardOneOff does: within the device's one-off slots, each attempt
-// given cOneOffForwardTimeout, at most cOneOffMaxAttempts connections
-// spent - the session's own after it failed, a new one taken in its place.
+// given cOneOffForwardTimeout and all of them oneOffMaxWait, at most
+// cOneOffMaxAttempts connections spent - the session's own after it
+// failed, a new one taken in its place. Close ends it at once.
 func (s *Session) Forward(frame []byte) ([]byte, error) {
 	if s.pool == nil {
 		return nil, errors.New("device is offline") // i18n-ignore: logged, never sent
@@ -96,22 +105,28 @@ func (s *Session) Forward(frame []byte) ([]byte, error) {
 		defer func() { <-slot }()
 	case <-time.After(cOneOffSlotWait):
 		return nil, ErrDeviceBusy
+	case <-s.done:
+		return nil, errSessionClosed
 	}
 	s.begin()
 	defer s.end()
 
-	for attempt := 0; attempt < cOneOffMaxAttempts; attempt++ {
-		relay, kept, err := s.connection()
+	giveUp := time.Now().Add(oneOffMaxWait())
+	for attempt := 0; attempt < cOneOffMaxAttempts && time.Now().Before(giveUp); attempt++ {
+		relay, kept, err := s.connection(min(cOneOffConnWait, time.Until(giveUp)))
 		if err != nil {
 			return nil, err
 		}
-		resp, release, err := relay.forwardWithTimeout(frame, cOneOffForwardTimeout)
+		resp, release, err := relay.forwardWithTimeout(frame, cOneOffForwardTimeout, time.Until(giveUp))
 		if !kept {
-			relay.Close()
+			s.letGo(relay)
 		}
 		if err != nil {
 			if kept {
 				s.drop(relay)
+			}
+			if s.isClosed() {
+				return nil, errSessionClosed // its client is gone: nothing to log
 			}
 			log.Error("error forwarding a session's request, trying another connection:", err)
 			continue
@@ -131,8 +146,9 @@ func (s *Session) Forward(frame []byte) ([]byte, error) {
 
 // connection is the connection for the next request: the session's own,
 // one taken for it, or - with the device's session places all taken - one
-// for this request alone (kept false: the caller closes it).
-func (s *Session) connection() (relay *deviceRelay, kept bool, err error) {
+// for this request alone (kept false: the caller lets it go). It waits up
+// to wait for the device to have one.
+func (s *Session) connection(wait time.Duration) (relay *deviceRelay, kept bool, err error) {
 	s.mu.Lock()
 	for s.taking && !s.closed {
 		s.cond.Wait()
@@ -155,14 +171,25 @@ func (s *Session) connection() (relay *deviceRelay, kept bool, err error) {
 	}
 	if !s.holding {
 		s.mu.Unlock()
-		if relay = takeAvailable(s.pool, cOneOffConnWait); relay == nil {
+		if relay = takeAvailable(s.pool, wait); relay == nil {
 			return nil, false, errNoConnection
 		}
+		s.mu.Lock()
+		if s.closed {
+			s.mu.Unlock()
+			relay.Close()
+			return nil, false, errSessionClosed
+		}
+		if s.loose == nil {
+			s.loose = map[*deviceRelay]struct{}{}
+		}
+		s.loose[relay] = struct{}{}
+		s.mu.Unlock()
 		return relay, false, nil
 	}
 	s.taking = true
 	s.mu.Unlock()
-	relay = takeAvailable(s.pool, cOneOffConnWait)
+	relay = takeAvailable(s.pool, wait)
 	s.mu.Lock()
 	s.taking = false
 	s.cond.Broadcast()
@@ -179,6 +206,20 @@ func (s *Session) connection() (relay *deviceRelay, kept bool, err error) {
 	s.relay = relay
 	s.mu.Unlock()
 	return relay, true, nil
+}
+
+func (s *Session) isClosed() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.closed
+}
+
+// letGo closes a connection taken for one request alone, once done.
+func (s *Session) letGo(relay *deviceRelay) {
+	s.mu.Lock()
+	delete(s.loose, relay)
+	s.mu.Unlock()
+	relay.Close()
 }
 
 // drop closes the session's connection after it failed; the next request
@@ -238,9 +279,11 @@ func (s *Session) giveBackLocked() {
 	}
 }
 
-// Close ends the session: its connection is closed (a device's connection
-// serves one client, and the session was its client), and its requests
-// still in flight fail.
+// Close ends the session: its connections are closed (a device's
+// connection serves one client, and the session was its client), and its
+// requests still in flight or waiting for a slot fail at once. Safe to
+// call while a Forward runs - the HTTP side calls it when its client hangs
+// up, so a request the device is slow on gives its slot back then.
 func (s *Session) Close() {
 	s.mu.Lock()
 	if s.closed {
@@ -248,16 +291,23 @@ func (s *Session) Close() {
 		return
 	}
 	s.closed = true
+	close(s.done)
 	if s.idle != nil {
 		s.idle.Stop()
 		s.idle = nil
 	}
-	relay := s.relay
-	s.relay = nil
+	relays := make([]*deviceRelay, 0, 1+len(s.loose))
+	if s.relay != nil {
+		relays = append(relays, s.relay)
+	}
+	for r := range s.loose {
+		relays = append(relays, r)
+	}
+	s.relay, s.loose = nil, nil
 	s.giveBackLocked()
 	s.cond.Broadcast()
 	s.mu.Unlock()
-	if relay != nil {
-		relay.Close()
+	for _, r := range relays {
+		r.Close()
 	}
 }

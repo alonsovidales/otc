@@ -265,3 +265,44 @@ func TestASessionTakesAnotherConnectionWhenItsOwnDies(t *testing.T) {
 		t.Errorf("the other connection carried %v", conns)
 	}
 }
+
+// Closing a session - its client hung up - ends its requests at once: on
+// its own connection, on one taken for a request alone and waiting for a
+// slot. One the device was slow on held its slot until the device answered.
+func TestClosingASessionEndsItsRequestsAtOnce(t *testing.T) {
+	setVar(t, &cMaxSessionConns, 1)
+	dev := newCountingDevice(t, time.Hour)
+	mg := &Manager{bridges: map[string]*bridgePool{}}
+	for i := 0; i < 6; i++ {
+		poolRelayTo(t, mg, "ria.otc", dev.url) // a domain no other test's places are counted for
+	}
+	t.Cleanup(func() { stopOfflineTimer(mg, "ria.otc") })
+	kept, loose := mg.OpenSession("ria.otc"), mg.OpenSession("ria.otc")
+	results := make(chan error, 4)
+	ask := func(s *Session, id int32) {
+		go func() { _, err := s.Forward(envelopeFrame(t, id)); results <- err }()
+		time.Sleep(100 * time.Millisecond)
+	}
+	ask(kept, 1)  // takes the device's one session place
+	ask(loose, 2) // a connection of its own
+	ask(loose, 3) // the last slot
+	ask(loose, 4) // waits for a slot
+	if n := len(mg.oneOffSlot("ria.otc")); n != cOneOffConcurrent {
+		t.Fatalf("%d slots taken, want all %d", n, cOneOffConcurrent)
+	}
+	kept.Close()
+	loose.Close()
+	for i := 0; i < 4; i++ {
+		select {
+		case err := <-results:
+			if err == nil {
+				t.Error("a closed session's request got a reply")
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("a closed session's request went on waiting")
+		}
+	}
+	if n := len(mg.oneOffSlot("ria.otc")); n != 0 {
+		t.Errorf("%d slots still taken", n)
+	}
+}

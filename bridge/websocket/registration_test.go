@@ -515,13 +515,13 @@ func TestLateReplyGivesItsBudgetBack(t *testing.T) {
 	relay.start()
 	t.Cleanup(func() { relay.Close() })
 
-	if _, _, err := relay.forwardWithTimeout(envelopeFrame(t, 1), 50*time.Millisecond); err == nil {
+	if _, _, err := relay.forwardWithTimeout(envelopeFrame(t, 1), 50*time.Millisecond, cForwardMaxWait); err == nil {
 		t.Fatal("the first request should have timed out")
 	}
 	time.Sleep(500 * time.Millisecond) // its reply arrives with nobody waiting
 
 	start := time.Now()
-	resp, release, err := relay.forwardWithTimeout(envelopeFrame(t, 2), 5*time.Second)
+	resp, release, err := relay.forwardWithTimeout(envelopeFrame(t, 2), 5*time.Second, cForwardMaxWait)
 	if err != nil {
 		t.Fatalf("the next large reply never got room (budget leaked?): %v after %v", err, time.Since(start))
 	}
