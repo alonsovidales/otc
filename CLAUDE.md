@@ -2812,7 +2812,8 @@ cancel (React's wheel and touchmove are passive), as the crop's wheel is; the st
 callback per video element (keyed by path) with a cleanup; a full size's Blob, and /shared's, carry
 their type only when an `<img>` or `<video>` may show it from a `blob:` URL (`inlineTypes.ts`), else
 `application/octet-stream`, so an SVG keeps its thumbnail and never runs as a page of the device's
-origin; within 4 photos of the end of what is loaded the viewer asks for the next page. A rating
+origin; within 4 photos of the end of what is loaded the viewer asks for the next page (and after a
+jump, within 4 of its top, the page above). A rating
 comment left unsaved on a photo that left the collection goes with it (RatingPanel's `dropped`).
 /shared: a download that stops is a line in the progress strip with Try again (the items still to
 save) and a close, the grid staying; a download's piece with no answer, or the bridge's, is asked
@@ -3005,7 +3006,9 @@ rule): any scroll event that lowers `scrollY` by more than a pixel with the page
 - the scrollbar dragged too (`scrollArmsUp`) - or, as the page can't scroll above its top, a wheel
 up, Arrow Up/Page Up/Home/Shift+Space or a finger drawn down while it is (`nearTop`); a new search
 (`searchGenRef`) drops what the old one saw. The mark then asks `upwardRequest` (`newer_than` = the
-cutoff, never `before`) once within 600px of the screen.
+cutoff, never `before`) once within 600px of the screen. The viewer open within 4 photos of the top
+asks it too (`viewerAsksUp`, no arming: opening one of them asks for what is newer), as near the end
+it asks for the next page - a jump's first photo read as the newest, with no Previous.
 `oldest_first` false drops the page and stops it while the page is open. A page goes above newest
 first, without hashes shown (`notShown`), inside `keepTopTile`: the first tile below the bar
 (`data-key`) is measured around a `flushSync` and the window scrolled by what it moved (Chrome's

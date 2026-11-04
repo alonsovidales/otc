@@ -113,6 +113,17 @@ export function scrollArmsUp(prev: ScrollAt, now: ScrollAt, markBottom: number, 
 /** An index into the grid once `n` photos went above it. */
 export const shiftIndex = (i: number | null, n: number): number | null => (i == null ? null : i + n);
 
+/** Whether the viewer, open on photo `index` of the grid, asks for the page
+ *  above a jump: within `ahead` of the top of what is loaded - as near the
+ *  end it asks for the next page - while the grid keeps an upward cursor
+ *  (`up`, upwardApplies) that hasn't reached the top (`end`). The first
+ *  photo after a jump read as the newest, with no Previous, until the grid
+ *  was scrolled up. Opening one of them asks for what is newer: no scroll
+ *  has to let the top ask first. */
+export function viewerAsksUp(index: number | null, ahead: number, up: boolean, end: boolean): boolean {
+  return up && !end && index != null && index < ahead;
+}
+
 /** The month at the top while newer photos are still to come keeps the
  *  room its date bucket says it needs (`room`), so the photos arriving for
  *  it fill grey tiles in place instead of moving the ones shown: the grey

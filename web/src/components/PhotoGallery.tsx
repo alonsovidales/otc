@@ -69,7 +69,7 @@ import { coverImageFits, faceHash, type CoverChoice } from "./personCover";
 import PhotoCropDialog from "./PhotoCropDialog";
 import { copiesChoice, delFileFields, deleteNotice, deleteNoticeText, deleteOutcome, refusedText, type DeleteResult } from "./photoCopies";
 import {
-  cUpReach, cUpStart, deviceIgnoresNewerThan, nearTop, notShown, readUpward, scrollArmsUp, shiftIndex, topReserve, upwardApplies, upwardRequest,
+  cUpReach, cUpStart, deviceIgnoresNewerThan, nearTop, notShown, readUpward, scrollArmsUp, shiftIndex, topReserve, upwardApplies, upwardRequest, viewerAsksUp,
   type ScrollAt, type UpCursor,
 } from "./newerPhotos";
 
@@ -1738,6 +1738,14 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
     obs.observe(node);
     return () => obs.disconnect();
   }, [upOn, upArmed, upEnd, upLoading, upRetryTick, upRetryReady, fetchUp]);
+  // The viewer near the top of what is loaded asks for the page above, as
+  // near the end it asks for the next one (viewerAsksUp): stepping back
+  // from a jump's first photo did nothing. Its photos go above with the
+  // open one's index moved down (fetchUp), so Previous comes with them.
+  useEffect(() => {
+    if (!viewerAsksUp(openIdx, cViewerAhead, upOn, upEnd)) return;
+    if (!upLoadingRef.current && upRetryReady()) void fetchUp();
+  }, [openIdx, upOn, upEnd, upLoading, upRetryTick, upRetryReady, fetchUp]);
   // Once the first page has failed, its error stays up while the retries
   // run (the button shows them), rather than flipping back to grey tiles.
   const firstLoad = items.length === 0 && !pageError && (loading || !endReached);

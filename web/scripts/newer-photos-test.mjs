@@ -114,6 +114,19 @@ describe("going above the grid", () => {
   test("an entry without a hash is never taken for another", () => {
     assert.deepEqual(m.notShown([f(""), f("")], [f("")]), [f(""), f("")]);
   });
+  test("the viewer near the top asks for the page above, while there is one", () => {
+    // Opened on a jump's first photo, or stepped back to within 4 of it.
+    assert.equal(m.viewerAsksUp(0, 4, true, false), true);
+    assert.equal(m.viewerAsksUp(3, 4, true, false), true);
+    assert.equal(m.viewerAsksUp(4, 4, true, false), false, "further down: not yet");
+    assert.equal(m.viewerAsksUp(null, 4, true, false), false, "no viewer");
+    assert.equal(m.viewerAsksUp(0, 4, false, false), false, "no jump: nothing newer than the first photo");
+    assert.equal(m.viewerAsksUp(0, 4, true, true), false, "the top reached");
+    // The page arrived: the open photo moved down past it.
+    assert.equal(m.viewerAsksUp(m.shiftIndex(0, 12), 4, true, false), false);
+    // A short one: still near the top, the next page then.
+    assert.equal(m.viewerAsksUp(m.shiftIndex(0, 2), 4, true, false), true);
+  });
   test("indices kept by place move down by what went above", () => {
     assert.equal(m.shiftIndex(0, 12), 12);
     assert.equal(m.shiftIndex(5, 0), 5);
