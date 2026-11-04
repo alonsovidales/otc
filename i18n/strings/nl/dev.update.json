@@ -187,8 +187,8 @@
     "en": "Updated to version {version}"
   },
   "dev.update.updated_os_pending": {
-    "text": "Bijgewerkt naar versie {version}, maar de beveiligingsupdates van het systeem konden niet worden ingesteld: de volgende update probeert het opnieuw",
-    "en": "Updated to version {version}, but the system's security updates could not be set up: the next update tries again"
+    "text": "Bijgewerkt naar versie {version}, maar de beveiligingsupdates van het systeem konden niet worden ingesteld: de update naar de volgende versie probeert het opnieuw",
+    "en": "Updated to version {version}, but the system's security updates could not be set up: the update to the next version tries again"
   },
   "dev.update.uptodate": {
     "text": "Al up-to-date",

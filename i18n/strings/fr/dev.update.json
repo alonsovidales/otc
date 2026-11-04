@@ -187,8 +187,8 @@
     "en": "Updated to version {version}"
   },
   "dev.update.updated_os_pending": {
-    "text": "Mis à jour vers la version {version}, mais les mises à jour de sécurité du système n’ont pas pu être configurées : la prochaine mise à jour réessaiera",
-    "en": "Updated to version {version}, but the system's security updates could not be set up: the next update tries again"
+    "text": "Mis à jour vers la version {version}, mais les mises à jour de sécurité du système n’ont pas pu être configurées : la mise à jour vers la prochaine version réessaiera",
+    "en": "Updated to version {version}, but the system's security updates could not be set up: the update to the next version tries again"
   },
   "dev.update.uptodate": {
     "text": "Déjà à jour",

@@ -44,7 +44,7 @@
   "dev.update.staging": {"text": "Preparazione dei sorgenti"},
   "dev.update.unsupported_arch": {"text": "architettura non supportata {arch}"},
   "dev.update.updated": {"text": "Aggiornato alla versione {version}"},
-  "dev.update.updated_os_pending": {"text": "Aggiornato alla versione {version}, ma non è stato possibile configurare gli aggiornamenti di sicurezza del sistema: il prossimo aggiornamento riproverà"},
+  "dev.update.updated_os_pending": {"text": "Aggiornato alla versione {version}, ma non è stato possibile configurare gli aggiornamenti di sicurezza del sistema: l’aggiornamento alla prossima versione riproverà"},
   "dev.update.uptodate": {"text": "Già aggiornato"},
   "dev.update.users_unreadable": {"text": "la release {release} non è riuscita a leggere l’elenco degli utenti di questo dispositivo: premi Aggiorna per riprovare"},
   "dev.update.verified_manifest_missing": {"text": "il manifest verificato manca"},

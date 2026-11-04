@@ -218,9 +218,9 @@
     "note": "Shown in Settings > Device version once an update finished. {version} is the release number the device is now on, such as 118."
   },
   "dev.update.updated_os_pending": {
-    "text": "Updated to version {version}, but the system's security updates could not be set up: the next update tries again",
+    "text": "Updated to version {version}, but the system's security updates could not be set up: the update to the next version tries again",
     "args": [["version", "text"]],
-    "note": "Shown in Settings > Device version once an update finished, when the part of it outside the app could not be set up: the operating system's automatic security updates (and a network filter that comes with them), for instance because the system's package manager failed. The device is on the new version anyway, and the next update tries that part again. {version} is the release number the device is now on, such as 118."
+    "note": "Shown in Settings > Device version once an update finished, when the part of it outside the app could not be set up: the operating system's automatic security updates (and a network filter that comes with them), for instance because the system's package manager failed. The device is on the new version anyway, and the update to the next version (once one is published) tries that part again. {version} is the release number the device is now on, such as 118."
   },
   "dev.update.uptodate": {
     "text": "Already up to date",

@@ -249,10 +249,12 @@ run_release() {
 }
 
 # updated_status: the update is done; when release 161's part outside OTC
-# is still waiting (OS_UPDATES_PENDING), it says so.
+# is still waiting (OS_UPDATES_PENDING), it says so - and that it is tried
+# again by the update to the next release: with no release to install, an
+# update ends at "Already up to date" and runs nothing.
 updated_status() {
     if [ -e "$OS_UPDATES_PENDING" ]; then
-        status done "Updated to version $updated, but the system's security updates could not be set up: the next update tries again" updated_os_pending "$(args version "$updated")"
+        status done "Updated to version $updated, but the system's security updates could not be set up: the update to the next version tries again" updated_os_pending "$(args version "$updated")"
     else
         status done "Updated to version $updated" updated "$(args version "$updated")"
     fi
@@ -465,15 +467,17 @@ done
 
 # Release 161's part outside OTC - the system's security updates and the
 # IPv4-options filter - on a device where apt or nft failed when it ran:
-# tried again at every update until everything is in place (its corrected
-# script removes OS_UPDATES_PENDING then). A failure only warns: the rest of
-# the update goes on, and its last words say what is still missing.
+# tried again by every later update that installs a release (one with
+# nothing to install stops above) until everything is in place (its
+# corrected script removes OS_UPDATES_PENDING then). A failure only warns:
+# the rest of the update goes on, and its last words say what is still
+# missing.
 if [ -e "$OS_UPDATES_PENDING" ] && [ -z "$ran_161" ] && [ -f "$OTC_VERIFIED_SRC/scripts/updates/corrected/161.sh" ]; then
     status running "Applying release 161" applying "$(args release "161")"
     echo "--- release 161, again: the system's security updates were not all in place ---"
     cp "$OTC_VERIFIED_SRC/scripts/updates/corrected/161.sh" "$tmp/161.corrected.sh" \
         && run_release 161 "$tmp/161.corrected.sh" \
-        || echo "WARNING: release 161 could not run again - the next update tries again"
+        || echo "WARNING: release 161 could not run again - the update to the next version tries again"
 fi
 
 # On this day's photo quality model (release 150): optional, so a device

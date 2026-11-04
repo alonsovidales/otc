@@ -266,8 +266,10 @@ failure (status 1) - the filter wherever nft is there already. install.sh stops 
 fresh install is run again); the corrected 161 never stops the update: it leaves root's
 `/etc/otc/os-updates.pending`, every later update that installs a release runs it again until
 everything is in place (and removes the mark), and the update ends with `updated_os_pending`
-("Updated to version X, but the system's security updates could not be set up: the next update
-tries again") - tested with stand-ins for apt, dpkg, systemctl and nft (`updater/release161_test.go`).
+("Updated to version X, but the system's security updates could not be set up: the update to the
+next version tries again" - an update with no release to install stops at "Already up to date"
+and runs nothing, and Settings offers Update only when there is one) - tested with stand-ins for
+apt, dpkg, systemctl and nft (`updater/release161_test.go`).
 TCP keeps the window it learnt on a connection that sat idle (release 169: `otc_network_tuning`,
 the same function in install.sh and `updates/169.sh`, `updater/release169_test.go`;
 `net.ipv4.tcp_slow_start_after_idle = 0` in `/etc/sysctl.d/80-otc-network.conf`, set at once and

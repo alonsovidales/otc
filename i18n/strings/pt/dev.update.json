@@ -187,8 +187,8 @@
     "en": "Updated to version {version}"
   },
   "dev.update.updated_os_pending": {
-    "text": "Atualizado para a versão {version}, mas não foi possível configurar as atualizações de segurança do sistema: a próxima atualização volta a tentar",
-    "en": "Updated to version {version}, but the system's security updates could not be set up: the next update tries again"
+    "text": "Atualizado para a versão {version}, mas não foi possível configurar as atualizações de segurança do sistema: a atualização para a próxima versão volta a tentar",
+    "en": "Updated to version {version}, but the system's security updates could not be set up: the update to the next version tries again"
   },
   "dev.update.uptodate": {
     "text": "Já está atualizado",

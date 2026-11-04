@@ -44,7 +44,7 @@
   "dev.update.staging": {"text": "Preparando el código fuente"},
   "dev.update.unsupported_arch": {"text": "arquitectura no compatible: {arch}"},
   "dev.update.updated": {"text": "Actualizado a la versión {version}"},
-  "dev.update.updated_os_pending": {"text": "Actualizado a la versión {version}, pero no se han podido configurar las actualizaciones de seguridad del sistema: la próxima actualización lo volverá a intentar"},
+  "dev.update.updated_os_pending": {"text": "Actualizado a la versión {version}, pero no se han podido configurar las actualizaciones de seguridad del sistema: la actualización a la próxima versión lo volverá a intentar"},
   "dev.update.uptodate": {"text": "Ya está actualizado"},
   "dev.update.users_unreadable": {"text": "la versión {release} no ha podido leer la lista de usuarios de este dispositivo: pulsa Actualizar para volver a intentarlo"},
   "dev.update.verified_manifest_missing": {"text": "falta el manifiesto verificado"},

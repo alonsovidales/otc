@@ -20,9 +20,9 @@
 # left first, waits for another apt, tries a failed install once more, and
 # sets up all it can before it reports a failure - the IPv4-options filter
 # wherever nft is there already. A failure no longer stops the update:
-# /etc/otc/os-updates.pending (root's) records it, every later update runs
-# this again until everything is in place (update.sh), and the update says
-# so when it finishes.
+# /etc/otc/os-updates.pending (root's) records it, every later update that
+# installs a release runs this again until everything is in place
+# (update.sh), and the update says so when it finishes.
 #
 # Not in a container: its host's system is its host's (the entrypoint runs
 # no release scripts anyway). Idempotent: run again, it writes the same.
@@ -120,5 +120,5 @@ if otc_os_security; then
     echo "release 161 applied: security updates every day (restart at 04:00 when needed), TCP packets with IPv4 options dropped"
 else
     { mkdir -p /etc/otc && : >"$PENDING"; } || exit 1
-    echo "WARNING: release 161 could not set everything up (see above) - every update tries again until it is in place"
+    echo "WARNING: release 161 could not set everything up (see above) - the update to every later version tries again until it is in place"
 fi
