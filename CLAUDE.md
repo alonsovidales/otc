@@ -1210,8 +1210,8 @@ start takes its file.
   the latest BeginUpload's dates, override and cloud id winning; one without a key is dropped when
   its connection closes, as before. Ownership is the connection (`owner`, checked with the session
   by UploadChunk and FinishUpload): the latest BeginUpload of a key takes it over even from a
-  connection still open (a phone's half-open socket - there is no read deadline on direct
-  connections - looks alive for minutes), whose further requests for it get "unknown or expired
+  connection still open (a phone's half-open socket - there is no read deadline on a signed-in
+  direct connection - looks alive for minutes), whose further requests for it get "unknown or expired
   upload". FinishUpload checks the hash against what it is sent and against the key. A write that
   failed drops the upload (sealed file and hash out of step). BeginUploads are serialised
   (`uploads.begin`); lock order `uploads.mu` then an upload's `mu`. Limits per instance:
@@ -1979,7 +1979,18 @@ start takes its file.
   (`anonymous`), a connection has `cMaxInFlightAnon` (4) requests at once - the next isn't read
   meanwhile, nothing is refused - and its messages are read with `wsframe.ReadFree`, 64 KiB free
   (`cAnonFrameFree`), the rest in `anonFrameBudget` (64 MiB, reserved by capacity); then 32 and
-  `frameBudget` past 4 MiB (`frameRules`). `Listen` refuses another site's page with a 403 before
+  `frameBudget` past 4 MiB (`frameRules`). A session that never signs in nor authenticates as a
+  friend ends once idle (`anon_sessions.go`, `anonWatch`: no request read and none being answered
+  for `cAnonIdleDirect`, 2 minutes, on the device's own listener; `cAnonIdleBridged`, 15, on a bridge
+  connection, counted from its first relayed message - one idle in the pool waits for a client by
+  design): gorilla's Upgrade clears every deadline and the device never pings, so a socket that sent
+  nothing used to live as long as its TCP connection. The web app's pages and the shared ones open a
+  new socket at their next request (signing in on it as before) and the apps sign in at once; through
+  a bridge that only notices the relay gone at the client's next request, that request gets
+  `device_unreachable` (hence the bridge's longer time). The device's own listener also takes at most
+  `cMaxAnonPerAddr` (256) sockets from one address (an IPv6 /64; `clientAddr`) before they sign in,
+  `cMaxAnonDirect` (2048) in all (`anonSlots`): past that `Listen` answers 503 before the upgrade, and
+  a connection stops counting once signed in. Both are counted in `anonLog`. `Listen` refuses another site's page with a 403 before
   the upgrade (`origin.go`, `originAllowed`, also the upgrader's CheckOrigin): no Origin (apps,
   otc-sync, friends' devices), an Origin whose host is the request's Host (the web app at any of the
   device's addresses, tunnels, Tailscale Funnel, which passes the Host on), one on

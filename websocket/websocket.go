@@ -696,9 +696,11 @@ func (mg *Manager) openBridgeConn() {
 	// Blocks for this connection's entire lifetime in the pool - returns
 	// once the bridge has consumed it for its one relay (or the underlying
 	// socket otherwise drops).
-	// From here the bridge relays a client over it, which may stay idle
-	// for as long as it likes: no deadline, and the read limit is set per
-	// message by the serve loop.
+	// From here the bridge relays a client over it: no deadline (the read
+	// limit is set per message by the serve loop) - waiting in the pool it
+	// stays as long as it takes, and a client paired on it may stay idle
+	// for as long as it likes once signed in; one that never signs in ends
+	// once idle (anon_sessions.go).
 	c.SetReadDeadline(time.Time{})
 	c.SetWriteDeadline(time.Time{})
 	// Issue #170: the bridge keeps the connection for the client's whole
@@ -1070,6 +1072,19 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
+	// A socket that hasn't signed in holds one of its address's slots
+	// (anon_sessions.go) until it does or it ends: past them, refused
+	// before the upgrade.
+	release, ok := directAnon.take(clientAddr(r))
+	if !ok {
+		log.Debug("socket refused, too many open before sign-in from", clientAddr(r))
+		anonLog.note(cAnonTooMany)
+		w.Header().Set("Retry-After", "30")
+		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+		return
+	}
+	defer release()
+
 	conn, err := mg.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		// Anyone's plain request to /ws (the upgrader has answered it).
@@ -1083,7 +1098,7 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	mg.activeConns.Add(1)
 	defer mg.activeConns.Add(-1)
 
-	mg.handleConnection(conn, r)
+	mg.serve(conn, r, nil, release)
 }
 
 // connHandler holds one WebSocket connection's per-connection state.
@@ -4881,6 +4896,16 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	mg.serveConnection(conn, r, nil)
 }
 
+// anonIdle is how long a connection may stay idle without signing in
+// (anon_sessions.go): one to the device's own listener (direct), or a
+// bridge connection.
+func anonIdle(direct bool) time.Duration {
+	if direct {
+		return cAnonIdleDirect
+	}
+	return cAnonIdleBridged
+}
+
 // handleRequest is how serveConnection answers one request: processMessage.
 // A var for tests.
 var handleRequest = (*connHandler).processMessage
@@ -4888,6 +4913,12 @@ var handleRequest = (*connHandler).processMessage
 // serveConnection serves conn until it closes; onFirst (if any) runs once,
 // in this goroutine, when the first message arrives.
 func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst func()) {
+	mg.serve(conn, r, onFirst, nil)
+}
+
+// serve is serveConnection; anonSlot (Listen's, nil-safe) is given back
+// once the connection signs in or authenticates as a friend.
+func (mg *Manager) serve(conn *gorilla.Conn, r *http.Request, onFirst func(), anonSlot func()) {
 	ch := &connHandler{
 		mg:         mg,
 		fromBridge: r == nil,
@@ -4916,6 +4947,15 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 	// A password change closes it if it is signed in (passwordChanged).
 	mg.track(ch, closeConn)
 	defer mg.untrack(ch)
+	// A session that never signs in ends once idle (anon_sessions.go): on
+	// the device's own listener from the start, on a bridge connection
+	// from its first relayed message - idle in the pool, it waits for a
+	// client.
+	idle := newAnonWatch(anonIdle(r != nil), ch.anonymous, closeConn)
+	defer idle.stop()
+	if r != nil {
+		idle.arm()
+	}
 	// Deferred before wg.Wait, so it runs after it: the chunked uploads
 	// this connection left unfinished are let go once none of its requests
 	// is still running (a FinishUpload in flight still commits) - kept for
@@ -4943,6 +4983,11 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 		anon := ch.anonymous()
 		if anon {
 			anonInFlight <- struct{}{}
+		} else if anonSlot != nil {
+			// Signed in, or a friend: no longer one of its address's
+			// anonymous sockets.
+			anonSlot()
+			anonSlot = nil
 		}
 		doneAnon := func() {
 			if anon {
@@ -4975,7 +5020,10 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 		if onFirst != nil {
 			onFirst()
 			onFirst = nil
+			// A client is paired on this bridge connection now.
+			idle.arm()
 		}
+		idle.begin()
 		inFlight <- struct{}{}
 
 		var env pb.ReqEnvelope
@@ -4989,6 +5037,7 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 			releaseFrame()
 			<-inFlight
 			doneAnon()
+			idle.end()
 			return
 		}
 
@@ -5001,6 +5050,7 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 		// hand off - no aliasing with the next iteration's env.
 		go func(env *pb.ReqEnvelope) {
 			defer wg.Done()
+			defer idle.end()
 			defer doneAnon()
 			defer func() { <-inFlight }()
 			defer releaseFrame()

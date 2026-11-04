@@ -30,6 +30,13 @@ const (
 	// cAnonPanic: a request before sign-in that failed with a panic, past
 	// the one a minute logged with its stack (recoveredPanic).
 	cAnonPanic = "requests before sign-in that failed unexpectedly" // i18n-ignore: the log, in English
+	// cAnonIdle: a connection that never signed in, closed once idle
+	// (anonWatch).
+	cAnonIdle = "connections closed idle before sign-in" // i18n-ignore: the log, in English
+	// cAnonTooMany: a socket refused because its address, or every
+	// address together, already holds as many as it may before signing in
+	// (anonSlots).
+	cAnonTooMany = "sockets refused, too many open before sign-in" // i18n-ignore: the log, in English
 )
 
 // anonPanics lets one panic a minute from a connection that hasn't signed
