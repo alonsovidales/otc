@@ -374,6 +374,11 @@
     "note": "otc-sync: line of the storage line's submenu in the tray menu: the device's memory in use. {amount} is how much is used of the total, already worded (\"2.1 of 8.2 GB\").",
     "max": 40
   },
+  "desk.main.names_not_allowed": {
+    "text": "{files} file(s) on the device have names Windows can't use - not synced here",
+    "args": [["files", "int"]],
+    "note": "otc-sync on Windows: a two-way folder's state when some files on the device have names Windows doesn't allow (with characters such as \\ ? * : or a name ending in a dot or a space, made on a Mac, Linux or a phone). They stay on the device as they are and aren't downloaded here. {files} is how many."
+  },
   "desk.main.no_folders": {
     "text": "No folders yet — add one below.",
     "note": "Both apps: shown in place of the folder list while no folder is synced; Add Folder… is the button (or menu item) below it.",

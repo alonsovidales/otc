@@ -437,6 +437,13 @@ extension S {
         L("desk.main.memory_line", table: "DeskMain", amount)
     }
 
+    /// {files} file(s) on the device have names Windows can't use - not synced here
+    ///
+    /// otc-sync on Windows: a two-way folder's state when some files on the device have names Windows doesn't allow (with characters such as \ ? * : or a name ending in a dot or a space, made on a Mac, Linux or a phone). They stay on the device as they are and aren't downloaded here. {files} is how many.
+    static func deskMainNamesNotAllowed(files: Int) -> String {
+        L("desk.main.names_not_allowed", table: "DeskMain", files)
+    }
+
     /// No folders yet — add one below.
     ///
     /// Both apps: shown in place of the folder list while no folder is synced; Add Folder… is the button (or menu item) below it.

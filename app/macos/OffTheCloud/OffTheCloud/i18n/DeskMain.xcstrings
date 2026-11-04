@@ -3385,6 +3385,53 @@
         }
       }
     },
+    "desk.main.names_not_allowed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dateien auf dem Gerät mit Namen, die Windows nicht zulässt (hier nicht synchronisiert): %1$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld file(s) on the device have names Windows can't use - not synced here"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archivos del dispositivo con nombres que Windows no admite (no se sincronizan aquí): %1$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fichiers de l’appareil dont Windows n’accepte pas le nom (non synchronisés ici) : %1$lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld file sul dispositivo hanno nomi che Windows non accetta: non vengono sincronizzati qui"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bestanden op het apparaat met namen die Windows niet toestaat (hier niet gesynchroniseerd): %1$lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ficheiros do dispositivo com nomes que o Windows não aceita (não sincronizados aqui): %1$lld"
+          }
+        }
+      }
+    },
     "desk.main.no_folders" : {
       "extractionState" : "manual",
       "localizations" : {

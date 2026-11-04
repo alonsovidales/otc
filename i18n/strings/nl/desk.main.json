@@ -298,6 +298,10 @@
     "text": "Geheugen: {amount}",
     "en": "Memory: {amount}"
   },
+  "desk.main.names_not_allowed": {
+    "text": "Bestanden op het apparaat met namen die Windows niet toestaat (hier niet gesynchroniseerd): {files}",
+    "en": "{files} file(s) on the device have names Windows can't use - not synced here"
+  },
   "desk.main.no_folders": {
     "text": "Nog geen mappen – voeg er hieronder een toe.",
     "en": "No folders yet — add one below."

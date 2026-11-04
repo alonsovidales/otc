@@ -71,6 +71,7 @@
   "desk.main.language": {"text": "Sprache"},
   "desk.main.language_automatic": {"text": "Automatisch ({language})"},
   "desk.main.memory_line": {"text": "RAM: {amount}"},
+  "desk.main.names_not_allowed": {"text": "Dateien auf dem Gerät mit Namen, die Windows nicht zulässt (hier nicht synchronisiert): {files}"},
   "desk.main.no_folders": {"text": "Noch keine Ordner – füge unten einen hinzu."},
   "desk.main.no_space": {"text": "Nicht genug Speicherplatz hier für Dateien vom Gerät: {files}"},
   "desk.main.no_storage": {"text": "Dein Gerät kann seine Speicherlaufwerke nicht erreichen. Prüfe, ob sie angeschlossen und eingeschaltet sind; es startet von selbst neu, sobald sie wieder da sind."},

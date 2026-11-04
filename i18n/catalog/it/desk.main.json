@@ -71,6 +71,7 @@
   "desk.main.language": {"text": "Lingua"},
   "desk.main.language_automatic": {"text": "Automatica ({language})"},
   "desk.main.memory_line": {"text": "Memoria: {amount}"},
+  "desk.main.names_not_allowed": {"text": "{files} file sul dispositivo hanno nomi che Windows non accetta: non vengono sincronizzati qui"},
   "desk.main.no_folders": {"text": "Non ci sono ancora cartelle: aggiungine una qui sotto."},
   "desk.main.no_space": {"text": "Spazio insufficiente qui per {files} file del dispositivo"},
   "desk.main.no_storage": {"text": "Il tuo dispositivo non riesce a raggiungere i suoi dischi di archiviazione. Controlla che siano collegati e accesi; ripartirà da solo appena saranno di nuovo disponibili."},

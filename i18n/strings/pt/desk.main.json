@@ -298,6 +298,10 @@
     "text": "Memória: {amount}",
     "en": "Memory: {amount}"
   },
+  "desk.main.names_not_allowed": {
+    "text": "Ficheiros do dispositivo com nomes que o Windows não aceita (não sincronizados aqui): {files}",
+    "en": "{files} file(s) on the device have names Windows can't use - not synced here"
+  },
   "desk.main.no_folders": {
     "text": "Ainda não há pastas: adiciona uma abaixo.",
     "en": "No folders yet — add one below."

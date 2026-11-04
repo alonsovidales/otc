@@ -364,6 +364,11 @@ func DeskMainMemoryLine(amount string) Msg {
 	return Msg{Key: "desk.main.memory_line", Args: map[string]any{"amount": amount}}
 }
 
+// DeskMainNamesNotAllowed is desk.main.names_not_allowed: "{files} file(s) on the device have names Windows can't use - not synced here".
+func DeskMainNamesNotAllowed(files int) Msg {
+	return Msg{Key: "desk.main.names_not_allowed", Args: map[string]any{"files": int64(files)}}
+}
+
 // DeskMainNoFolders is desk.main.no_folders: "No folders yet — add one below.".
 func DeskMainNoFolders() Msg {
 	return Msg{Key: "desk.main.no_folders"}

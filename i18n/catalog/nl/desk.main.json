@@ -71,6 +71,7 @@
   "desk.main.language": {"text": "Taal"},
   "desk.main.language_automatic": {"text": "Automatisch ({language})"},
   "desk.main.memory_line": {"text": "Geheugen: {amount}"},
+  "desk.main.names_not_allowed": {"text": "Bestanden op het apparaat met namen die Windows niet toestaat (hier niet gesynchroniseerd): {files}"},
   "desk.main.no_folders": {"text": "Nog geen mappen – voeg er hieronder een toe."},
   "desk.main.no_space": {"text": "Niet genoeg ruimte hier voor bestanden van het apparaat: {files}"},
   "desk.main.no_storage": {"text": "Je apparaat kan zijn opslagschijven niet bereiken. Controleer of ze zijn aangesloten en aanstaan; het start vanzelf weer op zodra ze terug zijn."},

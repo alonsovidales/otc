@@ -71,6 +71,7 @@
   "desk.main.language": {"text": "Idioma"},
   "desk.main.language_automatic": {"text": "Automático ({language})"},
   "desk.main.memory_line": {"text": "Memória: {amount}"},
+  "desk.main.names_not_allowed": {"text": "Ficheiros do dispositivo com nomes que o Windows não aceita (não sincronizados aqui): {files}"},
   "desk.main.no_folders": {"text": "Ainda não há pastas: adiciona uma abaixo."},
   "desk.main.no_space": {"text": "Ficheiros do dispositivo para os quais não há espaço aqui: {files}"},
   "desk.main.no_storage": {"text": "O teu dispositivo não consegue aceder aos seus discos de armazenamento. Verifica se estão ligados e com alimentação; volta a arrancar sozinho assim que estiverem de volta."},

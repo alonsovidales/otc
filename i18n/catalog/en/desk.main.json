@@ -71,6 +71,7 @@
   "desk.main.language": {"text": "Language"},
   "desk.main.language_automatic": {"text": "Automatic ({language})", "args": [["language", "text"]]},
   "desk.main.memory_line": {"text": "Memory: {amount}", "args": [["amount", "text"]]},
+  "desk.main.names_not_allowed": {"text": "{files} file(s) on the device have names Windows can't use - not synced here", "args": [["files", "int"]]},
   "desk.main.no_folders": {"text": "No folders yet — add one below."},
   "desk.main.no_space": {"text": "Not enough space here for {files} file(s) from the device", "args": [["files", "int"]]},
   "desk.main.no_storage": {"text": "Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back."},

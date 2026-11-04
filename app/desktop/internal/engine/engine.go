@@ -1654,6 +1654,8 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	// one file. The device's own bytes address what it has (deviceRel);
 	// a new file goes up as its key.
 	remoteByRel := map[string]*pb.File{}
+	// Device entries whose names Windows can't hold (names.go).
+	unusable := 0
 	if lof, ok := resp.Payload.(*pb.RespEnvelope_RespListOfFiles); ok {
 		skipped, twins := 0, 0
 		for _, rf := range lof.RespListOfFiles.Files {
@@ -1662,6 +1664,11 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			// deleted from the device) outside the folder.
 			rel, under := strings.CutPrefix(rf.Path, remotePrefix)
 			key := pathKey(rel)
+			if under && rel != "" && (unusableName(rel) || unusableName(key)) {
+				unusable++
+
+				continue
+			}
 			if !under || !safeRelative(rel) || !safeRelative(key) {
 				skipped++
 
@@ -1688,6 +1695,9 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 		if twins > 0 {
 			log.Printf("two-way %s: %d name(s) listed twice by the device in two Unicode normalizations - one of each is synced, the other left as it is", f.RemotePath, twins)
+		}
+		if unusable > 0 {
+			log.Printf("two-way %s: %d device file(s) have names Windows can't hold as they are - left as they are, not synced here", f.RemotePath, unusable)
 		}
 	}
 
@@ -2338,6 +2348,10 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		e.setRemoteState(f.ID, noteState(
 			fmt.Sprintf("%d file(s) are links or hidden here - left as they are on the device", leftOnDevice), // i18n-ignore: state.json's English, for the command line; Msg is the tray's
 			i18n.DeskMainFilesNotSyncedHere(leftOnDevice)))
+	case unusable > 0:
+		e.setRemoteState(f.ID, noteState(
+			fmt.Sprintf("%d file(s) on the device have names Windows can't use - not synced here", unusable), // i18n-ignore: state.json's English, for the command line; Msg is the tray's
+			i18n.DeskMainNamesNotAllowed(unusable)))
 	default:
 		e.setRemoteState(f.ID, FolderState{Kind: StateWatching})
 	}

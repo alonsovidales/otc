@@ -71,6 +71,7 @@
   "desk.main.language": {"text": "Langue"},
   "desk.main.language_automatic": {"text": "Automatique ({language})"},
   "desk.main.memory_line": {"text": "Mémoire : {amount}"},
+  "desk.main.names_not_allowed": {"text": "Fichiers de l’appareil dont Windows n’accepte pas le nom (non synchronisés ici) : {files}"},
   "desk.main.no_folders": {"text": "Pas encore de dossiers : ajoutez-en un ci-dessous."},
   "desk.main.no_space": {"text": "Fichiers de l’appareil pour lesquels il n’y a pas assez de place ici : {files}"},
   "desk.main.no_storage": {"text": "Votre appareil ne parvient pas à accéder à ses disques de stockage. Vérifiez qu’ils sont branchés et allumés ; il redémarre de lui-même dès qu’ils sont de retour."},
