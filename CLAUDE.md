@@ -3210,7 +3210,15 @@ when another device is set (`SetupWizardView.switchDevice`), and so do the tray'
 and the Mac's connect form when another device is entered while folders are synced - also with the
 old password gone - then disconnect first; `otc-sync settings` refuses it and points to `otc-sync
 disconnect`. A respelling of the same address is no change (`engine.SameDevice` /
-`SyncPaths.sameDevice`). "Change Password…" (the tray, Mac Settings' ⋯ menu, `otc-sync settings
+`SyncPaths.sameDevice`). Another device never gets the password kept for the old one, which would
+reach it sealed to its own key: otc-sync's Connect asks again for an empty password field unless
+the address is the device the kept password belongs to (`passwordMissing`,
+`desk.main.password_required`), and saves the old password's removal, the address, then the new
+password, in that order (`saveConnection`; the same device: the password, then the respelled
+address), so neither device is sent the other's; `otc-sync settings` for another device forgets
+the old password before it saves the address and saves a new one after it (then writes config.json
+again, so a running sync reads a password kept in the keyring), and reads it with golang.org/x/term
+(echo off in a Windows console too); `config.Reset` forgets it as well. "Change Password…" (the tray, Mac Settings' ⋯ menu, `otc-sync settings
 --password-prompt`) keeps every folder; "Wrong password" in the tray's status line and the popover
 leads to it. The tray's Connect and Change Password wait up to 30 s and say Connected, turned down
 (Try Again) or unreachable (`waitForConnection`). **A device without its storage** (issue #207):
@@ -3367,6 +3375,13 @@ image-publish` via `scripts/sign-file.sh`). otc-sync (`internal/flasher`, tray `
   on, followed through device-mapper slaves;
 - on Windows, `Get-Disk` with bus type USB, SD or MMC, not boot or system.
 
+Every USB disk is listed, so a disk that holds a folder otc-sync syncs is refused
+(`flasher.HoldsFolder`: on Linux what is mounted from it, through device-mapper; on Windows its
+partitions' access paths; `desk.folders.setup_disk_has_folder`), one over 128 GB (`LargeDiskSize`)
+is asked about a second time (`desk.folders.setup_large_disk`; `otc-sync flash` wants its size
+typed), and on Linux the writer unmounts only what the desktop mounted for a card (`/media/…`,
+`/run/media/…`): a disk mounted anywhere else is refused (`desk.folders.flash_card_mounted`).
+
 The tray's list of cards shows Linux's full labels; Windows' list is 241 px wide and cuts what
 doesn't fit, so there a row is the size, the disk's number and the name, at most 34 characters
 (`windowsCardRow`; the device dialog's prompt there is the short `desk.main.settings_hint_windows`).
@@ -3402,11 +3417,14 @@ registration half of LoginItem.swift (XDG autostart file / HKCU Run key, only wi
 "Start at login" above), `service` (systemd user unit + linger). One process runs the
 engine (a flock in the config dir); a tray started next to the service is a viewer, and every
 edit goes through config.json, which the engine watches - so the CLI, the tray and the service
-never disagree. Every edit takes `config.lock` (`config.Edit`; flock, LockFileEx on Windows) and is
+never disagree. The engine's process writes state.json at every change and every 10 s
+(`stateHeartbeat`): a viewer and `otc-sync status` take one older than 30 s for a sync that isn't
+running, and a service with nothing to say (waiting on a wrong password, at rest) read as one. Every edit takes `config.lock` (`config.Edit`; flock, LockFileEx on Windows) and is
 written through a temp file of its own, fsynced and renamed (`WriteFileAtomic`, also state.json,
 records, caches); the file replaced is kept as `config.json.bak`, which `Load` reads when
 config.json isn't valid. One that can't be read starts the tray with "The settings can't be read"
-and "Reset Settings…" (`config.Reset` renames it aside). The tray and the service log to `<config
+and "Reset Settings…" (`config.Reset` renames it aside and forgets the password, the old
+device's). The tray and the service log to `<config
 dir>/otc-sync.log` (5 MiB, one `.1` kept; the tray's "Show Log" - the Mac logs to the unified
 log instead, `log show --predicate 'subsystem == "cloud.off-the.OffTheCloud"'`); on Windows the CLI subcommands
 attach to the terminal's console (`attachConsole`). A keyring still locked at boot shows "Waiting
@@ -3423,8 +3441,14 @@ device ever changes the folder. Its device folder is made upload only at every s
 (what is only on one side is copied to the other; with no sync record yet nothing is ever
 deleted). Both directions have a mass-deletion guard (more than 20 files and a quarter of the
 folder in one pass): a two-way folder restores what the device lost instead of deleting it
-locally, a backup keeps on the device what vanished locally; the Mac moves what it deletes to
-the Trash. Upload-only folders from before backups were a choice were migrated to two-way once
+locally, and holds the device deletes of files gone from here (they stay there with their
+baselines, `desk.main.deletes_held`, until they are back here or deleted there too; content here
+under another name - a move - doesn't count); a backup keeps on the device what vanished locally.
+What a two-way pass deletes here goes to the trash: the Mac's Trash, and otc-sync's system trash
+(`engine/trash*.go`: the freedesktop.org trash on Linux - the home trash, or the disk's own
+`.Trash/<uid>` or `.Trash-<uid>`, each file with its `.trashinfo` -, the Recycle Bin on Windows,
+fixed disks only; else a `.otc-trash/<day>/` folder in the synced folder, never synced, emptied of
+days older than 30); a file that can't be moved stays, and is tried again. Upload-only folders from before backups were a choice were migrated to two-way once
 (`SyncModel.migrateLocalFolders`, gated by `sync.folders.migratedToTwoWay`; `engine.migrateFolders`
 skips `OneWay`), and the sync record (relative path -> hash after the last pass) is saved per folder
 (`synced/<id>.json`), so a delete made while the app was closed still propagates. Issue #134: both send a file's own creation and modification times with
@@ -3469,13 +3493,42 @@ mtime just before acting (`stillAsScanned` / `localMatches`), and the device's f
 an upload replaces it (before LinkFile and FinishUpload) or a delete removes it, by listing that
 one path (`deviceStillAsListed`): changed since the listing, it is left for the next pass, which
 keeps both versions. A sync record (`synced/<id>.json`: `{"v": 2, "device": {"domain", "pin"},
-"files"}`) names the device it was made with - its home-network certificate pin when known, else
-the address (`recordDevice`); one of another device counts as none (that pass deletes nothing), an
-older bare map as the configured device's. The mass-deletion guard doesn't count deletes whose
-content the device lists at a new path (a move there). A folder whose own folder is missing waits
-("Folder not found - reconnect the drive"), untouched on both sides, and resumes once it is back
-(the Mac resolves its bookmark again and follows a move; one that didn't resolve at launch stays
-listed); it is never removed. Downloads go to a temp name of their own (`name.<random>.otc-part`),
+"root", "mounts", "files"}`) names the device it was made with - its home-network certificate pin
+as this sign-in confirmed it (otc-sync's `wsclient.SessionPin`: the home route's pinned handshake,
+or the device's own GetLocalEndpoint answer, asked again at most once a minute by `ConfirmPin`;
+never the pin stored from an earlier sign-in), else the address (`recordDevice`); one of another
+device counts as none (that pass deletes nothing), an older bare map as the configured device's.
+A record that names its device by a pin, while none is confirmed and the address is the same, is
+uncertain (`recordForDeviceLocked`): the device, or one set up again since under its name. The
+pass holds what it can't take back - deletes either way, downloads over a file here - with their
+baselines, says so (`desk.main.device_unconfirmed`), and the record keeps its pin. The
+mass-deletion guard doesn't count deletes whose content the device lists at a new path (a move
+there). A folder whose own folder is missing waits ("Folder not found - reconnect the drive"),
+untouched on both sides, and resumes once it is back (the Mac resolves its bookmark again and
+follows a move; one that didn't resolve at launch stays listed); it is never removed. So does a
+folder that is there but isn't the synced one (otc-sync `engine/rootid.go`): each two-way folder
+holds a hidden `.otc-sync-<folder id>` whose token the record keeps (`root`); without it (a record
+from before, the file deleted) the folder must still hold at least half of the files the record
+lists, unchanged - then the file is written again - or it waits the same way ("Not the folder that
+was synced - reconnect its drive", `desk.main.folder_replaced`): the empty mount point of a disk or
+share that isn't mounted, another disk at the same drive letter, a folder made afresh. A folder
+inside it that is another file system (st_dev; the record's `mounts`) and is a plain folder again
+holds what is under it like an unreadable one (`mounts.go`). What the scan skips but is there - a
+symbolic link, to a file or a folder, anything that is neither a regular file nor a folder, on
+Windows the Hidden or System attribute - is never taken for deleted (`folderScan.skipped`,
+`desk.main.files_not_synced_here`), and a device delete checks, right before it goes, that nothing
+is at the path here. A download is refused before it starts when the disk can't take it (its free
+space less 256 MB, FAT's 4 GiB; `roomFor`); a transfer that failed for a reason of its own waits as
+a busy file does (`fail.go`), and the pass ends saying so (`desk.main.no_space`,
+`desk.main.too_large_for_disk`, `desk.main.files_failed`); the copy of the device's version in a
+conflict is made once, reused while its upload fails (`conflictCopyOf`), and not at all for a busy
+file. On a disk that ignores case, a folder renamed only in case on the device is renamed so here
+before the pass plans (`casefix.go`). On Windows, device names Windows can't hold
+(`\ < > : " | ? *`, a last dot or space, device names) are left out either way (`names.go`,
+`desk.main.names_not_allowed`). Tests: engine `rootid_test.go`, `skipped_test.go`, `trash_test.go`,
+`fail_test.go`, `casefix_test.go`, `names_test.go`; the engine's tests run with HOME and the XDG
+folders in a scratch folder (`TestMain`), the config and command line's against an in-memory
+keyring. Downloads go to a temp name of their own (`name.<random>.otc-part`),
 synced before the rename. Two folders' passes run at a time (`passSlot`; the loops start at once),
 the others say "Waiting for <folder>". A file that changes while it is sent is a busy file, left
 for 2 minutes, doubling up to an hour. Uploads resume (issue #205; `engine/chunked.go` /
