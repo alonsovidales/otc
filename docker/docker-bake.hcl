@@ -25,6 +25,9 @@ variable "WEB" { default = "web-dist" }
 variable "SMOKE_SRC" { default = "." }
 variable "OTC_RELEASE" { default = "" }
 variable "OTC_REVISION" { default = "" }
+# Debian's packages refreshed in otc-base when this changes (docker/base.Dockerfile):
+# docker-release.sh sets it to the release and the day.
+variable "APT_REFRESH" { default = "" }
 
 target "otc-build" {
   context    = "${SRC}/docker"
@@ -36,6 +39,9 @@ target "otc-base" {
   context    = "${SRC}/docker"
   dockerfile = "base.Dockerfile"
   target     = "base"
+  args = {
+    APT_REFRESH = APT_REFRESH
+  }
 }
 
 target "otc" {

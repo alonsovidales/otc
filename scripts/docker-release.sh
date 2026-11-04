@@ -30,7 +30,9 @@
 # ~/.docker are never touched. The VM is started when needed and stopped at the
 # end if this started it. Its build cache (the toolchain and OpenCV,
 # docker/base.Dockerfile) stays on its disk for the next release; a cold build
-# of both architectures takes about an hour.
+# of both architectures takes about an hour. Debian's packages in the image are
+# refreshed at every run (APT_REFRESH: the release and the day), never kept
+# from the cache of an older build.
 #
 # Publishing signs in to ghcr.io with gh's token, which needs the
 # write:packages scope (once: gh auth refresh -h github.com -s write:packages),
@@ -187,6 +189,10 @@ export SOURCE_DATE_EPOCH
 SOURCE_DATE_EPOCH=$(stat -f %m "$work/src/go.mod")
 export SRC="$work/src" WEB="$work/web" SMOKE_SRC="$work/smoke-src"
 export OTC_RELEASE="$release" OTC_REVISION="$revision"
+# Debian's packages as of this run (docker/base.Dockerfile's APT_REFRESH):
+# set once, so the image pushed is the one tested, layer for layer.
+export APT_REFRESH
+APT_REFRESH="$release.$(date -u +%Y-%m-%d)"
 echo "tag commit $revision"
 
 if ! colima status -p "$PROFILE" >/dev/null 2>&1; then

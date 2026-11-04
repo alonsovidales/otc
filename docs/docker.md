@@ -246,6 +246,10 @@ To pin a release, change the `image:` line, for example to `ghcr.io/alonsovidale
 update a pinned device, change the number, then pull and start it as above. A tool that watches
 images, such as Diun or What's Up Docker, can tell you when `beta` changes.
 
+Each image also carries Debian's security updates (for ffmpeg, OpenSSL and the database, among
+others) as of the day it was built. A running container never updates its system packages by
+itself, as a Raspberry Pi does: they come with the next image, which is one more reason to update.
+
 On its first start, a new image brings the database up to date. Settings › Logs › Updates shows how
 that went. If it fails, the container says why, and stops after a wait (see
 [Everyday commands](#everyday-commands)).

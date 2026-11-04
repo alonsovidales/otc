@@ -1007,7 +1007,10 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   GitHub Actions (the owner, 2026-10-26: Actions cost too much): `scripts/docker-release.sh
   [--no-publish] [--arch amd64|arm64] [N]` on the Mac, after `release.sh`. It verifies
   `VERSIONS.sig`, builds from the release's own `src.tar.gz` + `web-dist.tar.gz` (hashes checked)
-  with `docker/docker-bake.hcl` (the build file, test and client from HEAD by `git archive`), arm64
+  with `docker/docker-bake.hcl` (the build file, test and client from HEAD by `git archive`;
+  `APT_REFRESH`, the release and the day, set once a run, rebuilds `otc-base`'s package layer with
+  `apt-get upgrade` - BuildKit kept it, and Debian's fixes out of every image, for as long as the
+  base tag stayed; a container never upgrades its packages itself, docs/docker.md says so), arm64
   natively and amd64 under Rosetta (which shows amd64 containers an x86 `/proc/cpuinfo`, SSE4.1
   included), runs `docker/smoke/test-image.sh` on each (healthy, version, web app, set-password,
   `docker/smoke` sign-in client, restart, no panic), then `test-image.sh --mirror` (the same on two
