@@ -24,8 +24,8 @@
     "en": "What do I need?"
   },
   "site.proofing.faq.self.a": {
-    "text": "Sim. Ativa a classificação em qualquer coleção, Favoritos incluída, dá às fotos estrelas e uma nota no visualizador e depois filtra-as e ordena-as da mesma forma. Cada foto tem uma só classificação por coleção, partilhada com a ligação de galeria dessa coleção, e o visualizador assinala as classificações que chegaram pela ligação.",
-    "en": "Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Each photo has one rating per collection, shared with the collection's gallery link, and the viewer marks the ratings that came through the link."
+    "text": "Sim. Ativa a classificação em qualquer coleção, Favoritos incluída, dá às fotos estrelas e uma nota no visualizador e depois filtra-as e ordena-as da mesma forma. As tuas estrelas e notas continuam a ser tuas: quem visita uma ligação de galeria só vê e altera as suas próprias. Vês a classificação mais recente de cada foto, tua ou de um cliente, e o visualizador assinala as que chegaram por uma ligação.",
+    "en": "Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Your own stars and notes stay yours: a gallery link's visitors see and change only their own. You see each photo's latest rating, yours or a client's, and the viewer marks those that came through a link."
   },
   "site.proofing.faq.self.q": {
     "text": "Posso classificar as fotos eu próprio?",

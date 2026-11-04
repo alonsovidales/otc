@@ -5,7 +5,7 @@
   "site.proofing.faq.after.q": {"text": "O que acontece às classificações quando a ligação expira?"},
   "site.proofing.faq.need.a": {"text": "Um dispositivo Off The Cloud, ou seja, um Raspberry Pi 5 com dois discos USB ou outro computador de 64 bits com Debian ou Ubuntu, e o seu endereço em off-the.cloud, como studio.off-the.cloud, onde se abre a ligação do teu cliente. Partilhas e lês as classificações na app web."},
   "site.proofing.faq.need.q": {"text": "Do que preciso?"},
-  "site.proofing.faq.self.a": {"text": "Sim. Ativa a classificação em qualquer coleção, Favoritos incluída, dá às fotos estrelas e uma nota no visualizador e depois filtra-as e ordena-as da mesma forma. Cada foto tem uma só classificação por coleção, partilhada com a ligação de galeria dessa coleção, e o visualizador assinala as classificações que chegaram pela ligação."},
+  "site.proofing.faq.self.a": {"text": "Sim. Ativa a classificação em qualquer coleção, Favoritos incluída, dá às fotos estrelas e uma nota no visualizador e depois filtra-as e ordena-as da mesma forma. As tuas estrelas e notas continuam a ser tuas: quem visita uma ligação de galeria só vê e altera as suas próprias. Vês a classificação mais recente de cada foto, tua ou de um cliente, e o visualizador assinala as que chegaram por uma ligação."},
   "site.proofing.faq.self.q": {"text": "Posso classificar as fotos eu próprio?"},
   "site.proofing.faq.where.a": {"text": "No teu dispositivo Off The Cloud. Partilhar cria lá uma cópia da coleção, encriptada com uma chave que só a ligação tem, e o navegador do teu cliente recebe as fotos a partir dela. Apagar a ligação apaga a sua cópia."},
   "site.proofing.faq.where.q": {"text": "Onde estão as fotos enquanto a ligação está ativa?"},

@@ -24,8 +24,8 @@
     "en": "What do I need?"
   },
   "site.proofing.faq.self.a": {
-    "text": "Ja. Schalte die Bewertung in einer beliebigen Sammlung ein, auch in den Favoriten, gib Fotos in der Fotoansicht Sterne und eine Notiz und filtere und sortiere sie dann genauso. Jedes Foto hat pro Sammlung eine Bewertung, die es mit dem Galerie-Link dieser Sammlung teilt, und die Fotoansicht kennzeichnet die Bewertungen, die über den Link kamen.",
-    "en": "Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Each photo has one rating per collection, shared with the collection's gallery link, and the viewer marks the ratings that came through the link."
+    "text": "Ja. Schalte die Bewertung in einer beliebigen Sammlung ein, auch in den Favoriten, gib Fotos in der Fotoansicht Sterne und eine Notiz und filtere und sortiere sie dann genauso. Deine Sterne und Notizen bleiben deine eigenen: Wer einen Galerie-Link öffnet, sieht und ändert nur seine eigenen. Du siehst bei jedem Foto die neueste Bewertung, deine oder die eines Kunden, und die Fotoansicht kennzeichnet die Bewertungen, die über einen Link kamen.",
+    "en": "Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Your own stars and notes stay yours: a gallery link's visitors see and change only their own. You see each photo's latest rating, yours or a client's, and the viewer marks those that came through a link."
   },
   "site.proofing.faq.self.q": {
     "text": "Kann ich Fotos selbst bewerten?",

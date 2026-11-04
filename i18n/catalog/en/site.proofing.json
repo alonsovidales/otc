@@ -5,7 +5,7 @@
   "site.proofing.faq.after.q": {"text": "What happens to the ratings when the link expires?"},
   "site.proofing.faq.need.a": {"text": "An Off The Cloud device, a Raspberry Pi 5 with two USB drives or another 64-bit computer running Debian or Ubuntu, and its address at off-the.cloud, such as studio.off-the.cloud, which is where your client's link opens. You share and read the ratings in the web app."},
   "site.proofing.faq.need.q": {"text": "What do I need?"},
-  "site.proofing.faq.self.a": {"text": "Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Each photo has one rating per collection, shared with the collection's gallery link, and the viewer marks the ratings that came through the link."},
+  "site.proofing.faq.self.a": {"text": "Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Your own stars and notes stay yours: a gallery link's visitors see and change only their own. You see each photo's latest rating, yours or a client's, and the viewer marks those that came through a link."},
   "site.proofing.faq.self.q": {"text": "Can I rate photos myself?"},
   "site.proofing.faq.where.a": {"text": "On your Off The Cloud device. Sharing makes a copy of the collection there, encrypted with a key that only the link carries, and your client's browser gets the photos from it. Deleting the link deletes its copy."},
   "site.proofing.faq.where.q": {"text": "Where are the photos while the link is open?"},

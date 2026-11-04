@@ -24,8 +24,8 @@
     "en": "What do I need?"
   },
   "site.proofing.faq.self.a": {
-    "text": "Oui. Activez la notation dans n’importe quelle collection, Favoris compris, donnez aux photos des étoiles et un commentaire dans la visionneuse, puis filtrez-les et triez-les de la même façon. Chaque photo a une seule note par collection, partagée avec le lien de galerie de cette collection, et la visionneuse signale les notes arrivées par le lien.",
-    "en": "Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Each photo has one rating per collection, shared with the collection's gallery link, and the viewer marks the ratings that came through the link."
+    "text": "Oui. Activez la notation dans n’importe quelle collection, Favoris compris, donnez aux photos des étoiles et un commentaire dans la visionneuse, puis filtrez-les et triez-les de la même façon. Vos étoiles et vos commentaires restent les vôtres : les visiteurs d’un lien de galerie ne voient et ne modifient que les leurs. Vous voyez la note la plus récente de chaque photo, la vôtre ou celle d’un client, et la visionneuse signale celles arrivées par un lien.",
+    "en": "Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Your own stars and notes stay yours: a gallery link's visitors see and change only their own. You see each photo's latest rating, yours or a client's, and the viewer marks those that came through a link."
   },
   "site.proofing.faq.self.q": {
     "text": "Puis-je noter les photos moi-même ?",

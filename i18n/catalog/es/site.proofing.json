@@ -5,7 +5,7 @@
   "site.proofing.faq.after.q": {"text": "¿Qué pasa con las valoraciones cuando caduca el enlace?"},
   "site.proofing.faq.need.a": {"text": "Un dispositivo Off The Cloud, ya sea una Raspberry Pi 5 con dos unidades USB u otro ordenador de 64 bits con Debian o Ubuntu, y su dirección en off-the.cloud, como studio.off-the.cloud, que es donde se abre el enlace de tu cliente. Compartes y lees las valoraciones en la app web."},
   "site.proofing.faq.need.q": {"text": "¿Qué necesito?"},
-  "site.proofing.faq.self.a": {"text": "Sí. Activa la valoración en cualquier colección, Favoritos incluida, pon estrellas y una nota a las fotos en el visor, y luego fíltralas y ordénalas igual. Cada foto tiene una sola valoración por colección, compartida con el enlace de galería de esa colección, y el visor marca las valoraciones que llegaron por el enlace."},
+  "site.proofing.faq.self.a": {"text": "Sí. Activa la valoración en cualquier colección, Favoritos incluida, pon estrellas y una nota a las fotos en el visor, y luego fíltralas y ordénalas igual. Tus estrellas y notas siguen siendo tuyas: quienes visitan un enlace de galería solo ven y cambian las suyas. Ves la valoración más reciente de cada foto, tuya o de un cliente, y el visor marca las que llegaron por un enlace."},
   "site.proofing.faq.self.q": {"text": "¿Puedo valorar las fotos yo mismo?"},
   "site.proofing.faq.where.a": {"text": "En tu dispositivo Off The Cloud. Al compartir se crea allí una copia de la colección, cifrada con una clave que solo lleva el enlace, y el navegador de tu cliente recibe las fotos desde ella. Al borrar el enlace se borra su copia."},
   "site.proofing.faq.where.q": {"text": "¿Dónde están las fotos mientras el enlace está activo?"},

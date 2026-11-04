@@ -76,7 +76,7 @@ On your Off The Cloud device. Sharing makes a copy of the collection there, encr
 What happens to the ratings when the link expires?
 They stay in the collection, with the notes, for as long as the photos are in it. Turn rating off to hide them, and on again to bring them back.
 Can I rate photos myself?
-Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Each photo has one rating per collection, shared with the collection's gallery link, and the viewer marks the ratings that came through the link.
+Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Your own stars and notes stay yours: a gallery link's visitors see and change only their own. You see each photo's latest rating, yours or a client's, and the viewer marks those that came through a link.
 What do I need?
 An Off The Cloud device, a Raspberry Pi 5 with two USB drives or another 64-bit computer running Debian or Ubuntu, and its address at off-the.cloud, such as studio.off-the.cloud, which is where your client's link opens. You share and read the ratings in the web app.
 © 2026 Off The Cloud · open source, self-hosted, yours.

@@ -24,8 +24,8 @@
     "en": "What do I need?"
   },
   "site.proofing.faq.self.a": {
-    "text": "Sí. Activa la valoración en cualquier colección, Favoritos incluida, pon estrellas y una nota a las fotos en el visor, y luego fíltralas y ordénalas igual. Cada foto tiene una sola valoración por colección, compartida con el enlace de galería de esa colección, y el visor marca las valoraciones que llegaron por el enlace.",
-    "en": "Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Each photo has one rating per collection, shared with the collection's gallery link, and the viewer marks the ratings that came through the link."
+    "text": "Sí. Activa la valoración en cualquier colección, Favoritos incluida, pon estrellas y una nota a las fotos en el visor, y luego fíltralas y ordénalas igual. Tus estrellas y notas siguen siendo tuyas: quienes visitan un enlace de galería solo ven y cambian las suyas. Ves la valoración más reciente de cada foto, tuya o de un cliente, y el visor marca las que llegaron por un enlace.",
+    "en": "Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Your own stars and notes stay yours: a gallery link's visitors see and change only their own. You see each photo's latest rating, yours or a client's, and the viewer marks those that came through a link."
   },
   "site.proofing.faq.self.q": {
     "text": "¿Puedo valorar las fotos yo mismo?",

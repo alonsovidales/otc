@@ -5,7 +5,7 @@
   "site.proofing.faq.after.q": {"text": "Cosa succede alle valutazioni quando il link scade?"},
   "site.proofing.faq.need.a": {"text": "Un dispositivo Off The Cloud, cioè un Raspberry Pi 5 con due unità USB o un altro computer a 64 bit con Debian o Ubuntu, e il suo indirizzo su off-the.cloud, come studio.off-the.cloud, dove si apre il link del tuo cliente. Condividi e leggi le valutazioni nell’app web."},
   "site.proofing.faq.need.q": {"text": "Cosa mi serve?"},
-  "site.proofing.faq.self.a": {"text": "Sì. Attiva la valutazione in qualsiasi raccolta, Preferiti compresa, dai alle foto stelle e una nota nel visualizzatore, poi filtrale e ordinale allo stesso modo. Ogni foto ha una sola valutazione per raccolta, condivisa con il link della galleria di quella raccolta, e il visualizzatore indica le valutazioni arrivate dal link."},
+  "site.proofing.faq.self.a": {"text": "Sì. Attiva la valutazione in qualsiasi raccolta, Preferiti compresa, dai alle foto stelle e una nota nel visualizzatore, poi filtrale e ordinale allo stesso modo. Le tue stelle e le tue note restano tue: chi visita un link della galleria vede e cambia solo le proprie. Vedi la valutazione più recente di ogni foto, tua o di un cliente, e il visualizzatore indica quelle arrivate da un link."},
   "site.proofing.faq.self.q": {"text": "Posso valutare le foto io stesso?"},
   "site.proofing.faq.where.a": {"text": "Sul tuo dispositivo Off The Cloud. La condivisione crea lì una copia della raccolta, crittografata con una chiave che solo il link contiene, e il browser del tuo cliente riceve le foto da lì. Eliminando il link si elimina anche la sua copia."},
   "site.proofing.faq.where.q": {"text": "Dove sono le foto mentre il link è attivo?"},
