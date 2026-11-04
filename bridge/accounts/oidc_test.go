@@ -684,3 +684,48 @@ func TestProviderLinkKeepsAVerifiedAccountsPassword(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// Sign-in starts are bounded per network too (an IPv4 /24, an IPv6 /48,
+// whose 65,536 /64s each had an address's bound): past it, a 429 and no
+// row written.
+func TestOAuthStartIsBoundedPerNetwork(t *testing.T) {
+	a, mock := testAccounts(t)
+	newFakeIdP(t, a)
+	a.oauthStarts = limits.NewRate(1.0/3600, 2)
+	a.oauthStartsPerNet = limits.NewRate(1.0/3600, 3)
+	start := func(remote string) int {
+		r := httptest.NewRequest("GET", "/account/auth/google/start", nil)
+		r.RemoteAddr = remote
+		r.SetPathValue("provider", "google")
+		w := httptest.NewRecorder()
+		a.OAuthStart(w, r)
+		return w.Code
+	}
+	allowed := func(what, remote string) {
+		t.Helper()
+		mock.ExpectExec("insert into `oauth_states`").WillReturnResult(sqlmock.NewResult(1, 1))
+		if code := start(remote); code != http.StatusFound {
+			t.Fatalf("%s: %d", what, code)
+		}
+	}
+	refused := func(what, remote string) {
+		t.Helper()
+		if code := start(remote); code != http.StatusTooManyRequests {
+			t.Errorf("%s: %d, want 429", what, code)
+		}
+	}
+	for _, net := range []struct{ a1, a2, a3, other string }{
+		{"203.0.113.7:1", "203.0.113.8:1", "203.0.113.9:1", "198.51.100.4:1"},
+		{"[2001:db8:1:1::1]:1", "[2001:db8:1:2::1]:1", "[2001:db8:1:3::1]:1", "[2001:db8:2::1]:1"},
+	} {
+		allowed("an address's first", net.a1)
+		allowed("an address's second", net.a1)
+		refused("past the address's bound", net.a1)
+		allowed("another address of the network", net.a2)
+		refused("the network, spent", net.a3)
+		allowed("another network", net.other)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}

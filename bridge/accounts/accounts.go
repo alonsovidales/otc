@@ -174,9 +174,9 @@ type Accounts struct {
 	// codesPerAccount bounds the setup codes an account makes: a session
 	// asking for one in a loop, a row each, would never stop otherwise.
 	codesPerAccount *limits.Rate
-	// oauthStarts limits sign-in starts per address: each one inserts an
-	// oauth_states row.
-	oauthStarts *limits.Rate
+	// oauthStarts and oauthStartsPerNet limit sign-in starts per address
+	// and per network: each one inserts an oauth_states row.
+	oauthStarts, oauthStartsPerNet *limits.Rate
 	// passwordTries and passwordTriesPerNet bound, per address and per
 	// network, the requests that hash a password they carry - a sign-in,
 	// a reset, a password change, the owner's confirmation - before the
@@ -224,6 +224,7 @@ func Init(d *dao.Dao, sessionSecret []byte, tld string) *Accounts {
 		lookupsPerNet:       limits.NewRate(cLookupsPerNetPerSecond, cLookupsPerNetBurst),
 		codesPerAccount:     limits.NewRate(cSetupCodesPerAccount/cSetupTokenTTL.Seconds(), cSetupCodesPerAccount),
 		oauthStarts:         limits.NewRate(cOAuthStartsPerMinute/60.0, cOAuthStartsPerMinute),
+		oauthStartsPerNet:   limits.NewRate(cOAuthStartsPerNetPerMinute/60.0, cOAuthStartsPerNetPerMinute),
 		passwordTries:       limits.NewRate(cPasswordTriesPerMinute/60.0, cPasswordTriesPerMinute),
 		passwordTriesPerNet: limits.NewRate(cPasswordTriesPerNetPerMinute/60.0, cPasswordTriesPerNetPerMinute),
 	}
@@ -985,8 +986,12 @@ const (
 const cLoginNetFailures = 40
 
 // cOAuthStartsPerMinute bounds Google/Apple sign-in starts per address: a
-// person starts one per attempt, a NAT or an office a few more.
-const cOAuthStartsPerMinute = 30
+// person starts one per attempt, a NAT or an office a few more;
+// cOAuthStartsPerNetPerMinute a network's (an IPv4 /24, an IPv6 /48).
+const (
+	cOAuthStartsPerMinute       = 30
+	cOAuthStartsPerNetPerMinute = 120
+)
 
 // cPasswordTriesPerMinute bounds the requests that hash a password one
 // address makes (passwordTries), cPasswordTriesPerNetPerMinute a network's:

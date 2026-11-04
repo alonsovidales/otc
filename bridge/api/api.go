@@ -123,9 +123,10 @@ type API struct {
 	// oneOffPerAddr limits the device GETs (static assets, /media) one
 	// address can make (issue #163): each spends a device connection.
 	oneOffPerAddr *limits.Rate
-	// beaconPerAddr limits the unauthenticated setup-beacon reports (each
-	// is a write on the shared primary) per address.
-	beaconPerAddr *limits.Rate
+	// beaconPerAddr and beaconPerNet limit the unauthenticated
+	// setup-beacon reports (each is a write on the shared primary) per
+	// address and per network.
+	beaconPerAddr, beaconPerNet *limits.Rate
 	// forwardOneOff stands in for websocket.ForwardOneOff in tests (a
 	// fake device); nil in production.
 	forwardOneOff func(domain string, frame []byte) ([]byte, error)
@@ -162,10 +163,15 @@ const (
 )
 
 // cSetupBeaconPerSecond/cSetupBeaconBurst: a device reports every 5 s while
-// it is set up, so several behind one address still fit.
+// it is set up, so several behind one address still fit;
+// cSetupBeaconPerNetPerSecond/cSetupBeaconPerNetBurst a network's (an IPv4
+// /24, an IPv6 /48, whose 65,536 /64s each had the address's own): a
+// hundred devices being set up at once.
 const (
-	cSetupBeaconPerSecond = 1
-	cSetupBeaconBurst     = 10
+	cSetupBeaconPerSecond       = 1
+	cSetupBeaconBurst           = 10
+	cSetupBeaconPerNetPerSecond = 20
+	cSetupBeaconPerNetBurst     = 100
 )
 
 // requestAddr is the client's address: the connecting one, or - for a
@@ -199,6 +205,7 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 	api = &API{
 		oneOffPerAddr:     limits.NewRate(cOneOffPerSecond, cOneOffBurst),
 		beaconPerAddr:     limits.NewRate(cSetupBeaconPerSecond, cSetupBeaconBurst),
+		beaconPerNet:      limits.NewRate(cSetupBeaconPerNetPerSecond, cSetupBeaconPerNetBurst),
 		websocket:         webSocket,
 		dao:               dao,
 		admin:             adm,
@@ -1333,10 +1340,16 @@ var cSetupTokenPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 // is all this is for, and it keeps the store from being used to point a
 // page at anything else.
 func (api *API) setupBeacon(w http.ResponseWriter, r *http.Request) {
-	if api.beaconPerAddr != nil && !api.beaconPerAddr.Allow(clientaddr.Bucket(requestAddr(r))) {
-		w.Header().Set("Retry-After", "5")
-		writeJSONErr(w, http.StatusTooManyRequests, "too_many_requests", "too many requests") // i18n-ignore: machine-read, the wizard's beacon thread
-		return
+	addr := requestAddr(r)
+	for _, l := range []struct {
+		rate *limits.Rate
+		key  string
+	}{{api.beaconPerAddr, clientaddr.Bucket(addr)}, {api.beaconPerNet, clientaddr.NetBucket(addr)}} {
+		if l.rate != nil && !l.rate.Allow(l.key) {
+			w.Header().Set("Retry-After", "5")
+			writeJSONErr(w, http.StatusTooManyRequests, "too_many_requests", "too many requests") // i18n-ignore: machine-read, the wizard's beacon thread
+			return
+		}
 	}
 	var body struct {
 		Token string `json:"token"`

@@ -24,6 +24,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
+	"github.com/alonsovidales/otc/bridge/clientaddr"
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/alonsovidales/otc/cfg"
@@ -140,12 +141,10 @@ func (a *Accounts) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	}
 	// Counted only for a start that writes a state: a bad provider or
 	// return address costs nothing.
-	if a.oauthStarts != nil {
-		if ok, wait := a.oauthStarts.Take(clientIP(r)); !ok {
-			limits.RetryAfter(w, wait)
-			a.pageError(w, r, i18n.ApiPageTooManyStarts(), http.StatusTooManyRequests)
-			return
-		}
+	if ok, wait := takeAll(limitKey{a.oauthStarts, clientIP(r)}, limitKey{a.oauthStartsPerNet, clientaddr.NetBucketOf(r)}); !ok {
+		limits.RetryAfter(w, wait)
+		a.pageError(w, r, i18n.ApiPageTooManyStarts(), http.StatusTooManyRequests)
+		return
 	}
 	buf := make([]byte, cOAuthStateBytes)
 	if _, err := rand.Read(buf); err != nil {

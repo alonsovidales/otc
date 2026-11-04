@@ -3070,9 +3070,11 @@ contact and claim cooldowns, lookups, one-off GETs, setup beacons, pairing) coun
 `clientaddr.Bucket`: an IPv4 address, or an IPv6 /64, which one host can rotate through; logs,
 `BridgeClientInfo` and stored rows keep the address itself. Since a /48 (free from tunnel brokers)
 is 65,536 such buckets, sign-ups,
-failed passwords, the "send me an email" requests and the contact form are also bounded per network
+failed passwords, the "send me an email" requests, the contact form, Google/Apple sign-in starts and
+setup beacons (the last two a database write each) are also bounded per network
 (`clientaddr.NetBucket`: an IPv4 /24, an IPv6 /48 - 20 sign-ups an hour, 40 failed passwords in 10
-minutes, 30 emails an hour, 5 messages a minute) and on the whole node (120 sign-ups an hour; 120
+minutes, 30 emails an hour, 5 messages a minute, 120 sign-in starts a minute, beacons 20/s with a
+burst of 100) and on the whole node (120 sign-ups an hour; 120
 emails an hour that strangers can have sent, `emailBudget`, the new-account note dropped first; 30
 contact messages a minute); and at most half the cores hash passwords at once
 (`limits.HashPassword`/`CheckPassword`, the admin panel's too): a hash that can't start within 3 s
