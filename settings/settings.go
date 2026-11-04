@@ -173,17 +173,6 @@ func (st *Settings) SetImageTaggingEnabled(enabled bool) (err error) {
 	return err
 }
 
-func (st *Settings) SetSettings(domain string) (err error) {
-	err = st.dao.UpdateSettings(domain)
-	if err == nil {
-		st.mu.Lock()
-		st.domain = domain
-		st.mu.Unlock()
-	}
-
-	return err
-}
-
 // SetBridgeSecret updates the shared secret this device registers with the
 // bridge relay (issue #40). Kept in memory too so the *next* bridge
 // (re)connection attempt (see websocket.OpenBridge, which reads it fresh

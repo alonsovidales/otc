@@ -19,6 +19,10 @@
     "text": "erro ao enviar para a ponte: {detail}",
     "en": "writing to bridge: {detail}"
   },
+  "dev.device.domain_managed": {
+    "text": "o nome deste dispositivo na ponte não pode ser alterado aqui",
+    "en": "this device's name on the bridge can't be changed here"
+  },
   "dev.device.identity_store_failed": {
     "text": "não foi possível guardar a nova identidade do dispositivo",
     "en": "could not store the device's new identity"

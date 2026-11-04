@@ -174,11 +174,6 @@ func (dao *Dao) GetSettings() (subDomain, deviceUuid, BridgeSecret string, err e
 	return
 }
 
-func (dao *Dao) UpdateSettings(subdomain string) (err error) {
-	_, err = dao.db.Exec("update `settings` set `subdomain` = ?", subdomain)
-	return
-}
-
 // UpdateBridgeSecret changes the shared secret this device registers with
 // the bridge relay (issue #40), independent of the subdomain — these used
 // to be updated together, silently breaking bridge pairing on every plain

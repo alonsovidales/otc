@@ -2131,7 +2131,10 @@ start takes its file.
   (pub_uuid, friend_domain)` and `comment_like_once (comment_uuid, friend_domain)`.
 - The bridge shared secret never reaches a client (release 66): `GetSettings` leaves it out and
   `SetBridgeSecret`/`RegenerateBridgeSecret` are refused - the device pairs and rotates it itself
-  (`regenerateBridgeSecret`), and no Settings screen shows or edits it.
+  (`regenerateBridgeSecret`), and no Settings screen shows or edits it. Its name on the bridge too:
+  `SetSettings` (no app has sent it since 2026-09-20) is answered done for the name the device has
+  and refused otherwise (`dev.device.domain_managed`) - it rewrote the name unchecked, which made the
+  device leave the bridge 15 minutes later or fail every registration, with nothing to set it back.
 - `push` — Web Push (per-device VAPID keys) and iOS pushes. The APNs auth key is the developer
   team's private key and lives **only on the bridge**: a device never has an `[apns]` section, it
   relays title/body to the bridge (`BridgeNotify`), which sends to the tokens that device itself

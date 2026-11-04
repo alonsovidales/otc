@@ -214,6 +214,9 @@ var headEnglish = []struct {
 	{"dev.device.bridge_dial_failed", i18n.DevDeviceBridgeDialFailed("boom"), fmt.Sprintf("dialing bridge: %v", "boom")},
 	{"dev.device.bridge_read_failed", i18n.DevDeviceBridgeReadFailed("boom"), fmt.Sprintf("reading from bridge: %v", "boom")},
 	{"dev.device.bridge_secret_managed", i18n.DevDeviceBridgeSecretManaged(), "the bridge secret is managed by the device"},
+	// SetSettings refused: new, so its English is the catalog's from the
+	// start.
+	{"dev.device.domain_managed", i18n.DevDeviceDomainManaged(), "this device's name on the bridge can't be changed here"},
 	{"dev.device.bridge_write_failed", i18n.DevDeviceBridgeWriteFailed("boom"), fmt.Sprintf("writing to bridge: %v", "boom")},
 	{"dev.device.identity_store_failed", i18n.DevDeviceIdentityStoreFailed(), "could not store the device's new identity"},
 	{"dev.device.local_addresses_failed", i18n.DevDeviceLocalAddressesFailed(), "could not list this device's addresses"},

@@ -29,6 +29,11 @@ func DevDeviceBridgeWriteFailed(detail string) Msg {
 	return Msg{Key: "dev.device.bridge_write_failed", Args: map[string]any{"detail": detail}}
 }
 
+// DevDeviceDomainManaged is dev.device.domain_managed: "this device's name on the bridge can't be changed here".
+func DevDeviceDomainManaged() Msg {
+	return Msg{Key: "dev.device.domain_managed"}
+}
+
 // DevDeviceIdentityStoreFailed is dev.device.identity_store_failed: "could not store the device's new identity".
 func DevDeviceIdentityStoreFailed() Msg {
 	return Msg{Key: "dev.device.identity_store_failed"}

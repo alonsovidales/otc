@@ -3454,21 +3454,22 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			},
 		}
 
+	// The device's name on the bridge is its own business, as its secret
+	// is (below): it is set up with the bridge account, and the device
+	// registers every pool connection with it. SetSettings - which no app
+	// has sent since 2026-09-20 - rewrote it unchecked for any signed-in
+	// session: a name no account holds made the device leave the bridge
+	// 15 minutes later (bridge_leave.go), one another account holds failed
+	// every registration for good, and nothing in any app set it back. The
+	// name it already has is answered as done.
 	case *pb.ReqEnvelope_ReqSetSettings:
-		log.Info("Set settings")
-		err := ch.mg.settings.SetSettings(p.ReqSetSettings.Domain)
-
-		if err != nil {
-			log.Error("error trying to update domain:", err)
-			resp.Error = true
-			resp.ErrorMessage = errText(lang, err)
-		} else {
-			resp.Payload = &pb.RespEnvelope_RespAck{
-				RespAck: &pb.Ack{
-					Ok: true,
-				},
-			}
+		if p.ReqSetSettings.Domain == ch.mg.settings.Domain() {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+			break
 		}
+		log.Info("a request to change the device's name on the bridge was refused")
+		resp.Error = true
+		resp.ErrorMessage = i18n.DevDeviceDomainManaged().Render(lang)
 
 	// The bridge shared secret is the device's own business: it is set up
 	// with the bridge, and the device rotates it itself
