@@ -2767,7 +2767,8 @@ again, and the focus goes back where it was. For `device_unreachable` it comes a
 (`deviceStatus.coverAfterMs`; App's `useCover` asks GetPubKey at 1.5 s), so a blip that mends itself
 never shows it; `account_disabled` and a device without its storage show it at once. Escape never
 closes it (a second one the browser takes as closing it brings it back) and its keys never reach the
-page. Its words are the web's own (`web.shell.unreachable.text`, `.disabled_text`): the bridge writes
+page; nor does Back: it is a back layer that won't close (`useBackLayer(true, () => false)`), so the
+browser's Back, Alt+Left or a back swipe never closes the composer under it or changes the section. Its words are the web's own (`web.shell.unreachable.text`, `.disabled_text`): the bridge writes
 those two codes in English only. `deviceStatus.isBridgeAnswer` tells the bridge's answer for the
 device from the device's own - every request that follows treats it as no answer, never as a refusal
 in the bridge's words. Nothing mounts again as the screen lifts, so a load that runs once and failed

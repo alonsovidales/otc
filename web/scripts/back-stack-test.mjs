@@ -277,6 +277,57 @@ describe("layers", () => {
     assert.equal(b.depth, 1);
   });
 
+  test("the unreachable screen over the composer: Back never reaches the composer, and does once it goes", async () => {
+    const b = new Browser();
+    const a = app(b, "PhotoGallery");
+    a.go("Social");
+    await settle();
+    const composer = a.open("composer");
+    await settle();
+    // DeviceUnreachable's layer: Back can't close it.
+    const screen = a.open("screen", { busy: () => true });
+    await settle();
+    assert.equal(b.depth, 4);
+    b.back();
+    await settle();
+    b.back();
+    await settle();
+    assert.equal(screen.closed, 0);
+    assert.equal(composer.closed, 0, "the caption and the picks stay");
+    assert.deepEqual(a.shown, []);
+    assert.equal(b.depth, 4, "the screen's entry again");
+    // The device answers again: the screen goes, and its entry with it.
+    screen.shut();
+    await settle(60);
+    assert.equal(b.depth, 3);
+    assert.ok(b.here.layer, "on the composer's entry");
+    b.back();
+    await settle();
+    assert.equal(composer.closed, 1);
+    b.back();
+    await settle();
+    assert.deepEqual(a.shown, ["PhotoGallery"]);
+  });
+
+  test("the unreachable screen over a section: Back leaves the section as it is", async () => {
+    const b = new Browser();
+    const a = app(b, "PhotoGallery");
+    a.go("AdminPannel");
+    await settle();
+    const screen = a.open("screen", { busy: () => true });
+    await settle();
+    b.back();
+    await settle();
+    assert.deepEqual(a.shown, []);
+    assert.equal(a.tab, "AdminPannel");
+    screen.shut();
+    await settle(60);
+    assert.equal(b.depth, 2);
+    b.back();
+    await settle();
+    assert.deepEqual(a.shown, ["PhotoGallery"]);
+  });
+
   test("a layer under another closing first: Back closes the top and skips its entry", async () => {
     const b = new Browser();
     const a = app(b, "PhotoGallery");
