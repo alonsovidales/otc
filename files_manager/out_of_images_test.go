@@ -380,7 +380,7 @@ func TestKeptOutContentGetsAThumbnailButNoAnalysis(t *testing.T) {
 	expectSentinel(mock)
 
 	file := &pb.File{Hash: hash, Mime: "image/jpeg", Path: "/Private/a.jpg"}
-	mg.processMediaContent(ses, file, blobPath(hash), content)
+	mg.processMediaContent(ses, file, blobPath(hash), content, nil)
 
 	if !mg.hasThumbnail(hash) {
 		t.Error("no thumbnail: Files shows it")
@@ -787,7 +787,7 @@ func TestFlagDuringAnalysisDropsWhatItWrote(t *testing.T) {
 	expectSentinel(mock)
 
 	file := &pb.File{Hash: h, Mime: "image/jpeg", Path: "/Private/p.jpg"}
-	mg.processMedia(ses, file, blobPath(h), jpegBytes(t), stageAnalysis)
+	mg.processMedia(ses, file, blobPath(h), jpegBytes(t), nil, stageAnalysis)
 	if tg.calls != 1 {
 		t.Fatalf("%d tagging passes", tg.calls)
 	}

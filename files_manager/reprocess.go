@@ -233,7 +233,7 @@ func (mg *Manager) reprocessOneFile(ses *session.Session, file *pb.File, storage
 	}
 	targetPath := fmt.Sprintf("%s/%s", storagePath, file.Hash)
 	if strings.HasPrefix(file.Mime, "video/") && mg.videoSourceFn != nil {
-		mg.processMediaContent(ses, file, targetPath, nil) // streamed, not loaded
+		mg.processMediaContent(ses, file, targetPath, nil, nil) // streamed, not loaded
 		return
 	}
 	content, release, err := mg.readForProcessing(ses, targetPath)
@@ -245,6 +245,7 @@ func (mg *Manager) reprocessOneFile(ses *session.Session, file *pb.File, storage
 		log.Error("reprocess: error reading", file.Hash, ":", err)
 		return
 	}
+	// Given back once it is decoded (processMedia), or here.
 	defer release()
-	mg.processMediaContent(ses, file, targetPath, content)
+	mg.processMediaContent(ses, file, targetPath, content, release)
 }

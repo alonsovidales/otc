@@ -136,7 +136,7 @@ func TestProcessingGivesThePhotoItsDateTaken(t *testing.T) {
 	referenced(mock, h)
 	expectNoAlert(mock)
 	mem := mg.memories.gen.Load()
-	if !mg.processMedia(ses, file, blobPath(h), gps, stageThumbnail) {
+	if !mg.processMedia(ses, file, blobPath(h), gps, nil, stageThumbnail) {
 		t.Fatal("processing failed")
 	}
 	noAlert(t, mock)
@@ -157,7 +157,7 @@ func TestProcessingGivesThePhotoItsDateTaken(t *testing.T) {
 	expectMove(mock, h, at(2021, 4, 11, 20, 47, 53), 1)
 	mock.MatchExpectationsInOrder(false)
 	mem = mg.memories.gen.Load()
-	mg.processMedia(ses, file, blobPath(h), heic, stageThumbnail)
+	mg.processMedia(ses, file, blobPath(h), heic, nil, stageThumbnail)
 	if mg.memories.gen.Load() == mem {
 		t.Error("a lower-case .heic's date not read")
 	}

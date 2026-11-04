@@ -2157,10 +2157,10 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 // that inevitably drifts. content is the file's original, undecoded bytes
 // (whatever format it was stored in - HEIC handling happens right here,
 // same as it always did); targetPath is only used to derive the
-// "<hash>_thumbnail" sibling path.
-func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, targetPath string, content []byte) {
+// "<hash>_thumbnail" sibling path. release is processMedia's.
+func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, targetPath string, content []byte, release func()) {
 	// Issue #192: content kept out of Images gets its thumbnail only.
-	if mg.processMedia(session, file, targetPath, content, mg.guardAnalysis(file.Hash, stageAll)) {
+	if mg.processMedia(session, file, targetPath, content, release, mg.guardAnalysis(file.Hash, stageAll)) {
 		mg.donePendingAnalysis(file.Hash)
 	}
 }
@@ -2200,7 +2200,18 @@ const (
 // callers (processMediaContent, processStoredStages) take the analysis
 // out of stages first for content kept out of Images (guardAnalysis,
 // issue #192), before anything is read or decoded.
-func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetPath string, content []byte, stages mediaStages) bool {
+//
+// release (nil when content holds nothing) gives back what content holds
+// of the content budget (readForProcessing): it is called once content is
+// decoded and no longer needed, so the thumbnails, a wait for the tagger
+// still loading, the tagging, faces, quality and embedding don't keep
+// downloads waiting for room - an image near the limit held nearly all of
+// it for the whole analysis. It must be idempotent: the caller also
+// defers it, for a return before the decode.
+func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetPath string, content []byte, release func(), stages mediaStages) bool {
+	if release == nil {
+		release = func() {}
+	}
 	// Issue #171: the file may be deleted while this runs - its content,
 	// thumbnail and tags were then written for a hash nothing uses.
 	defer mg.dropIfOrphaned(file.Hash)
@@ -2268,6 +2279,9 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			mg.stillFailed(i18n.DevAlertFileNotProcessed, file, content, err)
 			return false
 		}
+		// Nothing below reads the content, only the pixels and exif: the
+		// budget it holds is given back (and the memory is free to go).
+		release()
 
 		// Issue #66 follow-up: a plain JPEG straight from the phone (no
 		// HEIC involved at all - this is what actually reproduced the
@@ -2376,6 +2390,7 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			if err == nil {
 				exif, _ = exifinfo.FromVideo(content)
 			}
+			release()
 		}
 		if err != nil {
 			mg.processingAlert(i18n.DevAlertFileNotProcessed, file, err)

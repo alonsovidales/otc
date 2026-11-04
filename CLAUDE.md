@@ -1468,8 +1468,10 @@ start takes its file.
   `exifinfo.FromVideoSource`'s ffprobe has a deadline (`ProbeTimeout`, a minute). Processing reads an
   image whole only within the content budget (2026-11; it read any size, held from nothing, and a 2-3
   GB scan or Photoshop file took a 4 GB device down at every start until it was set aside): the lanes,
-  Reprocess and the thumbnail backfill hold its size while they work (`readForProcessing`) and read
-  nothing over the decode budget's size (`processedWholeLimit` - such a picture never fits its decode),
+  Reprocess and the thumbnail backfill hold its size from the content budget until it is decoded
+  (`readForProcessing`; `processMedia` gives it back right after the decode, so the thumbnails, a wait
+  for the tagger, the tagging, faces and the rest don't keep downloads waiting) and read nothing over
+  the decode budget's size (`processedWholeLimit` - such a picture never fits its decode),
   which is alerted as not processed, "the file is 2.1 GB, more than this device can process at once
   (at most 760 MB)" (`dev.files.too_large_to_process`); a shared gallery's preview, read whole as
   GetFile reads a photo, stops at `shownWholeLimit` (the item keeps its original and thumbnail).

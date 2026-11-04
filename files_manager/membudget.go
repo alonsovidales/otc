@@ -197,8 +197,9 @@ func (mg *Manager) overShownWhole(f *pb.File) bool {
 // and held from no budget: a 2-3 GB TIFF scan or Photoshop file synced from
 // a computer took a 4 GB device down - again at every start, until it was
 // set aside. Processing (the lanes, Reprocess and the thumbnail backfill)
-// now holds what it reads from the content budget while it works on it,
-// and reads nothing larger than a decode may hold (processedWholeLimit):
+// now holds what it reads from the content budget until it is decoded
+// (processMedia gives it back then, not after the whole analysis), and
+// reads nothing larger than a decode may hold (processedWholeLimit):
 // such a picture never fits its decode anyway - only a camera raw's
 // preview would, and its raw that large is beyond any camera's. The
 // ffmpeg fallback still gets its own copy, a temporary file.
@@ -218,9 +219,10 @@ func tooLargeToProcess(size, limit int64) error {
 var processedWholeLimit = func() int64 { return stillDecodes().max }
 
 // readForProcessing is the content of the blob at target, read whole for
-// processing and held from the content budget until release (never nil) -
-// or tooLargeToProcess, before anything is read, when it is over
-// processedWholeLimit.
+// processing and held from the content budget until release (never nil,
+// and idempotent: processMedia calls it once the content is decoded, the
+// caller's defer otherwise) - or tooLargeToProcess, before anything is
+// read, when it is over processedWholeLimit.
 func (mg *Manager) readForProcessing(ses *session.Session, target string) (content []byte, release func(), err error) {
 	b, err := blobstore.Open(target, ses)
 	if err != nil {

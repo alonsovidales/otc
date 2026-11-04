@@ -318,7 +318,7 @@ func TestKeptOutFailureInReprocessIsNotAlerted(t *testing.T) {
 	referenced(mock, h)
 	expectNoAlert(mock)
 
-	mg.processMediaContent(ses, file, blobPath(h), corruptJPEG(t))
+	mg.processMediaContent(ses, file, blobPath(h), corruptJPEG(t), nil)
 	noAlert(t, mock)
 }
 
@@ -332,7 +332,7 @@ func TestHEICConversionFailure(t *testing.T) {
 	keptOut(mg)
 	expectAlert(mock, "IMG_1.HEIC could not be converted from HEIC")
 	referenced(mock, h)
-	if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Phone/IMG_1.HEIC", Mime: "image/heic"}, blobPath(h), heicJunk, stageThumbnail) {
+	if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Phone/IMG_1.HEIC", Mime: "image/heic"}, blobPath(h), heicJunk, nil, stageThumbnail) {
 		t.Error("a broken HEIC reported success")
 	}
 	allMet(t, mock)
@@ -343,7 +343,7 @@ func TestHEICConversionFailure(t *testing.T) {
 	mock.ExpectQuery(reUnder).WillReturnRows(hashRows(h))
 	referenced(mock, h)
 	expectNoAlert(mock)
-	if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Private/IMG_1.HEIC", Mime: "image/heic"}, blobPath(h), heicJunk, stageThumbnail) {
+	if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Private/IMG_1.HEIC", Mime: "image/heic"}, blobPath(h), heicJunk, nil, stageThumbnail) {
 		t.Error("a broken HEIC reported success")
 	}
 	noAlert(t, mock)
@@ -359,7 +359,7 @@ func TestKeptOutVideoFailureIsNotAlerted(t *testing.T) {
 	mock.ExpectQuery(reUnder).WillReturnRows(hashRows(h))
 	referenced(mock, h)
 	expectNoAlert(mock)
-	if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Private/clip.mp4", Mime: "video/mp4"}, blobPath(h), []byte("not a video"), stageThumbnail) {
+	if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Private/clip.mp4", Mime: "video/mp4"}, blobPath(h), []byte("not a video"), nil, stageThumbnail) {
 		t.Error("an unreadable video reported success")
 	}
 	noAlert(t, mock)
@@ -415,7 +415,7 @@ func TestHEICByNameStillAlerts(t *testing.T) {
 		keptOut(mg)
 		expectAlert(mock, "IMG_9.HEIC could not be converted from HEIC")
 		referenced(mock, h)
-		if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Phone/IMG_9.HEIC", Mime: c.mime}, blobPath(h), c.content, stageThumbnail) {
+		if mg.processMedia(ses, &pb.File{Hash: h, Path: "/Phone/IMG_9.HEIC", Mime: c.mime}, blobPath(h), c.content, nil, stageThumbnail) {
 			t.Errorf("%s: a broken HEIC reported success", c.mime)
 		}
 		allMet(t, mock)
@@ -666,7 +666,7 @@ func TestProcessingReadsWithinTheBudget(t *testing.T) {
 		t.Errorf("a gallery preview of a 100 MB scan: %v", err)
 	}
 
-	// What fits is read, holding its size until processing is done.
+	// What fits is read, holding its size until it is decoded.
 	mg := &Manager{contentBudget: newMemBudget(64 << 20)}
 	small := storedFile(t, ses, testHash("9"), "/Scans/small.tif", "image/tiff", make([]byte, 512<<10))
 	content, release, err := mg.readForProcessing(ses, blobPath(small.Hash))
@@ -679,5 +679,40 @@ func TestProcessingReadsWithinTheBudget(t *testing.T) {
 	release()
 	if used := mg.contentBudget.used; used != 0 {
 		t.Errorf("held %d bytes after", used)
+	}
+}
+
+// Once decoded, the content's hold on the content budget is given back:
+// the thumbnails, a wait for the tagger still loading, the tagging, faces
+// and the rest ran holding it, and downloads that didn't fit next to a
+// large image waited for its whole analysis.
+func TestProcessingGivesTheBudgetBackOnceDecoded(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	photo := storedFile(t, ses, testHash("a"), "/Photos/p.jpg", "image/jpeg", jpegBytes(t))
+	for _, run := range []string{"analysis lane", "reprocess"} {
+		mg, _, _ := recordingMock(t) // every statement refused: logged
+		mg.contentBudget = newMemBudget(64 << 20)
+		keptOut(mg)
+		held := int64(-1)
+		tg := &fakeTagger{during: func() {
+			mg.contentBudget.mu.Lock()
+			held = mg.contentBudget.used
+			mg.contentBudget.mu.Unlock()
+		}}
+		readyTagger(mg, tg)
+		if run == "reprocess" {
+			mg.reprocessOneFile(ses, photo, filepath.Dir(blobPath(photo.Hash)))
+		} else {
+			mg.processStoredStages(ses, photo, blobPath(photo.Hash), stageAnalysis)
+		}
+		if tg.calls != 1 {
+			t.Fatalf("%s: %d tagging passes", run, tg.calls)
+		}
+		if held != 0 {
+			t.Errorf("%s: %d bytes of the content budget held while tagging", run, held)
+		}
+		if used := mg.contentBudget.used; used != 0 {
+			t.Errorf("%s: %d bytes held after", run, used)
+		}
 	}
 }
