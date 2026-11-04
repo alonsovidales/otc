@@ -186,12 +186,16 @@ type Unavailable struct {
 func NewUnavailable(staticPath string, primary bool) *Unavailable {
 	u := &Unavailable{stopNet: make(chan struct{})}
 	newManager := func() *Manager {
-		return &Manager{
+		mg := &Manager{
 			unavailable: true,
 			staticPath:  staticPath,
 			poolTarget:  cUnavailablePool,
-			upgrader:    gorilla.Upgrader{CheckOrigin: originAllowed},
 		}
+		// As Init's: the device's own name on the bridge (its settings,
+		// set below once its identity is read) among its names, the same
+		// check as Listen's.
+		mg.upgrader = gorilla.Upgrader{CheckOrigin: mg.originAllowed}
+		return mg
 	}
 	local := newManager()
 	u.mgs = append(u.mgs, local)

@@ -361,7 +361,10 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   (`writeReply`), and the bridge fragments its writes to clients above 256 KiB: every client must
   keep accepting fragmented messages.
 - Passwords never cross in the clear (issue #2): each connection gets an ephemeral RSA-2048 key
-  (`GetPubKey`, `rsaKeyPool`), and the clients seal `ReqAuth`'s and `ReqChangeKey`'s keys with
+  (`GetPubKey`, `rsaKeyPool`: one generator, a few made ahead; taken in turn by address -
+  `keyTurns`, one connection of an address (`anonBucket`) waiting at once, so connections opened to
+  ask for keys put another address's sign-in behind one of theirs, not all - and never for a
+  connection that went while it waited), and the clients seal `ReqAuth`'s and `ReqChangeKey`'s keys with
   RSA-OAEP-SHA-256 (`pwCrypto.ts`, `PwCrypto.swift`, `PwCrypto.kt`, otc-sync's `pwcrypto.go`). So
   are `ReqBridgeSignIn.password_sealed` and `ReqSetupTailscale.auth_key_sealed` (2026-10 review,
   `sealedOr`): the device still reads the plain `password`/`auth_key` when no sealed one comes (older
@@ -1018,7 +1021,8 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   alone for 5), and holds the first-password rules (`HomeAddress`, `OTC_SETUP_UNTIL` in Unix
   seconds, at most 31 minutes ahead). Callers gate on `container.Enabled()`: `websocket/container.go`
   (`containerGate` beside `demoGate`: no disks or Wi-Fi; a first password only over a direct
-  connection from a home address with no proxy headers and no other site's Origin (`indirect`) -
+  connection from a home address with no proxy headers, no other site's Origin and no page at a
+  name that isn't the device's (`indirect`: `deviceHost`, DNS rebinding) -
   the primary's within the window, an additional user's (`OTC_SUPERVISED_CHILD`) at any time or
   through the bridge - and refused when the vault can't be read; `[otc-api] trusted-proxies` for
   X-Forwarded-For; user ports from the HTTP port, checked against the host), the updater
@@ -1286,8 +1290,8 @@ start takes its file.
   the latest BeginUpload's dates, override and cloud id winning; one without a key is dropped when
   its connection closes, as before. Ownership is the connection (`owner`, checked with the session
   by UploadChunk and FinishUpload): the latest BeginUpload of a key takes it over even from a
-  connection still open (a phone's half-open socket - there is no read deadline on direct
-  connections - looks alive for minutes), whose further requests for it get "unknown or expired
+  connection still open (a phone's half-open socket - there is no read deadline on a signed-in
+  direct connection - looks alive for minutes), whose further requests for it get "unknown or expired
   upload". FinishUpload checks the hash against what it is sent and against the key. A write that
   failed drops the upload (sealed file and hash out of step). BeginUploads are serialised
   (`uploads.begin`); lock order `uploads.mu` then an upload's `mu`. Limits per instance:
@@ -1304,7 +1308,11 @@ start takes its file.
   are already compressed (`zipLevelFor`: video, most audio, JPEG/HEIC/PNG/WebP..., archives) go in at
   `flate.NoCompression`, never `zip.Store` - Go always writes data descriptors, and streaming
   unzippers (Java's ZipInputStream, funzip) reject stored entries that have one.
-  `OpenSharedLinkRange` (pre-auth) serves only `kind='archive'` rows with canonical lowercase uuids.
+  `OpenSharedLinkRange` (pre-auth) serves only `kind='archive'` rows with canonical lowercase uuids;
+  a link that isn't there (an id unknown or swept, deleted, its file gone, a secret cut short) answers
+  a gallery's one sentence, `dev.files.gallery_not_found`, never the raw cause ("sql: no rows in
+  result set"), which goes to the log at Debug (`sharedLinkFailure`; a failing disk is "internal
+  error", at Error).
   **Thumbnails** (release 111, `files_manager/thumbnail_size.go`): every photo and video has two,
   sealed next to its blob and made from the picture as shown (EXIF orientation applied), never
   scaled up. `<hash>_thumbnail`, the big one: its LONGEST side at most `[otc]
@@ -1491,7 +1499,16 @@ start takes its file.
   post names or another post being made holds); once per start, before the first friend sync
   (websocket's `backgroundWorker`), `SweepUnusedPostFiles` removes `<hash>` and `<hash>_thumbnail`
   files older than a day that no `social_publications_files` row names (the only table naming them;
-  the alerts' thumbnails are their posts') - nothing else in the folder. `budgetSize` uses the row's int64 size and
+  the alerts' thumbnails are their posts') - nothing else in the folder. The same post sent again
+  is made once (`social/post_once.go`; NewSocialPublication carries no id of the client's): a long
+  video's cut and shrink can outlast the answer - a dropped socket, the bridge's 90 s - and publishing
+  again made it twice for every friend. Its text, its files' content hashes (the `files` row at each
+  path; the path when there is none) and their cuts are the key (`postKey`; the device has one owner,
+  whichever app or socket sends it) - content, not paths, since the web app uploads a file from the
+  computer to a new `/web/` path each time and a composer closed by `device_unreachable` sends it
+  again: sent while the first is being made it waits for that one's answer, within
+  `cPostAgainWindow` (10 minutes) of it being made it gets its uuid at once; one that failed is made
+  again, and deleting the post forgets it. `budgetSize` uses the row's int64 size and
   looks at the blob only until the size backfill below has run. Since release 93 (`93.sh`, and
   `install.sh` `apply_schema_migrations`) the size columns of `files`, `file_versions` and
   `social_publications_files` are BIGINT; `files_manager/size_backfill.go` corrects, once and in
@@ -2068,14 +2085,41 @@ start takes its file.
   (`anonymous`), a connection has `cMaxInFlightAnon` (4) requests at once - the next isn't read
   meanwhile, nothing is refused - and its messages are read with `wsframe.ReadFree`, 64 KiB free
   (`cAnonFrameFree`), the rest in `anonFrameBudget` (64 MiB, reserved by capacity); then 32 and
-  `frameBudget` past 4 MiB (`frameRules`). `Listen` refuses another site's page with a 403 before
+  `frameBudget` past 4 MiB (`frameRules`). A session that never signs in nor authenticates as a
+  friend ends once idle (`anon_sessions.go`, `anonWatch`: no request read and none being answered
+  for `cAnonIdleDirect`, 2 minutes, on the device's own listener; `cAnonIdleBridged`, 15, on a bridge
+  connection, counted from its first relayed message - one idle in the pool waits for a client by
+  design): gorilla's Upgrade clears every deadline and the device never pings, so a socket that sent
+  nothing used to live as long as its TCP connection. The web app's pages and the shared ones open a
+  new socket at their next request (signing in on it as before) and the apps sign in at once; through
+  a bridge that only notices the relay gone at the client's next request, that request gets
+  `device_unreachable` (hence the bridge's longer time). The device's own listener also takes at most
+  `cMaxAnonPerAddr` (256) sockets from one address (`clientAddr`, `anonBucket`: a global IPv6
+  address's /64, but the home network's own IPv6 addresses - fc00::/7, link-local, loopback and the
+  device's own on-link networks, `onLinkV6` - one by one, as IPv4 ones, since every device of a home
+  shares its /64) before they sign in (`anonSlots`): past that `Listen` answers 503 before the upgrade. Past `cMaxAnonDirect` (2048) in
+  all, a newcomer gets in and one socket is closed for it (`pushOut`): of the address holding the
+  most - the newcomer's own when it holds as many - the longest idle, one answering a request last.
+  Refusing every newcomer at the total let a few addresses keeping their sockets busy lock out the
+  owner's apps and pages, which open a socket before they sign in. A connection stops counting once
+  signed in. Refusals and closings are counted in `anonLog`. `Listen` refuses another site's page with a 403 before
   the upgrade (`origin.go`, `originAllowed`, also the upgrader's CheckOrigin): no Origin (apps,
-  otc-sync, friends' devices), an Origin whose host is the request's Host (the web app at any of the
-  device's addresses, tunnels, Tailscale Funnel, which passes the Host on), one on
-  X-Forwarded-Host from loopback or a container's trusted proxies, or one in `[otc-api]
-  allowed-origins` (`OTC_ALLOWED_ORIGINS`); `null` and other schemes never. Strangers' routine
+  otc-sync, friends' devices), an Origin whose host is the request's Host when that is a name the
+  device answers to (`deviceHost`: an address, a name with no dot, one ending in `cLocalSuffixes` -
+  .local, .lan, .home, .home.arpa, .internal, .fritz.box, .ts.net... -, its own name on the bridge
+  (`mg.originAllowed`), a host of allowed-origins, or any the request came through a proxy for, whose
+  headers no page can add to its socket: the web app at any of the device's addresses, tunnels,
+  Tailscale Funnel, which passes the Host on, the owner's reverse proxy), one on X-Forwarded-Host
+  from loopback or a container's trusted proxies, or one in `[otc-api] allowed-origins`
+  (`OTC_ALLOWED_ORIGINS`); `null` and other schemes never. Host = Origin alone let in DNS rebinding:
+  a page on attacker.example whose DNS points at the device's home address opens
+  `ws://attacker.example/ws` with both headers its own; any other name of the owner's goes in
+  allowed-origins. Strangers' routine
   requests log at Debug; refused origins, plain requests to `/ws`, passwords tried while locked out
-  and unreadable messages before sign-in are counted, one Info line a minute (`anonlog.go`). `RespFriendships` never carries
+  and unreadable messages before sign-in are counted, one Info line a minute (`anonlog.go`); a request
+  before sign-in that panics is logged at Error with its stack once a minute and counted after that
+  (`recoveredPanic`: a loop of them rotated the log away), and a friend request with no profile is refused
+  before anything is dialled. `RespFriendships` never carries
   `Friendship.secret`. Push-registration syncs to the bridge go only through `mg.requestPushSync`
   (one at a time). `mediastream.Store.IssueShared(key, res)` reuses a token per resource for 5 min:
   give it a key only when it names exactly one resource every authorised caller may share (a
@@ -2109,7 +2153,17 @@ start takes its file.
   (`dao.OpenUserDatabase` + `session.New`) before its instance spawns, so nobody can claim the account
   by signing in first; the person changes it later with `ChangeKey`. `RespUsers.password_set` is set
   on every CreateUser answer of a device that knows the field - unset, an older device ignored the
-  password and the clients say the first sign-in sets it. A too-short first
+  password and the clients say the first sign-in sets it. A user with `request_bridge_access` and no
+  first password (an app from before 2026-10-23) is refused before anything is looked up
+  (`dev.users.password_needed`: update the app and add them again): the account was anyone's who
+  signed in first at `<username>.<bridge>`, a guessable name the bridge's public name check shows
+  appearing; one for the home network only may still come without one (its first sign-in sets it, as
+  `ReqCreateUser.password`'s comment says). `createUser` runs one at a time
+  (`createUsers`: two tabs adding one name both passed the checks), refuses a username over 63
+  characters - a DNS label, within `users.username` - before anything (`dev.users.username_too_long`),
+  and anything failing once the account's database is being made (half made too), its folder or its
+  row takes back what was made: the database and MySQL user (`DropUserDatabase`) and the storage
+  folder, which no row would otherwise name. A too-short first
   password is answered `Ack{Ok:false, ErrorMsg}` with **no code** - the phone apps take any sign-in
   code for the bridge's "device unreachable" and would keep retrying - undelayed and outside the
   lockout count (`AuthLimiter.Attempt`); `ChangeKey` answers `code = "password_too_short"`.
@@ -2136,7 +2190,26 @@ start takes its file.
   accepted friendship answers the sender with `Ack.code = "accepted"`, which the sender stores at
   once (`social.ErrFriendsAgain`); the sender reuses its own existing row with the new secret and
   restores it (or deletes a row it just created) when the request fails. `ReqFriendshipRequest`
-  always answers with an Ack, so the clients show the reason.
+  always answers with an Ack, so the clients show the reason. A friend request is one unread alert
+  per domain (`dao.AddFriendRequestNotification`: one sent again while it is unread moves it up, its
+  time and name) and pushes only with a new alert - a stranger re-sending one in a loop used to add an
+  alert and a push each time.
+  Profile pictures, the owner's and the friends' (they go out again with every Alerts row and feed
+  post of their person): at most `dao.MaxProfilePictureBytes` (128 KB) is kept
+  (`files_manager/profile_picture.go`, `FitProfilePicture`) - a picture within it as it came (a header
+  Go reads: JPEG, PNG, GIF, WebP, HEIC), a larger one made again as a JPEG of at most 512 px a side
+  within the cap, depending on whose it is: the owner's own in any format the device shows, turned as
+  its metadata says (`SetProfile`, and at each start the one stored before the cap:
+  `fitStoredPictures`); an accepted friend's (the sync's `refreshProfile`) or that of a device the
+  owner asks to befriend only as a JPEG or PNG of at most 50 MP (`cMaxFriendPicturePixels`), by Go's
+  decoders within the decode budget, once per
+  picture and process (`Social.friendPicture`, keyed by the sent picture's SHA-256: the sync asks
+  every pass); a stranger's friend request's never decoded - over the cap it is stored without it,
+  and the sync fetches it once accepted. What isn't a picture is never kept: SetProfile then answers
+  `dev.social.picture_unusable` and keeps the old one. Friends' pictures stored larger before are
+  dropped at each start (`DropOversizedFriendPictures`; asked for again at the next sync) and read back
+  as none (`storedPicture`; `ListNotifications` leaves them out in its query). The apps have sent a
+  crop of at most 45 KB since 2026-09-29 (the setup wizard 96 KB); before, the photo as picked.
   Issue #169: every socket this device opens to someone else (a friend's device, the bridge's
   one-off calls) is a `wsframe.Client` (`wsframe.Dial`): 15 s handshake, 30 s per write/read,
   64 MiB read limit (`ReadMedia`: a whole file, 10 min, the 1000 MiB cap); friend sync closes
@@ -2171,7 +2244,10 @@ start takes its file.
   (pub_uuid, friend_domain)` and `comment_like_once (comment_uuid, friend_domain)`.
 - The bridge shared secret never reaches a client (release 66): `GetSettings` leaves it out and
   `SetBridgeSecret`/`RegenerateBridgeSecret` are refused - the device pairs and rotates it itself
-  (`regenerateBridgeSecret`), and no Settings screen shows or edits it.
+  (`regenerateBridgeSecret`), and no Settings screen shows or edits it. Its name on the bridge too:
+  `SetSettings` (no app has sent it since 2026-09-20) is answered done for the name the device has
+  and refused otherwise (`dev.device.domain_managed`) - it rewrote the name unchecked, which made the
+  device leave the bridge 15 minutes later or fail every registration, with nothing to set it back.
 - `push` — Web Push (per-device VAPID keys) and iOS pushes. The APNs auth key is the developer
   team's private key and lives **only on the bridge**: a device never has an `[apns]` section, it
   relays title/body to the bridge (`BridgeNotify`), which sends to the tokens that device itself
@@ -2547,17 +2623,33 @@ references or looks better than the chosen one (`coverMayChange`); the faces fou
 once after a sign-in (`BackfillFaceQuality`, Background work "faces", `settings.face_quality_done`), then
 everyone's face is chosen again (`TestBestFacesMySQL`, `face_covers_test.go`). **Rating** (owner,
 2026-11-02; release 163's `updates/163.sh`; device side `files_manager/rating.go`, `dao/ratings.go`,
-`websocket/rating.go`): `image_groups.rating` turns it on for a collection (off keeps the ratings);
-`photo_ratings` holds one row per (collection, hash) - the stars plain (searched and sorted like
-tags' scores: `searchMediaRatedClauses`, a left join on the member `ig`, ranked), the comment sealed
-to the user's X25519 key pair (`vault.rating_public`/`rating_private`, the private half under
-`ses.Encrypt`, made at the first sign-in that finds none; ephemeral ECDH + HKDF-SHA256 +
-AES-256-GCM, bound to group and hash) and again under the collection's link key
-(`image_groups.rating_key`, sealed with the owner's key, carried in each rated gallery's sealed
-manifest as `rating_key`; `shared_comment`), which is how a link's visitor sees the current comments
-while the owner is signed out. A rating row goes with the photo's membership (same transaction) and
-with the collection; it is inserted from the membership row, so a photo taken out meanwhile leaves
-none. Rated galleries record each item's hash in the manifest and `shared_links.group_id`/`rating`;
+`websocket/rating.go`): `image_groups.rating` turns it on for a collection (off keeps the ratings).
+Each one who rates keeps their own rating of a photo (release 169's `updates/169.sh`:
+`photo_rating_sources`, one row per (collection, hash, source) - source `""` the owner's, else the
+link's uuid): a link's visitors see and change only their link's (`dao.LinkRatings`) - until then one
+row was shared by the owner and every link, so a client saw another's comments and the owner's own
+notes, and could overwrite or clear them. `photo_ratings` stays what the owner sees and the searches
+use, one row per (collection, hash): the latest change of anyone's, its `link` whose (`from_link`),
+set in the change's own transaction (`dao.SetPhotoRating`). A link taking theirs back (0 and "")
+deletes its row and, when the owner saw it, shows the latest left; the owner's clear stays a row with
+neither, which hides the older ones from the owner; sources keep their time to the microsecond, so of
+two changes in one second the later is the latest. The apps show the owner that one rating per photo,
+as before. The stars are plain (searched and sorted like tags' scores: `searchMediaRatedClauses`, a
+left join on the member `ig`, ranked); a comment is sealed to the user's X25519 key pair
+(`vault.rating_public`/`rating_private`, the private half under `ses.Encrypt`, made at the first
+sign-in that finds none; ephemeral ECDH + HKDF-SHA256 + AES-256-GCM, bound to group and hash), and a
+link's also for its visitors while the owner is signed out (`link_comment`) under a key made from the
+link's own secret (`linkCommentKey`, HKDF; `cSealLinkV2`), which only its visitors' requests present
+and the device never keeps - one stored before release 169 (`cSealV1`) under the collection's link
+key (`image_groups.rating_key`, sealed with the owner's key, still made with the collection's first
+rated link and carried in each rated gallery's sealed manifest as `rating_key`, where having one says
+the link takes ratings). The owner's own comments are never sealed for a link (release 163 copied
+them under the collection's key at its first rated link). At each start `dao.ReconcileRatingSources`
+gives every rating stored before - or by an older binary put back by an update that didn't start -
+its source's row (a link's comment from `shared_comment`, which nothing writes any more) and drops the
+owner's comments' copies. A rating row goes with the photo's membership (same transaction, every
+source's) and with the collection; it is inserted from the membership row, so a photo taken out
+meanwhile leaves none. Rated galleries record each item's hash in the manifest and `shared_links.group_id`/`rating`;
 `RateSharedGalleryItem` is public (per-address and device-wide token buckets, `visitorRatings`) and
 alerts plus pushes at most once an hour per link (`shared_links.rating_alerted`, a conditional
 update; a `NotificationRating` row through `dao.AddRatingNotification`: never grouped, its keys rendered

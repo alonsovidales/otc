@@ -819,16 +819,17 @@ create table image_group_files
   primary key (`group_id`, `hash`),
   key (`hash`)
 ) engine=InnoDB;
--- Rating (release 163): a photo's stars and comment in a rated collection,
--- one per photo and collection, the same for the owner and the visitors of
--- the collection's rated shared links. A row has stars or a comment (both
--- cleared deletes it), and goes with the photo when it leaves the
--- collection or the collection is deleted. The stars are readable (the
--- collection is filtered and sorted by them, as by tags); the comment is
--- sealed to the user's public key (vault.rating_public) and, once the
--- collection has a rated link, again with its rating_key for the links'
--- visitors (shared_comment). link is the shared link the last change
--- came through (PhotoRating.from_link), null for the owner's own.
+-- Rating (release 163): a photo's stars and comment in a rated collection
+-- as the owner sees them, one per photo and collection: the latest change
+-- of anyone's (photo_rating_sources, below) - what the searches filter and
+-- sort by. A row has stars or a comment (both cleared deletes it), and goes
+-- with the photo when it leaves the collection or the collection is
+-- deleted. The stars are readable (the collection is filtered and sorted
+-- by them, as by tags); the comment is sealed to the user's public key
+-- (vault.rating_public). link is the shared link the change came through
+-- (PhotoRating.from_link), null for the owner's own. shared_comment, a
+-- copy for links' visitors until release 169, is no longer written (an
+-- older binary's, a link's, is read once into its source's row).
 create table photo_ratings
 (
   `group_id` varchar(36) not null,
@@ -840,5 +841,28 @@ create table photo_ratings
   `updated` datetime not null,
 
   primary key (`group_id`, `hash`),
+  key (`hash`)
+) engine=InnoDB;
+-- Rating, release 169: each one's own rating of a photo in a rated
+-- collection - source '' the owner's, else the shared link (its uuid)
+-- whose visitors rated it. A link's visitors see and change only their
+-- link's rows; photo_ratings is the latest of them. The comment is sealed
+-- to the user's public key, as photo_ratings'; a link's also for its
+-- visitors (link_comment), under a key made from the link's own secret.
+-- The owner's own row with neither stars nor a comment is a clear, which
+-- hides every older rating from the owner; a link's is deleted. Times to
+-- the microsecond: the later of two changes in one second is the latest.
+-- Goes with the photo's membership and with the collection.
+create table photo_rating_sources
+(
+  `group_id` varchar(36) not null,
+  `hash` varchar(64) not null,
+  `source` varchar(64) not null,
+  `stars` tinyint not null default 0,
+  `comment` blob null,
+  `link_comment` blob null,
+  `updated` datetime(6) not null,
+
+  primary key (`group_id`, `hash`, `source`),
   key (`hash`)
 ) engine=InnoDB;

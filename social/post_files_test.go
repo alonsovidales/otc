@@ -234,6 +234,7 @@ func TestNewPublicationTakesBackWhatItWrote(t *testing.T) {
 		}
 		d := dao.NewWithDB(db)
 		sc := &Social{dao: d, filesmanager: filesmanager.NewWithDAO(d), profile: profile.InitFromPb(d, &pb.Profile{Domain: "kim.off-the.cloud"})}
+		row(mock) // postKey
 		row(mock) // WaitForContent
 		row(mock) // publishFile
 		if made {
@@ -246,9 +247,20 @@ func TestNewPublicationTakesBackWhatItWrote(t *testing.T) {
 			mock.ExpectExec("insert into `events`").WillReturnError(errors.New("the database is gone"))
 			expectInUse(mock, hash, 0)
 		}
-		_, err = sc.NewPublication(ses, "a post", []string{"/photos/a.jpg"}, nil)
+		uuid, err := sc.NewPublication(ses, "a post", []string{"/photos/a.jpg"}, nil)
 		if made != (err == nil) {
 			t.Fatalf("made %v: %v", made, err)
+		}
+		if made {
+			// Sent again (its answer lost): the same post, nothing written -
+			// also when the photo was uploaded again to another path (the
+			// web app's composer opened anew).
+			for _, path := range []string{"/photos/a.jpg", "/web/1730000300-def456-a.jpg"} {
+				row(mock) // postKey
+				if again, err := sc.NewPublication(ses, "a post", []string{path}, nil); err != nil || again != uuid {
+					t.Fatalf("sent again at %s: %q, %v; want %q", path, again, err, uuid)
+				}
+			}
 		}
 		got := names(t, unenc)
 		if !made && len(got) != 0 {

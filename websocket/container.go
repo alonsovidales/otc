@@ -152,10 +152,12 @@ func peerHost(r *http.Request) string {
 }
 
 // indirect reports whether r did not come straight from the device's own
-// page or an app: through a proxy (proxyHeaders), or from a page that
-// isn't this listener's own (foreignOrigin).
+// page or an app: through a proxy (proxyHeaders), from a page that isn't
+// this listener's own (foreignOrigin), or from a page at a name that isn't
+// the device's (deviceHost) - its own Origin and Host, which a page that
+// rebound its name to the device's home address has.
 func indirect(r *http.Request) bool {
-	return proxyHeaders(r) || foreignOrigin(r)
+	return proxyHeaders(r) || foreignOrigin(r) || (r.Header.Get("Origin") != "" && !deviceHost(r, ""))
 }
 
 // proxyHeaders reports whether r carried any of the headers a proxy, or a

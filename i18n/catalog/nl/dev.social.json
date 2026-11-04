@@ -24,6 +24,7 @@
   "dev.social.not_found_error": {"text": "Fout: vriendschap niet gevonden"},
   "dev.social.not_your_comment": {"text": "niet jouw reactie, en ook geen reactie op een van je berichten"},
   "dev.social.not_your_post": {"text": "niet jouw bericht"},
+  "dev.social.picture_unusable": {"text": "deze afbeelding kan niet worden gebruikt: kies een andere foto"},
   "dev.social.post_failed": {"text": "fout bij het maken van het bericht: {detail}"},
   "dev.social.post_likers_failed": {"text": "fout bij het ophalen van wie het bericht leuk vindt: {detail}"},
   "dev.social.posts_failed": {"text": "fout bij het ophalen van de berichten: {detail}"},

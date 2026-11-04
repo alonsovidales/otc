@@ -51,6 +51,20 @@ func TestOriginAllowed(t *testing.T) {
 		{"an extension", "192.168.1.30:5000", "192.168.1.20:8080", "chrome-extension://abcdef", "", false},
 		{"not a URL", "192.168.1.30:5000", "192.168.1.20:8080", "http://[::1", "", false},
 		{"no host", "192.168.1.30:5000", "192.168.1.20:8080", "http://", "", false},
+		// DNS rebinding: a page whose name the attacker's DNS pointed at the
+		// device sends its own Host and Origin.
+		{"a rebound name", "192.168.1.30:5000", "attacker.example", "http://attacker.example", "", false},
+		{"a rebound name, with a port", "192.168.1.30:5000", "attacker.example:8080", "http://attacker.example:8080", "", false},
+		{"a rebound name over IPv6", "[fd00::30]:5000", "evil.example.com", "http://evil.example.com", "", false},
+		// The device's names on its own network.
+		{"a router's name", "192.168.1.30:5000", "otc.lan:8080", "http://otc.lan:8080", "", true},
+		{"a FRITZ!Box's name", "192.168.1.30:5000", "otc.fritz.box:8080", "http://otc.fritz.box:8080", "", true},
+		{"home.arpa", "192.168.1.30:5000", "otc.home.arpa:8080", "http://otc.home.arpa:8080", "", true},
+		{"a short name", "192.168.1.30:5000", "otc:8080", "http://otc:8080", "", true},
+		{"localhost", "127.0.0.1:5000", "localhost:18080", "http://localhost:18080", "", true},
+		{"a Tailscale name", "100.100.1.2:5000", "pit.tail1234.ts.net", "https://pit.tail1234.ts.net", "", true},
+		{"a name with a trailing dot", "192.168.1.30:5000", "otc.local.:8080", "http://otc.local.:8080", "", true},
+		{"a host of allowed-origins", "192.168.1.30:5000", "photos.example.com", "https://photos.example.com", "", true},
 	} {
 		r := &http.Request{RemoteAddr: c.remote, Host: c.host, Header: http.Header{}}
 		if c.origin != "" {
@@ -62,6 +76,35 @@ func TestOriginAllowed(t *testing.T) {
 		if got := originAllowed(r); got != c.want {
 			t.Errorf("%s: allowed %v, want %v", c.name, got, c.want)
 		}
+	}
+}
+
+// A name of the device's own besides those (its name on the bridge) is
+// taken by its manager; a page at any name through the owner's reverse
+// proxy, which adds headers no page can add to its socket.
+func TestOriginAllowedAtTheDevicesNames(t *testing.T) {
+	saved := allowedOrigins
+	allowedOrigins = func() map[string]bool { return map[string]bool{} }
+	t.Cleanup(func() { allowedOrigins = saved })
+	req := func(host string) *http.Request {
+		r := &http.Request{RemoteAddr: "192.168.1.30:5000", Host: host, Header: http.Header{}}
+		r.Header.Set("Origin", "https://"+host)
+		return r
+	}
+	if originAllowedAt(req("cala.off-the.cloud"), "") {
+		t.Error("the bridge's name taken without being the device's")
+	}
+	if !originAllowedAt(req("cala.off-the.cloud"), "Cala.off-the.cloud") {
+		t.Error("the device's own name on the bridge refused")
+	}
+	if originAllowedAt(req("photos.example.com"), "cala.off-the.cloud") {
+		t.Error("another name taken")
+	}
+	r := req("photos.example.com")
+	r.RemoteAddr = "172.18.0.2:5000"
+	r.Header.Set("X-Forwarded-For", "203.0.113.9")
+	if !originAllowedAt(r, "") {
+		t.Error("the owner's reverse proxy passing its name on was refused")
 	}
 }
 

@@ -4,6 +4,7 @@
   "dev.device.bridge_read_failed": {"text": "kan het antwoord van de bridge niet lezen: {detail}"},
   "dev.device.bridge_secret_managed": {"text": "het geheim voor de bridge wordt door het apparaat zelf beheerd"},
   "dev.device.bridge_write_failed": {"text": "kan niet naar de bridge schrijven: {detail}"},
+  "dev.device.domain_managed": {"text": "de naam van dit apparaat op de bridge kan hier niet worden gewijzigd"},
   "dev.device.identity_store_failed": {"text": "kan de nieuwe identiteit van het apparaat niet opslaan"},
   "dev.device.local_addresses_failed": {"text": "kan de adressen van dit apparaat niet opvragen"},
   "dev.device.local_no_address": {"text": "dit apparaat heeft geen adres op het thuisnetwerk"},

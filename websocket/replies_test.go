@@ -93,6 +93,9 @@ var headEnglish = []struct {
 	{"dev.social.not_found_error", i18n.DevSocialNotFoundError(), "Error: Friendship not found"},
 	{"dev.social.not_your_comment", i18n.DevSocialNotYourComment(), "not your comment, nor a comment on one of your posts"},
 	{"dev.social.not_your_post", i18n.DevSocialNotYourPost(), "not your publication"},
+	// Profile pictures within the cap: new, so its English is the
+	// catalog's from the start.
+	{"dev.social.picture_unusable", i18n.DevSocialPictureUnusable(), "this picture can't be used: choose another photo"},
 	{"dev.social.post_failed", i18n.DevSocialPostFailed("boom"), fmt.Sprintf("error trying to create publication: %s", "boom")},
 	{"dev.social.post_likers_failed", i18n.DevSocialPostLikersFailed("boom"), fmt.Sprintf("error getting publication likers: %s", "boom")},
 	{"dev.social.posts_failed", i18n.DevSocialPostsFailed("boom"), fmt.Sprintf("error trying to collect publications: %s", "boom")},
@@ -213,12 +216,19 @@ var headEnglish = []struct {
 	{"dev.users.stop_failed", i18n.DevUsersStopFailed("kim", "boom"), fmt.Sprintf("could not stop %s's process: %v", "kim", "boom")},
 	{"dev.users.storage_dir_failed", i18n.DevUsersStorageDirFailed("boom"), fmt.Sprintf("creating storage directory: %v", "boom")},
 	{"dev.users.username_taken", i18n.DevUsersUsernameTaken(), "username already taken"},
+	// A username's length: new, so its English is the catalog's from the
+	// start.
+	{"dev.users.username_too_long", i18n.DevUsersUsernameTooLong(63), "username must be at most 63 characters long"},
+	{"dev.users.password_needed", i18n.DevUsersPasswordNeeded(), "a user with bridge access needs a first password: update this app and add the user again"},
 
 	{"dev.device.already_on_bridge", i18n.DevDeviceAlreadyOnBridge(), "this device is already on the bridge"},
 	{"dev.device.tagging_need_memory", i18n.DevDeviceTaggingNeedMemory(), "Image Tagging needs a device with at least 4 GB of memory"},
 	{"dev.device.bridge_dial_failed", i18n.DevDeviceBridgeDialFailed("boom"), fmt.Sprintf("dialing bridge: %v", "boom")},
 	{"dev.device.bridge_read_failed", i18n.DevDeviceBridgeReadFailed("boom"), fmt.Sprintf("reading from bridge: %v", "boom")},
 	{"dev.device.bridge_secret_managed", i18n.DevDeviceBridgeSecretManaged(), "the bridge secret is managed by the device"},
+	// SetSettings refused: new, so its English is the catalog's from the
+	// start.
+	{"dev.device.domain_managed", i18n.DevDeviceDomainManaged(), "this device's name on the bridge can't be changed here"},
 	{"dev.device.bridge_write_failed", i18n.DevDeviceBridgeWriteFailed("boom"), fmt.Sprintf("writing to bridge: %v", "boom")},
 	{"dev.device.identity_store_failed", i18n.DevDeviceIdentityStoreFailed(), "could not store the device's new identity"},
 	{"dev.device.local_addresses_failed", i18n.DevDeviceLocalAddressesFailed(), "could not list this device's addresses"},

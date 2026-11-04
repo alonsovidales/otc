@@ -19,6 +19,10 @@
     "text": "al escribir en el puente: {detail}",
     "en": "writing to bridge: {detail}"
   },
+  "dev.device.domain_managed": {
+    "text": "el nombre de este dispositivo en el puente no se puede cambiar aquí",
+    "en": "this device's name on the bridge can't be changed here"
+  },
   "dev.device.identity_store_failed": {
     "text": "no se ha podido guardar la nueva identidad del dispositivo",
     "en": "could not store the device's new identity"

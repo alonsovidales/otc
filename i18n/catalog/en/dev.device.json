@@ -4,6 +4,7 @@
   "dev.device.bridge_read_failed": {"text": "reading from bridge: {detail}", "args": [["detail", "text"]]},
   "dev.device.bridge_secret_managed": {"text": "the bridge secret is managed by the device"},
   "dev.device.bridge_write_failed": {"text": "writing to bridge: {detail}", "args": [["detail", "text"]]},
+  "dev.device.domain_managed": {"text": "this device's name on the bridge can't be changed here"},
   "dev.device.identity_store_failed": {"text": "could not store the device's new identity"},
   "dev.device.local_addresses_failed": {"text": "could not list this device's addresses"},
   "dev.device.local_no_address": {"text": "this device has no home-network address"},

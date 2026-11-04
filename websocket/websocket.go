@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"math/rand"
 	"mime"
 	"net"
@@ -320,6 +321,19 @@ func (mg *Manager) ActiveConnections() int64 {
 // the package.
 var fileSize = dao.FileSize
 
+// reconcileRatingSources gives the ratings stored before release 169 (or
+// since by an older binary) their source's row: each link's visitors see
+// theirs only (dao.ReconcileRatingSources). At start, before anything is
+// served.
+func reconcileRatingSources(d *dao.Dao) {
+	if d == nil {
+		return
+	}
+	if err := d.ReconcileRatingSources(); err != nil && !errors.Is(err, dao.ErrSchemaBehind) {
+		log.Error("could not give the collections' ratings their sources:", err)
+	}
+}
+
 func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup *supervisor.Supervisor, staticPath string) (mg *Manager) {
 	log.Debug("Init Websocket")
 	initDemoMode()
@@ -348,15 +362,20 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 			cfg.GetStr("otc", "storage-path"),
 			cfg.GetStr("otc", "unenc-storage-path"),
 		),
-		upgrader: gorilla.Upgrader{
-			// No other site's page (origin.go); Listen checks first.
-			CheckOrigin: originAllowed,
-		},
 		settings: st,
 		profile:  pr,
 		push:     ps,
 		social:   social.Init(dao, filesManager, st, pr, ps),
 	}
+	// No other site's page (origin.go), the device's own name on the
+	// bridge among its names; Listen checks first.
+	mg.upgrader = gorilla.Upgrader{CheckOrigin: mg.originAllowed}
+	// Each rated link's visitors see their own ratings (release 169):
+	// before anything is served, the bridge's pool included.
+	reconcileRatingSources(dao)
+	// Profile pictures within dao.MaxProfilePictureBytes (pictures.go): the
+	// owner's own made small, the friends' stored before the cap dropped.
+	go mg.fitStoredPictures()
 
 	// Issue #62: whenever this device's own Push instance (used for social
 	// notifications) prunes a stale subscription/token, re-sync the
@@ -695,9 +714,11 @@ func (mg *Manager) openBridgeConn() {
 	// Blocks for this connection's entire lifetime in the pool - returns
 	// once the bridge has consumed it for its one relay (or the underlying
 	// socket otherwise drops).
-	// From here the bridge relays a client over it, which may stay idle
-	// for as long as it likes: no deadline, and the read limit is set per
-	// message by the serve loop.
+	// From here the bridge relays a client over it: no deadline (the read
+	// limit is set per message by the serve loop) - waiting in the pool it
+	// stays as long as it takes, and a client paired on it may stay idle
+	// for as long as it likes once signed in; one that never signs in ends
+	// once idle (anon_sessions.go).
 	c.SetReadDeadline(time.Time{})
 	c.SetWriteDeadline(time.Time{})
 	// Issue #170: the bridge keeps the connection for the client's whole
@@ -1061,13 +1082,26 @@ func (mg *Manager) pushRegistrations() (regs *pb.UpdatePushRegistrations, ok boo
 func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	// Before the upgrader's own check, so a refusal is counted, not logged
 	// as an error each time (anonlog.go).
-	if !originAllowed(r) {
+	if !mg.originAllowed(r) {
 		log.Debug("socket refused from another site's page:", r.Header.Get("Origin"))
 		anonLog.note(cAnonOrigin)
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return
 	}
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// A socket that hasn't signed in holds one of its address's slots
+	// (anon_sessions.go) until it does or it ends: past them, refused
+	// before the upgrade.
+	slot, ok := directAnon.take(clientAddr(r))
+	if !ok {
+		log.Debug("socket refused, too many open before sign-in from", clientAddr(r))
+		anonLog.note(cAnonTooMany)
+		w.Header().Set("Retry-After", "30")
+		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+		return
+	}
+	defer slot.release()
 
 	conn, err := mg.upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -1082,7 +1116,7 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	mg.activeConns.Add(1)
 	defer mg.activeConns.Add(-1)
 
-	mg.handleConnection(conn, r)
+	mg.serve(conn, r, nil, slot)
 }
 
 // connHandler holds one WebSocket connection's per-connection state.
@@ -1371,6 +1405,9 @@ type connHandler struct {
 	// keyMu serialises taking this connection's key (getOrCreatePrivKey),
 	// apart from mu so waiting for one never holds up other requests.
 	keyMu sync.Mutex
+	// gone is closed once no reply can reach the peer (serve): a key
+	// still waited for is no longer taken.
+	gone <-chan struct{}
 	// privKey is an ephemeral RSA keypair generated per WebSocket connection.
 	// Its public half is handed out via GetPubKey/PubKey so the client can
 	// RSA-OAEP encrypt the password before it crosses the bridge, which only
@@ -1502,7 +1539,10 @@ func (ch *connHandler) getOrCreatePrivKey() (*rsa.PrivateKey, error) {
 	if key != nil {
 		return key, nil
 	}
-	key = takeRSAKey()
+	key, err := takeRSAKey(ch.addr(), ch.gone)
+	if err != nil {
+		return nil, err
+	}
 	ch.mu.Lock()
 	ch.privKey = key
 	ch.mu.Unlock()
@@ -1521,7 +1561,17 @@ var (
 
 const cRSAKeyPoolSize = 4
 
-func takeRSAKey() *rsa.PrivateKey {
+// errPeerGone: the connection a key was waited for has gone.
+var errPeerGone = errors.New("the connection has gone") // i18n-ignore: never a reply - no reply reaches a peer that has gone
+
+// takeRSAKey is a connection key for a connection from addr, given back
+// unused (errPeerGone) when gone closes first. Keys come in turn by
+// address (keyTurns): a connection waits behind at most cKeyWaitsPerAddr
+// of each other address's, so anyone opening connections that each ask
+// for a key - and hanging up, which used to leave the wait in line and the
+// key made for nobody - can't put every other address's sign-in behind
+// all of theirs.
+func takeRSAKey(addr string, gone <-chan struct{}) (*rsa.PrivateKey, error) {
 	rsaKeyPoolOnce.Do(func() {
 		go func() {
 			for {
@@ -1535,7 +1585,88 @@ func takeRSAKey() *rsa.PrivateKey {
 			}
 		}()
 	})
-	return <-rsaKeyPool
+	return takeKey(rsaKeyPool, keyTurns, addr, gone)
+}
+
+// takeKey is takeRSAKey's turn and wait, from pool. A connection already
+// gone is answered before anything else (select picks at random among
+// what is ready).
+func takeKey(pool <-chan *rsa.PrivateKey, turns *addrTurns, addr string, gone <-chan struct{}) (*rsa.PrivateKey, error) {
+	if closedChan(gone) {
+		return nil, errPeerGone
+	}
+	release, ok := turns.wait(anonBucket(addr), gone)
+	if !ok {
+		return nil, errPeerGone
+	}
+	defer release()
+	if closedChan(gone) {
+		return nil, errPeerGone
+	}
+	select {
+	case key := <-pool:
+		return key, nil
+	case <-gone:
+		return nil, errPeerGone
+	}
+}
+
+// closedChan reports whether c is closed (a nil one never is).
+func closedChan(c <-chan struct{}) bool {
+	select {
+	case <-c:
+		return true
+	default:
+		return false
+	}
+}
+
+// cKeyWaitsPerAddr is how many connections of one address wait for a key
+// at once; the rest wait their turn behind them.
+const cKeyWaitsPerAddr = 1
+
+// keyTurns lets each address (anonBucket) have cKeyWaitsPerAddr
+// connections waiting for a key at once.
+var keyTurns = &addrTurns{per: cKeyWaitsPerAddr}
+
+type addrTurns struct {
+	per   int
+	mu    sync.Mutex
+	turns map[string]*addrTurn
+}
+
+type addrTurn struct {
+	slots chan struct{}
+	users int
+}
+
+// wait waits for addr's turn, or for gone (ok false); release ends it.
+func (a *addrTurns) wait(addr string, gone <-chan struct{}) (release func(), ok bool) {
+	a.mu.Lock()
+	if a.turns == nil {
+		a.turns = map[string]*addrTurn{}
+	}
+	t := a.turns[addr]
+	if t == nil {
+		t = &addrTurn{slots: make(chan struct{}, a.per)}
+		a.turns[addr] = t
+	}
+	t.users++
+	a.mu.Unlock()
+	leave := func() {
+		a.mu.Lock()
+		if t.users--; t.users == 0 {
+			delete(a.turns, addr)
+		}
+		a.mu.Unlock()
+	}
+	select {
+	case t.slots <- struct{}{}:
+		return func() { <-t.slots; leave() }, true
+	case <-gone:
+		leave()
+		return nil, false
+	}
 }
 
 // decryptSecret decrypts an RSA-OAEP(SHA-256) ciphertext produced by a
@@ -1809,6 +1940,13 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 
 	case *pb.ReqEnvelope_ReqGetPubKey:
 		privKey, err := ch.getOrCreatePrivKey()
+		if errors.Is(err, errPeerGone) {
+			// No reply reaches it.
+			log.Debug("a connection went before its key came")
+			resp.Error = true
+			resp.ErrorMessage = i18n.DevAuthKeypairFailed().Render(lang)
+			break
+		}
 		if err != nil {
 			log.Error("error generating connection keypair:", err)
 			resp.Error = true
@@ -1969,7 +2107,12 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		}
 
 	case *pb.ReqEnvelope_ReqFriendshipInterRequest:
-		if friendDomainTooLong(p.ReqFriendshipInterRequest.Domain) {
+		// A request with no profile is no device's: every one sends its
+		// own (SendFriendshipReq). It used to be read unchecked, and a few
+		// bytes from anyone made a panic and a stack trace in the log each
+		// time.
+		origin := p.ReqFriendshipInterRequest.GetOriginProfile()
+		if friendDomainTooLong(p.ReqFriendshipInterRequest.Domain) || origin == nil {
 			// Before ExternalFriendshipRequest, whose errors quote the
 			// domain into the log and the reply.
 			resp.Payload = &pb.RespEnvelope_RespAck{
@@ -1981,9 +2124,9 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		err = ch.mg.social.ExternalFriendshipRequest(
 			p.ReqFriendshipInterRequest.Domain,
 			p.ReqFriendshipInterRequest.Secret,
-			p.ReqFriendshipInterRequest.OriginProfile.Name,
-			p.ReqFriendshipInterRequest.OriginProfile.Text,
-			p.ReqFriendshipInterRequest.OriginProfile.Image)
+			origin.GetName(),
+			origin.GetText(),
+			origin.GetImage())
 
 		// Issue #140: re-linked an accepted friendship - tell the sender
 		// so it doesn't sit on "pending" until the next sync.
@@ -2192,7 +2335,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			data, size, err := ch.mg.filesManager.OpenSharedLinkRange(r.Uuid, r.Secret, r.Offset, int(r.Length))
 			if err != nil {
 				resp.Error = true
-				resp.ErrorMessage = i18n.DevFilesDownloadFailed(devtext.Text(lang, err)).Render(lang)
+				resp.ErrorMessage = sharedLinkFailure(lang, err)
 				break
 			}
 			// Issue #180: the list in Settings counts downloads - one per
@@ -2209,7 +2352,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = i18n.DevFilesDownloadFailed(devtext.Text(lang, err)).Render(lang)
+			resp.ErrorMessage = sharedLinkFailure(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespSharedFiles{
 				RespSharedFiles: &pb.SharedFiles{
@@ -3353,21 +3496,22 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			},
 		}
 
+	// The device's name on the bridge is its own business, as its secret
+	// is (below): it is set up with the bridge account, and the device
+	// registers every pool connection with it. SetSettings - which no app
+	// has sent since 2026-09-20 - rewrote it unchecked for any signed-in
+	// session: a name no account holds made the device leave the bridge
+	// 15 minutes later (bridge_leave.go), one another account holds failed
+	// every registration for good, and nothing in any app set it back. The
+	// name it already has is answered as done.
 	case *pb.ReqEnvelope_ReqSetSettings:
-		log.Info("Set settings")
-		err := ch.mg.settings.SetSettings(p.ReqSetSettings.Domain)
-
-		if err != nil {
-			log.Error("error trying to update domain:", err)
-			resp.Error = true
-			resp.ErrorMessage = errText(lang, err)
-		} else {
-			resp.Payload = &pb.RespEnvelope_RespAck{
-				RespAck: &pb.Ack{
-					Ok: true,
-				},
-			}
+		if p.ReqSetSettings.Domain == ch.mg.settings.Domain() {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+			break
 		}
+		log.Info("a request to change the device's name on the bridge was refused")
+		resp.Error = true
+		resp.ErrorMessage = i18n.DevDeviceDomainManaged().Render(lang)
 
 	// The bridge shared secret is the device's own business: it is set up
 	// with the bridge, and the device rotates it itself
@@ -3380,7 +3524,17 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 
 	case *pb.ReqEnvelope_ReqSetProfile:
 		log.Info("Set profile")
-		err := ch.mg.profile.SetProfile(p.ReqSetProfile.Name, p.ReqSetProfile.Image, p.ReqSetProfile.Text)
+		// Kept within dao.MaxProfilePictureBytes - every friend gets it, again
+		// with each post and alert: an app before 2026-09-29 sent the photo
+		// as picked, several MB, made small here. One the device can't read
+		// is refused, the picture kept as it was.
+		image := filesmanager.FitProfilePicture(p.ReqSetProfile.Image, filesmanager.PictureFromOwner)
+		if image == nil && len(p.ReqSetProfile.Image) > 0 {
+			resp.Error = true
+			resp.ErrorMessage = i18n.DevSocialPictureUnusable().Render(lang)
+			break
+		}
+		err := ch.mg.profile.SetProfile(p.ReqSetProfile.Name, image, p.ReqSetProfile.Text)
 
 		if err != nil {
 			log.Error("error trying to get serrings:", err)
@@ -4370,6 +4524,22 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 // prefix (see createUser), so it has to satisfy the same constraint.
 var usernameRe = regexp.MustCompile(`^[a-z0-9-]+$`)
 
+// cMaxUsername is the longest username: a DNS label (the user's address
+// on the bridge starts with it) and within users.username's 64.
+const cMaxUsername = 63
+
+// createUsers serialises createUser: two Settings tabs adding the same
+// name (or taking the next free port) at once both passed the checks, and
+// the second failed on the users row, leaving what it had provisioned.
+var createUsers sync.Mutex
+
+// What createUser provisions with, and where; vars for tests.
+var (
+	provisionUserDatabase = dao.ProvisionUserDatabase
+	dropUserDatabase      = dao.DropUserDatabase
+	userStorageRoot       = "/mnt/storage"
+)
+
 // createUser (issue #82) orchestrates provisioning a brand new user end
 // to end: validate, generate identity, create its database (dao.
 // ProvisionUserDatabase also seeds its settings row), create its storage
@@ -4384,6 +4554,19 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) (users []*pb.User, pass
 	if !usernameRe.MatchString(username) {
 		return nil, false, devtext.New(i18n.DevUsersBadUsername())
 	}
+	if len(username) > cMaxUsername {
+		return nil, false, devtext.New(i18n.DevUsersUsernameTooLong(cMaxUsername))
+	}
+	// An account on the bridge with no password would be anyone's who
+	// signs in first through it, at <username>.<bridge> - a name anyone can
+	// guess, and watch for on the bridge's public name check: whoever got
+	// there before its person would choose the password and have an
+	// account on the owner's device. Every app has sent a first password
+	// since 2026-10-23; an older one is told, in the device's words, to
+	// update. A user for the home network only may still come without one.
+	if req.RequestBridgeAccess && len(req.Password) == 0 {
+		return nil, false, devtext.New(i18n.DevUsersPasswordNeeded())
+	}
 	// Checked before anything is provisioned, so a password the device
 	// can't read or won't take leaves nothing to clean up.
 	var password string
@@ -4395,6 +4578,8 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) (users []*pb.User, pass
 			return nil, false, session.ErrPasswordTooShort
 		}
 	}
+	createUsers.Lock()
+	defer createUsers.Unlock()
 	if taken, err := ch.mg.dao.IsUsernameTaken(username); err != nil {
 		return nil, false, err
 	} else if taken {
@@ -4433,8 +4618,12 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) (users []*pb.User, pass
 	if err != nil {
 		return nil, false, err
 	}
-	storagePath := "/mnt/storage/user_" + id
-	subdomain := username + "." + cfg.GetStr("otc", "bridge-addr")
+	storagePath := userStorageRoot + "/user_" + id
+	bridgeAddr := ""
+	if cfg.HasSection("otc") {
+		bridgeAddr = cfg.GetStr("otc", "bridge-addr")
+	}
+	subdomain := username + "." + bridgeAddr
 
 	// Issue #103: the address is registered on the bridge, under this
 	// device's account (issue #124), *before* provisioning a database, a
@@ -4459,14 +4648,27 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) (users []*pb.User, pass
 		}()
 	}
 
-	if err := dao.ProvisionUserDatabase(dbName, dbName, dbPass, id, subdomain, bridgeSecret); err != nil {
+	// Anything that fails from here on, before the user's row is stored,
+	// takes back what was made for it - its database and MySQL user (even
+	// half made: dropped if they exist), its storage folder - which nothing
+	// would otherwise ever remove: no row names them. The name is new
+	// (a fresh uuid), so nothing else can be at either.
+	defer func() {
+		if err == nil || created {
+			return
+		}
+		if dropErr := dropUserDatabase(dbName, dbName); dropErr != nil {
+			log.Error("could not remove", username, "'s database after creating the user failed:", dropErr)
+		}
+		if rmErr := os.RemoveAll(storagePath); rmErr != nil {
+			log.Error("could not remove", username, "'s storage folder after creating the user failed:", rmErr)
+		}
+	}()
+	if err := provisionUserDatabase(dbName, dbName, dbPass, id, subdomain, bridgeSecret); err != nil {
 		return nil, false, err
 	}
 	if password != "" {
 		if err := setFirstPassword(dbName, dbPass, id, password); err != nil {
-			if dropErr := dao.DropUserDatabase(dbName, dbName); dropErr != nil {
-				log.Error("could not remove", username, "'s database after its password failed:", dropErr)
-			}
 			return nil, false, err
 		}
 	}
@@ -4773,10 +4975,12 @@ func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelop
 	// Worked out once per request and passed down, never kept on ch:
 	// requests on a connection run concurrently.
 	lang := requestLang(env)
+	// Known before the request runs: a panic may leave ch.mu held.
+	anon := ch.anonymous()
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Error("recovered from panic handling request:", r, string(debug.Stack()))
+			recoveredPanic(anon, r, debug.Stack())
 			resp = &pb.RespEnvelope{
 				Id:           env.Id,
 				Error:        true,
@@ -4869,6 +5073,16 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	mg.serveConnection(conn, r, nil)
 }
 
+// anonIdle is how long a connection may stay idle without signing in
+// (anon_sessions.go): one to the device's own listener (direct), or a
+// bridge connection.
+func anonIdle(direct bool) time.Duration {
+	if direct {
+		return cAnonIdleDirect
+	}
+	return cAnonIdleBridged
+}
+
 // handleRequest is how serveConnection answers one request: processMessage.
 // A var for tests.
 var handleRequest = (*connHandler).processMessage
@@ -4876,6 +5090,14 @@ var handleRequest = (*connHandler).processMessage
 // serveConnection serves conn until it closes; onFirst (if any) runs once,
 // in this goroutine, when the first message arrives.
 func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst func()) {
+	mg.serve(conn, r, onFirst, nil)
+}
+
+// serve is serveConnection; anonSlot (Listen's, nil-safe) is given back
+// once the connection signs in or authenticates as a friend, and until
+// then the connection may be closed to make room for another address's
+// (anonSlots.pushOut).
+func (mg *Manager) serve(conn *gorilla.Conn, r *http.Request, onFirst func(), anonSlot *anonSlot) {
 	ch := &connHandler{
 		mg:         mg,
 		fromBridge: r == nil,
@@ -4893,6 +5115,7 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 	// gone is closed once no further reply can reach the peer: it went
 	// away, or the connection was closed here.
 	gone := make(chan struct{})
+	ch.gone = gone
 	var goneOnce sync.Once
 	markGone := func() { goneOnce.Do(func() { close(gone) }) }
 	closeConn := func() {
@@ -4904,6 +5127,16 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 	// A password change closes it if it is signed in (passwordChanged).
 	mg.track(ch, closeConn)
 	defer mg.untrack(ch)
+	// A session that never signs in ends once idle (anon_sessions.go): on
+	// the device's own listener from the start, on a bridge connection
+	// from its first relayed message - idle in the pool, it waits for a
+	// client.
+	idle := newAnonWatch(anonIdle(r != nil), ch.anonymous, closeConn)
+	defer idle.stop()
+	if r != nil {
+		idle.arm()
+	}
+	anonSlot.attach(closeConn, idle.activity)
 	// Deferred before wg.Wait, so it runs after it: the chunked uploads
 	// this connection left unfinished are let go once none of its requests
 	// is still running (a FinishUpload in flight still commits) - kept for
@@ -4931,6 +5164,11 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 		anon := ch.anonymous()
 		if anon {
 			anonInFlight <- struct{}{}
+		} else if anonSlot != nil {
+			// Signed in, or a friend: no longer one of its address's
+			// anonymous sockets.
+			anonSlot.release()
+			anonSlot = nil
 		}
 		doneAnon := func() {
 			if anon {
@@ -4963,7 +5201,10 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 		if onFirst != nil {
 			onFirst()
 			onFirst = nil
+			// A client is paired on this bridge connection now.
+			idle.arm()
 		}
+		idle.begin()
 		inFlight <- struct{}{}
 
 		var env pb.ReqEnvelope
@@ -4977,6 +5218,7 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 			releaseFrame()
 			<-inFlight
 			doneAnon()
+			idle.end()
 			return
 		}
 
@@ -4989,6 +5231,7 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 		// hand off - no aliasing with the next iteration's env.
 		go func(env *pb.ReqEnvelope) {
 			defer wg.Done()
+			defer idle.end()
 			defer doneAnon()
 			defer func() { <-inFlight }()
 			defer releaseFrame()
@@ -5042,6 +5285,28 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 			}
 		}(&env)
 	}
+}
+
+// sharedLinkFailure is what a share link's archive download that failed
+// tells its visitor, in lang: the device's own words when it has them
+// (the link's time is up, a part outside the archive), and for a link that
+// isn't there - an unknown id, one the owner deleted or the sweep removed,
+// its file gone, a secret cut short that doesn't open it - one sentence,
+// as a gallery's link gets. Those used to show the raw cause: "sql: no
+// rows in result set", a cipher's error. The cause is logged at Debug
+// (anyone can try a link), a failing disk's read error at Error.
+func sharedLinkFailure(lang string, err error) string {
+	var words *devtext.Error
+	if errors.As(err, &words) {
+		return i18n.DevFilesDownloadFailed(devtext.Text(lang, err)).Render(lang)
+	}
+	var pathErr *fs.PathError
+	if errors.As(err, &pathErr) && !errors.Is(err, fs.ErrNotExist) {
+		log.Error("reading a share link's archive:", err)
+		return i18n.DevFilesDownloadFailed(i18n.DevErrInternal().Render(lang)).Render(lang)
+	}
+	log.Debug("a share link that isn't there:", err)
+	return devtext.Text(lang, filesmanager.ErrNoSuchGallery)
 }
 
 // staticAssetReply answers ReqGetStaticAsset into resp: the file of the

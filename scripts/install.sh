@@ -1416,6 +1416,12 @@ SQL
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS photo_months_for MEDIUMTEXT NULL;
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS photo_months_run VARCHAR(32) NULL;
 SQL
+    # Release 169 (updates/169.sh): each rated link's visitors' own ratings,
+    # apart from the owner's and other links' (see db.sql). The device moves
+    # the ratings stored before into it at its next start.
+    mysql "$db" <<'SQL'
+    CREATE TABLE IF NOT EXISTS photo_rating_sources (`group_id` VARCHAR(36) NOT NULL, `hash` VARCHAR(64) NOT NULL, `source` VARCHAR(64) NOT NULL, `stars` TINYINT NOT NULL DEFAULT 0, `comment` BLOB NULL, `link_comment` BLOB NULL, `updated` DATETIME(6) NOT NULL, PRIMARY KEY (`group_id`, `hash`, `source`), KEY (`hash`)) ENGINE=InnoDB;
+SQL
 }
 
 apply_schema_migrations otc

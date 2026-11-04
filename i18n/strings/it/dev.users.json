@@ -24,6 +24,10 @@
     "text": "per altri utenti serve un dispositivo con almeno 4 GB di memoria",
     "en": "other users need a device with at least 4 GB of memory"
   },
+  "dev.users.password_needed": {
+    "text": "un utente con accesso al bridge ha bisogno di una prima password: aggiorna questa app e aggiungi di nuovo l’utente",
+    "en": "a user with bridge access needs a first password: update this app and add the user again"
+  },
   "dev.users.port_in_use": {
     "text": "la porta {port} è già usata da un altro utente",
     "en": "port {port} is already in use by another user"
@@ -39,5 +43,9 @@
   "dev.users.username_taken": {
     "text": "nome utente già in uso",
     "en": "username already taken"
+  },
+  "dev.users.username_too_long": {
+    "text": "il nome utente può avere al massimo {max} caratteri",
+    "en": "username must be at most {max} characters long"
   }
 }

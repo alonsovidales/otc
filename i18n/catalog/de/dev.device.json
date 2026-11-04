@@ -4,6 +4,7 @@
   "dev.device.bridge_read_failed": {"text": "beim Lesen von der Bridge: {detail}"},
   "dev.device.bridge_secret_managed": {"text": "das Bridge-Geheimnis wird vom Gerät verwaltet"},
   "dev.device.bridge_write_failed": {"text": "beim Schreiben an die Bridge: {detail}"},
+  "dev.device.domain_managed": {"text": "der Name dieses Geräts auf der Bridge kann hier nicht geändert werden"},
   "dev.device.identity_store_failed": {"text": "die neue Identität des Geräts konnte nicht gespeichert werden"},
   "dev.device.local_addresses_failed": {"text": "die Adressen dieses Geräts konnten nicht ermittelt werden"},
   "dev.device.local_no_address": {"text": "dieses Gerät hat keine Adresse im Heimnetz"},

@@ -34,6 +34,11 @@ func DevUsersNeedMemory() Msg {
 	return Msg{Key: "dev.users.need_memory"}
 }
 
+// DevUsersPasswordNeeded is dev.users.password_needed: "a user with bridge access needs a first password: update this app and add the us…".
+func DevUsersPasswordNeeded() Msg {
+	return Msg{Key: "dev.users.password_needed"}
+}
+
 // DevUsersPortInUse is dev.users.port_in_use: "port {port} is already in use by another user".
 func DevUsersPortInUse(port string) Msg {
 	return Msg{Key: "dev.users.port_in_use", Args: map[string]any{"port": port}}
@@ -52,4 +57,9 @@ func DevUsersStorageDirFailed(detail string) Msg {
 // DevUsersUsernameTaken is dev.users.username_taken: "username already taken".
 func DevUsersUsernameTaken() Msg {
 	return Msg{Key: "dev.users.username_taken"}
+}
+
+// DevUsersUsernameTooLong is dev.users.username_too_long: "username must be at most {max} characters long".
+func DevUsersUsernameTooLong(max int) Msg {
+	return Msg{Key: "dev.users.username_too_long", Args: map[string]any{"max": int64(max)}}
 }

@@ -114,6 +114,10 @@
     "text": "not your publication",
     "note": "Error shown after \"error deleting publication: \" when the owner tries to delete a friend's post. A publication is a post."
   },
+  "dev.social.picture_unusable": {
+    "text": "this picture can't be used: choose another photo",
+    "note": "Error in Settings > Profile when the picture chosen for the owner's profile can't be read by the device (not a photo, or a damaged one); the picture shown before stays."
+  },
   "dev.social.post_failed": {
     "text": "error trying to create publication: {detail}",
     "args": [["detail", "text"]],

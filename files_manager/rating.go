@@ -29,10 +29,18 @@ import (
 
 // Collection Rating (release 163; owner, 2026-11-02): a collection whose
 // Rating is on has its photos rated from 1 to 5 stars with a comment each
-// - one rating per photo and collection, the same for the owner and for
-// anyone with one of the collection's shared links made with "Let people
-// rate the photos" (a photographer's customer picking photos and asking
-// for changes). The collection can then be filtered and sorted by it.
+// - by the owner and by anyone with one of the collection's shared links
+// made with "Let people rate the photos" (a photographer's customer
+// picking photos and asking for changes). The collection can then be
+// filtered and sorted by it.
+//
+// Each link's visitors have their own rating of each photo (release 169;
+// dao's photo_rating_sources), apart from the owner's own and every other
+// link's: they see and change theirs only. Until then one rating per photo
+// was shared by the owner and every link, so one client saw another's
+// comments and the owner's own notes, and anyone the link reached could
+// overwrite or clear the owner's. The owner sees what they always did: the
+// latest change, whoever's (PhotoRating.from_link).
 //
 // The stars are plain numbers in the database (photo_ratings.stars), as
 // tags' scores are: the searches filter and sort by them. A comment never
@@ -44,25 +52,22 @@ import (
 // in. A password change only re-wraps the vault's secret, never the data
 // key that sealed the private key, so the pair keeps working across it.
 //
-// A link's visitor must see each photo's current comment - their own, the
-// photographer's reply, another visitor's - while the owner may be signed
-// out, which the owner's key pair can't give. So each rated collection has
-// one more key, its link key (image_groups.rating_key: 32 random bytes
-// sealed with the owner's key), and every comment is also stored sealed
-// with it (photo_ratings.shared_comment, AES-256-GCM). Each of the
-// collection's rated links carries the link key inside its own manifest,
-// which is sealed under the link's secret: a visitor's request (which
-// always presents the secret) opens the manifest, and with it the link key
-// - so the device can show and store comments for that visitor, and only
-// while serving the visitor's request. The device keeps no link secret,
-// and nothing on its disk opens a comment without either the owner's key
-// or a link. The link key is made with the collection's first rated link,
-// when the owner is signed in: the comments made before get their copy
-// then (collectionLinkKey). One key per collection rather than per link,
-// so a comment left through one link, while the owner is signed out,
-// reaches the visitors of the collection's other links too. Galleries made
-// before release 163 have no link key and no photo hashes in their
-// manifest: they can't take ratings.
+// A link's visitor must see their own comments while the owner may be
+// signed out, which the owner's key pair can't give. So each of a link's
+// comments is also stored sealed for its visitors (link_comment): since
+// release 169 under a key made from the link's own secret
+// (linkCommentKey, cSealLinkV2), which a visitor's request always
+// presents and the device never keeps - so nothing on its disk opens a
+// comment without the owner's key or that very link's secret, and one
+// link's secret opens no other's. Before, every comment was sealed under
+// one key per collection, the link key (image_groups.rating_key: 32
+// random bytes sealed with the owner's key, carried in each rated link's
+// manifest), the owner's own included; a link's comments from then
+// (cSealV1) are still read with it. The link key is still made with a
+// collection's first rated link, when the owner is signed in: its manifest
+// having one is what says the link takes ratings. Galleries made before
+// release 163 have no link key and no photo hashes in their manifest:
+// they can't take ratings.
 
 const (
 	// cMaxRatingComment is the longest comment, in characters.
@@ -72,6 +77,9 @@ const (
 	cRatingAlertEvery = time.Hour
 	// cSealV1 is the first byte of a sealed comment: the format.
 	cSealV1 = 1
+	// cSealLinkV2 is the first byte of a link's comment sealed for its
+	// visitors under its own key (sealLinkComment): release 169.
+	cSealLinkV2 = 2
 )
 
 var (
@@ -117,6 +125,55 @@ func normalizeRating(stars int32, comment string) (int, string, error) {
 // comment copied onto another row doesn't open.
 func ratingAAD(groupID, hash string) []byte {
 	return []byte("otc-rating-comment\x00" + groupID + "\x00" + hash)
+}
+
+// ratingLinkAAD binds a link's comment sealed for its visitors to its
+// photo, collection and link.
+func ratingLinkAAD(groupID, hash, link string) []byte {
+	return []byte("otc-rating-link-comment\x00" + groupID + "\x00" + hash + "\x00" + link)
+}
+
+// linkCommentKey is the key a link's comments are sealed under for its
+// visitors: made from the link's own secret, which only its visitors'
+// requests present - the device keeps none.
+func linkCommentKey(link, secret string) ([]byte, error) {
+	return hkdf.Key(sha256.New, []byte(secret), []byte(link), "otc-rating-link-comment-v2", 32)
+}
+
+// sealLinkComment seals a link's comment for its visitors (cSealLinkV2):
+// the format byte, the nonce and the ciphertext.
+func sealLinkComment(link, secret, groupID, hash string, plaintext []byte) ([]byte, error) {
+	key, err := linkCommentKey(link, secret)
+	if err != nil {
+		return nil, err
+	}
+	sealed, err := sealWithKey(key, plaintext, ratingLinkAAD(groupID, hash, link))
+	if err != nil {
+		return nil, err
+	}
+	sealed[0] = cSealLinkV2
+	return sealed, nil
+}
+
+// openLinkComment opens a link's comment as its visitors read it: sealed
+// under the link's own key (cSealLinkV2), or - stored before release 169 -
+// under the collection's link key the link's manifest carries (cSealV1).
+func openLinkComment(man *galleryManifest, link, secret, groupID, hash string, sealed []byte) ([]byte, error) {
+	if len(sealed) == 0 {
+		return nil, errors.New("no comment") // i18n-ignore: internal, never a reply
+	}
+	if sealed[0] == cSealV1 {
+		return openWithKey(man.RatingKey, sealed, ratingAAD(groupID, hash))
+	}
+	if sealed[0] != cSealLinkV2 {
+		return nil, errors.New("not a sealed comment") // i18n-ignore: internal, never a reply
+	}
+	key, err := linkCommentKey(link, secret)
+	if err != nil {
+		return nil, err
+	}
+	v1 := append([]byte{cSealV1}, sealed[1:]...)
+	return openWithKey(key, v1, ratingLinkAAD(groupID, hash, link))
 }
 
 // sealToPublic seals plaintext to an X25519 public key: an ephemeral key
@@ -286,8 +343,8 @@ func (mg *Manager) ratingPrivateKey(ses *session.Session) (*ecdh.PrivateKey, err
 }
 
 // collectionLinkKey is a collection's link key, opened with the owner's
-// session: nil while it has none, unless create, which makes it and gives
-// the comments made so far their copy for the links' visitors.
+// session: nil while it has none, unless create, which makes it. Never a
+// copy of the owner's comments under it: no link's visitors read them.
 func (mg *Manager) collectionLinkKey(ses *session.Session, groupID string, create bool) ([]byte, error) {
 	sealed, err := mg.dao.ImageGroupRatingKey(groupID)
 	if err != nil {
@@ -309,43 +366,7 @@ func (mg *Manager) collectionLinkKey(ses *session.Session, groupID string, creat
 	if err != nil {
 		return nil, fmt.Errorf("opening a collection's link key: %w", err) // i18n-ignore: internal, the reply is the generic error
 	}
-	if create {
-		mg.copyCommentsForLinks(ses, groupID, key)
-	}
 	return key, nil
-}
-
-// copyCommentsForLinks gives every comment of a collection without one its
-// copy under the collection's link key. A comment that can't be opened is
-// logged and left: its link visitors don't see it.
-func (mg *Manager) copyCommentsForLinks(ses *session.Session, groupID string, key []byte) {
-	rows, err := mg.dao.CommentsWithoutSharedCopy(groupID)
-	if err != nil || len(rows) == 0 {
-		if err != nil {
-			log.Error("listing a collection's comments for its link:", err)
-		}
-		return
-	}
-	priv, err := mg.ratingPrivateKey(ses)
-	if err != nil {
-		log.Error("no rating key to copy a collection's comments for its link:", err)
-		return
-	}
-	for hash, r := range rows {
-		aad := ratingAAD(groupID, hash)
-		plain, err := openWithPrivate(priv, r.Comment, aad)
-		if err != nil {
-			log.Error("a rating comment didn't open, not copied for the link:", hash, err)
-			continue
-		}
-		shared, err := sealWithKey(key, plain, aad)
-		if err == nil {
-			err = mg.dao.SetSharedComment(groupID, hash, r.Comment, shared)
-		}
-		if err != nil {
-			log.Error("copying a rating comment for the link:", err)
-		}
-	}
 }
 
 // GroupRated says whether a collection's Rating is on (false for none).
@@ -379,9 +400,10 @@ func (mg *Manager) SetImageGroupRating(id string, on bool) error {
 	return nil
 }
 
-// SetPhotoRating is the owner's rating of the photo at path in a
+// SetPhotoRating is the owner's own rating of the photo at path in a
 // collection: stars and comment both, replacing what it had (0 and ""
-// clear it). Answers the rating as stored.
+// clear it). It is what the owner sees of the photo from now on, as the
+// latest change; no link's visitors see it. Answers the rating as stored.
 func (mg *Manager) SetPhotoRating(ses *session.Session, groupID, path string, stars int32, comment string) (*pb.PhotoRating, error) {
 	n, text, err := normalizeRating(stars, comment)
 	if err != nil {
@@ -405,7 +427,7 @@ func (mg *Manager) SetPhotoRating(ses *session.Session, groupID, path string, st
 	case !member:
 		return nil, ErrNotInCollection
 	}
-	now := time.Now().UTC().Truncate(time.Second)
+	now := time.Now().UTC()
 	row := dao.PhotoRatingRow{Hash: f.Hash, Stars: n, Updated: now}
 	if text != "" {
 		aad := ratingAAD(groupID, f.Hash)
@@ -415,15 +437,6 @@ func (mg *Manager) SetPhotoRating(ses *session.Session, groupID, path string, st
 		}
 		if row.Comment, err = sealToPublic(pub, []byte(text), aad); err != nil {
 			return nil, err
-		}
-		key, err := mg.collectionLinkKey(ses, groupID, false)
-		if err != nil {
-			return nil, err
-		}
-		if key != nil {
-			if row.SharedComment, err = sealWithKey(key, []byte(text), aad); err != nil {
-				return nil, err
-			}
 		}
 	}
 	stored, err := mg.dao.SetPhotoRating(groupID, row)
@@ -436,7 +449,8 @@ func (mg *Manager) SetPhotoRating(ses *session.Session, groupID, path string, st
 	if n == 0 && text == "" {
 		return &pb.PhotoRating{}, nil
 	}
-	return &pb.PhotoRating{Stars: int32(n), Comment: text, Updated: timestamppb.New(now)}, nil
+	// To the second, as the collection's listing has it.
+	return &pb.PhotoRating{Stars: int32(n), Comment: text, Updated: timestamppb.New(now.Truncate(time.Second))}, nil
 }
 
 // setRatings gives a page of a rated collection's listing each photo's
@@ -485,9 +499,10 @@ func (mg *Manager) setRatings(ses *session.Session, groupID string, page []*pb.F
 }
 
 // galleryRatings is what a rated gallery's visitor sees of each item's
-// rating now, by item index: nil when the link doesn't take ratings (any
-// more) - made without them, its collection deleted or its Rating off.
-func (mg *Manager) galleryRatings(id string, man *galleryManifest) (rated bool, stars map[int]int, comments map[int]string) {
+// rating now, by item index: their link's own, never the owner's nor
+// another link's; nil when the link doesn't take ratings (any more) - made
+// without them, its collection deleted or its Rating off.
+func (mg *Manager) galleryRatings(id, secret string, man *galleryManifest) (rated bool, stars map[int]int, comments map[int]string) {
 	if len(man.RatingKey) == 0 {
 		return false, nil, nil
 	}
@@ -511,7 +526,7 @@ func (mg *Manager) galleryRatings(id string, man *galleryManifest) (rated bool, 
 			hashes = append(hashes, it.Hash)
 		}
 	}
-	rows, err := mg.dao.PhotoRatings(groupID, hashes)
+	rows, err := mg.dao.LinkRatings(groupID, id, hashes)
 	if err != nil {
 		log.Error("reading a gallery's ratings:", err)
 		return true, nil, nil
@@ -524,7 +539,7 @@ func (mg *Manager) galleryRatings(id string, man *galleryManifest) (rated bool, 
 		}
 		stars[i] = r.Stars
 		if len(r.SharedComment) > 0 {
-			if plain, err := openWithKey(man.RatingKey, r.SharedComment, ratingAAD(groupID, it.Hash)); err == nil {
+			if plain, err := openLinkComment(man, id, secret, groupID, it.Hash, r.SharedComment); err == nil {
 				comments[i] = string(plain)
 			} else {
 				log.Error("a rating comment didn't open with the link's key:", err)
@@ -535,8 +550,9 @@ func (mg *Manager) galleryRatings(id string, man *galleryManifest) (rated bool, 
 }
 
 // RateSharedGalleryItem is a link visitor's rating of one of the gallery's
-// photos, stars and comment both, as SetPhotoRating's: the collection's
-// own rating (from_link). ErrNoSuchGallery for a link that doesn't open
+// photos, stars and comment both, as SetPhotoRating's: their link's own,
+// which the owner sees as the latest change (from_link) and no other
+// link's visitors see; 0 and "" take it back. ErrNoSuchGallery for a link that doesn't open
 // (or an index it doesn't have), ErrRatingLinkOff for one that doesn't
 // take ratings now, ErrNotInCollection for a photo that left the
 // collection. A notice when the owner should be told (at most once an
@@ -576,7 +592,7 @@ func (mg *Manager) RateSharedGalleryItem(id, secret string, index int, stars int
 	case !member:
 		return nil, ErrNotInCollection
 	}
-	now := time.Now().UTC().Truncate(time.Second)
+	now := time.Now().UTC()
 	row := dao.PhotoRatingRow{Hash: item.Hash, Stars: n, Link: id, Updated: now}
 	if text != "" {
 		aad := ratingAAD(groupID, item.Hash)
@@ -587,7 +603,7 @@ func (mg *Manager) RateSharedGalleryItem(id, secret string, index int, stars int
 		if row.Comment, err = sealToPublic(pub, []byte(text), aad); err != nil {
 			return nil, err
 		}
-		if row.SharedComment, err = sealWithKey(man.RatingKey, []byte(text), aad); err != nil {
+		if row.SharedComment, err = sealLinkComment(id, secret, groupID, item.Hash, []byte(text)); err != nil {
 			return nil, err
 		}
 	}

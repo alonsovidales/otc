@@ -89,6 +89,50 @@ type Social struct {
 	// syncs stopped at and how many did (see cPostTries).
 	stuckMu sync.Mutex
 	stuck   map[string]stuckPost
+
+	// fitted is, per friend's domain, the last picture of theirs over the
+	// cap that was made small (friendPicture): the friend sync asks for
+	// the friend's profile every pass, and an older device keeps sending
+	// the large one.
+	fittedMu sync.Mutex
+	fitted   map[string]fittedPicture
+
+	// posts makes a post sent again once (post_once.go).
+	posts postsOnce
+}
+
+// fittedPicture is a picture as a friend's device sent it (its SHA-256)
+// and as it is kept.
+type fittedPicture struct {
+	sum  [sha256.Size]byte
+	kept []byte
+}
+
+// cMaxFitted bounds fitted: past it, it starts again.
+const cMaxFitted = 256
+
+// friendPicture is a friend's picture as it is kept (filesmanager.
+// FitProfilePicture, from a friend): one within the cap as it came, a
+// larger one made small - once per picture and process, not at every pass.
+func (sc *Social) friendPicture(domain string, image []byte) []byte {
+	if len(image) <= dao.MaxProfilePictureBytes {
+		return filesmanager.FitProfilePicture(image, filesmanager.PictureFromFriend)
+	}
+	sum := sha256.Sum256(image)
+	sc.fittedMu.Lock()
+	f, ok := sc.fitted[domain]
+	sc.fittedMu.Unlock()
+	if ok && f.sum == sum {
+		return f.kept
+	}
+	kept := filesmanager.FitProfilePicture(image, filesmanager.PictureFromFriend)
+	sc.fittedMu.Lock()
+	if sc.fitted == nil || len(sc.fitted) >= cMaxFitted {
+		sc.fitted = map[string]fittedPicture{}
+	}
+	sc.fitted[domain] = fittedPicture{sum: sum, kept: kept}
+	sc.fittedMu.Unlock()
+	return kept
 }
 
 type LikePublicationComment struct {
@@ -347,7 +391,26 @@ func shouldTrimForSocial(mime string, trim *pb.VideoTrim) bool {
 	return trim.StartSecs > 0 || trim.EndSecs > trim.StartSecs
 }
 
-func (sc *Social) NewPublication(ses *session.Session, text string, paths []string, trims []*pb.VideoTrim) (pubUuID string, err error) {
+// NewPublication makes the owner's post: its files' copies for friends,
+// its event and its row. The same post sent again - its answer lost while
+// it was being made - is made once (post_once.go), wherever its files
+// were uploaded to.
+func (sc *Social) NewPublication(ses *session.Session, text string, paths []string, trims []*pb.VideoTrim) (string, error) {
+	return sc.posts.once(postKey(text, paths, trims, sc.contentAt), func() (string, error) {
+		return sc.newPublication(ses, text, paths, trims)
+	})
+}
+
+// contentAt is the hash of the file at path, or "" when there is none.
+func (sc *Social) contentAt(path string) string {
+	f, err := sc.dao.GetFileByPath(path)
+	if err != nil || f == nil {
+		return ""
+	}
+	return f.Hash
+}
+
+func (sc *Social) newPublication(ses *session.Session, text string, paths []string, trims []*pb.VideoTrim) (pubUuID string, err error) {
 	// Issue #108: at most one trim per path, and a path with no entry is
 	// published whole - so an older client that sends no trims at all
 	// (and a post with no video in it) takes exactly the path it always
@@ -728,6 +791,10 @@ func isAllowedFriendDomain(domain string) bool {
 	return domain == tld || strings.HasSuffix(domain, "."+tld)
 }
 
+// dialDevice opens a socket to another device (wsframe.Dial); a var for
+// tests.
+var dialDevice = wsframe.Dial
+
 func (sc *Social) connectToDevice(domain string) (conn *wsframe.Client, err error) {
 	if !isAllowedFriendDomain(domain) {
 		return nil, devtext.WithEnglish(fmt.Sprintf("domain %q is not a %s address", domain, friendDomainTLD()), i18n.DevSocialBadDomain(domain, friendDomainTLD())) // i18n-ignore: the English as it always read; the catalog has the other languages
@@ -738,7 +805,7 @@ func (sc *Social) connectToDevice(domain string) (conn *wsframe.Client, err erro
 	log.Debug("Connecting to external:", domain, u)
 	h := http.Header{}
 	h.Set("Sec-WebSocket-Protocol", "protobuf")
-	conn, err = wsframe.Dial(u.String(), h)
+	conn, err = dialDevice(u.String(), h)
 	if err != nil {
 		log.Error("dialing websocket:", err)
 		return
@@ -988,17 +1055,21 @@ func (fr *friendship) refreshProfile() (err error) {
 	remote := profResp.RespProfile
 
 	origin := fr.data.OriginProfile
-	if remote.Name == origin.Name && remote.Text == origin.Text && bytes.Equal(remote.Image, origin.Image) {
+	// The picture as it is kept: within dao.MaxProfilePictureBytes, a
+	// larger one made small - compared as kept, so an older device's large
+	// picture isn't written again at every pass.
+	image := fr.sc.friendPicture(origin.Domain, remote.Image)
+	if remote.Name == origin.Name && remote.Text == origin.Text && bytes.Equal(image, origin.Image) {
 		return nil
 	}
 
 	log.Debug("Friend profile changed, updating local cache for:", origin.Domain)
-	if err = fr.dao.UpdateFriendshipProfile(origin.Domain, remote.Name, remote.Text, remote.Image); err != nil {
+	if err = fr.dao.UpdateFriendshipProfile(origin.Domain, remote.Name, remote.Text, image); err != nil {
 		return err
 	}
 	origin.Name = remote.Name
 	origin.Text = remote.Text
-	origin.Image = remote.Image
+	origin.Image = image
 	return nil
 }
 
@@ -1694,6 +1765,9 @@ func (sc *Social) SendFriendshipReq(domain string) (err error) {
 	if err != nil {
 		return
 	}
+	// The device the owner asked to be friends with: its picture kept
+	// within the cap, made small when it is a large JPEG or PNG.
+	remoteImg = sc.friendPicture(domain, remoteImg)
 
 	secret := session.RandomSecret() // issue #157: not a UUID
 
@@ -1792,6 +1866,9 @@ func (sc *Social) SendFriendshipReq(domain string) (err error) {
 
 func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText string, image []byte) (err error) {
 	log.Debug("Got an internal friendship req, checking foreign domain:", extDomain)
+	// A stranger's picture is kept only within the cap and never decoded:
+	// the friend sync asks for it again once the request is accepted.
+	image = filesmanager.FitProfilePicture(image, filesmanager.PictureFromStranger)
 	// Check if the request came from the other side
 	conn, err := sc.connectToDevice(extDomain)
 	if err != nil {
@@ -1869,10 +1946,14 @@ func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText
 		if notifyName == "" {
 			notifyName = extDomain
 		}
-		if err := sc.dao.NewNotification(pb.NotificationType_NotificationFriendRequest, notifyName, extDomain, "", ""); err != nil {
+		// One unread alert per domain, and a push only with a new one: a
+		// request sent again and again used to add an alert and push to
+		// every phone each time.
+		added, err := sc.dao.AddFriendRequestNotification(notifyName, extDomain)
+		if err != nil {
 			log.Error("could not record notification:", err)
 		}
-		if sc.push != nil {
+		if added && sc.push != nil {
 			sc.push.NotifyFriendshipRequest(notifyName)
 		}
 		return nil
@@ -2118,6 +2199,8 @@ func (sc *Social) DeletePublication(pubUuid string) (err error) {
 		return err
 	}
 
+	// The same post may be made again now (post_once.go).
+	sc.posts.forget(pubUuid)
 	return sc.removePublication(pubUuid)
 }
 

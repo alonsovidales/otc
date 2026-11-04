@@ -4,6 +4,7 @@
   "dev.device.bridge_read_failed": {"text": "erro ao ler a resposta da ponte: {detail}"},
   "dev.device.bridge_secret_managed": {"text": "a chave secreta da ponte é gerida pelo dispositivo"},
   "dev.device.bridge_write_failed": {"text": "erro ao enviar para a ponte: {detail}"},
+  "dev.device.domain_managed": {"text": "o nome deste dispositivo na ponte não pode ser alterado aqui"},
   "dev.device.identity_store_failed": {"text": "não foi possível guardar a nova identidade do dispositivo"},
   "dev.device.local_addresses_failed": {"text": "não foi possível listar os endereços deste dispositivo"},
   "dev.device.local_no_address": {"text": "este dispositivo não tem endereço na rede doméstica"},

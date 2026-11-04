@@ -28,6 +28,10 @@
     "text": "other users need a device with at least 4 GB of memory",
     "note": "Error in Settings > Users when adding a user on a device with less memory (a Raspberry Pi with 2 GB): it runs its owner's library only. 4 GB is memory (RAM). Lowercase, like the other errors there."
   },
+  "dev.users.password_needed": {
+    "text": "a user with bridge access needs a first password: update this app and add the user again",
+    "note": "Error in Settings > Users when an old app (one that doesn't ask for the new account's first password) adds a user with \"request bridge access\" ticked: such an account must have a password from the start, or anyone could claim it through the bridge (off-the.cloud, the relay that makes devices reachable from outside the home). Current apps always send one."
+  },
   "dev.users.port_in_use": {
     "text": "port {port} is already in use by another user",
     "args": [["port", "text"]],
@@ -46,5 +50,10 @@
   "dev.users.username_taken": {
     "text": "username already taken",
     "note": "Error in Settings > Users when adding a user with a username another user of this device already has."
+  },
+  "dev.users.username_too_long": {
+    "text": "username must be at most {max} characters long",
+    "args": [["max", "int"]],
+    "note": "Error in Settings > Users when adding a user whose username is too long. The username also becomes the start of the user's own address on the bridge, such as kim.anna.off-the.cloud. {max} is the most characters it may have (63)."
   }
 }

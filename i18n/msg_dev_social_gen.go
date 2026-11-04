@@ -129,6 +129,11 @@ func DevSocialNotYourPost() Msg {
 	return Msg{Key: "dev.social.not_your_post"}
 }
 
+// DevSocialPictureUnusable is dev.social.picture_unusable: "this picture can't be used: choose another photo".
+func DevSocialPictureUnusable() Msg {
+	return Msg{Key: "dev.social.picture_unusable"}
+}
+
 // DevSocialPostFailed is dev.social.post_failed: "error trying to create publication: {detail}".
 func DevSocialPostFailed(detail string) Msg {
 	return Msg{Key: "dev.social.post_failed", Args: map[string]any{"detail": detail}}

@@ -5,8 +5,10 @@
   "dev.users.confirm_mismatch": {"text": "de gebruikersnaam ter bevestiging komt niet overeen"},
   "dev.users.name_taken_on_bridge": {"text": "{domain} is al in gebruik op de bridge – kies een andere gebruikersnaam, of vink “Toegang tot de bridge aanvragen” uit om deze gebruiker alleen voor je eigen netwerk te maken"},
   "dev.users.need_memory": {"text": "voor andere gebruikers is een apparaat met minstens 4 GB geheugen nodig"},
+  "dev.users.password_needed": {"text": "een gebruiker met toegang tot de bridge heeft een eerste wachtwoord nodig: werk deze app bij en voeg de gebruiker opnieuw toe"},
   "dev.users.port_in_use": {"text": "poort {port} is al in gebruik door een andere gebruiker"},
   "dev.users.stop_failed": {"text": "kan het proces van {username} niet stoppen: {detail}"},
   "dev.users.storage_dir_failed": {"text": "aanmaken van de opslagmap mislukt: {detail}"},
-  "dev.users.username_taken": {"text": "de gebruikersnaam is al in gebruik"}
+  "dev.users.username_taken": {"text": "de gebruikersnaam is al in gebruik"},
+  "dev.users.username_too_long": {"text": "de gebruikersnaam mag hoogstens {max} tekens lang zijn"}
 }

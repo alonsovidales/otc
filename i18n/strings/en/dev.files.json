@@ -103,7 +103,7 @@
   },
   "dev.files.gallery_not_found": {
     "text": "this link doesn't exist or has expired",
-    "note": "Error on the page a shared link to photos opens, when the link is wrong, was deleted or has expired. Also shown in Settings > Shared Links."
+    "note": "Error on the page a shared link to photos opens, and on the page that downloads files someone shared with a link (a ZIP), when the link is wrong, was deleted or has expired. Also shown in Settings > Shared Links."
   },
   "dev.files.hash_check_failed": {
     "text": "error checking file hash: {detail}",

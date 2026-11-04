@@ -19,6 +19,10 @@
     "text": "kan niet naar de bridge schrijven: {detail}",
     "en": "writing to bridge: {detail}"
   },
+  "dev.device.domain_managed": {
+    "text": "de naam van dit apparaat op de bridge kan hier niet worden gewijzigd",
+    "en": "this device's name on the bridge can't be changed here"
+  },
   "dev.device.identity_store_failed": {
     "text": "kan de nieuwe identiteit van het apparaat niet opslaan",
     "en": "could not store the device's new identity"

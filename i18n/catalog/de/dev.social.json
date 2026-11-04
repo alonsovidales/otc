@@ -24,6 +24,7 @@
   "dev.social.not_found_error": {"text": "Fehler: Freundschaft nicht gefunden"},
   "dev.social.not_your_comment": {"text": "weder dein Kommentar noch ein Kommentar zu einem deiner Beiträge"},
   "dev.social.not_your_post": {"text": "nicht dein Beitrag"},
+  "dev.social.picture_unusable": {"text": "dieses Bild kann nicht verwendet werden – wähle ein anderes Foto"},
   "dev.social.post_failed": {"text": "Fehler beim Erstellen des Beitrags: {detail}"},
   "dev.social.post_likers_failed": {"text": "Fehler beim Abrufen der Personen, denen der Beitrag gefällt: {detail}"},
   "dev.social.posts_failed": {"text": "Fehler beim Abrufen der Beiträge: {detail}"},

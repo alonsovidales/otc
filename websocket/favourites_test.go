@@ -51,6 +51,8 @@ func TestFavouritesRequests(t *testing.T) {
 		WithArgs("favourites", "/a.jpg").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("delete from `photo_ratings` where `group_id` = \\?").
 		WithArgs("favourites", "/a.jpg").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("delete from `photo_rating_sources` where `group_id` = \\?").
+		WithArgs("favourites", "/a.jpg").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectCommit()
 	resp, _ = ch.processMessage(setFavouriteReq(false, "/a.jpg"))
 	if ack, ok := resp.GetPayload().(*pb.RespEnvelope_RespAck); resp.Error || !ok || !ack.RespAck.Ok {

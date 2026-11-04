@@ -24,6 +24,7 @@
   "dev.social.not_found_error": {"text": "Erreur : amitié introuvable"},
   "dev.social.not_your_comment": {"text": "ce n’est ni votre commentaire, ni un commentaire sur l’une de vos publications"},
   "dev.social.not_your_post": {"text": "ce n’est pas votre publication"},
+  "dev.social.picture_unusable": {"text": "cette image ne peut pas être utilisée : choisissez une autre photo"},
   "dev.social.post_failed": {"text": "erreur lors de la création de la publication : {detail}"},
   "dev.social.post_likers_failed": {"text": "erreur lors de la récupération des personnes ayant aimé la publication : {detail}"},
   "dev.social.posts_failed": {"text": "erreur lors de la récupération des publications : {detail}"},

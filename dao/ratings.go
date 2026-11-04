@@ -11,13 +11,22 @@ import (
 )
 
 // Collection Rating (release 163; owner, 2026-11-02): a collection's photos
-// rated from 1 to 5 stars with a comment each, the same for the owner and
-// for anyone with the collection's rated shared link. These are its
-// queries; files_manager/rating.go owns the rules and the sealing. The
-// stars are plain numbers the searches filter and sort by (as file_tags'
-// scores); a comment is stored sealed (comment, shared_comment), never in
-// the clear. A database release 163's script hasn't reached answers
-// ErrSchemaBehind (or nothing, for the reads that only add to an answer).
+// rated from 1 to 5 stars with a comment each, by the owner and by the
+// visitors of the collection's rated shared links. These are its queries;
+// files_manager/rating.go owns the rules and the sealing. The stars are
+// plain numbers the searches filter and sort by (as file_tags' scores); a
+// comment is stored sealed, never in the clear. A database release 163's
+// script hasn't reached answers ErrSchemaBehind (or nothing, for the reads
+// that only add to an answer).
+//
+// Each one who rates keeps their own rating of a photo (release 169):
+// photo_rating_sources has one row per (collection, photo, source), the
+// source "" for the owner's own and a link's uuid for its visitors'. A
+// link's visitors see and change only their link's row; until then every
+// link and the owner shared one row, so one client saw another's comments
+// and the owner's own notes, and could overwrite or clear them.
+// photo_ratings stays what the owner sees and the searches use, as before:
+// the latest change of any source, its link saying whose (from_link).
 
 // ErrNoSuchGroup is a collection id with no collection.
 var ErrNoSuchGroup = errors.New("no such collection")
@@ -147,13 +156,12 @@ func (dao *Dao) SetRatingPublic(public []byte) error {
 type PhotoRatingRow struct {
 	Hash  string
 	Stars int
-	// Comment is sealed to the user's public key; SharedComment the same
-	// comment sealed with the collection's link key, for its rated links'
-	// visitors (nil until the collection has one). Both nil without a
-	// comment.
+	// Comment is sealed to the user's public key. SharedComment, a link's
+	// rating only, is the same comment sealed for that link's visitors
+	// (photo_rating_sources.link_comment). Both nil without a comment.
 	Comment, SharedComment []byte
-	// Link is the shared link the last change came through, "" for the
-	// owner's own.
+	// Link is whose rating it is: the shared link it came through, "" for
+	// the owner's own.
 	Link    string
 	Updated time.Time
 }
@@ -173,51 +181,114 @@ func (dao *Dao) RatingTarget(groupID, hash string) (exists, on, member bool, err
 	return true, on, member, nil
 }
 
-// SetPhotoRating stores r as the photo's rating in the collection,
-// replacing what it had; one with neither stars nor a comment deletes it.
-// The row is written only while the photo is a member (the insert selects
-// its membership row, which a removal deletes with its ratings in one
-// transaction), so a photo taken out meanwhile leaves no rating behind:
-// stored is false then.
+// SetPhotoRating stores r as its source's rating of the photo in the
+// collection (r.Link: a link's visitors', "" the owner's own) and makes
+// what the owner sees (photo_ratings) this change, the latest - in one
+// transaction. A link's rating with neither stars nor a comment is taken
+// back, and what the owner sees then falls back to the latest rating left
+// when it was that link's; the owner's own is kept as a clear (a row with
+// neither), which hides every older one from the owner, as clearing
+// always did. Rows are written only while the photo is a member (the
+// inserts select its membership row, which a removal deletes with its
+// ratings in one transaction): stored is false for a photo taken out
+// meanwhile. Times are kept to the microsecond in the sources, so of two
+// changes in one second the later is the latest.
 func (dao *Dao) SetPhotoRating(groupID string, r PhotoRatingRow) (stored bool, err error) {
-	if r.Stars == 0 && len(r.Comment) == 0 {
-		_, err := dao.db.Exec("delete from `photo_ratings` where `group_id` = ? and `hash` = ?", groupID, r.Hash)
-		return true, schemaBehind(err)
-	}
-	var link any
-	if r.Link != "" {
-		link = r.Link
-	}
-	var comment, shared any
-	if len(r.Comment) > 0 {
-		comment = r.Comment
-		if len(r.SharedComment) > 0 {
-			shared = r.SharedComment
-		}
-	}
-	res, err := dao.db.Exec("insert into `photo_ratings` (`group_id`, `hash`, `stars`, `comment`, `shared_comment`, `link`, `updated`)"+
-		" select `group_id`, `hash`, ?, ?, ?, ?, ? from `image_group_files` where `group_id` = ? and `hash` = ?"+
-		" on duplicate key update `stars` = values(`stars`), `comment` = values(`comment`), `shared_comment` = values(`shared_comment`),"+
-		" `link` = values(`link`), `updated` = values(`updated`)",
-		r.Stars, comment, shared, link, r.Updated.UTC(), groupID, r.Hash)
-	if err != nil {
-		return false, schemaBehind(err)
-	}
-	n, err := res.RowsAffected()
+	tx, err := dao.db.Begin()
 	if err != nil {
 		return false, err
 	}
+	defer tx.Rollback()
+	clear := r.Stars == 0 && len(r.Comment) == 0
+	if clear && r.Link != "" {
+		if _, err := tx.Exec("delete from `photo_rating_sources` where `group_id` = ? and `hash` = ? and `source` = ?", groupID, r.Hash, r.Link); err != nil {
+			return false, ratingSchemaBehind(err)
+		}
+		var shown sql.NullString
+		err := tx.QueryRow("select `link` from `photo_ratings` where `group_id` = ? and `hash` = ? for update", groupID, r.Hash).Scan(&shown)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return false, ratingSchemaBehind(err)
+		}
+		if err == nil && shown.String == r.Link {
+			if err := showLatestRating(tx, groupID, r.Hash); err != nil {
+				return false, err
+			}
+		}
+		return true, tx.Commit()
+	}
+
+	var comment, linkComment any
+	if len(r.Comment) > 0 {
+		comment = r.Comment
+		if r.Link != "" && len(r.SharedComment) > 0 {
+			linkComment = r.SharedComment
+		}
+	}
+	res, err := tx.Exec("insert into `photo_rating_sources` (`group_id`, `hash`, `source`, `stars`, `comment`, `link_comment`, `updated`)"+
+		" select `group_id`, `hash`, ?, ?, ?, ?, ? from `image_group_files` where `group_id` = ? and `hash` = ?"+
+		" on duplicate key update `stars` = values(`stars`), `comment` = values(`comment`), `link_comment` = values(`link_comment`), `updated` = values(`updated`)",
+		r.Link, r.Stars, comment, linkComment, r.Updated.UTC(), groupID, r.Hash)
+	if err != nil {
+		return false, ratingSchemaBehind(err)
+	}
 	// 1 inserted, 2 updated; 0 for a row left as it was, which only a
-	// member has (an update to the same values within the second).
-	if n > 0 {
-		return true, nil
+	// member has.
+	if n, err := res.RowsAffected(); err != nil {
+		return false, err
+	} else if n == 0 {
+		var one int
+		err := tx.QueryRow("select 1 from `image_group_files` where `group_id` = ? and `hash` = ?", groupID, r.Hash).Scan(&one)
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
 	}
-	var one int
-	err = dao.db.QueryRow("select 1 from `photo_ratings` where `group_id` = ? and `hash` = ?", groupID, r.Hash).Scan(&one)
-	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
+	if clear {
+		if _, err := tx.Exec("delete from `photo_ratings` where `group_id` = ? and `hash` = ?", groupID, r.Hash); err != nil {
+			return false, ratingSchemaBehind(err)
+		}
+	} else if err := showRating(tx, groupID, r); err != nil {
+		return false, err
 	}
-	return err == nil, err
+	return true, tx.Commit()
+}
+
+// showRating makes r what the owner sees of the photo (photo_ratings): its
+// stars, its comment sealed to the owner's key, whose it is, its time to
+// the second. Never a copy for links: each link's own is in its source.
+func showRating(tx *sql.Tx, groupID string, r PhotoRatingRow) error {
+	var link, comment any
+	if r.Link != "" {
+		link = r.Link
+	}
+	if len(r.Comment) > 0 {
+		comment = r.Comment
+	}
+	_, err := tx.Exec("insert into `photo_ratings` (`group_id`, `hash`, `stars`, `comment`, `shared_comment`, `link`, `updated`)"+
+		" select `group_id`, `hash`, ?, ?, null, ?, ? from `image_group_files` where `group_id` = ? and `hash` = ?"+
+		" on duplicate key update `stars` = values(`stars`), `comment` = values(`comment`), `shared_comment` = null,"+
+		" `link` = values(`link`), `updated` = values(`updated`)",
+		r.Stars, comment, link, r.Updated.UTC().Truncate(time.Second), groupID, r.Hash)
+	return ratingSchemaBehind(err)
+}
+
+// showLatestRating makes what the owner sees of the photo the latest
+// rating left of any source - none when there is none, or when it is the
+// owner's own clear.
+func showLatestRating(tx *sql.Tx, groupID, hash string) error {
+	r := PhotoRatingRow{Hash: hash}
+	err := tx.QueryRow("select `source`, `stars`, `comment`, `updated` from `photo_rating_sources` where `group_id` = ? and `hash` = ? order by `updated` desc limit 1",
+		groupID, hash).Scan(&r.Link, &r.Stars, &r.Comment, &r.Updated)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return ratingSchemaBehind(err)
+	}
+	if errors.Is(err, sql.ErrNoRows) || (r.Stars == 0 && len(r.Comment) == 0) {
+		_, err := tx.Exec("delete from `photo_ratings` where `group_id` = ? and `hash` = ?", groupID, hash)
+		return ratingSchemaBehind(err)
+	}
+	return showRating(tx, groupID, r)
 }
 
 // PhotoRatings is the ratings of the photos (content hashes) in a
@@ -247,30 +318,76 @@ func (dao *Dao) PhotoRatings(groupID string, hashes []string) (map[string]PhotoR
 	return out, nil
 }
 
-// CommentsWithoutSharedCopy is a collection's ratings whose comment has no
-// copy for its links' visitors yet: what was commented before the
-// collection's first rated link.
-func (dao *Dao) CommentsWithoutSharedCopy(groupID string) (map[string]PhotoRatingRow, error) {
-	rows, err := dao.db.Query("select `hash`, `stars`, `comment`, `shared_comment`, `link`, `updated` from `photo_ratings`"+
-		" where `group_id` = ? and `comment` is not null and `shared_comment` is null", groupID)
-	if isNoSuchTable(err) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+// LinkRatings is the ratings the visitors of the shared link gave the
+// photos (content hashes) of its collection, by hash: theirs only - never
+// the owner's own nor another link's. SharedComment is the comment sealed
+// for them. A database before release 169 has none.
+func (dao *Dao) LinkRatings(groupID, link string, hashes []string) (map[string]PhotoRatingRow, error) {
 	out := map[string]PhotoRatingRow{}
-	return out, scanRatings(rows, out)
+	if link == "" {
+		return out, nil
+	}
+	for _, chunk := range hashChunks(hashes) {
+		args := []any{groupID, link}
+		for _, h := range chunk {
+			args = append(args, h)
+		}
+		rows, err := dao.db.Query("select `hash`, `stars`, `link_comment`, `updated` from `photo_rating_sources`"+
+			" where `group_id` = ? and `source` = ? and `hash` in (?"+strings.Repeat(", ?", len(chunk)-1)+")", args...)
+		if isNoSuchTable(err) {
+			return out, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			r := PhotoRatingRow{Link: link}
+			if err := rows.Scan(&r.Hash, &r.Stars, &r.SharedComment, &r.Updated); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			out[r.Hash] = r
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
-// SetSharedComment gives a rating's comment its copy for the collection's
-// links' visitors, unless the comment changed meanwhile (sealedComment is
-// the comment the copy was made from).
-func (dao *Dao) SetSharedComment(groupID, hash string, sealedComment, shared []byte) error {
-	_, err := dao.db.Exec("update `photo_ratings` set `shared_comment` = ? where `group_id` = ? and `hash` = ? and `comment` = ?",
-		shared, groupID, hash, sealedComment)
-	return schemaBehind(err)
+// ReconcileRatingSources gives every rating of what the owner sees
+// (photo_ratings) its source's row when it has none, or one older than it
+// - every rating stored before release 169 (a link's comment for its
+// visitors from its shared_comment), and any written meanwhile by an older
+// binary put back by an update that didn't start - and drops the owner's
+// own comments' copies under a collection's link key: no link's visitors
+// read them any more. Idempotent; run at each start. A database before
+// release 169 is left as it is (ErrSchemaBehind).
+func (dao *Dao) ReconcileRatingSources() error {
+	// The target's columns named in full: photo_ratings has most of them.
+	const s = "`photo_rating_sources`."
+	if _, err := dao.db.Exec("insert into `photo_rating_sources` (`group_id`, `hash`, `source`, `stars`, `comment`, `link_comment`, `updated`)" +
+		" select `pr`.`group_id`, `pr`.`hash`, coalesce(`pr`.`link`, ''), `pr`.`stars`, `pr`.`comment`, case when `pr`.`link` is not null then `pr`.`shared_comment` end, `pr`.`updated`" +
+		" from `photo_ratings` as `pr`" +
+		" on duplicate key update " + s + "`stars` = if(values(`updated`) > " + s + "`updated`, values(`stars`), " + s + "`stars`)," +
+		" " + s + "`comment` = if(values(`updated`) > " + s + "`updated`, values(`comment`), " + s + "`comment`)," +
+		" " + s + "`link_comment` = if(values(`updated`) > " + s + "`updated`, values(`link_comment`), " + s + "`link_comment`)," +
+		" " + s + "`updated` = greatest(" + s + "`updated`, values(`updated`))"); err != nil {
+		return ratingSchemaBehind(err)
+	}
+	_, err := dao.db.Exec("update `photo_ratings` set `shared_comment` = null where `link` is null and `shared_comment` is not null")
+	return ratingSchemaBehind(err)
+}
+
+// ratingSchemaBehind wraps a missing table's or column's error in
+// ErrSchemaBehind (release 169's photo_rating_sources, 163's columns).
+func ratingSchemaBehind(err error) error {
+	if isNoSuchTable(err) || isUnknownColumn(err) {
+		return fmt.Errorf("%w: %v", ErrSchemaBehind, err)
+	}
+	return err
 }
 
 func scanRatings(rows *sql.Rows, out map[string]PhotoRatingRow) error {

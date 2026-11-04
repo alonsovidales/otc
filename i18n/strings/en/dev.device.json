@@ -22,6 +22,10 @@
     "args": [["detail", "text"]],
     "note": "Error in Settings > Logs when sending the logs to Off The Cloud failed while handing them to the bridge (off-the.cloud, the relay). {detail} is the reason, an error in English."
   },
+  "dev.device.domain_managed": {
+    "text": "this device's name on the bridge can't be changed here",
+    "note": "Error reply when an old app or a script asks to change the device's name on the bridge (off-the.cloud, the relay that makes devices reachable from outside the home), such as anna.off-the.cloud: no current app does; the name is set up with the bridge account."
+  },
   "dev.device.identity_store_failed": {
     "text": "could not store the device's new identity",
     "note": "Error in Settings > Bridge when switching the bridge on: the name was reserved, but the device could not save its new name and keys."
