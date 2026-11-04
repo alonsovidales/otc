@@ -32,9 +32,6 @@ const (
 	// cMinStep is the least a large message reserves at a time, however
 	// small its free part.
 	cMinStep = 64 << 10
-	// cWait is how long a message may wait for room before its
-	// connection is closed.
-	cWait = 30 * time.Second
 	// cFirstHead is where a message's buffer starts: it doubles from
 	// there, up to the free part, as the message turns out longer.
 	cFirstHead = 512
@@ -42,6 +39,11 @@ const (
 
 // DefaultFree is what Read reads of a message outside the budget.
 const DefaultFree = cFree
+
+// RoomWait is how long a message may wait for room in its budget before
+// its connection is closed (ErrNoRoom). Var so tests - of the packages
+// reading under a budget too - can shrink it.
+var RoomWait = 30 * time.Second
 
 // ErrNoRoom: the budget stayed full for too long.
 var ErrNoRoom = errors.New("wsframe: no memory for this message")
@@ -52,6 +54,8 @@ type Budget struct {
 	cond *sync.Cond
 	used int64
 	max  int64
+	// parent holds whatever this budget holds too (NewShare).
+	parent *Budget
 }
 
 func NewBudget(max int64) *Budget {
@@ -60,15 +64,48 @@ func NewBudget(max int64) *Budget {
 	return b
 }
 
-// acquire reserves n bytes, waiting up to cWait.
+// NewShare is a budget of max bytes within parent: what it holds, parent
+// holds too, so whoever reads under it - one sender, say - can take no
+// more than max of parent, and waits on its own share before parent.
+func NewShare(parent *Budget, max int64) *Budget {
+	b := NewBudget(max)
+	b.parent = parent
+	return b
+}
+
+// acquire reserves n bytes of b and its parents, waiting up to RoomWait
+// for all of them.
 func (b *Budget) acquire(n int64) error {
-	deadline := time.Now().Add(cWait)
-	timer := time.AfterFunc(cWait, func() { b.cond.Broadcast() })
+	return b.acquireBy(n, time.Now().Add(RoomWait))
+}
+
+func (b *Budget) acquireBy(n int64, deadline time.Time) error {
+	if err := b.take(n, deadline); err != nil {
+		return err
+	}
+	if b.parent != nil {
+		if err := b.parent.acquireBy(n, deadline); err != nil {
+			b.giveBack(n)
+			return err
+		}
+	}
+	return nil
+}
+
+// take reserves n bytes of b alone, waiting until deadline.
+func (b *Budget) take(n int64, deadline time.Time) error {
+	// Under mu, so the wake-up can't fall between a waiter's look at the
+	// clock and its Wait.
+	timer := time.AfterFunc(time.Until(deadline), func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		b.cond.Broadcast()
+	})
 	defer timer.Stop()
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	for b.used > 0 && b.used+n > b.max {
-		if time.Now().After(deadline) {
+		if !time.Now().Before(deadline) {
 			return ErrNoRoom
 		}
 		b.cond.Wait()
@@ -84,10 +121,19 @@ func (b *Budget) Held() int64 {
 	return b.used
 }
 
+// release gives n bytes back to b and its parents.
 func (b *Budget) release(n int64) {
 	if n == 0 {
 		return
 	}
+	b.giveBack(n)
+	if b.parent != nil {
+		b.parent.release(n)
+	}
+}
+
+// giveBack gives n bytes back to b alone.
+func (b *Budget) giveBack(n int64) {
 	b.mu.Lock()
 	b.used -= n
 	b.mu.Unlock()

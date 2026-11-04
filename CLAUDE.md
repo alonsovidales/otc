@@ -2253,7 +2253,10 @@ Relay invariants: a `/ws` socket not yet paired has a 2 min read deadline (`cUnp
 and is closed on every return path unless a device relay owns it (`handedOff`); one address has at
 most 64 of them open (an IPv6 /64, and 256 per /48: `[bridge] max-unpaired-per-addr`), and their messages are
 read with 64 KiB outside a budget of their own (`unpairedBudget`, 256 MiB), held until each is
-handled - a pairing's first request until the device has it. A paired client's messages are read
+handled - a pairing's first request until the device has it. One address (an IPv6 /64) may hold 16
+MiB of it and one /48 32 MiB (`cUnpairedShare`, `cUnpairedWideShare`: `wsframe.NewShare`, a budget
+within another), so one sender's unfinished messages can't make everyone else's - a device's logs,
+a friend request with a picture - wait 30 s (`wsframe.RoomWait`) and fail. A paired client's messages are read
 with 256 KiB outside `frameBudget` (`frameRules`): 32 in flight held 4 MiB each outside it. An
 unpaired socket is closed after 30 requests answered "unreachable" or refused
 (`cUnpairedMaxRefusals`; the web's unreachable screen asks every 5 s and reconnects). A device's

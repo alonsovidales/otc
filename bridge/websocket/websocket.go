@@ -769,9 +769,11 @@ type Manager struct {
 	sessions  map[string]map[*clientSession]struct{}
 	anonByKey map[string]int
 	// unpairedByAddr counts the sockets not paired yet by address and
-	// /48 (reserveUnpaired).
+	// /48 (reserveUnpaired), and unpairedShares are those keys' shares of
+	// unpairedBudget, kept while a socket of theirs is open.
 	unpairedMu     sync.Mutex
 	unpairedByAddr map[string]int
+	unpairedShares map[string]*wsframe.Budget
 
 	// tld is [otc-api] tld: device addresses are one label under it
 	// (IsDeviceHost). "" when not configured: any host may be one.
@@ -1705,7 +1707,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	// One address may have only so many sockets waiting to pair (or to
 	// register, a device's): counted until this one does, or ends.
 	addr := clientAddr(r, conn)
-	unpairedKeys, ok := mg.reserveUnpaired(addr)
+	unpairedKeys, unpairedShare, ok := mg.reserveUnpaired(addr)
 	if !ok {
 		mg.logRefusal(clientaddr.Bucket(addr), "too many connections not paired yet from", addr) // i18n-ignore: a log line
 		return
@@ -1734,7 +1736,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		// Small until the client is paired with a device (its first
 		// request, a device's registration); a relayed request may carry a
 		// whole file (up to 1000 MB) and is budgeted (see wsframe).
-		limit, free, budget := frameRules(relay != nil)
+		limit, free, budget := frameRules(relay != nil, unpairedShare)
 		if relay == nil {
 			// Once paired, the deadline is the session's (sessions.go):
 			// none after it has signed in, cAnonPairedIdle while it
@@ -2607,12 +2609,13 @@ const (
 
 // frameRules is how a client's next message is read: its largest size,
 // how much of it outside its budget, and the budget for the rest
-// (wsframe.ReadFree).
-func frameRules(paired bool) (limit, free int64, budget *wsframe.Budget) {
+// (wsframe.ReadFree) - before pairing, share: its address's share of
+// unpairedBudget (reserveUnpaired).
+func frameRules(paired bool, share *wsframe.Budget) (limit, free int64, budget *wsframe.Budget) {
 	if paired {
 		return cRelayedReadLimit, cRelayedFree, frameBudget
 	}
-	return cUnpairedReadLimit, cUnpairedFree, unpairedBudget
+	return cUnpairedReadLimit, cUnpairedFree, share
 }
 
 // frameBudget bounds the memory of large messages being relayed at once.
@@ -2623,6 +2626,17 @@ var frameBudget = wsframe.NewBudget(8 << 30)
 // their own, so strangers' first messages never take the room uploads
 // wait on.
 var unpairedBudget = wsframe.NewBudget(256 << 20)
+
+// cUnpairedShare and cUnpairedWideShare are how much of unpairedBudget
+// the sockets not paired yet of one address (an IPv6 /64) and of one /48
+// may hold: 32 messages of 8 MiB left unfinished from one address held all
+// of it, and every other message over 64 KiB on the node - a device's
+// logs, a friend request carrying a picture - waited 30 s and failed. A
+// device's largest, its logs, is 2 MiB. Vars so tests can shrink them.
+var (
+	cUnpairedShare     int64 = 16 << 20
+	cUnpairedWideShare int64 = 32 << 20
+)
 
 // cMaxUnpairedPerAddr caps the sockets one address (an IPv6 /64) has open
 // before they pair with a device or register as one, and four times it
@@ -2639,29 +2653,40 @@ func maxUnpairedPerAddr() int {
 }
 
 // reserveUnpaired counts one more socket not paired yet from addr, unless
-// its address or its /48 already has its cap; releaseUnpaired gives it
-// back.
-func (mg *Manager) reserveUnpaired(addr string) (keys []string, ok bool) {
+// its address or its /48 already has its cap, and returns the budget its
+// messages are read under: its address's share of unpairedBudget, within
+// its /48's. releaseUnpaired gives it back.
+func (mg *Manager) reserveUnpaired(addr string) (keys []string, share *wsframe.Budget, ok bool) {
 	limit := maxUnpairedPerAddr()
 	keys = []string{clientaddr.Bucket(addr)}
 	caps := []int{limit}
+	sizes := []int64{cUnpairedShare}
 	if w := clientaddr.Wide(addr); w != "" {
-		keys, caps = append(keys, w), append(caps, 4*limit)
+		keys, caps, sizes = append(keys, w), append(caps, 4*limit), append(sizes, cUnpairedWideShare)
 	}
 	mg.unpairedMu.Lock()
 	defer mg.unpairedMu.Unlock()
 	for i, k := range keys {
 		if mg.unpairedByAddr[k] >= caps[i] {
-			return nil, false
+			return nil, nil, false
 		}
 	}
 	if mg.unpairedByAddr == nil {
 		mg.unpairedByAddr = map[string]int{}
+		mg.unpairedShares = map[string]*wsframe.Budget{}
 	}
-	for _, k := range keys {
+	// The /48's share first: the address's is within it. A share lives as
+	// long as a socket of its key does, so an address's sockets share one.
+	share = unpairedBudget
+	for i := len(keys) - 1; i >= 0; i-- {
+		k := keys[i]
 		mg.unpairedByAddr[k]++
+		if mg.unpairedShares[k] == nil {
+			mg.unpairedShares[k] = wsframe.NewShare(share, sizes[i])
+		}
+		share = mg.unpairedShares[k]
 	}
-	return keys, true
+	return keys, share, true
 }
 
 func (mg *Manager) releaseUnpaired(keys []string) {
@@ -2670,6 +2695,7 @@ func (mg *Manager) releaseUnpaired(keys []string) {
 	for _, k := range keys {
 		if mg.unpairedByAddr[k] <= 1 {
 			delete(mg.unpairedByAddr, k)
+			delete(mg.unpairedShares, k)
 		} else {
 			mg.unpairedByAddr[k]--
 		}

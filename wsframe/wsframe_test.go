@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	gorilla "github.com/gorilla/websocket"
 )
@@ -221,5 +222,40 @@ func TestReadFreeNeverGrowsAMessagePastItsFreePart(t *testing.T) {
 		if h.size != size || h.cap > DefaultFree || h.used != 0 {
 			t.Errorf("%d bytes: got %d in a buffer of %d, %d budgeted; want at most %d and none", size, h.size, h.cap, h.used, DefaultFree)
 		}
+	}
+}
+
+// A share holds what it takes in its parent too: it can take no more than
+// its own max, waits on its own room before its parent's (giving its own
+// back when the parent has none), and gives both back.
+func TestAShareIsHeldWithinItsParent(t *testing.T) {
+	parent := NewBudget(10)
+	a, b := NewShare(parent, 6), NewShare(parent, 6)
+	soon := func() time.Time { return time.Now().Add(50 * time.Millisecond) }
+	if err := a.acquireBy(4, soon()); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.acquireBy(4, soon()); err != ErrNoRoom {
+		t.Fatalf("past its share: %v, want ErrNoRoom", err)
+	}
+	if a.Held() != 4 || parent.Held() != 4 {
+		t.Fatalf("held %d, parent %d; want 4 and 4", a.Held(), parent.Held())
+	}
+	if err := b.acquireBy(6, soon()); err != nil {
+		t.Fatalf("another share's room: %v", err)
+	}
+	if err := a.acquireBy(1, soon()); err != ErrNoRoom {
+		t.Fatalf("with the parent full: %v, want ErrNoRoom", err)
+	}
+	if a.Held() != 4 || parent.Held() != 10 {
+		t.Fatalf("after a failed take: held %d, parent %d; want 4 and 10", a.Held(), parent.Held())
+	}
+	go func() { time.Sleep(20 * time.Millisecond); b.release(6) }()
+	if err := a.acquireBy(2, time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("a release through another share never woke the parent's waiter: %v", err)
+	}
+	a.release(6)
+	if a.Held() != 0 || b.Held() != 0 || parent.Held() != 0 {
+		t.Errorf("after the releases: %d, %d, parent %d", a.Held(), b.Held(), parent.Held())
 	}
 }
