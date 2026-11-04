@@ -315,7 +315,7 @@ func TestAddDeviceNeverReturnsTheSecret(t *testing.T) {
 
 	const secret = "0123456789abcdef0123456789abcdef0123456789abcdef"
 	mock.ExpectExec("insert into `devices`").
-		WithArgs("owner-1", "someone.off-the.cloud", secret).
+		WithArgs("owner-1", "someone.off-the.cloud", secret, dao.SecretHash(secret)).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	a := Init(dao.NewWithDB(db), []byte("session-secret"))
@@ -389,7 +389,7 @@ func TestAddDeviceGeneratesOwnerUuidWhenOmitted(t *testing.T) {
 
 	const secret = "0123456789abcdef0123456789abcdef0123456789abcdef"
 	mock.ExpectExec("insert into `devices`").
-		WithArgs(sqlmock.AnyArg(), "someone.off-the.cloud", secret).
+		WithArgs(sqlmock.AnyArg(), "someone.off-the.cloud", secret, dao.SecretHash(secret)).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	a := Init(dao.NewWithDB(db), []byte("session-secret"))

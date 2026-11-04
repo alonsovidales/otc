@@ -17,6 +17,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -333,7 +334,10 @@ func (a *Accounts) RequireAuth(next func(w http.ResponseWriter, r *http.Request,
 // IssueSetupToken makes a short one-time code (8 characters, no
 // lookalikes) the account page shows and the wizard accepts typed by
 // hand, and that sign-in through the wizard hands over directly.
-func (a *Accounts) IssueSetupToken(accountID string) (string, error) {
+// ownerConfirmed records whether it was made right after the account's
+// owner proved who they are - a password just checked, a Google or Apple
+// sign-in just made - rather than for a session alone (dao.SetupCode).
+func (a *Accounts) IssueSetupToken(accountID string, ownerConfirmed bool) (string, error) {
 	// A device name is only ever registered for a proven email. A database
 	// error is not "unverified": that sends a verified user looking for an
 	// email instead of trying again.
@@ -357,11 +361,33 @@ func (a *Accounts) IssueSetupToken(accountID string) (string, error) {
 		code[i] = cSetupCodeAlphabet[int(b)%len(cSetupCodeAlphabet)]
 	}
 	token := string(code)
-	if err := a.dao.SaveAccountToken(token, accountID, cPurposeSetup, time.Now().Add(cSetupTokenTTL)); err != nil {
+	if err := a.dao.SaveSetupCode(token, a.setupCodeHash(token), accountID, ownerConfirmed, time.Now(), cSetupTokenTTL); err != nil {
 		return "", err
 	}
 
 	return token, nil
+}
+
+// setupCodeHash is what the bridge keeps of a setup code: its HMAC under a
+// key of the bridge's own (derived from the session secret, which the
+// database never holds). A code is 40 bits: a plain hash would give a live
+// one away to whoever tried them all against a copy of the table.
+func (a *Accounts) setupCodeHash(code string) string {
+	mac := hmac.New(sha256.New, deriveKey(a.secret, "setup-code"))
+	mac.Write([]byte(code))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// freshSignIn is whether r's session was issued within cFreshSignIn: a
+// sign-in just made, not a session kept for days, says whoever holds it is
+// the account's owner right now. A failure to check is a no.
+func (a *Accounts) freshSignIn(r *http.Request, now time.Time) bool {
+	c, err := r.Cookie(cSessionCookie)
+	if err != nil {
+		return false
+	}
+	_, issued, ok, err := a.session(c.Value, now)
+	return err == nil && ok && now.Sub(issued) <= cFreshSignIn
 }
 
 // NormalizeSetupToken makes a typed code comparable: upper case, without
@@ -377,28 +403,35 @@ func NormalizeSetupToken(s string) string {
 // false for an unknown or expired code, or an account that hasn't proven
 // its email; err is a database failure, worth "try again", not "sign in".
 func (a *Accounts) LookupSetupToken(token string) (accountID string, ok bool, err error) {
+	sc, ok, err := a.LookupSetupCode(token)
+	return sc.AccountID, ok, err
+}
+
+// LookupSetupCode is LookupSetupToken with what the code may do: whether
+// it was made right after its owner proved who they are.
+func (a *Accounts) LookupSetupCode(token string) (code dao.SetupCode, ok bool, err error) {
 	token = NormalizeSetupToken(token)
 	if len(token) != cSetupCodeLen {
-		return "", false, nil
+		return dao.SetupCode{}, false, nil
 	}
-	id, found, err := a.dao.AccountForToken(token, cPurposeSetup)
+	sc, found, err := a.dao.SetupCodeFor(token, a.setupCodeHash(token), time.Now())
 	if err != nil {
 		log.Error("error looking up a setup token:", err)
-		return "", false, err
+		return dao.SetupCode{}, false, err
 	}
 	if !found {
-		return "", false, nil
+		return dao.SetupCode{}, false, nil
 	}
-	verified, err := a.verified(id)
+	verified, err := a.verified(sc.AccountID)
 	if err != nil {
 		log.Error("error looking up a setup token's account:", err)
-		return "", false, err
+		return dao.SetupCode{}, false, err
 	}
 	if !verified {
-		return "", false, nil
+		return dao.SetupCode{}, false, nil
 	}
 
-	return id, true, nil
+	return sc, true, nil
 }
 
 // ---------------------------------------------------------------------
@@ -604,12 +637,13 @@ func accountJSON(acc *dao.Account) map[string]any {
 // claim a name with.
 func (a *Accounts) signedIn(w http.ResponseWriter, r *http.Request, acc *dao.Account, status int) {
 	a.setSession(w, r, acc.ID)
-	a.answerAccount(w, r, acc, status)
+	a.answerAccount(w, r, acc, status, true)
 }
 
 // answerAccount is signedIn without a new session cookie, for a request
-// the current session already authenticated.
-func (a *Accounts) answerAccount(w http.ResponseWriter, r *http.Request, acc *dao.Account, status int) {
+// the current session already authenticated; ownerConfirmed is whether its
+// setup token comes right after a real sign-in (IssueSetupToken).
+func (a *Accounts) answerAccount(w http.ResponseWriter, r *http.Request, acc *dao.Account, status int, ownerConfirmed bool) {
 	_ = a.dao.TouchAccount(acc.ID)
 	out := map[string]any{"account": accountJSON(acc)}
 	if r.URL.Query().Get("for") == "setup" {
@@ -631,7 +665,7 @@ func (a *Accounts) answerAccount(w http.ResponseWriter, r *http.Request, acc *da
 			writeJSON(w, status, out)
 			return
 		}
-		tok, err := a.IssueSetupToken(acc.ID)
+		tok, err := a.IssueSetupToken(acc.ID, ownerConfirmed)
 		if errors.Is(err, ErrTermsNotAccepted) {
 			writeError(w, http.StatusForbidden, "terms_not_accepted", errorText(i18n.ApiErrorTermsNotAcceptedSetup()))
 			return
@@ -883,7 +917,7 @@ func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, account
 	}
 	// No new cookie: saving a profile is no sign-in, and a fresh cookie
 	// would make any old session pass the recent-sign-in checks.
-	a.answerAccount(w, r, acc, http.StatusOK)
+	a.answerAccount(w, r, acc, http.StatusOK, a.freshSignIn(r, time.Now()))
 }
 
 // AcceptTerms records that the signed-in account accepts the terms of use
@@ -1100,7 +1134,9 @@ func (a *Accounts) LogoutEverywhere(w http.ResponseWriter, r *http.Request, acco
 // SetupToken hands the signed-in account a setup code for the wizard.
 // GET /api/account/setup-token.
 func (a *Accounts) SetupToken(w http.ResponseWriter, r *http.Request, accountID string) {
-	tok, err := a.IssueSetupToken(accountID)
+	// The account page's code moves a name to a new device only when it
+	// is asked for right after signing in there.
+	tok, err := a.IssueSetupToken(accountID, a.freshSignIn(r, time.Now()))
 	if errors.Is(err, ErrEmailNotVerified) {
 		writeError(w, http.StatusForbidden, "email_not_verified", errorText(i18n.ApiErrorEmailNotVerified()))
 		return

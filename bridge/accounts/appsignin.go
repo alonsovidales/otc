@@ -121,7 +121,9 @@ func (a *Accounts) AppExchange(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "signin_expired", errorText(i18n.ApiErrorSigninExpired()))
 		return
 	}
-	tok, err := a.IssueSetupToken(accountID)
+	// The code comes from a Google or Apple sign-in minutes ago, handed to
+	// the app with its owner's Continue: their own proof.
+	tok, err := a.IssueSetupToken(accountID, true)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "signin_unavailable", errorText(i18n.ApiErrorSigninUnavailableFinish()))
 		return

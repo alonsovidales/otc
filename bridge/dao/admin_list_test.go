@@ -22,6 +22,7 @@ func TestListAdminDevicesMySQL(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	secretCol := testSecretColumn(t, db)
 	db.SetMaxOpenConns(1) // the sql_mode below is the connection's
 	if _, err := db.Exec("set session sql_mode = concat_ws(',', nullif(@@sql_mode, ''), 'ONLY_FULL_GROUP_BY')"); err != nil {
 		t.Fatal(err)
@@ -48,7 +49,7 @@ func TestListAdminDevicesMySQL(t *testing.T) {
 		if dev.account != "" {
 			account = dev.account
 		}
-		exec("insert into `devices` (`domain`, `owner_uuid`, `secret`, `account_id`, `created`) values (?, 'owner', 'secret', ?, ?)", dev.domain, account, now)
+		exec("insert into `devices` (`domain`, `owner_uuid`, "+secretCol+", `account_id`, `created`) values (?, 'owner', 'secret', ?, ?)", dev.domain, account, now)
 	}
 	hour := now.Truncate(time.Hour)
 	for _, m := range []struct {
@@ -86,4 +87,19 @@ func TestListAdminDevicesMySQL(t *testing.T) {
 	if err != nil || total != 2 || len(page) != 2 || page[0].Domain != "admlist-a.test" || page[1].BytesMonth != 7 {
 		t.Fatalf("the account's devices: %+v of %d, %v", page, total, err)
 	}
+}
+
+// testSecretColumn is the column a test's own device rows keep their secret
+// in: devices.secret until migration 014 drops it, secret_hash after (the
+// tests run against a schema at either step).
+func testSecretColumn(t *testing.T, db *sql.DB) string {
+	t.Helper()
+	var n int
+	if err := db.QueryRow("select count(*) from information_schema.columns where table_schema = database() and table_name = 'devices' and column_name = 'secret'").Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n == 1 {
+		return "`secret`"
+	}
+	return "`secret_hash`"
 }

@@ -469,7 +469,9 @@ func (a *Accounts) afterSignIn(accountID, returnURL string) string {
 	if u, err := url.Parse(returnURL); err == nil && isAppReturn(u) {
 		return a.appRedirect(accountID, returnURL)
 	}
-	tok, err := a.IssueSetupToken(accountID)
+	// Only ever after a Google or Apple sign-in made in this browser and
+	// its Continue (ConfirmSetup): its owner just proved who they are.
+	tok, err := a.IssueSetupToken(accountID, true)
 	if err != nil {
 		log.Error("error issuing a setup token after sign-in:", err)
 		return "/account"

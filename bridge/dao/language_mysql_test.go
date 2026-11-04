@@ -25,6 +25,7 @@ func TestLanguageMySQL(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	secretCol := testSecretColumn(t, db)
 	var cols int
 	if err := db.QueryRow("select count(*) from information_schema.columns where table_schema = database() and " +
 		"((table_name = 'accounts' and column_name = 'lang') or (table_name = 'push_registrations' and column_name = 'language'))").Scan(&cols); err != nil {
@@ -83,7 +84,7 @@ func TestLanguageMySQL(t *testing.T) {
 		}
 	}
 
-	if _, err := db.Exec("insert into `devices` (`domain`, `owner_uuid`, `secret`, `account_id`, `created`) values (?, 'owner', 'secret', ?, ?)", domain, id, now); err != nil {
+	if _, err := db.Exec("insert into `devices` (`domain`, `owner_uuid`, "+secretCol+", `account_id`, `created`) values (?, 'owner', 'secret', ?, ?)", domain, id, now); err != nil {
 		t.Fatal(err)
 	}
 	if err := d.SetPushRegistrations(domain, "pub", "priv", "en", []string{"tok"}, nil, nil); err != nil {

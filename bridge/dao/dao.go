@@ -111,6 +111,13 @@ type Dao struct {
 	lastOnlineCol optionalColumn
 	lastOnlineMu  sync.Mutex
 	lastOnline    map[string]time.Time
+
+	// A device's secret and the setup codes, kept hashed from migration
+	// 013 on, their plaintext gone with 014 (secrets.go): devices.secret
+	// (gone after 014), devices.secret_hash (there from 013),
+	// account_setup_codes (from 013) and account_tokens (gone after 014).
+	deviceSecret, deviceSecretHash optionalColumn
+	setupCodes, legacySetupTokens  optionalColumn
 }
 
 // cAuthEventEvery is how often one address may add a row per reason.
@@ -241,12 +248,24 @@ func (dao *Dao) PruneOldLogs(before time.Time) (err error) {
 // are kept: two years, and a month to spare.
 const cGrowthRetentionMonths = 25
 
+// IsValidDevice reports whether domain is registered here (defined) and
+// owner and secret are its device's. The secret is checked against its
+// plaintext while the schema keeps one - what a node of an older release
+// keeps current during a rolling deploy - and against its hash once
+// migration 014 has dropped it (secrets.go).
 func (dao *Dao) IsValidDevice(owner, domain, secret string) (defined, validSecret bool, err error) {
 	log.Debug("Is valid device")
-	var dbSecret, dbOwner string
+	var dbOwner, dbSecret string
+	var dbHash sql.NullString
+	hashed := false
 	ctx, cancel := context.WithTimeout(context.Background(), cRelayDBTimeout)
 	defer cancel()
-	err = dao.db.QueryRowContext(ctx, "select `owner_uuid`, `secret` from `devices` where `domain` = ?", domain).Scan(&dbOwner, &dbSecret)
+	err = dao.deviceSecret.runPart(cDevicesSecret, func() error {
+		return dao.db.QueryRowContext(ctx, "select `owner_uuid`, `secret` from `devices` where `domain` = ?", domain).Scan(&dbOwner, &dbSecret)
+	}, func() error {
+		hashed = true
+		return dao.db.QueryRowContext(ctx, "select `owner_uuid`, `secret_hash` from `devices` where `domain` = ?", domain).Scan(&dbOwner, &dbHash)
+	})
 	if err != nil {
 		// if we have sql.ErrNoRows that means that the domain is free for grabs
 		return err != sql.ErrNoRows, false, err
@@ -255,16 +274,23 @@ func (dao *Dao) IsValidDevice(owner, domain, secret string) (defined, validSecre
 	// Constant-time: this gates onto the bridge relay for a device, worth
 	// the same care as the admin session-token check elsewhere in this
 	// codebase rather than a plain == that leaks timing information about
-	// how many leading bytes of the secret a guess got right.
-	validSecret = subtle.ConstantTimeCompare([]byte(owner), []byte(dbOwner)) == 1 &&
-		subtle.ConstantTimeCompare([]byte(secret), []byte(dbSecret)) == 1
+	// how many leading bytes of the secret a guess got right. An empty
+	// secret is never a device's.
+	secretOK := false
+	if hashed {
+		secretOK = dbHash.Valid && subtle.ConstantTimeCompare([]byte(SecretHash(secret)), []byte(dbHash.String)) == 1
+	} else {
+		secretOK = subtle.ConstantTimeCompare([]byte(secret), []byte(dbSecret)) == 1
+	}
+	validSecret = secret != "" && subtle.ConstantTimeCompare([]byte(owner), []byte(dbOwner)) == 1 && secretOK
 	return true, validSecret, nil
 }
 
+// RegistreDevice registers domain with no account (open registration, the
+// admin panel), its secret kept as withSecret says.
 func (dao *Dao) RegistreDevice(owner, uuid, secret string) (err error) {
 	log.Debug("Register device")
-	_, err = dao.db.Exec("insert into `devices` (`owner_uuid`, `domain`, `secret`) values (?, ?, ?)", owner, uuid, secret)
-	return
+	return dao.insertDevice([]string{"owner_uuid", "domain"}, []any{owner, uuid}, secret)
 }
 
 // IsDomainRegistered reports whether domain is already claimed here
@@ -321,12 +347,22 @@ func (dao *Dao) IsDeviceDisabled(domain string) (disabled bool, err error) {
 // check-then-write, so knowing the current secret is both how this proves
 // it's really that device asking, and the only thing that can trigger a
 // replacement (self-service "Regenerate" in Settings, issue #40 follow-up).
+// The new secret is kept as withSecret says, the old one matched as
+// secretMatches does.
 func (dao *Dao) RotateSecret(owner, domain, oldSecret, newSecret string) (ok bool, err error) {
 	log.Debug("Rotate device secret")
-	res, err := dao.db.Exec(
-		"update `devices` set `secret` = ? where `owner_uuid` = ? and `domain` = ? and `secret` = ?",
-		newSecret, owner, domain, oldSecret,
-	)
+	if oldSecret == "" {
+		return false, nil
+	}
+	var res sql.Result
+	err = dao.secretMatches(oldSecret, func(cond string, condArgs []any) error {
+		return dao.withSecret(newSecret, func(cols []string, vals []any) error {
+			args := append(append(append([]any{}, vals...), owner, domain), condArgs...)
+			var err error
+			res, err = dao.db.Exec("update `devices` set "+setColumns(cols)+" where `owner_uuid` = ? and `domain` = ? and "+cond, args...)
+			return err
+		})
+	})
 	if err != nil {
 		return false, err
 	}
@@ -984,31 +1020,10 @@ func (dao *Dao) TouchAccount(id string) error {
 	return err
 }
 
-// SaveAccountToken stores a one-time token (see account_tokens in db.sql).
-func (dao *Dao) SaveAccountToken(token, accountID, purpose string, expires time.Time) error {
-	_, err := dao.db.Exec("insert into `account_tokens` (`token`, `account_id`, `purpose`, `expires`) values (?, ?, ?, ?)", token, accountID, purpose, expires)
-
-	return err
-}
-
-// AccountForToken is the account a live token of that purpose belongs to;
-// found is false for an unknown or expired token. Not consumed: a setup
-// token stays usable for its whole life, so a claim that fails on a taken
-// name can be retried with another name.
-func (dao *Dao) AccountForToken(token, purpose string) (accountID string, found bool, err error) {
-	err = dao.db.QueryRow("select `account_id` from `account_tokens` where `token` = ? and `purpose` = ? and `expires` > ?", token, purpose, time.Now()).Scan(&accountID)
-	if err == sql.ErrNoRows {
-		return "", false, nil
-	}
-	if err != nil {
-		return "", false, err
-	}
-
-	return accountID, true, nil
-}
-
+// PruneAccountTokens drops the expired setup codes, sign-in states and
+// email links.
 func (dao *Dao) PruneAccountTokens() error {
-	if _, err := dao.db.Exec("delete from `account_tokens` where `expires` < ?", time.Now()); err != nil {
+	if err := dao.pruneSetupCodes(time.Now()); err != nil {
 		return err
 	}
 	// ConsumeOAuthState takes a state for 15 minutes; a few more cover the
@@ -1192,9 +1207,7 @@ func (dao *Dao) DomainAccount(domain string) (accountID string, registered bool,
 // RegisterAccountDevice is RegistreDevice for a domain that belongs to an
 // account (issue #124).
 func (dao *Dao) RegisterAccountDevice(accountID, owner, domain, secret string) error {
-	_, err := dao.db.Exec("insert into `devices` (`owner_uuid`, `domain`, `secret`, `account_id`, `created`) values (?, ?, ?, ?, ?)", owner, domain, secret, accountID, time.Now())
-
-	return err
+	return dao.insertDevice([]string{"owner_uuid", "domain", "account_id", "created"}, []any{owner, domain, accountID, time.Now()}, secret)
 }
 
 // ReplaceDeviceIdentity hands a domain to a new device: the owner uuid
@@ -1202,7 +1215,13 @@ func (dao *Dao) RegisterAccountDevice(accountID, owner, domain, secret string) e
 // Only the owning account gets here (a lost device replaced by running
 // setup again, or "new identity" on the account page).
 func (dao *Dao) ReplaceDeviceIdentity(accountID, domain, owner, secret string) (ok bool, err error) {
-	res, err := dao.db.Exec("update `devices` set `owner_uuid` = ?, `secret` = ? where `domain` = ? and `account_id` = ?", owner, secret, domain, accountID)
+	var res sql.Result
+	err = dao.withSecret(secret, func(cols []string, vals []any) error {
+		args := append(append(append([]any{owner}, vals...), domain), accountID)
+		var err error
+		res, err = dao.db.Exec("update `devices` set `owner_uuid` = ?, "+setColumns(cols)+" where `domain` = ? and `account_id` = ?", args...)
+		return err
+	})
 	if err != nil {
 		return false, err
 	}

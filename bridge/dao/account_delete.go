@@ -44,12 +44,18 @@ func (dao *Dao) DeleteAccount(accountID string) (domains []string, err error) {
 	for _, q := range []string{
 		"delete from `devices` where `account_id` = ?",
 		"delete from `account_logins` where `account_id` = ?",
-		"delete from `account_tokens` where `account_id` = ?",
+		"", // its setup codes, wherever they are kept
 		"delete from `app_signin_codes` where `account_id` = ?",
 		"delete from `account_email_tokens` where `account_id` = ?",
 		"delete from `accounts` where `id` = ?",
 	} {
-		if _, err := tx.Exec(q, accountID); err != nil {
+		var err error
+		if q == "" {
+			err = dao.deleteSetupCodes(tx, accountID)
+		} else {
+			_, err = tx.Exec(q, accountID)
+		}
+		if err != nil {
 			tx.Rollback()
 			return nil, err
 		}
@@ -83,8 +89,12 @@ func (dao *Dao) ReleaseDeviceDomain(owner, domain, secret string) (ok bool, err 
 	if err := dao.db.QueryRow("select `account_id` from `devices` where `domain` = ?", domain).Scan(&accountID); err != nil {
 		return false, err
 	}
-	res, err := dao.db.Exec("delete from `devices` where `domain` = ? and `owner_uuid` = ? and `secret` = ?", domain, owner, secret)
-	if err != nil {
+	var res sql.Result
+	if err := dao.secretMatches(secret, func(cond string, args []any) error {
+		var err error
+		res, err = dao.db.Exec("delete from `devices` where `domain` = ? and `owner_uuid` = ? and "+cond, append([]any{domain, owner}, args...)...)
+		return err
+	}); err != nil {
 		return false, err
 	}
 	if n, _ := res.RowsAffected(); n == 0 {

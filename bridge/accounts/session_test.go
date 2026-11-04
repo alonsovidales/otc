@@ -3,7 +3,9 @@
 package accounts
 
 import (
+	"crypto/sha256"
 	"database/sql/driver"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -86,17 +88,17 @@ func verifiedRow(mock sqlmock.Sqlmock, id string, verified bool) {
 func TestSetupTokenNeedsAVerifiedEmail(t *testing.T) {
 	a, mock := testAccounts(t)
 	verifiedRow(mock, "acc1", false)
-	if _, err := a.IssueSetupToken("acc1"); err != ErrEmailNotVerified {
+	if _, err := a.IssueSetupToken("acc1", true); err != ErrEmailNotVerified {
 		t.Fatalf("an unverified account got a setup code: %v", err)
 	}
 	verifiedRow(mock, "acc1", true)
-	mock.ExpectExec("insert into `account_tokens`").WillReturnResult(sqlmock.NewResult(1, 1))
-	if _, err := a.IssueSetupToken("acc1"); err != nil {
+	expectSetupCodeStored(mock, "acc1", false, nil)
+	if _, err := a.IssueSetupToken("acc1", false); err != nil {
 		t.Fatalf("a verified account got no setup code: %v", err)
 	}
 	// The database failing is not "confirm your email first".
 	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnError(errDBDown)
-	if _, err := a.IssueSetupToken("acc1"); err == nil || err == ErrEmailNotVerified {
+	if _, err := a.IssueSetupToken("acc1", false); err == nil || err == ErrEmailNotVerified {
 		t.Fatalf("a database error: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -112,12 +114,12 @@ func TestSetupTokenInfoOnADatabaseError(t *testing.T) {
 		a.SetupTokenInfo(w, httptest.NewRequest("GET", "/api/account/setup-token-info?token=ABCD-EFGH", nil))
 		return w.Code
 	}
-	tokenRow := func(mock sqlmock.Sqlmock) {
-		mock.ExpectQuery("select `account_id` from `account_tokens`").WithArgs("ABCDEFGH", cPurposeSetup, sqlmock.AnyArg()).
-			WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
-	}
 	a, mock := testAccounts(t)
-	mock.ExpectQuery("select `account_id` from `account_tokens`").WillReturnError(errDBDown)
+	tokenRow := func(mock sqlmock.Sqlmock) {
+		mock.ExpectQuery("select `account_id`, `owner_confirmed` from `account_setup_codes`").WithArgs(a.setupCodeHash("ABCDEFGH"), sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"account_id", "owner_confirmed"}).AddRow("acc1", false))
+	}
+	mock.ExpectQuery("from `account_setup_codes`").WillReturnError(errDBDown)
 	if code := info(a); code != http.StatusInternalServerError {
 		t.Errorf("token lookup failing: %d", code)
 	}
@@ -150,7 +152,7 @@ func TestSetupTokenNeedsTheTerms(t *testing.T) {
 	for _, version := range []any{nil, "2020-01-01"} {
 		mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnRows(sqlmock.NewRows(cols).
 			AddRow("acc1", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), true, version, nil, ""))
-		if _, err := a.IssueSetupToken("acc1"); err != ErrTermsNotAccepted {
+		if _, err := a.IssueSetupToken("acc1", true); err != ErrTermsNotAccepted {
 			t.Fatalf("terms %v: got %v, want ErrTermsNotAccepted", version, err)
 		}
 	}
@@ -706,5 +708,61 @@ func TestSessionDatabaseErrorIsTryAgain(t *testing.T) {
 	})(rec, withCookie(httptest.NewRequest("GET", "/api/account/me", nil), token))
 	if rec.Code != http.StatusInternalServerError {
 		t.Errorf("RequireAuth: %d %s, want 500", rec.Code, rec.Body.String())
+	}
+}
+
+// expectSetupCodeStored is the database of a setup code for accountID
+// being stored, made right after a sign-in (confirmed) or not, on a schema
+// between migrations 013 and 014: by its hash, and as it is for the nodes
+// of an older release, in one transaction. The code goes into *code when
+// code isn't nil.
+func expectSetupCodeStored(mock sqlmock.Sqlmock, accountID string, confirmed bool, code *string) {
+	var token driver.Value = sqlmock.AnyArg()
+	if code != nil {
+		token = tokenCapture{code}
+	}
+	var hash string
+	mock.ExpectBegin()
+	mock.ExpectExec("insert into `account_setup_codes`").WithArgs(hashCapture{&hash}, accountID, confirmed, sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("insert into `account_tokens`").WithArgs(token, accountID, cPurposeSetup, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+}
+
+// A setup code is kept by its HMAC under a key derived from the session
+// secret, never as it is nor by a plain hash a copy of the table could be
+// searched with (8 characters are 40 bits): the same on every node of the
+// cluster, which shares the secret, and on none that doesn't. Its lookup
+// asks by that hash.
+func TestSetupCodesAreKeptByAKeyedHash(t *testing.T) {
+	a, mock := testAccounts(t)
+	verifiedRow(mock, "acc1", true)
+	var hash, code string
+	mock.ExpectBegin()
+	mock.ExpectExec("insert into `account_setup_codes`").WithArgs(hashCapture{&hash}, "acc1", true, sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("insert into `account_tokens`").WithArgs(tokenCapture{&code}, "acc1", cPurposeSetup, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+	tok, err := a.IssueSetupToken("acc1", true)
+	if err != nil || tok != code {
+		t.Fatalf("issued %q (%v), stored %q", tok, err, code)
+	}
+	plain := sha256.Sum256([]byte(code))
+	if hash != a.setupCodeHash(code) || hash == code || hash == hex.EncodeToString(plain[:]) {
+		t.Errorf("the code is kept as %q", hash)
+	}
+	other := &Accounts{secret: []byte("k")}
+	stranger := &Accounts{secret: []byte("another key")}
+	if other.setupCodeHash(code) != hash || stranger.setupCodeHash(code) == hash {
+		t.Error("the hash is not the cluster's own")
+	}
+
+	mock.ExpectQuery("select `account_id`, `owner_confirmed` from `account_setup_codes` where `code_hash` = \\?").WithArgs(hash, sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"account_id", "owner_confirmed"}).AddRow("acc1", true))
+	verifiedRow(mock, "acc1", true)
+	// Typed by hand, with a dash and in lower case.
+	if sc, ok, err := a.LookupSetupCode(strings.ToLower(code[:4]) + "-" + code[4:]); !ok || err != nil || sc.AccountID != "acc1" || !sc.OwnerConfirmed {
+		t.Errorf("looking the code up: %+v %v %v", sc, ok, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
 	}
 }

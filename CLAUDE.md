@@ -3098,8 +3098,13 @@ while refetches fail the last good keys verify for up to 24 h - the id_token ver
 `golang-jwt/jwt/v5`; Apple's
 client secret is an ES256 JWT signed with the team's .p8), HMAC-signed session cookies like the
 admin panel's (`otc_account`, path `/`, same signing secret), and **setup tokens** - 8-character
-codes from an unambiguous alphabet, 15 minutes, in `account_tokens` - which are the only link
-between a wizard's claim and an account. The domains themselves are handled in `bridge/api`
+codes from an unambiguous alphabet, 15 minutes, kept in `account_setup_codes` by their HMAC
+under a key derived from the session secret (never as they are), with whether the code was made
+right after its owner signed in - which are the only link
+between a wizard's claim and an account. A device's relay secret is kept only as its SHA-256
+(`devices.secret_hash`, `dao/secrets.go`); an existing bridge gets there in two steps around a
+deploy, migrations 013 and 014, with both forms written in between for a node still on an older
+release (`bridge/cluster/README.md`, "Hashed secrets"). The domains themselves are handled in `bridge/api`
 next to the claim (`accountDomains`, `accountAddDomain`, `accountNewIdentity`,
 `accountReleaseDomain`), since they share the name rules: `claimName` takes the token from the
 body or `Authorization: Bearer`, refuses with `401 login_required` when there is none (unless

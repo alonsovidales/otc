@@ -140,7 +140,7 @@ func (b *signInBed) expectSignIn(complete bool) {
 func (b *signInBed) expectToken(token *string) {
 	epochRow(b.mock, 0)
 	verifiedRow(b.mock, "acc1", true)
-	b.mock.ExpectExec("insert into `account_tokens`").WithArgs(tokenCapture{token}, "acc1", cPurposeSetup, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	expectSetupCodeStored(b.mock, "acc1", true, token)
 }
 
 // tokenCapture records the setup token stored.
@@ -400,7 +400,7 @@ func TestSetupContinueRefusals(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: cSessionCookie, Value: a.sessionToken("acc1", 0, now)})
 	epochRow(mock, 0)
 	verifiedRow(mock, "acc1", true)
-	mock.ExpectExec("insert into `account_tokens`").WillReturnResult(sqlmock.NewResult(1, 1))
+	expectSetupCodeStored(mock, "acc1", true, nil)
 	w := httptest.NewRecorder()
 	a.ConfirmSetup(w, r)
 	if loc := w.Header().Get("Location"); w.Code != http.StatusFound || !strings.HasPrefix(loc, back+"&setup_token=") {

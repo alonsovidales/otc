@@ -305,8 +305,10 @@ func TestClaimNameReservesAFreeNameAndRefusesATakenOne(t *testing.T) {
 	// Not a recently released name (held for its previous account).
 	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
-	mock.ExpectExec("insert into `devices`").
-		WithArgs("11111111-2222-3333-4444-555555555555", "newpi.off-the.cloud", "0123456789abcdef0123456789abcdef01234567").
+	// The secret and its hash (the plaintext for a node of an older
+	// release, until migration 014 drops it).
+	mock.ExpectExec("insert into `devices` \\(`owner_uuid`, `domain`, `secret`, `secret_hash`\\)").
+		WithArgs("11111111-2222-3333-4444-555555555555", "newpi.off-the.cloud", "0123456789abcdef0123456789abcdef01234567", dao.SecretHash("0123456789abcdef0123456789abcdef01234567")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	// Second claim (another address): already there.
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").
@@ -727,7 +729,7 @@ func TestSetupTokenDatabaseErrorsAreTryAgain(t *testing.T) {
 	d := dao.NewWithDB(db)
 	api := &API{muxHTTPServer: http.NewServeMux(), dao: d, accounts: accounts.Init(d, []byte("test session secret"), "off-the.cloud"), lastClaimByAddr: map[string]time.Time{}}
 	broken := errors.New("driver: bad connection")
-	tokenQuery := "select `account_id` from `account_tokens`"
+	tokenQuery := "select `account_id`, `owner_confirmed` from `account_setup_codes`"
 
 	mock.ExpectQuery(tokenQuery).WillReturnError(broken)
 	req := httptest.NewRequest(http.MethodPost, "/api/claim", strings.NewReader(
@@ -758,7 +760,7 @@ func TestSetupTokenDatabaseErrorsAreTryAgain(t *testing.T) {
 	}
 	// The code is good, but whose the name is can't be read.
 	taken()
-	mock.ExpectQuery(tokenQuery).WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
+	mock.ExpectQuery(tokenQuery).WillReturnRows(sqlmock.NewRows([]string{"account_id", "owner_confirmed"}).AddRow("acc1", true))
 	accountRow(mock, true, accounts.TermsVersion)
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnError(broken)
 	if rec := ask(); rec.Code != http.StatusInternalServerError || strings.Contains(rec.Body.String(), "yours") {
