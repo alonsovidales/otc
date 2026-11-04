@@ -4244,7 +4244,8 @@ under Info.plist's `cloud.off-the.OffTheCloud.backup.*`, registered when first a
 `.fail`). The system shows its progress (the title and "N of M" as assets are done, `progress` set
 every second); the run's end completes it (`LongSync.runEnded`, from `runPasses`), and its
 expiration (the owner stopping it, or the system) stops the run (`stopRun`). While it holds the run
-the app's own background time running out doesn't stop it. Below iOS 26, and for any other run, as
+neither the app's own background time running out nor the end of a BG processing task that joined
+the run stops it (`SyncScheduler.stopsRunAtExpiry`). Below iOS 26, and for any other run, as
 before.
 
 **Copies of what the iPhone sends** (issue #210; `ExportRoom.swift`, `PhotoSync.exportAsset`; tests
@@ -4280,7 +4281,9 @@ device folder (`listForLarge`), so videos synced before are matched by path or c
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed
 off so that date is fetched again. Failed assets go on a retry list, not the watermark (iOS
-`asset_sync_pending.log`, Android `asset_sync_pending.txt`); a run sends new, then retried, then
+`asset_sync_pending.log`, Android `asset_sync_pending.txt`); on iOS one PhotoKit can't read with Sync
+from iCloud off waits on its iCloud side until that is on, but never one whose copy was stopped (a run
+cancelled mid-copy) or whose own file failed (`PhotoSync.waitsForICloud`); a run sends new, then retried, then
 one-off assets, and goes once more for a trigger that came meanwhile (`rerunWanted`). Its writes are
 gated by generations bumped by `cancel()` (Log Out, which cancels again right before the wipe) and
 by Sync All and Sync From Now. "Wi-Fi only" holds a run before it and between chunks ("Waiting for

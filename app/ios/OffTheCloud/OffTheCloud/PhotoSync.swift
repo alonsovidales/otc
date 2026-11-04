@@ -591,6 +591,28 @@ final class PhotoSync: NSObject {
         let underlying: Error
     }
 
+    /// Pure: whether a copy that failed with `cause` while "Sync from iCloud"
+    /// is off waits for it to be on (the retry list's iCloud side, read only
+    /// then). Not a run that was stopped - the app's background time over,
+    /// a BG task's end, Log Out: the copy was cancelled - nor the copy's own
+    /// file failing (the export's own errors, the disk): those are tried
+    /// again by the next run, as any other failure. They used to wait for
+    /// the switch for good, and a photo on the phone was never backed up.
+    /// What PhotoKit itself says - that the photo is in iCloud only, or
+    /// anything else it can't read without the network - still waits.
+    static func waitsForICloud(_ cause: Error) -> Bool {
+        if cause is CancellationError { return false }
+        let ns = cause as NSError
+        switch ns.domain {
+        case "PhotoExport", NSPOSIXErrorDomain, NSCocoaErrorDomain:
+            return false
+        case PHPhotosErrorDomain:
+            return ns.code != PHPhotosError.Code.userCancelled.rawValue
+        default:
+            return true
+        }
+    }
+
     /// Remote paths taken during one run, with the content each was taken
     /// for, so a second asset with the same name and other content goes
     /// straight to its alternate name instead of a wasted transfer (or, in
@@ -1316,7 +1338,7 @@ final class PhotoSync: NSObject {
                             if ErrorCodes.isStorageFull(code: ErrorCodes.code(of: cause)) {
                                 return .full(id, cause.localizedDescription)
                             }
-                            if error is ReadFailure && !allowICloudDownloads {
+                            if error is ReadFailure && !allowICloudDownloads && Self.waitsForICloud(cause) {
                                 // The likely cause when "Sync from iCloud"
                                 // is off and this asset isn't cached
                                 // locally: PHAssetResourceManager can't

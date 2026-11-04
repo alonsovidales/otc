@@ -51,10 +51,19 @@ enum SyncScheduler {
         // IOS-04: and the task is reported at once - not once the run has
         // wound down, which an iCloud download or a request waiting on the
         // socket can take a while to do, past the moment iOS gave.
+        // Issue #205: except a Sync All that iOS 26's continued task holds -
+        // this task joined it, and its end ends only this task: the run goes
+        // on until it is over or the owner stops it (as the app's own
+        // background time running out leaves it, PhotoSync.runForeground).
         task.expirationHandler = {
-            work.cancel()
+            if stopsRunAtExpiry(continuedTaskHolds: LongSync.holdsRun) { work.cancel() }
             done.complete(success: false)
         }
+    }
+
+    /// Pure: whether a BG task's expiry stops the run it waits on.
+    static func stopsRunAtExpiry(continuedTaskHolds: Bool) -> Bool {
+        !continuedTaskHolds
     }
 }
 
