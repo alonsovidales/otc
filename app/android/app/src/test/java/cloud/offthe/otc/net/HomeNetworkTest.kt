@@ -227,9 +227,88 @@ class HomeNetworkTest {
         assertTrue(System.nanoTime() - start < 2_000_000_000L)
     }
 
+    /**
+     * What a race came to when nothing won: a certificate other than the pin
+     * shown at one of the addresses (something else holds it), or only
+     * refusals and silence (the port blocked, the phone away from home).
+     */
+    @Test fun aRaceSaysWhetherAnotherCertificateAnswered() = runBlocking {
+        val device = WsServer().also { closeables += it }
+        val won = HomeNetwork.contest(HomeEndpoint(listOf("127.0.0.1"), device.port, pinA), listOf(HomeNetwork.Via.DEFAULT))
+        assertNotNull(won.opened)
+        assertFalse(won.otherCertificate)
+        won.opened!!.socket.close()
+
+        // The device's port, another device's pin: another certificate.
+        val other = HomeNetwork.contest(HomeEndpoint(listOf("127.0.0.1"), device.port, pinB), listOf(HomeNetwork.Via.DEFAULT))
+        assertNull(other.opened)
+        assertTrue(other.otherCertificate)
+
+        // Nothing listening: refused, no certificate seen.
+        val closed = ServerSocket(0, 50, InetAddress.getByName("127.0.0.1")).let { s -> s.localPort.also { s.close() } }
+        val refused = HomeNetwork.contest(HomeEndpoint(listOf("127.0.0.1"), closed, pinA), listOf(HomeNetwork.Via.DEFAULT))
+        assertNull(refused.opened)
+        assertFalse(refused.otherCertificate)
+
+        // Taken and never answered: silence, no certificate seen.
+        val silent = ServerSocket(0, 50, InetAddress.getByName("127.0.0.1")).also { closeables += it }
+        val held = CopyOnWriteArrayList<Socket>()
+        thread(isDaemon = true) { while (!silent.isClosed) try { held += silent.accept() } catch (_: Exception) { break } }
+        closeables += AutoCloseable { held.forEach { it.close() } }
+        val quiet = HomeNetwork.contest(HomeEndpoint(listOf("127.0.0.1"), silent.localPort, pinA), listOf(HomeNetwork.Via.DEFAULT), budgetMs = 300)
+        assertNull(quiet.opened)
+        assertFalse(quiet.otherCertificate)
+
+        // No address, no network: nothing tried.
+        val none = HomeNetwork.contest(HomeEndpoint(listOf("127.0.0.1"), device.port, pinA), emptyList())
+        assertNull(none.opened)
+        assertFalse(none.otherCertificate)
+        // Only the pinned one got as far as the upgrade.
+        assertEquals(1, device.upgrades.get())
+    }
+
+    @Test fun reachedIsStoredAndKeptWhileThePinIsTheSame() {
+        val ep = HomeEndpoint(listOf("192.168.1.20"), 8443, pinA)
+        assertFalse(ep.reached)
+        // What an older version stored: three parts, not reached.
+        assertFalse(HomeEndpoint.decode("8443|${hex(pinA)}|192.168.1.20")!!.reached)
+        val reached = ep.reachedHere()
+        assertEquals("8443|${hex(pinA)}|192.168.1.20|reached", reached.encode())
+        assertTrue(HomeEndpoint.decode(reached.encode())!!.reached)
+        assertNull(HomeEndpoint.decode("8443|${hex(pinA)}|192.168.1.20|other"))
+        assertFalse(ep.sameAs(reached))
+        assertTrue(reached.sameAs(HomeEndpoint.decode(reached.encode())))
+
+        // A sign-in over the pinned link to this pin reaches it; to another, not.
+        assertTrue(ep.signedInOver(pinA).reached)
+        assertFalse(ep.signedInOver(pinB).reached)
+        assertSame(reached, reached.signedInOver(pinA))
+
+        // A new answer (new addresses) keeps reached while the pin is the same.
+        val moved = HomeEndpoint(listOf("192.168.1.30"), 8443, pinA)
+        assertTrue(moved.keepingReach(reached).reached)
+        assertEquals(listOf("192.168.1.30"), moved.keepingReach(reached).addresses)
+        assertFalse(moved.keepingReach(ep).reached)
+        assertFalse(moved.keepingReach(null).reached)
+        // A new certificate must be reached again.
+        assertFalse(HomeEndpoint(listOf("192.168.1.20"), 8443, pinB).keepingReach(reached).reached)
+    }
+
+    @Test fun anEndpointsOwnHostIsRacedToo() {
+        val ep = HomeEndpoint(listOf("192.168.1.20", "fd00::1"), 8443, pinA, reached = true)
+        assertEquals(listOf("192.168.1.20", "fd00::1", "otc.local"), ep.including("otc.local").addresses)
+        assertTrue(ep.including("otc.local").reached)
+        // Listed already (any case, IPv6 brackets off): as it is.
+        assertSame(ep, ep.including("192.168.1.20"))
+        assertSame(ep, ep.including("[FD00::1]"))
+        assertEquals(listOf("192.168.1.20", "fd00::1", "fd00::2"), ep.including("[fd00::2]").addresses)
+        assertSame(ep, ep.including(""))
+        assertSame(ep, ep.including(null))
+    }
+
     // A stand-in for the device's home-network listener: TLS with cert A,
-    // then a bare WebSocket upgrade.
-    private class WsServer : AutoCloseable {
+    // then a bare WebSocket upgrade. PinnedAddressTest uses it too.
+    internal class WsServer : AutoCloseable {
         private val server: SSLServerSocket
         val upgrades = AtomicInteger()
         private val conns = CopyOnWriteArrayList<Socket>()
@@ -288,7 +367,7 @@ class HomeNetworkTest {
         }
     }
 
-    private companion object {
+    internal companion object {
         fun pem(s: String): ByteArray = Base64.getMimeDecoder().decode(s.lines().filter { !it.startsWith("-----") }.joinToString(""))
 
         fun cert(s: String) = CertificateFactory.getInstance("X.509").generateCertificate(s.byteInputStream()) as X509Certificate

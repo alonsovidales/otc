@@ -957,9 +957,8 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     transfer runs (`TransferActivity` / `OTCConnection.transfer {}` / `folderBusy`). A check put
     off is recorded and runs after. Settings shows "Connected over your home network" or
     "Connected through off-the.cloud".
-  - A ws:// address on the phones (a device set up without the bridge, or left it; iOS so far,
-    Android still signs in over ws:// after a missed pinned race): a private address or a
-    `.local` name is the home network only while the phone is at home, and on another network
+  - A ws:// address on the phones (a device set up without the bridge, or left it): a private
+    address or a `.local` name is the home network only while the phone is at home, and on another network
     with the same range whoever held it got the sign-in in the clear, the key the password is
     sealed with included. Its connects race the pinned link with the address's own host added at
     the pinned port (`OTCConnection.raceTargets`, `LocalEndpoint.including`: a `.local` name or a
@@ -987,7 +986,16 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     (`updateOverHome`: new addresses only, the pin never dropped). Saving the same address
     spelled otherwise (a host's case) keeps its pin (`saveCredentials`: `move`), never a sign-in
     in the clear. Tests: `PinnedAddressTests.swift`, `HomeNetworkTests.swift` (the race's
-    outcome).
+    outcome). Android has the same rules and names (`net/PinnedAddress.kt`: `pinnedOnly`,
+    `raceTargets`, `probe`, `find`, `homeAfterSave`; `HomeEndpoint.reached`, stored as a fourth
+    part `|reached` of `home_endpoint` - an older three-part value reads as not reached -,
+    `including`, `keepingReach`, `signedInOver`; `HomeNetwork.contest`, whose pinned trust manager
+    throws `OtherCertificate` for a certificate that isn't the pin; `OTCConnection.connectPinned`,
+    `markReached`, `refreshHomeEndpoint(overHome =)`, `signedInInClear` for `MediaStream`). Its
+    route check leaving home (`switchRoute`) never dials a pinned address: the home socket stays
+    until it drops, and that reconnect goes by the rules above. A name raced on a bound network
+    (the home Wi-Fi with mobile data the default) is looked up on that network. Tests:
+    `PinnedAddressTest.kt`, `HomeNetworkTest.kt`.
   - Video: `/media/<token>` is relative, so the base follows the route. Android plays through
     ExoPlayer on the pinned OkHttp client; iOS streams local media through an
     `AVAssetResourceLoader` on a custom scheme over the pinned URLSession, and bridge media plays as
@@ -4323,8 +4331,8 @@ Auth (an empty `Ack.code`, or `too_many_attempts`) `OTCConnection` fails the sam
 without dialling for 5 s doubling to 300 s; success, `invalidate()` or new credentials lift it;
 both show the can't-connect card, never `statusCode`. A request is sent again only if it never left
 (`retriesAfter`; else `WSClient.SentNoAnswer`), and ws:// goes only to the home network
-(`CleartextRule`, before dialling and for media URLs) - and, on iOS so far, only over the pinned
-home link once this phone has reached its device there (Home network, above).
+(`CleartextRule`, before dialling and for media URLs) - and only over the pinned home link once
+this phone has reached its device there (Home network, above).
 Files open, versions, trimming and the gallery's video fallback read 4 MiB `ReadFile` pieces
 (`FileDownload.swift` / `ChunkedDownload.kt`); `GetFile` stays for HEIC and as the
 `unknown_payload` fallback. iOS keeps its temporary copies in folders of their own

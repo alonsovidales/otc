@@ -3,16 +3,20 @@ package cloud.offthe.otc.net
 
 import android.os.SystemClock
 import android.util.Log
+import cloud.offthe.otc.R
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.appShellAddressInvalid
 import cloud.offthe.otc.i18n.appShellAuthFailed
 import cloud.offthe.otc.i18n.appShellCleartextRefused
+import cloud.offthe.otc.i18n.appShellHomePortUnreachable
 import cloud.offthe.otc.i18n.appShellHostNotFound
 import cloud.offthe.otc.i18n.appShellInsecure
+import cloud.offthe.otc.i18n.appShellLeaveButton
 import cloud.offthe.otc.i18n.appShellNoAnswerAddress
 import cloud.offthe.otc.i18n.appShellNoPublicKey
+import cloud.offthe.otc.i18n.appShellNoStorage
 import cloud.offthe.otc.i18n.appShellNotOtc
 import cloud.offthe.otc.i18n.appShellOffline
 import cloud.offthe.otc.proto.Ack
@@ -433,10 +437,18 @@ object OTCConnection {
             if (r.credKey == credKey && SystemClock.elapsedRealtime() < r.notBeforeMs) throw RequestError(r.text.now())
         }
         val gen = synchronized(connectLock) { configGen }
+        // A ws:// address whose device this phone has reached over its
+        // pinned link goes only that way (PinnedAddress): never the password
+        // in the clear to whoever holds the address on the network the phone
+        // is on now.
+        val stored = secrets.homeEndpoint(url)
+        val pinnedOnly = PinnedAddress.pinnedOnly(url, stored)
 
         // A socket still open (a request on it timed out): signed in again
-        // where it is, as before.
+        // where it is, as before - unless it is a pinned address's own, which
+        // goes the pinned way.
         val open = ws
+        if (open.connected && pinnedOnly && _route.value != Route.HOME) open.close()
         if (open.connected) {
             signInOrFail(open, password, deviceId, credKey)
             currentCoroutineContext().ensureActive()
@@ -445,7 +457,15 @@ object OTCConnection {
             return
         }
 
-        secrets.homeEndpoint(url)?.let { ep -> if (signInAtHome(ep, url, password, deviceId, credKey)) return }
+        if (stored != null) {
+            // A ws:// address's own host is raced too, at the pinned port.
+            val targets = PinnedAddress.raceTargets(url, stored)
+            if (pinnedOnly) {
+                connectPinned(targets, url, password, deviceId, credKey, gen)
+                return
+            }
+            if (signInAtHome(targets, url, password, deviceId, credKey, gen)) return
+        }
 
         // Through the configured endpoint, as always. The socket is the
         // current one from the start, so a connect that fails schedules the
@@ -504,7 +524,7 @@ object OTCConnection {
      * when the device itself turned the password down - the bridge would
      * say the same, and count one more failure.
      */
-    private suspend fun signInAtHome(ep: HomeEndpoint, url: String, password: String, deviceId: String, credKey: String): Boolean {
+    private suspend fun signInAtHome(ep: HomeEndpoint, url: String, password: String, deviceId: String, credKey: String, gen: Int): Boolean {
         val vias = NetworkWatch.homeRoutes()
         if (vias.isEmpty()) return false
         val opened = try {
@@ -556,11 +576,116 @@ object OTCConnection {
             kept = true
             signedIn(url)
             Log.i(TAG, "signed in over the home network")
+            // This phone reaches the device's pinned link: from now on a
+            // ws:// address goes only that way. Where it is now (a new DHCP
+            // lease) is asked there.
+            markReached(url, ep.certSha256, gen)
+            refreshHomeEndpoint(c, url, gen, overHome = true)
             return true
         } finally {
             if (!kept) c.close()
         }
     }
+
+    /**
+     * A pinned ws:// address (PinnedAddress.pinnedOnly): its pinned link,
+     * looked for twice when the address answers, or the card says why not -
+     * the address itself is never signed in to.
+     */
+    private suspend fun connectPinned(targets: HomeEndpoint, url: String, password: String, deviceId: String, credKey: String, gen: Int) {
+        val find = PinnedAddress.find(
+            targets.port,
+            race = { ms -> HomeNetwork.contest(targets, NetworkWatch.homeRoutes(), ms) },
+            probe = { PinnedAddress.probe(url, minOf(SIGN_IN_TIMEOUT_MS, PinnedAddress.PROBE_TIMEOUT_MS)) },
+        )
+        if (find is PinnedAddress.Find.Found) {
+            signInPinned(find.opened, targets, url, password, deviceId, credKey, gen)
+            return
+        }
+        // Dropped by invalidate(): leave the card alone.
+        currentCoroutineContext().ensureActive()
+        when (find) {
+            is PinnedAddress.Find.Found -> {}
+            is PinnedAddress.Find.Unreachable -> {
+                // The usual words: the phone isn't where the device is.
+                _lastError.value = describe(find.error)
+                _connectionFailed.value = true
+                throw find.error
+            }
+            PinnedAddress.Find.Storage -> {
+                // Issue #207's state in our words: nothing proves it is the device.
+                val text = S.appShellNoStorage()
+                enterStorage(text)
+                throw RequestError(text.now(), ErrorCodes.STORAGE_UNAVAILABLE)
+            }
+            PinnedAddress.Find.NotKnownDevice -> {
+                Log.i(TAG, "another certificate answers for the address: nothing sent")
+                notThePinnedDevice(UiText.Res(R.string.app_shell_not_known_device, listOf(S.appShellLeaveButton())))
+            }
+            is PinnedAddress.Find.HomePortUnreachable -> {
+                Log.i(TAG, "the device's encrypted port isn't answering: nothing sent")
+                notThePinnedDevice(S.appShellHomePortUnreachable(find.port.toString()))
+            }
+        }
+    }
+
+    /** [connectPinned]'s sign-in over the pinned link: no other way to fall back to, so any failure is the connect's. */
+    private suspend fun signInPinned(opened: HomeNetwork.Opened, ep: HomeEndpoint, url: String, password: String, deviceId: String, credKey: String, gen: Int) {
+        val c = opened.socket
+        var kept = false
+        try {
+            signInOrFail(c, password, deviceId, credKey)
+            currentCoroutineContext().ensureActive()
+            if (!c.connected) {
+                val e = IOException("connection closed")
+                _lastError.value = describe(e)
+                _connectionFailed.value = true
+                throw e
+            }
+            install(c, Route.HOME, Home(HomeNetwork.origin(opened.address, ep.port), ep.certSha256, opened.via))
+            kept = true
+            signedIn(url)
+            Log.i(TAG, "signed in over the home network (pinned address)")
+            refreshHomeEndpoint(c, url, gen, overHome = true)
+        } finally {
+            if (!kept) c.close()
+        }
+    }
+
+    /**
+     * A pinned ws:// address answers, and its pinned link was looked for
+     * twice without a match: nothing is sent, and the card says which it
+     * was ([text]). Never the "isn't available" card: no verdict on the
+     * device, which may be fine.
+     */
+    private fun notThePinnedDevice(text: UiText): Nothing {
+        storage.leave()
+        _statusCode.value = null
+        _lastError.value = text
+        _connectionFailed.value = true
+        throw RequestError(text.now())
+    }
+
+    /** A sign-in over the pinned link to the device with [pin]: the endpoint's home record says this phone has reached it. */
+    private fun markReached(url: String, pin: ByteArray, gen: Int) = synchronized(connectLock) {
+        if (gen != configGen) return@synchronized
+        val secrets = SecretsStore.loadOrCreate()
+        val s = secrets.homeEndpoint(url) ?: return@synchronized
+        val now = s.signedInOver(pin)
+        if (now !== s) secrets.saveHomeEndpoint(url, now)
+    }
+
+    /**
+     * Signed in, over the saved endpoint's ws:// itself: the session is in
+     * the clear anyway (a first sign-in there, a device without a pin, one
+     * not reached), so http:// media may go the same way (MediaStream).
+     * Never for a pinned address, whose sessions are all over the home link.
+     */
+    val signedInInClear: Boolean
+        get() = _authenticated.value && home == null && PinnedAddress.isCleartext(signedInEndpoint)
+
+    // The endpoint the session in use signed in for (signedIn).
+    @Volatile private var signedInEndpoint = ""
 
     // What answered instead of signing us in: GetPubKey's or Auth's reply -
     // the device's (or the bridge's) own words when it gave some.
@@ -673,6 +798,7 @@ object OTCConnection {
 
     /** Signed in through the configured endpoint [url] (or at home for it). */
     private fun signedIn(url: String) {
+        signedInEndpoint = url
         storage.leave()
         _lastError.value = null
         _statusCode.value = null
@@ -707,27 +833,38 @@ object OTCConnection {
     }
 
     /**
-     * Issue #190: after a sign-in through the configured endpoint, where
-     * does the device answer at home? Stored with the endpoint; a device
-     * from before #190 ("unknown_payload") or with no way in at home
-     * ("local_unavailable") clears it, and no answer keeps it.
+     * Issue #190: after a sign-in, where does the device answer at home?
+     * Stored with the endpoint; a device from before #190
+     * ("unknown_payload") or with no way in at home ("local_unavailable")
+     * clears it, and no answer keeps it. [overHome]: signed in over the
+     * pinned home link, where only new addresses count - whoever answers
+     * there holds the pinned certificate, and the pin is never dropped for
+     * what it says (a ws:// endpoint would go back to signing in in the
+     * clear) - and there is no route to move to.
      */
-    private fun refreshHomeEndpoint(c: WSClient, url: String, gen: Int) {
+    private fun refreshHomeEndpoint(c: WSClient, url: String, gen: Int, overHome: Boolean = false) {
         scope.launch {
             val resp = try {
-                c.request { it.setReqGetLocalEndpoint(GetLocalEndpoint.getDefaultInstance()) }
+                c.request(LIST_TIMEOUT_MS) { it.setReqGetLocalEndpoint(GetLocalEndpoint.getDefaultInstance()) }
             } catch (e: Exception) {
                 return@launch
             }
-            val answer = HomeNetwork.answer(resp)
+            val answer = HomeNetwork.answer(resp).let { if (overHome && it !is HomeNetwork.Answer.Store) HomeNetwork.Answer.Keep else it }
             val learnt = synchronized(connectLock) {
                 if (gen != configGen) return@launch
                 val secrets = SecretsStore.loadOrCreate()
                 when (answer) {
                     is HomeNetwork.Answer.Store -> {
-                        val before = secrets.homeEndpoint(url)
-                        secrets.saveHomeEndpoint(url, answer.endpoint)
-                        before?.encode() != answer.endpoint.encode()
+                        // What is stored now (a home sign-in may have marked
+                        // it reached since the connect read it): the pinned
+                        // link stays reached while the pin is the same.
+                        val current = secrets.homeEndpoint(url)
+                        val ep = answer.endpoint.keepingReach(current)
+                        if (ep.sameAs(current)) false
+                        else {
+                            secrets.saveHomeEndpoint(url, ep)
+                            !overHome
+                        }
                     }
                     HomeNetwork.Answer.Forget -> { secrets.clearHomeEndpoint(); false }
                     HomeNetwork.Answer.Keep -> false
@@ -784,7 +921,11 @@ object OTCConnection {
         val h = home
         val from = _route.value ?: return
         // Nothing stored: the configured endpoint is the only way.
-        val ep = secrets.homeEndpoint(url) ?: return
+        val stored = secrets.homeEndpoint(url) ?: return
+        // A pinned ws:// address never signs in at the address itself
+        // (PinnedAddress), and its own host is raced too.
+        val pinnedOnly = PinnedAddress.pinnedOnly(url, stored)
+        val ep = PinnedAddress.raceTargets(url, stored)
         val vias = NetworkWatch.homeRoutes()
         // Home on a live socket over a network the phone is still on: stay,
         // as macOS does on a wake. A probe that missed its budget on a busy
@@ -798,6 +939,10 @@ object OTCConnection {
                 opened.socket.close()
                 return
             }
+            // No other way for a pinned address: the socket in use stays
+            // until it drops, and its reconnect looks for the pinned link
+            // (connectAndAuth) or says why not.
+            if (pinnedOnly) return
             val c = WSClient()
             var kept = false
             try {
@@ -830,7 +975,11 @@ object OTCConnection {
             } finally {
                 if (!kept) c.close()
             }
-            if (kept) Log.i(TAG, "at home: over the home network")
+            if (kept) {
+                Log.i(TAG, "at home: over the home network")
+                markReached(url, ep.certSha256, gen)
+                refreshHomeEndpoint(c, url, gen, overHome = true)
+            }
         }
     }
 

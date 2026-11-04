@@ -62,9 +62,17 @@ object MediaStream {
             return URI(h.origin + "/").resolve(path).toString()
         }
         // http:// only to the home network, as the socket's ws:// (A6): none
-        // otherwise, and the file comes over the socket instead.
-        return absoluteFromEndpoint(path)?.takeIf { CleartextRule.allows(it) }
+        // otherwise, and the file comes over the socket instead. And only
+        // while the connection itself goes in the clear that way: a ws://
+        // address whose device is pinned signs in over the home link alone,
+        // and its media never leaves it (a socket that dropped a moment ago
+        // has no route to follow: the file comes over the next one).
+        return absoluteFromEndpoint(path)?.takeIf { CleartextRule.allows(it) && mayUse(it, OTCConnection.signedInInClear) }
     }
+
+    /** Whether [url] may be played given whether the session is in the clear: http:// only then, anything encrypted always. */
+    internal fun mayUse(url: String, signedInInClear: Boolean): Boolean =
+        !url.trim().lowercase().startsWith("http://") || signedInInClear
 
     private fun absoluteFromEndpoint(path: String): String? {
         val base = cachedBase ?: run {

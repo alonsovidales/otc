@@ -8,6 +8,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.net.HomeEndpoint
+import cloud.offthe.otc.net.PinnedAddress
 import cloud.offthe.otc.push.FCMPush
 import cloud.offthe.otc.sync.AssetSyncCache
 import cloud.offthe.otc.sync.PhotoFolders
@@ -87,6 +88,7 @@ class SecretsStore private constructor(
         secure().edit().remove("home_for").remove("home_endpoint").apply()
     }
 
+
     /**
      * Log Out (SettingsView, as on iOS): forget the connection and wipe
      * everything this phone holds about the device - the secrets, the
@@ -117,20 +119,33 @@ class SecretsStore private constructor(
      * this device": the address and password they were given become the
      * ones every connection dials. Nothing else writes them: the forms edit
      * drafts until then (IOS-03 on iOS; ConnectionFormModel here). As iOS's
-     * saveCredentials.
+     * saveCredentials. [sameDevice] (Leave the Bridge: the device itself
+     * gave its new address) keeps what was learnt about its home network.
      */
-    fun saveCredentials(endpoint: String, password: String) {
+    fun saveCredentials(endpoint: String, password: String, sameDevice: Boolean = false) {
+        val before = normalizedEndpoint(secure().getString("endpoint", "") ?: "")
         _endpoint.value = endpoint
         _password.value = password
         if (isConfigured) {
             clearPendingSetup()
             clearLastDevice()
         }
-        // Another device, or another way to it: the home endpoint learnt
-        // through the old one isn't this one's, and a collection shown as
-        // wallpaper stops (its copies were the other one's photos).
-        if (normalizedEndpoint(secure().getString("endpoint", "") ?: "") != endpointURLString) {
-            clearHomeEndpoint()
+        if (before != endpointURLString) {
+            // Issue #190: the home-network endpoint belongs to the endpoint
+            // it was learnt on; another device or address starts without
+            // one - except the same device at its new address, which keeps
+            // its pin (its first sign-in there is never in the clear), and
+            // the same address spelled otherwise (a host's case), which is
+            // no change: dropping its pin would send the next sign-in in the
+            // clear.
+            val h = home
+            when (val kept = PinnedAddress.homeAfterSave(h, before, endpointURLString, sameDevice)) {
+                null -> clearHomeEndpoint()
+                h -> {}
+                else -> saveHomeEndpoint(kept.first, kept.second)
+            }
+            // A collection shown as wallpaper stops (its copies were the
+            // other one's photos).
             Wallpaper.deviceChanged(endpointURLString)
         }
         secure().edit()
@@ -299,6 +314,9 @@ class SecretsStore private constructor(
                 s
             }
         }
+
+        /** Whether two saved addresses are the same, as dialled (normalized; a host's case doesn't count). */
+        fun sameAddress(a: String, b: String): Boolean = normalizedEndpoint(a).lowercase() == normalizedEndpoint(b).lowercase()
 
         /** Issue #121: a device name -> its bridge address. */
         fun bridgeEndpoint(forName: String): String =
