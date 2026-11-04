@@ -555,6 +555,14 @@ fun SettingsView(secrets: SecretsStore) {
         }
     }
     DisposableEffect(Unit) { onDispose { status.stop(); device.stopPollingReprocessStatus() } }
+    // A reprocess's progress only while the app is in front, as the status
+    // poll: every 1.5 s, it went on asking in the background.
+    LaunchedEffect(lifecycle) {
+        lifecycle.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            if (device.state.value.reprocessStatus == "running") device.pollReprocessStatusWhileRunning()
+            try { awaitCancellation() } finally { device.stopPollingReprocessStatus() }
+        }
+    }
     // Smart search's model on its way (release 152): asked again every 3 s
     // while the switch is on and Settings is in front - not once it is
     // there, with the switch off, Settings left or the app in the background.
