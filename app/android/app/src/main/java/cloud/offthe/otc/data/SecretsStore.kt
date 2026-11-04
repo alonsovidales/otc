@@ -63,7 +63,14 @@ class SecretsStore private constructor(
         Wallpaper.wifiOnlyChanged()
         if (!v) PhotoSync.wifiOnlyOff()
     }
-    fun setIncludeVideos(v: Boolean) { _includeVideos.value = v; persistOptions() }
+    fun setIncludeVideos(v: Boolean) {
+        val was = _includeVideos.value
+        _includeVideos.value = v
+        persistOptions()
+        // Back on: the videos taken while it was off are sent too
+        // (PhotoSync.videosTurnedOn). Log Out puts it back on signed out.
+        if (v && !was && isConfigured) PhotoSync.videosTurnedOn()
+    }
     fun setFolderSkipped(id: String, skipped: Boolean) {
         _skippedFolders.value = if (skipped) _skippedFolders.value + id else _skippedFolders.value - id
         persistOptions()

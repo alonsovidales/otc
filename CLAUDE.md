@@ -3685,8 +3685,10 @@ also reads the library's persistent change history (`PhotoHistory.swift`) so a p
 older creation date (AirDrop, Files) isn't behind the creationDate watermark; a missing token keeps the
 old behaviour. Android's DATE_ADDED filter never had that gap. Include videos turned back on queues a
 one-off pass over the videos since the owner's chosen starting point (iOS `PhotoSources.videos`,
-`PhotoSync.videosTurnedOn`): the runs while it was off moved the watermark past the videos taken
-then, which were never sent; none without a floor, as the catch-up.
+Android `PhotoSync.VIDEOS` in the `otc_sync` one-off list; both `PhotoSync.videosTurnedOn`, from
+the switch while signed in): the runs while it was off moved the watermark past the videos taken
+then, which were never sent; none without a floor, as the catch-up. Tests:
+`PhotoSourcesTests.theVideosPassFollowsTheFloor` <-> `PhotoSyncPlanTest.theVideosPassFollowsTheFloor`.
 **Free up space** (iOS `FreeUpSpace.swift` <-> Android `sync/FreeUpSpace.kt`; owner's request
 2026-10-21): off unless turned on (Settings > Free Up Space, and the same section on the sign-in
 sheet), it deletes from the phone the photos and videos taken more than N days ago (1-365, 7 by

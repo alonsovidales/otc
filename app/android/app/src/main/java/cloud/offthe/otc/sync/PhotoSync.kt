@@ -75,6 +75,12 @@ object PhotoSync {
     private const val WAS_LIMITED = "accessWasLimited"
     /** In backfill(): the catch-up, everything added since the floor. */
     const val CATCH_UP = "*"
+    /**
+     * In backfill(): every video added since the floor - "Include videos"
+     * turned back on (videosTurnedOn): the runs while it was off moved the
+     * watermark past the videos taken then. Not a BUCKET_ID (those are numbers).
+     */
+    const val VIDEOS = "videos"
     private val syncing = AtomicBoolean(false)
     /** A sync is going (in front, or a WorkManager run in this process). */
     val isSyncing: Boolean get() = syncing.get()
@@ -218,10 +224,22 @@ object PhotoSync {
      */
     fun queueBackfill(id: String) { synchronized(watermarkLock) { setBackfill(backfill() + id) } }
 
+    /**
+     * "Include videos" turned back on (SecretsStore.setIncludeVideos, signed
+     * in): the videos taken while it was off are behind the watermark, so a
+     * one-off pass sends them, from the point the owner chose to sync from
+     * (VIDEOS); what the device has is found and not sent again. As iOS's
+     * videosTurnedOn.
+     */
+    fun videosTurnedOn() {
+        queueBackfill(VIDEOS)
+        runForegroundAsync()
+    }
+
     /** A folder turned off again before its pass ran. */
     fun dropBackfill(id: String) { synchronized(watermarkLock) { setBackfill(backfill() - id) } }
 
-    /** The one-off passes waiting: folders by BUCKET_ID, and CATCH_UP. */
+    /** The one-off passes waiting: folders by BUCKET_ID, CATCH_UP and VIDEOS. */
     fun backfill(): Set<String> = PhotoFolders.storedSet(prefs, BACKFILL)
 
     private fun setBackfill(v: Set<String>) = PhotoFolders.storeSet(prefs.edit(), BACKFILL, v).apply()
@@ -330,9 +348,9 @@ object PhotoSync {
      */
     fun fetchNewAssets(
         includeVideos: Boolean, sinceMs: Long, limit: Int = 0, newestFirst: Boolean = false,
-        skipped: Set<String> = emptySet(), only: Set<String>? = null, leaveOutSaved: Boolean = false,
+        skipped: Set<String> = emptySet(), only: Set<String>? = null, leaveOutSaved: Boolean = false, videosOnly: Boolean = false,
     ): List<Asset> {
-        val sel = selection(includeVideos, sinceMs, skipped, only, leaveOutSaved) ?: return emptyList()
+        val sel = selection(includeVideos, sinceMs, skipped, only, leaveOutSaved, videosOnly) ?: return emptyList()
         val order = "${MediaStore.Files.FileColumns.DATE_ADDED} ${if (newestFirst) "DESC" else "ASC"}" + if (limit > 0) " LIMIT $limit" else ""
         return query(sel, order)
     }
@@ -376,8 +394,12 @@ object PhotoSync {
      * Save wrote stays out (A4, PhotoFolders.savedClause); the composer
      * shows it.
      */
-    fun selection(includeVideos: Boolean, sinceMs: Long, skipped: Set<String> = emptySet(), only: Set<String>? = null, leaveOutSaved: Boolean = false): String? {
-        val types = if (includeVideos) "(${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE},${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})" else "(${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE})"
+    fun selection(includeVideos: Boolean, sinceMs: Long, skipped: Set<String> = emptySet(), only: Set<String>? = null, leaveOutSaved: Boolean = false, videosOnly: Boolean = false): String? {
+        val types = when {
+            videosOnly -> "(${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})"
+            includeVideos -> "(${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE},${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})"
+            else -> "(${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE})"
+        }
         var sel = "${MediaStore.Files.FileColumns.MEDIA_TYPE} IN $types" + if (sinceMs > 0) " AND ${MediaStore.Files.FileColumns.DATE_ADDED} > ${sinceMs / 1000}" else ""
         PhotoFolders.skipClause(skipped)?.let { sel += " AND $it" }
         if (leaveOutSaved) sel += " AND ${PhotoFolders.savedClause}"
@@ -549,7 +571,11 @@ object PhotoSync {
                 visible = now
             }
         }
-        val assets = oneOffList(taken, floorMs, picked, fresh.mapTo(HashSet()) { it.id }, { it.id }) { since, only ->
+        val assets = oneOffList(
+            taken, floorMs, picked, fresh.mapTo(HashSet()) { it.id }, { it.id },
+            // Include videos off again since it was queued: none.
+            videos = { since -> if (includeVideos) fetchNewAssets(true, since, skipped = skipped, leaveOutSaved = true, videosOnly = true) else emptyList() },
+        ) { since, only ->
             fetchNewAssets(includeVideos, since, skipped = skipped, only = only, leaveOutSaved = true)
         }
         return OneOff(assets, visible, limited)
@@ -564,11 +590,17 @@ object PhotoSync {
      * is the sync's query, Include videos and the folders turned off
      * applied: a pick it doesn't return isn't sent.
      */
-    fun <A> oneOffList(taken: Set<String>, floor: Long?, picked: Set<Long>, fresh: Set<Long>, id: (A) -> Long, fetch: (Long, Set<String>?) -> List<A>): List<A> {
+    fun <A> oneOffList(
+        taken: Set<String>, floor: Long?, picked: Set<Long>, fresh: Set<Long>, id: (A) -> Long,
+        videos: ((Long) -> List<A>)? = null, fetch: (Long, Set<String>?) -> List<A>,
+    ): List<A> {
         val out = mutableListOf<A>()
-        val folders = taken - CATCH_UP
+        val folders = taken - CATCH_UP - VIDEOS
         if (folders.isNotEmpty()) out += fetch(0, folders)
         if (CATCH_UP in taken && floor != null) out += fetch(floor, null)
+        // Include videos turned back on: the videos since the floor, as the
+        // catch-up (none with no floor known).
+        if (VIDEOS in taken && floor != null && videos != null) out += videos(floor)
         if (picked.isNotEmpty()) out += fetch(0, null).filter { id(it) in picked }
         return out.distinctBy(id).filter { id(it) !in fresh }
     }
