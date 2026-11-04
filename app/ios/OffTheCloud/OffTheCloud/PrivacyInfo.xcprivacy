@@ -70,12 +70,27 @@
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
 		<dict>
-			<!-- Settings and sync bookkeeping (last sync date, toggles). -->
+			<!-- Settings and sync bookkeeping (last sync date, toggles), and the
+			     App Group's defaults shared with the home screen widget only
+			     (the app's language, the widget's shuffle and collections). -->
 			<key>NSPrivacyAccessedAPIType</key>
 			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
 				<string>CA92.1</string>
+				<string>1C8F.1</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- The photo sync checks the room left on the phone before and
+			     while it copies a photo or video out of Photos to send it, and
+			     waits (saying so in Settings) when there isn't enough
+			     (ExportRoom: volumeAvailableCapacityForImportantUsage). -->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>E174.1</string>
 			</array>
 		</dict>
 		<dict>
