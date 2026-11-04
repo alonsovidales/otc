@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import Foundation
+import Photos
 import Testing
 @testable import OffTheCloud
 
@@ -30,6 +31,22 @@ struct FreeUpSpaceTests {
         burst.burst = true
         #expect(!FreeUpSpace.eligible(edited, cutoff: cutoff, includeVideos: true, livePhotos: true))
         #expect(!FreeUpSpace.eligible(burst, cutoff: cutoff, includeVideos: true, livePhotos: true))
+    }
+
+    /// RAW+JPEG in one asset: the sync sends one picture, and deleting the
+    /// asset would take the other (usually the RAW) with it.
+    @Test func picturesInPairsStay() {
+        var pair = photo(daysAgo: 30)
+        pair.pair = true
+        #expect(!FreeUpSpace.eligible(pair, cutoff: cutoff, includeVideos: true, livePhotos: true))
+        #expect(FreeUpSpace.isPair([.photo, .alternatePhoto]))
+        #expect(FreeUpSpace.isPair([.alternatePhoto, .photo, .adjustmentData]))
+        #expect(FreeUpSpace.isPair([.photo, .photo]))
+        // One picture, its edit's data, a Live Photo's video: no pair.
+        #expect(!FreeUpSpace.isPair([.photo]))
+        #expect(!FreeUpSpace.isPair([.photo, .adjustmentData, .fullSizePhoto]))
+        #expect(!FreeUpSpace.isPair([.photo, .pairedVideo]))
+        #expect(!FreeUpSpace.isPair([.video]))
     }
 
     @Test func livePhotosOnlyWithTheirSwitch() {

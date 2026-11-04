@@ -3666,8 +3666,9 @@ reads each original right before deleting it, only when it is on the phone (neve
 those stay), as a recorded hash may come from the device's cloud-id map rather than the bytes -
 AssetSyncCache's hash only spares reading what the device doesn't hold - and never deletes edited
 assets (the sync sends the original),
-bursts, Live Photos unless `freeUpLivePhotos` (the sync sends only the still), or videos while
-Include videos is off; `PHAssetChangeRequest.deleteAssets` asks every time and keeps them 30 days
+bursts, RAW+JPEG pairs (an `.alternatePhoto` or a second photo resource: the sync sends one of the two,
+and deleting the asset deletes both), Live Photos unless `freeUpLivePhotos` (the sync sends only the
+still), or videos while Include videos is off; `PHAssetChangeRequest.deleteAssets` asks every time and keeps them 30 days
 in Recently Deleted (with iCloud Photos they leave iCloud too). Android re-reads a file whose
 `GENERATION_MODIFIED` or `SIZE` changed since it was hashed (its own `free_up_hashes.json`;
 AssetSyncCache's hashes don't say which version), needs Android 11 (`createTrashRequest`, launched
