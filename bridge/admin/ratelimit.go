@@ -18,7 +18,8 @@ import (
 // still leaves an attacker free to run attempts continuously, forever,
 // with nothing ever noticing or stopping them.
 //
-// This is a per-IP failure counter with a lockout, kept in memory. It's
+// This is a per-IP failure counter with a lockout (and one per network,
+// Admin.netLimiter), kept in memory. It's
 // deliberately not persisted: like the device session tokens in
 // session/tokens.go, a restart clearing it is acceptable (an attacker has
 // no way to force one), and it keeps this to a single process-local map
@@ -33,6 +34,20 @@ const (
 	cLoginMaxFailures = 5
 	cLoginWindow      = 15 * time.Minute
 	cLoginLockout     = 15 * time.Minute
+
+	// cLoginNetMaxFailures failed attempts from one network (an IPv4 /24,
+	// an IPv6 /48 - clientaddr.NetBucket) within cLoginWindow lock the
+	// whole network out for cLoginLockout: a /48 is 65,536 /64s, each with
+	// cLoginMaxFailures of its own, which put no bound on a guesser that
+	// rotates through them (and each guess is a bcrypt).
+	cLoginNetMaxFailures = 20
+
+	// cLoginTriesPerMinute and cLoginNetTriesPerMinute bound every attempt
+	// an address, and a network, makes - the right password too - before
+	// any work: a failure is counted only once its bcrypt is done, so many
+	// sent at once all got one.
+	cLoginTriesPerMinute    = 10
+	cLoginNetTriesPerMinute = 30
 
 	// Entries idle for longer than this are dropped on the next sweep, so
 	// a long spray across many source addresses can't grow the map without
@@ -53,15 +68,21 @@ type attemptRecord struct {
 }
 
 type loginLimiter struct {
-	mu   sync.Mutex
-	byIP map[string]*attemptRecord
+	mu sync.Mutex
+	// maxFailures in a window lock a key out (cLoginMaxFailures for an
+	// address, cLoginNetMaxFailures for a network).
+	maxFailures int
+	byIP        map[string]*attemptRecord
 	// swept is when purgeLocked last scanned, kept the map's size after.
 	swept time.Time
 	kept  int
 }
 
-func newLoginLimiter() *loginLimiter {
-	return &loginLimiter{byIP: map[string]*attemptRecord{}}
+func newLoginLimiter() *loginLimiter { return newLoginLimiterOf(cLoginMaxFailures) }
+
+// newLoginLimiterOf is a limiter that locks a key out after maxFailures.
+func newLoginLimiterOf(maxFailures int) *loginLimiter {
+	return &loginLimiter{maxFailures: maxFailures, byIP: map[string]*attemptRecord{}}
 }
 
 // clientIP is the limiter's bucket key - see clientaddr.Of for why this
@@ -111,7 +132,7 @@ func (l *loginLimiter) recordFailure(ip string, now time.Time) {
 		rec.windowStart = now
 	}
 	rec.failures++
-	if rec.failures >= cLoginMaxFailures {
+	if rec.failures >= l.maxFailures {
 		rec.lockedUntil = now.Add(cLoginLockout)
 		// Fresh window after the lockout: coming back and failing once
 		// more shouldn't immediately re-lock on the previous tally.

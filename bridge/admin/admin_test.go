@@ -589,3 +589,59 @@ func TestSetPasswordHoldsThePanelsRules(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// A guesser rotating through the /64s of one /48 (each with its own five
+// failures) locks the whole network out once it has failed
+// cLoginNetMaxFailures times, and every attempt - a right password too -
+// is bounded per address and per network before any work: past either,
+// a 429 with Retry-After, without the database or a bcrypt.
+func TestLoginIsBoundedPerNetwork(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	a := Init(dao.NewWithDB(db), []byte("session-secret"))
+	login := func(remoteAddr, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/admin/api/login", strings.NewReader(body))
+		req.RemoteAddr = remoteAddr
+		w := httptest.NewRecorder()
+		a.Login(w, req)
+		return w
+	}
+	const guess = `{"username":"operator","password":"wrong-guess"}`
+	now := time.Now()
+	for i := 0; i < cLoginNetMaxFailures; i++ {
+		r := httptest.NewRequest(http.MethodPost, "/admin/api/login", nil)
+		r.RemoteAddr = fmt.Sprintf("[2001:db8:1:%x::1]:1111", i+1)
+		a.failed(r, clientIP(r), now)
+	}
+	if w := login("[2001:db8:1:ffff::1]:1111", guess); w.Code != http.StatusTooManyRequests || w.Header().Get("Retry-After") == "" {
+		t.Errorf("a fresh /64 of the /48: %d, Retry-After %q, want 429 with one", w.Code, w.Header().Get("Retry-After"))
+	}
+	mock.ExpectQuery("select `password_hash` from `admin_users`").WillReturnRows(sqlmock.NewRows([]string{"password_hash"}))
+	if w := login("[2001:db8:2::1]:1111", guess); w.Code != http.StatusUnauthorized {
+		t.Errorf("another /48: %d, want 401", w.Code)
+	}
+
+	// Attempts, counted before the body is read.
+	a.tries = limits.NewRate(1.0/3600, 2)
+	a.triesPerNet = limits.NewRate(1.0/3600, 3)
+	for i := 0; i < 2; i++ {
+		if w := login("198.51.100.4:1111", "not json"); w.Code != http.StatusBadRequest {
+			t.Fatalf("attempt %d: %d", i, w.Code)
+		}
+	}
+	if w := login("198.51.100.4:2222", "not json"); w.Code != http.StatusTooManyRequests || w.Header().Get("Retry-After") == "" {
+		t.Errorf("a third attempt from the address: %d", w.Code)
+	}
+	if w := login("198.51.100.5:1111", "not json"); w.Code != http.StatusBadRequest {
+		t.Errorf("another address of the /24: %d", w.Code)
+	}
+	if w := login("198.51.100.6:1111", "not json"); w.Code != http.StatusTooManyRequests {
+		t.Errorf("the /24 past its attempts: %d", w.Code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}

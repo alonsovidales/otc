@@ -3077,7 +3077,13 @@ emails an hour that strangers can have sent, `emailBudget`, the new-account note
 contact messages a minute); and at most half the cores hash passwords at once
 (`limits.HashPassword`/`CheckPassword`, the admin panel's too): a hash that can't start within 3 s
 is a 503 with Retry-After and the handler's own "could not ... right now" code, never a failed
-password. The unauthenticated requests that ask the database whether what they carry is real are
+password. Every request that hashes a password it carries takes a token per address and per network
+before any work, the right passwords too - failures are counted only once their bcrypt is done, so
+many sent at once all got one: an account sign-in, reset, password change or owner confirmation
+(`passwordTryAllowed`: 10 a minute an address, 60 a network; a 429 `too_many_attempts` with
+Retry-After), and the admin login and password change (`attemptAllowed`: 10 and 30 a minute), whose
+failures also count per network (20 in 15 minutes lock the network out, `netLimiter`). The
+unauthenticated requests that ask the database whether what they carry is real are
 bounded per address and per network before they ask: name-available, claims (whose setup code is
 looked up first) and setup-lookup in `bridge/api` (`allowLookup`: 5/s, burst 40 an address, 20/s,
 burst 150 a network - the wizard checks a name as it is typed and polls the hand-off every 2 s), and

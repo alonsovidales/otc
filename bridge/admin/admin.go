@@ -43,8 +43,11 @@ const (
 type Admin struct {
 	dao           *dao.Dao
 	sessionSecret []byte
-	// Issue #99: per-IP login throttling, see ratelimit.go.
-	loginLimiter *loginLimiter
+	// Issue #99: per-IP login throttling, see ratelimit.go; netLimiter
+	// counts the failures per network, tries and triesPerNet every
+	// attempt.
+	loginLimiter, netLimiter *loginLimiter
+	tries, triesPerNet       *limits.Rate
 	// IsOnline reports whether a device is dialled in right now (the
 	// relay pool, set by main once the websocket manager exists). Nil
 	// means unknown - every device shows offline.
@@ -64,7 +67,10 @@ func Init(d *dao.Dao, sessionSecret []byte) *Admin {
 	// (accounts.Init) are signed from the same secret in the same
 	// "<id>|<expiry>" format, and an account cookie used to pass as an
 	// admin one.
-	return &Admin{dao: d, sessionSecret: DeriveKey(sessionSecret, "admin-session"), loginLimiter: newLoginLimiter()}
+	return &Admin{dao: d, sessionSecret: DeriveKey(sessionSecret, "admin-session"), loginLimiter: newLoginLimiter(),
+		netLimiter:  newLoginLimiterOf(cLoginNetMaxFailures),
+		tries:       limits.NewRate(cLoginTriesPerMinute/60.0, cLoginTriesPerMinute),
+		triesPerNet: limits.NewRate(cLoginNetTriesPerMinute/60.0, cLoginNetTriesPerMinute)}
 }
 
 // DeriveKey gives each use of the configured session secret its own key,
@@ -201,16 +207,53 @@ func (a *Admin) sessionCookie(token string, now time.Time, secure bool) *http.Co
 	}
 }
 
+// attemptAllowed is whether a login (or a password change, which checks
+// the current one) may run now, and if not how long until it may: the
+// address and its network not locked out by their failures, and within
+// their attempts, which are taken here.
+func (a *Admin) attemptAllowed(r *http.Request, ip string, now time.Time) (bool, time.Duration) {
+	if ok, wait := a.loginLimiter.allow(ip, now); !ok {
+		return false, wait
+	}
+	network := clientaddr.NetBucketOf(r)
+	if a.netLimiter != nil {
+		if ok, wait := a.netLimiter.allow(network, now); !ok {
+			return false, wait
+		}
+	}
+	for _, l := range []struct {
+		rate *limits.Rate
+		key  string
+	}{{a.tries, ip}, {a.triesPerNet, network}} {
+		if l.rate == nil {
+			continue
+		}
+		if ok, wait := l.rate.Take(l.key); !ok {
+			return false, wait
+		}
+	}
+	return true, 0
+}
+
+// failed counts a wrong password against the address and its network.
+func (a *Admin) failed(r *http.Request, ip string, now time.Time) {
+	a.loginLimiter.recordFailure(ip, now)
+	if a.netLimiter != nil {
+		a.netLimiter.recordFailure(clientaddr.NetBucketOf(r), now)
+	}
+}
+
 // Login checks username/password and, on success, sets a session cookie.
 // Issue #99: throttled per source IP (see ratelimit.go) - bcrypt alone
-// slows a guesser down but never actually stops one.
+// slows a guesser down but never actually stops one - and per network,
+// failures and attempts both (attemptAllowed).
 func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	ip := clientIP(r)
 
 	// Checked before the body is even decoded, so a locked-out caller
 	// can't keep the bridge doing bcrypt work on its behalf.
-	if ok, retryAfter := a.loginLimiter.allow(ip, now); !ok {
+	if ok, retryAfter := a.attemptAllowed(r, ip, now); !ok {
 		// The address itself, not its bucket (an IPv6 /64).
 		log.Error("admin login attempt from a rate-limited address:", clientaddr.Of(r), "- retry in", retryAfter.Round(time.Second))
 		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())+1))
@@ -248,7 +291,7 @@ func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
 		// username, so counting per account would let them sidestep this
 		// by rotating it (and would hand anyone a way to lock the real
 		// operator out of their own panel).
-		a.loginLimiter.recordFailure(ip, now)
+		a.failed(r, ip, now)
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
@@ -318,7 +361,7 @@ func passwordRule(plain string) error {
 func (a *Admin) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	ip := clientIP(r)
-	if ok, retryAfter := a.loginLimiter.allow(ip, now); !ok {
+	if ok, retryAfter := a.attemptAllowed(r, ip, now); !ok {
 		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())+1))
 		writeError(w, http.StatusTooManyRequests, "too many failed attempts, try again later")
 		return
@@ -352,7 +395,7 @@ func (a *Admin) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !found {
-		a.loginLimiter.recordFailure(ip, now)
+		a.failed(r, ip, now)
 		writeError(w, http.StatusUnauthorized, "the current password is wrong")
 		return
 	}
@@ -362,7 +405,7 @@ func (a *Admin) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !match {
-		a.loginLimiter.recordFailure(ip, now)
+		a.failed(r, ip, now)
 		writeError(w, http.StatusUnauthorized, "the current password is wrong")
 		return
 	}

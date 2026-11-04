@@ -16,6 +16,7 @@ import (
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/alonsovidales/otc/i18n"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Sign-ups are bounded per address, per network - an IPv6 /48 is 65,536
@@ -283,6 +284,100 @@ func TestSetupCodesAreCappedPerAccount(t *testing.T) {
 	if _, err := a.IssueSetupToken("acc2", false); err != nil {
 		t.Errorf("another account: %v", err)
 	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// The requests that hash a password are bounded per address and per
+// network before any work, the right passwords too: failures alone were
+// counted only after their bcrypt, so many at once - or a stream of right
+// ones for an account of one's own - kept the node's hashing slots full,
+// and everyone else's sign-in got "busy". Past either bound, a 429 with
+// Retry-After, before the database is asked.
+func TestPasswordTriesAreBoundedPerAddressAndNetwork(t *testing.T) {
+	a, mock := testAccounts(t)
+	a.passwordTries = limits.NewRate(1.0/3600, 2)
+	a.passwordTriesPerNet = limits.NewRate(1.0/3600, 3)
+	hash, err := bcrypt.GenerateFromPassword([]byte("right-password"), limits.BcryptCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	login := func(remote, body string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest("POST", "/api/account/login", strings.NewReader(body))
+		r.RemoteAddr = remote
+		w := httptest.NewRecorder()
+		a.Login(w, r)
+		return w
+	}
+	const right = `{"email":"a@b.c","password":"right-password"}`
+	for i := 0; i < 2; i++ {
+		mock.ExpectQuery("from `accounts` where `email` = \\?").WillReturnRows(sqlmock.NewRows(accountCols).
+			AddRow("acc1", "a@b.c", "A", "B", "ES", string(hash), time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now(), ""))
+		epochRow(mock, 0)
+		mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
+		if w := login("[2001:db8:1:1::1]:1000", right); w.Code != http.StatusOK {
+			t.Fatalf("sign-in %d: %d %s", i, w.Code, w.Body.String())
+		}
+	}
+	refused := func(what, remote string) {
+		t.Helper()
+		w := login(remote, right)
+		if w.Code != http.StatusTooManyRequests || !strings.Contains(w.Body.String(), `"too_many_attempts"`) || w.Header().Get("Retry-After") == "" {
+			t.Errorf("%s: %d %s, Retry-After %q", what, w.Code, w.Body.String(), w.Header().Get("Retry-After"))
+		}
+	}
+	refused("a third right password from the /64", "[2001:db8:1:1::2]:1000")
+	// Another /64 of the /48 gets the network's last one (a junk body: it
+	// is counted before the body is read), the next none.
+	if w := login("[2001:db8:1:2::1]:1000", "not json"); w.Code != http.StatusBadRequest {
+		t.Errorf("another /64 of the /48: %d %s", w.Code, w.Body.String())
+	}
+	refused("a third /64 of the /48", "[2001:db8:1:3::1]:1000")
+	if w := login("[2001:db8:2::1]:1000", "not json"); w.Code != http.StatusBadRequest {
+		t.Errorf("another network: %d %s", w.Code, w.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// The other requests that hash a password count against the same bounds:
+// the owner's confirmation, a password change, a reset.
+func TestEveryPasswordHashIsBounded(t *testing.T) {
+	a, mock := testAccounts(t)
+	a.passwordTries = limits.NewRate(1.0/3600, 1)
+	remote := "203.0.113.5:1000"
+	req := func(method, target, body string) *http.Request {
+		r := httptest.NewRequest(method, target, strings.NewReader(body))
+		r.RemoteAddr = remote
+		return r
+	}
+	a.passwordTries.Allow(clientIP(req("GET", "/", ""))) // the address's only one, spent
+	withPassword := func() {
+		mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnRows(sqlmock.NewRows(accountCols).
+			AddRow("acc1", "a@b.c", "A", "B", "ES", "$2a$12$not-checked", time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now(), ""))
+	}
+	is429 := func(what string, w *httptest.ResponseRecorder) {
+		t.Helper()
+		if w.Code != http.StatusTooManyRequests || !strings.Contains(w.Body.String(), `"too_many_attempts"`) || w.Header().Get("Retry-After") == "" {
+			t.Errorf("%s: %d %s", what, w.Code, w.Body.String())
+		}
+	}
+	withPassword()
+	w := httptest.NewRecorder()
+	if a.ConfirmOwner(w, req("DELETE", "/api/account/me", ""), "acc1", "a-password") {
+		t.Error("confirmed past the bound")
+	}
+	is429("ConfirmOwner", w)
+	withPassword()
+	w = httptest.NewRecorder()
+	a.SetPassword(w, req("PUT", "/api/account/password", `{"password":"a-new-password","current":"a-password"}`), "acc1")
+	is429("SetPassword", w)
+	mock.ExpectQuery("from `account_email_tokens`").WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
+	w = httptest.NewRecorder()
+	a.Reset(w, req("POST", "/api/account/reset", `{"token":"a-token","password":"a-new-password"}`))
+	is429("Reset", w)
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
 	}

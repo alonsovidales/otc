@@ -177,7 +177,14 @@ type Accounts struct {
 	// oauthStarts limits sign-in starts per address: each one inserts an
 	// oauth_states row.
 	oauthStarts *limits.Rate
-	jwks        jwksCache
+	// passwordTries and passwordTriesPerNet bound, per address and per
+	// network, the requests that hash a password they carry - a sign-in,
+	// a reset, a password change, the owner's confirmation - before the
+	// work, the ones that succeed too: failures are counted only once
+	// their bcrypt is done, so many sent at once all got one, and right
+	// passwords were never counted at all.
+	passwordTries, passwordTriesPerNet *limits.Rate
+	jwks                               jwksCache
 
 	// deviceOnline reports whether a device is connected to the bridge
 	// now, on any node (websocket.Manager.IsOnline): the inactivity job
@@ -202,21 +209,23 @@ func Init(d *dao.Dao, sessionSecret []byte, tld string) *Accounts {
 	a := &Accounts{
 		dao: d,
 		// Its own key (see admin.DeriveKey): never the admin one.
-		secret:           deriveKey(sessionSecret, "account-session"),
-		tld:              tld,
-		openRegistration: cfg.HasSection("accounts") && cfg.GetStr("accounts", "open-registration") == "true",
-		providers:        map[string]*provider{},
-		failures:         map[string][]time.Time{},
-		signups:          limits.NewRate(cSignupsPerHour/3600.0, cSignupsPerHour),
-		signupsPerNet:    limits.NewRate(cSignupsPerNetPerHour/3600.0, cSignupsPerNetPerHour),
-		signupsAll:       limits.NewRate(cSignupsAllPerHour/3600.0, cSignupsAllBurst),
-		emailsPerAddr:    limits.NewRate(cEmailsPerHour/3600.0, cEmailsPerHour),
-		emailsPerNet:     limits.NewRate(cEmailsPerNetPerHour/3600.0, cEmailsPerNetPerHour),
-		emailBudget:      limits.NewRate(cEmailBudgetPerHour/3600.0, cEmailBudgetBurst),
-		lookups:          limits.NewRate(cLookupsPerSecond, cLookupsBurst),
-		lookupsPerNet:    limits.NewRate(cLookupsPerNetPerSecond, cLookupsPerNetBurst),
-		codesPerAccount:  limits.NewRate(cSetupCodesPerAccount/cSetupTokenTTL.Seconds(), cSetupCodesPerAccount),
-		oauthStarts:      limits.NewRate(cOAuthStartsPerMinute/60.0, cOAuthStartsPerMinute),
+		secret:              deriveKey(sessionSecret, "account-session"),
+		tld:                 tld,
+		openRegistration:    cfg.HasSection("accounts") && cfg.GetStr("accounts", "open-registration") == "true",
+		providers:           map[string]*provider{},
+		failures:            map[string][]time.Time{},
+		signups:             limits.NewRate(cSignupsPerHour/3600.0, cSignupsPerHour),
+		signupsPerNet:       limits.NewRate(cSignupsPerNetPerHour/3600.0, cSignupsPerNetPerHour),
+		signupsAll:          limits.NewRate(cSignupsAllPerHour/3600.0, cSignupsAllBurst),
+		emailsPerAddr:       limits.NewRate(cEmailsPerHour/3600.0, cEmailsPerHour),
+		emailsPerNet:        limits.NewRate(cEmailsPerNetPerHour/3600.0, cEmailsPerNetPerHour),
+		emailBudget:         limits.NewRate(cEmailBudgetPerHour/3600.0, cEmailBudgetBurst),
+		lookups:             limits.NewRate(cLookupsPerSecond, cLookupsBurst),
+		lookupsPerNet:       limits.NewRate(cLookupsPerNetPerSecond, cLookupsPerNetBurst),
+		codesPerAccount:     limits.NewRate(cSetupCodesPerAccount/cSetupTokenTTL.Seconds(), cSetupCodesPerAccount),
+		oauthStarts:         limits.NewRate(cOAuthStartsPerMinute/60.0, cOAuthStartsPerMinute),
+		passwordTries:       limits.NewRate(cPasswordTriesPerMinute/60.0, cPasswordTriesPerMinute),
+		passwordTriesPerNet: limits.NewRate(cPasswordTriesPerNetPerMinute/60.0, cPasswordTriesPerNetPerMinute),
 	}
 	a.loadProviders()
 	go a.pruneLoop()
@@ -979,6 +988,27 @@ const cLoginNetFailures = 40
 // person starts one per attempt, a NAT or an office a few more.
 const cOAuthStartsPerMinute = 30
 
+// cPasswordTriesPerMinute bounds the requests that hash a password one
+// address makes (passwordTries), cPasswordTriesPerNetPerMinute a network's:
+// a person signs in, changes or confirms a password a few times a minute
+// at the most, and each costs a quarter of a second of a core.
+const (
+	cPasswordTriesPerMinute       = 10
+	cPasswordTriesPerNetPerMinute = 60
+)
+
+// passwordTryAllowed applies passwordTries and passwordTriesPerNet to r,
+// before a request hashes the password it carries; when either says no it
+// answers a 429 with Retry-After.
+func (a *Accounts) passwordTryAllowed(w http.ResponseWriter, r *http.Request) bool {
+	ok, wait := takeAll(limitKey{a.passwordTries, clientIP(r)}, limitKey{a.passwordTriesPerNet, clientaddr.NetBucketOf(r)})
+	if !ok {
+		limits.RetryAfter(w, wait)
+		writeError(w, http.StatusTooManyRequests, "too_many_attempts", errorText(i18n.ApiErrorTooManyAttemptsMinutes()))
+	}
+	return ok
+}
+
 // Login checks an email and password. POST /api/account/login.
 func (a *Accounts) Login(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
@@ -986,6 +1016,11 @@ func (a *Accounts) Login(w http.ResponseWriter, r *http.Request) {
 	if ok, wait := a.loginAllowed(ip, now); !ok {
 		limits.RetryAfter(w, wait)
 		writeError(w, http.StatusTooManyRequests, "too_many_attempts", errorText(i18n.ApiErrorTooManyAttempts()))
+		return
+	}
+	// Every sign-in is a bcrypt, right or wrong: bounded before the
+	// database is asked.
+	if !a.passwordTryAllowed(w, r) {
 		return
 	}
 	var body struct{ Email, Password string }
@@ -1215,6 +1250,9 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 			writeError(w, http.StatusTooManyRequests, "too_many_attempts", errorText(i18n.ApiErrorTooManyAttemptsMinutes()))
 			return
 		}
+		if !a.passwordTryAllowed(w, r) {
+			return
+		}
 		match, err := limits.CheckPassword(acc.PasswordHash, body.Current)
 		if err != nil {
 			hashRefused(w, err, "save_unavailable", i18n.ApiErrorSaveUnavailable())
@@ -1233,6 +1271,8 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 		return
 	} else if !ok || now.Sub(issued) > cFreshSignIn {
 		writeError(w, http.StatusUnauthorized, "recent_signin_required", errorText(i18n.ApiErrorRecentSigninRequiredProvider()))
+		return
+	} else if !a.passwordTryAllowed(w, r) {
 		return
 	}
 	hash, err := limits.HashPassword(body.Password)
@@ -1275,6 +1315,9 @@ func (a *Accounts) ConfirmOwner(w http.ResponseWriter, r *http.Request, accountI
 		if ok, wait := a.loginAllowed(ip, now); !ok {
 			limits.RetryAfter(w, wait)
 			writeError(w, http.StatusTooManyRequests, "too_many_attempts", errorText(i18n.ApiErrorTooManyAttemptsMinutes()))
+			return false
+		}
+		if !a.passwordTryAllowed(w, r) {
 			return false
 		}
 		match, err := limits.CheckPassword(acc.PasswordHash, password)
@@ -1790,6 +1833,11 @@ func (a *Accounts) Reset(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if !ok {
 		writeError(w, http.StatusBadRequest, "reset_link_invalid", errorText(i18n.ApiErrorResetLinkInvalid()))
+		return
+	}
+	// A working link can be sent many times at once, each a bcrypt until
+	// one of them spends it.
+	if !a.passwordTryAllowed(w, r) {
 		return
 	}
 	hash, err := limits.HashPassword(body.Password)
