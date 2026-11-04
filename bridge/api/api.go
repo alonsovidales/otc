@@ -116,6 +116,9 @@ type API struct {
 	// /24, an IPv6 /48), before it is asked: every node's connections to
 	// the one primary are shared with the devices dialling in.
 	lookupPerAddr, lookupPerNet *limits.Rate
+	// beaconPerNet limits the setup-beacon reports per network, as
+	// beaconPerAddr does per address.
+	beaconPerNet *limits.Rate
 	// tld is [otc-api] tld, read once at Init; device domains are <name>.<tld>.
 	tld string
 	// cluster is issue #144; nil on a single bridge.
@@ -123,10 +126,9 @@ type API struct {
 	// oneOffPerAddr limits the device GETs (static assets, /media) one
 	// address can make (issue #163): each spends a device connection.
 	oneOffPerAddr *limits.Rate
-	// beaconPerAddr and beaconPerNet limit the unauthenticated
-	// setup-beacon reports (each is a write on the shared primary) per
-	// address and per network.
-	beaconPerAddr, beaconPerNet *limits.Rate
+	// beaconPerAddr limits the unauthenticated setup-beacon reports (each
+	// is a write on the shared primary) per address.
+	beaconPerAddr *limits.Rate
 	// forwardOneOff stands in for websocket.ForwardOneOff in tests (a
 	// fake device); nil in production.
 	forwardOneOff func(domain string, frame []byte) ([]byte, error)
@@ -205,7 +207,6 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 	api = &API{
 		oneOffPerAddr:     limits.NewRate(cOneOffPerSecond, cOneOffBurst),
 		beaconPerAddr:     limits.NewRate(cSetupBeaconPerSecond, cSetupBeaconBurst),
-		beaconPerNet:      limits.NewRate(cSetupBeaconPerNetPerSecond, cSetupBeaconPerNetBurst),
 		websocket:         webSocket,
 		dao:               dao,
 		admin:             adm,
@@ -218,6 +219,7 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 		contactAll:        limits.NewRate(cContactAllPerMinute/60.0, cContactAllPerMinute),
 		lookupPerAddr:     limits.NewRate(cLookupPerSecond, cLookupBurst),
 		lookupPerNet:      limits.NewRate(cLookupPerNetPerSecond, cLookupPerNetBurst),
+		beaconPerNet:      limits.NewRate(cSetupBeaconPerNetPerSecond, cSetupBeaconPerNetBurst),
 		tld:               cfg.GetStr("otc-api", "tld"),
 		cluster:           clu,
 		recordVisit:       dao.RecordSiteVisit,
