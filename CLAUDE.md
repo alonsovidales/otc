@@ -3527,8 +3527,10 @@ conflict is made once, reused while its upload fails (`conflictCopyOf`), and not
 file. On a disk that ignores case, a folder renamed only in case on the device is renamed so here
 before the pass plans (`casefix.go`); one renamed so here - the record has its files under the
 device's spelling only - is left as it is, and goes up as any rename. On Windows, device names Windows can't hold
-(`\ < > : " | ? *`, a last dot or space, device names) are left out either way (`names.go`,
-`desk.main.names_not_allowed`). Tests: engine `rootid_test.go`, `skipped_test.go`, `trash_test.go`,
+(`\ < > : " | ? *`, a last dot or space, device names - with an extension only where that Windows
+says so, through `filepath.IsLocal`: Windows 11 holds `con.txt`) are left out either way: no
+action for their paths here either, a file here at one kept with its record (`names.go`,
+`excludedHere`, `desk.main.names_not_allowed`). Tests: engine `rootid_test.go`, `skipped_test.go`, `trash_test.go`,
 `fail_test.go`, `casefix_test.go`, `names_test.go`; the engine's tests run with HOME and the XDG
 folders in a scratch folder (`TestMain`), the config and command line's against an in-memory
 keyring. Downloads go to a temp name of their own (`name.<random>.otc-part`),

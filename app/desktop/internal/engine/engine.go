@@ -1658,6 +1658,11 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	remoteByRel := map[string]*pb.File{}
 	// Device entries whose names Windows can't hold (names.go).
 	unusable := 0
+	// The keys of the device entries left out for their names (those, and
+	// the unsafe ones): left out here too - a file here at one is neither
+	// sent over the device's nor taken for deleted there, and keeps its
+	// record.
+	excludedHere := map[string]bool{}
 	if lof, ok := resp.Payload.(*pb.RespEnvelope_RespListOfFiles); ok {
 		skipped, twins := 0, 0
 		for _, rf := range lof.RespListOfFiles.Files {
@@ -1668,11 +1673,15 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			key := pathKey(rel)
 			if under && rel != "" && (unusableName(rel) || unusableName(key)) {
 				unusable++
+				excludedHere[key] = true
 
 				continue
 			}
 			if !under || !safeRelative(rel) || !safeRelative(key) {
 				skipped++
+				if under && rel != "" {
+					excludedHere[key] = true
+				}
 
 				continue
 			}
@@ -1759,6 +1768,9 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			e.setRemoteState(f.ID, checkingState(i+1, len(local), filepath.Base(p)))
 			e.saveHashCacheEvery(f.ID)
 		}
+		if excludedHere[key] {
+			continue // never compared (excludedHere)
+		}
 		if _, onDevice := remoteByRel[key]; !onDevice {
 			if _, synced := last[key]; !synced {
 				newLocal[key] = true
@@ -1821,7 +1833,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	var actions []action
 	deletesHeld := 0 // waiting for upload only (holdDeletes)
 	for rel := range all {
-		if unreadable[rel] || notSyncedHere[rel] {
+		if unreadable[rel] || notSyncedHere[rel] || excludedHere[rel] {
 			continue
 		}
 		if newLocal[rel] {
