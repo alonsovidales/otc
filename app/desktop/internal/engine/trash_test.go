@@ -88,3 +88,21 @@ func TestFolderTrash(t *testing.T) {
 		t.Fatal("the folder's trash would be synced")
 	}
 }
+
+// The .otc-trash of a disk mounted in the folder - where folderTrash puts
+// the files that were on it - is emptied of old days too, not kept for
+// good.
+func TestMountedDisksTrashIsPruned(t *testing.T) {
+	root := t.TempDir()
+	day := time.Date(2026, 11, 4, 10, 0, 0, 0, time.Local)
+	old := day.AddDate(0, 0, -31).Format("2006-01-02")
+	for _, top := range []string{".", "nas", "usb/disk"} {
+		writeFiles(t, root, map[string]string{filepath.ToSlash(filepath.Join(top, folderTrashName, old, "a.txt")): "x"})
+	}
+	pruneFolderTrashes(root, []string{"nas", "usb/disk", "../outside"}, day)
+	for _, top := range []string{".", "nas", "usb/disk"} {
+		if _, err := os.Stat(filepath.Join(root, top, folderTrashName)); !os.IsNotExist(err) {
+			t.Errorf("%s: the trash of more than 30 days ago was kept: %v", top, err)
+		}
+	}
+}

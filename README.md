@@ -104,7 +104,8 @@ Windows (its dialogs have no checkboxes). A device that hasn't been updated yet 
 *Nothing deleted by mistake*: a file deleted on the device (from the web app, a phone or another
 computer) goes to this computer's trash rather than away for good - the desktop's trash on Linux,
 the Recycle Bin on Windows, and on a disk without one (a network share, a USB stick on Windows) a
-`.otc-trash` folder inside the synced folder, emptied after 30 days. Many files deleted on this
+`.otc-trash` folder inside the synced folder (or at the top of a disk mounted inside it), emptied
+after 30 days. Many files deleted on this
 computer at once (more than 20, and a quarter of the folder) aren't deleted on the device: the
 folder says so, and deleting them there too finishes the job; the same guard keeps files the device
 lost from being deleted here. Each two-way folder holds a small hidden file, `.otc-sync-<id>`, by

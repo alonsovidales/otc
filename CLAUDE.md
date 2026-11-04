@@ -3447,8 +3447,9 @@ under another name - a move - doesn't count); a backup keeps on the device what 
 What a two-way pass deletes here goes to the trash: the Mac's Trash, and otc-sync's system trash
 (`engine/trash*.go`: the freedesktop.org trash on Linux - the home trash, or the disk's own
 `.Trash/<uid>` or `.Trash-<uid>`, each file with its `.trashinfo` -, the Recycle Bin on Windows,
-fixed disks only; else a `.otc-trash/<day>/` folder in the synced folder, never synced, emptied of
-days older than 30); a file that can't be moved stays, and is tried again. Upload-only folders from before backups were a choice were migrated to two-way once
+fixed disks only; else a `.otc-trash/<day>/` folder in the synced folder - at the top of a disk
+mounted in it for a file on that disk, which a rename can't leave -, never synced, each emptied of
+days older than 30 after a pass, `pruneFolderTrashes`); a file that can't be moved stays, and is tried again. Upload-only folders from before backups were a choice were migrated to two-way once
 (`SyncModel.migrateLocalFolders`, gated by `sync.folders.migratedToTwoWay`; `engine.migrateFolders`
 skips `OneWay`), and the sync record (relative path -> hash after the last pass) is saved per folder
 (`synced/<id>.json`), so a delete made while the app was closed still propagates. Issue #134: both send a file's own creation and modification times with

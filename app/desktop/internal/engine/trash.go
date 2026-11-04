@@ -144,6 +144,19 @@ func freeName(p string) (string, error) {
 	return "", fmt.Errorf("no free name for %s", base) // i18n-ignore: a file's error, only logged
 }
 
+// pruneFolderTrashes prunes every .otc-trash of a two-way folder root: its
+// own, and that of each disk or share mounted in it (mounts, relative to
+// root as the record keeps them), where folderTrash puts the files that
+// were on it.
+func pruneFolderTrashes(root string, mounts []string, now time.Time) {
+	pruneFolderTrash(root, now)
+	for _, m := range mounts {
+		if safeRelative(m) {
+			pruneFolderTrash(filepath.Join(root, filepath.FromSlash(m)), now)
+		}
+	}
+}
+
 // pruneFolderTrash empties the days in root's .otc-trash older than
 // folderTrashDays, and the folder itself once it is empty.
 func pruneFolderTrash(root string, now time.Time) {
