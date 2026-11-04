@@ -5,6 +5,7 @@ package filesmanager
 import (
 	"errors"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -205,4 +206,40 @@ func waitGalleryJob(t *testing.T, id string) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Fatal("the gallery job never finished")
+}
+
+// A size no disk holds can't turn the free-space checks off. Worked out,
+// what one within ~2^47 of MaxInt64 takes sealed wrapped negative - nothing
+// to write - and while its upload lived, every other upload was let
+// through whatever room was left. BeginUpload refuses such a size, and
+// what a write needs saturates instead of wrapping.
+func TestImpossibleSizesDontWrap(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	owner := new(int)
+	t.Cleanup(func() { (&Manager{}).ReleaseUploadsOf(owner) })
+	withDisk(t, 4_000_000_000_000, 1<<30+10<<20) // 10 MiB over the reserve
+	mg := &Manager{}
+	for _, size := range []int64{math.MaxInt64, math.MaxInt64 - 1<<40, cMaxUploadSize + 1} {
+		if _, _, err := mg.BeginUpload(ses, "/huge.bin", size, false, nil, nil, "", "", owner); err == nil || err.Error() != "bad size" {
+			t.Errorf("BeginUpload of %d bytes: %v, want bad size", size, err)
+		}
+	}
+	for _, n := range []int64{math.MaxInt64, math.MaxInt64 - 1<<40, cMaxSealed + 1} {
+		if got := sealedSize(n); got != math.MaxInt64 {
+			t.Errorf("sealedSize(%d) = %d, want MaxInt64", n, got)
+		}
+	}
+	if got, want := sealedSize(cMaxSealed), segcrypt.Current.EncryptedSize(cMaxSealed)+4096; got != want || got <= 0 {
+		t.Errorf("sealedSize(cMaxSealed) = %d, want %d", got, want)
+	}
+	// An upload under way and a write asking for everything: no wrap.
+	if _, _, err := mg.BeginUpload(ses, "/a.mov", 6<<20, false, nil, nil, "", "", owner); err != nil {
+		t.Fatalf("an upload that fits was refused: %v", err)
+	}
+	if err := pendingUploads.roomFor("/storage", math.MaxInt64); !IsStorageFull(err) {
+		t.Errorf("room for MaxInt64 bytes with an upload under way: %v", err)
+	}
+	if _, _, err := mg.BeginUpload(ses, "/b.mov", 6<<20, false, nil, nil, "", "", owner); !IsStorageFull(err) {
+		t.Errorf("a second upload that doesn't fit: %v", err)
+	}
 }

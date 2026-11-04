@@ -20,7 +20,7 @@
   },
   "dev.files.bad_size": {
     "text": "bad size",
-    "note": "Error shown after \"error starting the upload: \" when an app starts an upload with a negative size (an app fault)."
+    "note": "Error shown after \"error starting the upload: \" when an app starts an upload with a negative size, or one larger than any disk (an app fault)."
   },
   "dev.files.chunk_too_big": {
     "text": "chunk over {limit} bytes",

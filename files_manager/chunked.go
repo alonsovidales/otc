@@ -53,6 +53,10 @@ import (
 const (
 	// MaxChunk is the most one upload chunk or read returns.
 	MaxChunk = 4 << 20
+	// cMaxUploadSize is the largest upload BeginUpload takes: a pebibyte,
+	// past any disk a device has. A size beyond is a client's mistake, and
+	// one near MaxInt64 overflowed the free-space arithmetic (sealedSize).
+	cMaxUploadSize = 1 << 50
 	// cUploadIdle: an upload nobody has sent to for this long is dropped,
 	// whether a connection still drives it or it is kept for a resume.
 	cUploadIdle = 30 * time.Minute
@@ -262,7 +266,7 @@ func (u *uploads) dropOldestKept() bool {
 // one no connection drives never stops a write that is happening.
 func (u *uploads) roomFor(dir string, need int64) error {
 	for {
-		err := checkFreeSpace(dir, need+u.remaining())
+		err := checkFreeSpace(dir, addSizes(need, u.remaining()))
 		if err == nil || !IsStorageFull(err) || !u.dropOldestKept() {
 			return err
 		}
@@ -356,7 +360,7 @@ func (u *uploads) slot() error {
 // passes its connection) is the connection driving it, which UploadChunk
 // and FinishUpload must come from and ReleaseUploadsOf matches.
 func (mg *Manager) BeginUpload(ses *session.Session, path string, size int64, forceOverride bool, created, modified *timestamppb.Timestamp, cloudID, sha256Hex string, owner any) (id string, received int64, err error) {
-	if size < 0 {
+	if size < 0 || size > cMaxUploadSize {
 		return "", 0, devtext.New(i18n.DevFilesBadSize())
 	}
 	noteUploadActivity() // the thumbnails pass waits for a sync to stop
@@ -417,7 +421,7 @@ func (u *uploads) remaining() int64 {
 	for _, up := range u.by {
 		up.mu.Lock()
 		if !up.gone {
-			n += sealedSize(up.size() - up.received)
+			n = addSizes(n, sealedSize(up.size()-up.received))
 		}
 		up.mu.Unlock()
 	}

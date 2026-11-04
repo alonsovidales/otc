@@ -4,6 +4,7 @@ package filesmanager
 
 import (
 	"errors"
+	"math"
 	"syscall"
 
 	"github.com/alonsovidales/otc/devtext"
@@ -86,9 +87,30 @@ func checkFreeSpace(dir string, need int64) error {
 	return nil
 }
 
+// cMaxSealed is the most content sealedSize works out what it takes:
+// past it (an exbibyte, far more than any disk holds) the answer is
+// MaxInt64. A size is a client's to say (BeginUpload.size): worked out,
+// one within ~2^47 of MaxInt64 wrapped negative, which checkFreeSpace took
+// for nothing to write - and while that upload lived, what the uploads
+// under way still had to write was hugely negative too, so every other
+// upload's room was let through whatever was left.
+const cMaxSealed = 1 << 60
+
 // sealedSize is what content of n bytes takes once sealed in the format
 // new files are written in (segcrypt.Current: its header and a 16-byte tag
-// per MiB segment), and a filesystem block more for the rounding.
+// per MiB segment), and a filesystem block more for the rounding -
+// MaxInt64 for a size no disk holds (cMaxSealed).
 func sealedSize(n int64) int64 {
+	if n > cMaxSealed {
+		return math.MaxInt64
+	}
 	return segcrypt.Current.EncryptedSize(max(n, 0)) + 4096
+}
+
+// addSizes is a + b, sizes of zero or more: MaxInt64 when that is more.
+func addSizes(a, b int64) int64 {
+	if b > 0 && a > math.MaxInt64-b {
+		return math.MaxInt64
+	}
+	return a + b
 }
