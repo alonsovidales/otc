@@ -52,6 +52,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import cloud.offthe.otc.ui.common.PauseWhenStopped
 import cloud.offthe.otc.ui.common.LoadSubject
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Scaffold
@@ -706,7 +707,9 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
                         tmp.toURI().toString()
                     }
                 } ?: return@launch
-                val p = MediaStream.player(context, url).apply {
+                // The audio focus only once its sound is on: a muted video
+                // playing by itself leaves the phone's music alone.
+                val p = MediaStream.player(context, url, audioFocus = !muted).apply {
                     setMediaItem(MediaItem.fromUri(url)); volume = if (muted) 0f else 1f; prepare(); playWhenReady = true
                     addListener(object : Player.Listener {
                         override fun onPlaybackStateChanged(state: Int) { if (state == Player.STATE_ENDED) ended = true }
@@ -727,7 +730,12 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
     }
 
     LaunchedEffect(playing) { if (playing) { if (player == null) load() else player?.play() } else player?.pause() }
-    LaunchedEffect(muted) { player?.volume = if (muted) 0f else 1f }
+    LaunchedEffect(muted) {
+        player?.volume = if (muted) 0f else 1f
+        player?.setAudioAttributes(MediaStream.movieAudio, !muted)
+    }
+    // Paused when the app leaves the screen, as the viewer's.
+    PauseWhenStopped(player)
     DisposableEffect(file.hash) {
         onDispose {
             player?.release(); player = null

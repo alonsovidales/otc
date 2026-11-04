@@ -74,6 +74,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import cloud.offthe.otc.ui.animationsOff
+import cloud.offthe.otc.ui.common.PauseWhenStopped
 import cloud.offthe.otc.ui.common.Toast
 import kotlinx.coroutines.delay
 import androidx.compose.material3.AlertDialog
@@ -2357,6 +2358,8 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
                 player.addListener(listener)
                 onDispose { player.removeListener(listener); player.release() }
             }
+            // Paused when the app leaves the screen, not playing on in the pocket.
+            PauseWhenStopped(player)
             AndroidView(factory = { PlayerView(it).apply { this.player = player; useController = true } }, modifier = Modifier.fillMaxSize())
             return@Box
         }

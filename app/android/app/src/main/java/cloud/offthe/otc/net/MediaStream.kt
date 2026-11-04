@@ -3,6 +3,8 @@ package cloud.offthe.otc.net
 
 import android.content.Context
 import androidx.annotation.OptIn
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -92,12 +94,27 @@ object MediaStream {
      * file) with ExoPlayer's own stack, as before.
      */
     @OptIn(UnstableApi::class)
-    fun player(context: Context, url: String): ExoPlayer {
+    fun player(context: Context, url: String, audioFocus: Boolean = true): ExoPlayer {
         val h = synchronized(lock) { pinned.entries.firstOrNull { url.startsWith(it.key + "/") }?.value }
-            ?: return ExoPlayer.Builder(context).build()
+            ?: return playerBuilder(context, audioFocus).build()
         val http = OkHttpDataSource.Factory(HomeNetwork.client(h.pin, h.via))
-        return ExoPlayer.Builder(context)
+        return playerBuilder(context, audioFocus)
             .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(context, http)))
             .build()
     }
+
+    /** What every player plays: a film's sound, as media. */
+    val movieAudio: AudioAttributes = AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build()
+
+    /**
+     * A player that behaves as media does on the phone: it takes the audio
+     * focus while it plays ([audioFocus]; a muted feed video leaves the
+     * phone's music alone) and gives it up for a call or a navigation
+     * prompt, and it pauses when headphones are unplugged instead of moving
+     * the sound to the loudspeaker.
+     */
+    fun playerBuilder(context: Context, audioFocus: Boolean = true): ExoPlayer.Builder =
+        ExoPlayer.Builder(context)
+            .setAudioAttributes(movieAudio, audioFocus)
+            .setHandleAudioBecomingNoisy(true)
 }

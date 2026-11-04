@@ -69,7 +69,9 @@ fun formatTimecode(secs: Double): String {
 @Composable
 fun VideoTrimmerView(uri: String, existing: TrimRange?, onApply: (TrimRange?) -> Unit, onCancel: () -> Unit) {
     val context = LocalContext.current
-    val player = remember { ExoPlayer.Builder(context).build().apply { setMediaItem(MediaItem.fromUri(uri)); prepare() } }
+    val player = remember { cloud.offthe.otc.net.MediaStream.playerBuilder(context).build().apply { setMediaItem(MediaItem.fromUri(uri)); prepare() } }
+    // Paused when the app leaves the screen.
+    cloud.offthe.otc.ui.common.PauseWhenStopped(player)
     var duration by remember { mutableStateOf<Double?>(null) }
     var start by remember { mutableStateOf(existing?.start ?: 0.0) }
     var end by remember { mutableStateOf(existing?.end ?: 0.0) }
