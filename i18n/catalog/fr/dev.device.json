@@ -19,6 +19,8 @@
   "dev.device.restart_needs_update": {"text": "cet appareil ne peut pas être redémarré d’ici tant qu’il n’a pas été mis à jour"},
   "dev.device.restart_request_failed": {"text": "impossible de demander le redémarrage : {detail}"},
   "dev.device.restart_too_soon": {"text": "l’appareil vient tout juste de démarrer ; réessayez dans une minute"},
+  "dev.device.restart_update_running": {"text": "une mise à jour est en cours ; réessayez quand elle sera terminée"},
+  "dev.device.restart_wifi_changing": {"text": "le Wi-Fi de l’appareil est en cours de modification ; réessayez dans quelques minutes"},
   "dev.device.shutdown_in_container": {"text": "non disponible dans Docker : arrêtez le conteneur sur le serveur où il fonctionne"},
   "dev.device.shutdown_needs_update": {"text": "cet appareil ne peut pas être éteint d’ici tant qu’il n’a pas été mis à jour"},
   "dev.device.shutdown_request_failed": {"text": "impossible de demander l’arrêt : {detail}"},

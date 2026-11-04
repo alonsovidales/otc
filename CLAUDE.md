@@ -1767,9 +1767,18 @@ start takes its file.
     Pi happens after the release, through Update.
 - `devicerestart` — Settings > Restart device (release 115): `RestartDevice` (137) ->
   `RestartingDevice{expected_seconds}` (68), owner of the main instance only (`sup == nil` refused;
-  older devices answer `unknown_payload`). Writes `/var/lib/otc/reboot.request`;
+  older devices answer `unknown_payload`), and - as Shut down device, under
+  `network.UnlessChanging`'s lock (`websocket/restart.go`) - refused while a Wi-Fi change
+  (`wifi_changing`, `dev.device.restart_wifi_changing`) or an update (`updater.Pending`,
+  `update_running`, `dev.device.restart_update_running`) runs: a restart in the minutes after an
+  update restarted the service, while update.sh checks that the new release starts, left a release
+  that doesn't start installed with its rollback never run. Writes `/var/lib/otc/reboot.request`;
   `otc-reboot.path` runs `otc-reboot-runner` (removes the request first, refuses in the first 2
-  minutes after boot - the device too - waits 3 s for the answer to leave, `systemctl reboot`). In
+  minutes after boot - the device too -, drops it while an update was asked for or runs and while
+  the Wi-Fi lock is held, which it then keeps until the machine goes down, as the shutdown runner;
+  `--dry-run` by hand; waits 3 s for the answer to leave, `systemctl reboot`). The apps show the
+  device's words for a refusal (`TestRestartDevice`; devicerestart's
+  `TestPowerRunnersRefuseDuringAnUpdateOrAWifiChange` runs both runners on Linux). In
   the Device version section of web `UpdatePanel`, iOS `UpdateSection`, Android `UpdateViewModel`:
   confirm, "Restarting…", then a `GetInstanceRole` every 5 s from 20 s on; back = the device's own
   answer (never the bridge's `device_unreachable` Ack) after a failed look or 90 s; "slow" after 5

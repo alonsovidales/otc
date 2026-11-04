@@ -224,6 +224,10 @@ var headEnglish = []struct {
 	{"dev.device.restart_needs_update", i18n.DevDeviceRestartNeedsUpdate(), "this device can't be restarted from here until it is updated"},
 	{"dev.device.restart_request_failed", i18n.DevDeviceRestartRequestFailed("boom"), fmt.Sprintf("could not ask for the restart: %v", "boom")},
 	{"dev.device.restart_too_soon", i18n.DevDeviceRestartTooSoon(), "the device has only just started; try again in a minute"},
+	// Restart device refused during an update or a Wi-Fi change: new, the
+	// same words as the shutdown's.
+	{"dev.device.restart_update_running", i18n.DevDeviceRestartUpdateRunning(), "an update is running; try again once it has finished"},
+	{"dev.device.restart_wifi_changing", i18n.DevDeviceRestartWifiChanging(), "the device's Wi-Fi is being changed; try again in a few minutes"},
 	{"dev.device.shutdown_in_container", i18n.DevDeviceShutdownInContainer(), "not available in Docker: stop the container on the server it runs on"},
 	{"dev.device.shutdown_needs_update", i18n.DevDeviceShutdownNeedsUpdate(), "this device can't be shut down from here until it is updated"},
 	{"dev.device.shutdown_request_failed", i18n.DevDeviceShutdownRequestFailed("boom"), fmt.Sprintf("could not ask for the shutdown: %v", "boom")},

@@ -19,6 +19,8 @@
   "dev.device.restart_needs_update": {"text": "dieses Gerät kann erst nach einem Update von hier aus neu gestartet werden"},
   "dev.device.restart_request_failed": {"text": "der Neustart konnte nicht angefordert werden: {detail}"},
   "dev.device.restart_too_soon": {"text": "das Gerät wurde gerade erst gestartet; versuche es in einer Minute erneut"},
+  "dev.device.restart_update_running": {"text": "gerade läuft ein Update; versuche es erneut, wenn es fertig ist"},
+  "dev.device.restart_wifi_changing": {"text": "das WLAN des Geräts wird gerade geändert; versuche es in ein paar Minuten erneut"},
   "dev.device.shutdown_in_container": {"text": "in Docker nicht verfügbar: Stoppe den Container auf dem Server, auf dem er läuft"},
   "dev.device.shutdown_needs_update": {"text": "dieses Gerät kann erst nach einem Update von hier aus heruntergefahren werden"},
   "dev.device.shutdown_request_failed": {"text": "das Herunterfahren konnte nicht angefordert werden: {detail}"},

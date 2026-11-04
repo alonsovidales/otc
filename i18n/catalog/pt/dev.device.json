@@ -19,6 +19,8 @@
   "dev.device.restart_needs_update": {"text": "este dispositivo não pode ser reiniciado a partir daqui enquanto não for atualizado"},
   "dev.device.restart_request_failed": {"text": "não foi possível pedir o reinício: {detail}"},
   "dev.device.restart_too_soon": {"text": "o dispositivo acabou de arrancar; tenta novamente daqui a um minuto"},
+  "dev.device.restart_update_running": {"text": "está a decorrer uma atualização; tenta novamente quando terminar"},
+  "dev.device.restart_wifi_changing": {"text": "o Wi-Fi do dispositivo está a ser alterado; tenta novamente daqui a alguns minutos"},
   "dev.device.shutdown_in_container": {"text": "não disponível em Docker: para o contentor no servidor onde funciona"},
   "dev.device.shutdown_needs_update": {"text": "este dispositivo não pode ser desligado a partir daqui enquanto não for atualizado"},
   "dev.device.shutdown_request_failed": {"text": "não foi possível pedir para desligar: {detail}"},

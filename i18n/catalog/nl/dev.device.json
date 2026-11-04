@@ -19,6 +19,8 @@
   "dev.device.restart_needs_update": {"text": "dit apparaat kan hier pas worden herstart als het is bijgewerkt"},
   "dev.device.restart_request_failed": {"text": "kan de herstart niet aanvragen: {detail}"},
   "dev.device.restart_too_soon": {"text": "het apparaat is net opgestart; probeer het over een minuut opnieuw"},
+  "dev.device.restart_update_running": {"text": "er wordt een update uitgevoerd; probeer het opnieuw als die klaar is"},
+  "dev.device.restart_wifi_changing": {"text": "de wifi van het apparaat wordt gewijzigd; probeer het over een paar minuten opnieuw"},
   "dev.device.shutdown_in_container": {"text": "niet beschikbaar in Docker: stop de container op de server waarop hij draait"},
   "dev.device.shutdown_needs_update": {"text": "dit apparaat kan hier pas worden uitgeschakeld als het is bijgewerkt"},
   "dev.device.shutdown_request_failed": {"text": "kan het uitschakelen niet aanvragen: {detail}"},

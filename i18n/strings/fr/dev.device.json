@@ -81,6 +81,14 @@
     "text": "l’appareil vient tout juste de démarrer ; réessayez dans une minute",
     "en": "the device has only just started; try again in a minute"
   },
+  "dev.device.restart_update_running": {
+    "text": "une mise à jour est en cours ; réessayez quand elle sera terminée",
+    "en": "an update is running; try again once it has finished"
+  },
+  "dev.device.restart_wifi_changing": {
+    "text": "le Wi-Fi de l’appareil est en cours de modification ; réessayez dans quelques minutes",
+    "en": "the device's Wi-Fi is being changed; try again in a few minutes"
+  },
   "dev.device.shutdown_in_container": {
     "text": "non disponible dans Docker : arrêtez le conteneur sur le serveur où il fonctionne",
     "en": "not available in Docker: stop the container on the server it runs on"

@@ -81,6 +81,14 @@
     "text": "het apparaat is net opgestart; probeer het over een minuut opnieuw",
     "en": "the device has only just started; try again in a minute"
   },
+  "dev.device.restart_update_running": {
+    "text": "er wordt een update uitgevoerd; probeer het opnieuw als die klaar is",
+    "en": "an update is running; try again once it has finished"
+  },
+  "dev.device.restart_wifi_changing": {
+    "text": "de wifi van het apparaat wordt gewijzigd; probeer het over een paar minuten opnieuw",
+    "en": "the device's Wi-Fi is being changed; try again in a few minutes"
+  },
   "dev.device.shutdown_in_container": {
     "text": "niet beschikbaar in Docker: stop de container op de server waarop hij draait",
     "en": "not available in Docker: stop the container on the server it runs on"

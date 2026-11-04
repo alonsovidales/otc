@@ -19,6 +19,8 @@
   "dev.device.restart_needs_update": {"text": "este dispositivo no se puede reiniciar desde aquí hasta que se actualice"},
   "dev.device.restart_request_failed": {"text": "no se ha podido solicitar el reinicio: {detail}"},
   "dev.device.restart_too_soon": {"text": "el dispositivo se acaba de iniciar; vuelve a intentarlo dentro de un minuto"},
+  "dev.device.restart_update_running": {"text": "se está instalando una actualización; vuelve a intentarlo cuando termine"},
+  "dev.device.restart_wifi_changing": {"text": "se está cambiando el Wi-Fi del dispositivo; vuelve a intentarlo dentro de unos minutos"},
   "dev.device.shutdown_in_container": {"text": "no disponible en Docker: detén el contenedor en el servidor en el que funciona"},
   "dev.device.shutdown_needs_update": {"text": "este dispositivo no se puede apagar desde aquí hasta que se actualice"},
   "dev.device.shutdown_request_failed": {"text": "no se ha podido solicitar el apagado: {detail}"},
