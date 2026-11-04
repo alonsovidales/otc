@@ -384,16 +384,26 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 			// on working on the linked account. Nothing is changed yet, so
 			// the user can simply try again.
 			//
+			// The rest of what that sign-up typed goes with it: its name
+			// would greet the owner in every later email (a message put
+			// there for them), so the account takes the provider's name, or
+			// none, and loses the country and the terms accepted. Its owner
+			// then completes the profile and accepts the terms, as a new
+			// Google or Apple account does.
+			//
 			// An account whose email was proven keeps its password: the
 			// person who confirmed the address is the one signing in with
 			// it now, and clearing it only left them "wrong email or
 			// password" the next time they typed it, with no word why.
-			if err := a.dao.SetAccountPassword(acc.ID, ""); err != nil {
-				log.Error("could not clear the password of an account being linked:", err)
+			name, surname := strings.TrimSpace(given), strings.TrimSpace(family)
+			if err := a.dao.ClearUnprovenAccount(acc.ID, name, surname); err != nil {
+				log.Error("could not clear an account being linked:", err)
 				a.pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
 				return
 			}
 			acc.PasswordHash = ""
+			acc.Name, acc.Surname, acc.Country = name, surname, ""
+			acc.TermsVersion, acc.TermsAcceptedAt = "", time.Time{}
 		}
 		if acc == nil {
 			now := time.Now()

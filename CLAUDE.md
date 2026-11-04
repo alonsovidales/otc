@@ -3641,9 +3641,13 @@ with Retry-After. An account makes at most 10 setup codes in 15 minutes on a nod
 (`codesPerAccount`; past it a 429 with Retry-After and the code's own "could not" text). An
 account email (confirmation, reset, new identity, inactivity warning) greets the account by name
 only once its address is proven (`greetingName`; the warning reads `dao.InactiveAccount.EmailVerified`):
-whoever signs up types the name and picks the address. The contact and
-claim cooldowns, and the admin login's limiter, are swept on a timer (or as the map doubles), not
-at every request. The account sign-in's, sign-up's and email 429s carry Retry-After,
+whoever signs up types the name and picks the address. A Google or Apple sign-in that proves the
+address of a password account nobody confirmed takes the account over and drops what that
+sign-up typed or accepted (`dao.ClearUnprovenAccount`, one statement: the password, the country
+and the terms go, and the name and surname become the provider's, or none), so no later email
+greets the owner by a name a stranger typed; the owner lands on the profile page to complete it.
+The contact and claim cooldowns, and the admin login's limiter, are swept on a timer (or as the
+map doubles), not at every request. The account sign-in's, sign-up's and email 429s carry Retry-After,
 as the admin login's does. Proxied device responses go out through `limits.WriteAll`
 (deadline renewed
 per 32 KiB: 30 s for static assets, `cMediaWriteStall` 5 min for media, since paused players stop

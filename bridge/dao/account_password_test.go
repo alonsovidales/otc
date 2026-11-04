@@ -5,6 +5,7 @@ package dao
 import (
 	"database/sql"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -33,9 +34,30 @@ func TestClearingAPasswordStoresNull(t *testing.T) {
 	}
 }
 
+// An account a Google or Apple sign-in takes over loses, in one statement,
+// what its sign-up typed or accepted: the password (NULL), the name and
+// surname (the provider's), the country and the terms.
+func TestClearUnprovenAccount(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	d := NewWithDB(db)
+	mock.ExpectExec(regexp.QuoteMeta("update `accounts` set `password_hash` = NULL, `name` = ?, `surname` = ?, `country` = '', `terms_version` = NULL, `terms_accepted_at` = NULL where `id` = ?")).
+		WithArgs("Ana", "", "acc1").WillReturnResult(sqlmock.NewResult(0, 1))
+	if err := d.ClearUnprovenAccount("acc1", "Ana", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Against a real MySQL with the bridge schema (OTC_TEST_MYSQL_DSN, as in
 // accounts/inactivity_mysql_test.go): the new epoch comes back from the
-// update itself, and a cleared password is NULL.
+// update itself, a cleared password is NULL, and so is all
+// ClearUnprovenAccount clears.
 func TestAccountPasswordMySQL(t *testing.T) {
 	dsn := os.Getenv("OTC_TEST_MYSQL_DSN")
 	if dsn == "" {
@@ -74,5 +96,21 @@ func TestAccountPasswordMySQL(t *testing.T) {
 	var hash sql.NullString
 	if err := db.QueryRow("select `password_hash` from `accounts` where `id` = ?", id).Scan(&hash); err != nil || hash.Valid {
 		t.Fatalf("a cleared password is %q (valid %v), %v", hash.String, hash.Valid, err)
+	}
+	if err := d.SetAccountPassword(id, "$2a$12$hash"); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.AcceptTerms(id, "1", now); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.ClearUnprovenAccount(id, "Ana", ""); err != nil {
+		t.Fatal(err)
+	}
+	acc, err := d.GetAccount(id)
+	if err != nil || acc == nil {
+		t.Fatalf("the account: %v %v", acc, err)
+	}
+	if acc.PasswordHash != "" || acc.Name != "Ana" || acc.Surname != "" || acc.Country != "" || acc.TermsVersion != "" || !acc.TermsAcceptedAt.IsZero() {
+		t.Fatalf("a cleared account: %+v", acc)
 	}
 }

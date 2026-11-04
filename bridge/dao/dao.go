@@ -1035,6 +1035,20 @@ func (dao *Dao) SetAccountPassword(id, passwordHash string) error {
 	return err
 }
 
+// ClearUnprovenAccount empties what whoever signed up typed or accepted
+// on an account whose email was never proven, when a Google or Apple
+// sign-in with that email takes it over: the password (NULL), the name and
+// surname (the provider's, name and surname, either of them "" when it
+// sent none), the country and the terms acceptance - as a new provider
+// account has them, so its owner completes the profile and accepts the
+// terms. One statement: either it all changes or nothing does, and the
+// sign-in can simply be tried again.
+func (dao *Dao) ClearUnprovenAccount(id, name, surname string) error {
+	_, err := dao.db.Exec("update `accounts` set `password_hash` = NULL, `name` = ?, `surname` = ?, `country` = '', `terms_version` = NULL, `terms_accepted_at` = NULL where `id` = ?", name, surname, id)
+
+	return err
+}
+
 // SetAccountPasswordEndingSessions sets the password and, in the same
 // statement, ends every session issued so far (issue #164); it returns the
 // new epoch. LAST_INSERT_ID(expr) hands the epoch back in the statement's

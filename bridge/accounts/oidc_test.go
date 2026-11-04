@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -112,7 +113,8 @@ var accountCols = []string{"id", "email", "name", "surname", "country", "passwor
 
 // Someone signed up with the victim's email and kept the session; the
 // victim then signs in with Google, which links and verifies that account.
-// The squatter's session must end there (Reset does the same).
+// The squatter's session must end there (Reset does the same), and what
+// they typed goes: the victim completes the profile.
 func TestProviderLinkEndsTheSquattersSessions(t *testing.T) {
 	a, mock := testAccounts(t)
 	newFakeIdP(t, a)
@@ -123,7 +125,7 @@ func TestProviderLinkEndsTheSquattersSessions(t *testing.T) {
 	mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols))
 	mock.ExpectQuery("from `accounts` where `email` = \\?").WithArgs("a@b.c").WillReturnRows(sqlmock.NewRows(accountCols).
 		AddRow("acc1", "a@b.c", "A", "B", "ES", "$2a$12$squatter", time.Now(), time.Now(), time.Now(), false, TermsVersion, time.Now(), ""))
-	mock.ExpectExec("update `accounts` set `password_hash`").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("update `accounts` set `password_hash` = NULL").WithArgs("", "", "acc1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("insert ignore into `account_logins`").WithArgs("google", "google-sub", "acc1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("update `accounts` set `email_verified` = 1").WithArgs("acc1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("update `accounts` set `session_epoch` = `session_epoch` \\+ 1").WithArgs("acc1").WillReturnResult(sqlmock.NewResult(0, 1))
@@ -133,7 +135,7 @@ func TestProviderLinkEndsTheSquattersSessions(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	a.OAuthCallback(w, withStateCookie(callbackRequest(state, "code"), state, false))
-	if w.Code != http.StatusFound || w.Header().Get("Location") != "/account" {
+	if w.Code != http.StatusFound || w.Header().Get("Location") != "/account?complete=1" {
 		t.Fatalf("callback: %d %q", w.Code, w.Header().Get("Location"))
 	}
 	if c := sessionCookie(w); !strings.HasPrefix(c, "acc1|1|") {
@@ -154,7 +156,7 @@ func TestProviderLinkStopsWhenThePasswordStays(t *testing.T) {
 	mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols))
 	mock.ExpectQuery("from `accounts` where `email` = \\?").WillReturnRows(sqlmock.NewRows(accountCols).
 		AddRow("acc1", "a@b.c", "A", "B", "ES", "$2a$12$squatter", time.Now(), time.Now(), time.Now(), false, TermsVersion, time.Now(), ""))
-	mock.ExpectExec("update `accounts` set `password_hash`").WillReturnError(errDBDown)
+	mock.ExpectExec("update `accounts` set `password_hash` = NULL").WillReturnError(errDBDown)
 
 	w := httptest.NewRecorder()
 	a.OAuthCallback(w, withStateCookie(callbackRequest(state, "code"), state, false))
@@ -163,6 +165,52 @@ func TestProviderLinkStopsWhenThePasswordStays(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
+	}
+}
+
+// A stranger signed up with the owner's email, typed a message as the name
+// and accepted the terms; the owner then signs in with Google or Apple.
+// The account takes the provider's name, or none when it sent none (Apple
+// after the first sign-in), and loses the country and the terms: the owner
+// lands on the profile page, and no later email can greet them with the
+// stranger's text.
+func TestProviderTakeoverDropsTheTypedName(t *testing.T) {
+	for _, c := range []struct {
+		label, given, family string
+	}{
+		{"with the provider's name", " Ana ", "García"},
+		{"without one", "", ""},
+	} {
+		t.Run(c.label, func(t *testing.T) {
+			a, mock := testAccounts(t)
+			idp := newFakeIdP(t, a)
+			if c.given != "" {
+				idp.claims["given_name"], idp.claims["family_name"] = c.given, c.family
+			}
+			a.send = func(to, subject, body string) error { t.Errorf("an email to %s: %s", to, subject); return nil }
+			state := strings.Repeat("ac", 32)
+			expectStateConsumed(mock, state, "")
+			mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols))
+			mock.ExpectQuery("from `accounts` where `email` = \\?").WithArgs("a@b.c").WillReturnRows(sqlmock.NewRows(accountCols).
+				AddRow("acc1", "a@b.c", "Buy now at example.com", "Offer", "ES", "$2a$12$stranger", time.Now(), time.Now(), time.Now(), false, TermsVersion, time.Now(), ""))
+			mock.ExpectExec(regexp.QuoteMeta("update `accounts` set `password_hash` = NULL, `name` = ?, `surname` = ?, `country` = '', `terms_version` = NULL, `terms_accepted_at` = NULL where `id` = ?")).
+				WithArgs(strings.TrimSpace(c.given), c.family, "acc1").WillReturnResult(sqlmock.NewResult(0, 1))
+			mock.ExpectExec("insert ignore into `account_logins`").WithArgs("google", "google-sub", "acc1").WillReturnResult(sqlmock.NewResult(0, 1))
+			mock.ExpectExec("update `accounts` set `email_verified` = 1").WithArgs("acc1").WillReturnResult(sqlmock.NewResult(0, 1))
+			mock.ExpectExec("update `accounts` set `session_epoch` = `session_epoch` \\+ 1").WithArgs("acc1").WillReturnResult(sqlmock.NewResult(0, 1))
+			epochRow(mock, 1)
+			epochRow(mock, 1)
+			mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
+
+			w := httptest.NewRecorder()
+			a.OAuthCallback(w, withStateCookie(callbackRequest(state, "code"), state, false))
+			if w.Code != http.StatusFound || w.Header().Get("Location") != "/account?complete=1" {
+				t.Fatalf("callback: %d %q, not the profile page", w.Code, w.Header().Get("Location"))
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Error(err)
+			}
+		})
 	}
 }
 
