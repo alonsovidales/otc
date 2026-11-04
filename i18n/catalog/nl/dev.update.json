@@ -19,6 +19,7 @@
   "dev.update.no_source_archive": {"text": "release {release} heeft geen ondertekend bronarchief"},
   "dev.update.no_source_dir": {"text": "geen bronmap in {path}"},
   "dev.update.no_space": {"text": "niet genoeg vrije ruimte voor de update: {path} heeft {free} vrij en heeft {needed} nodig"},
+  "dev.update.no_updater": {"text": "Dit apparaat is ingesteld zonder het updateprogramma en kan releases dus niet zelf installeren: voer het installatiescript uit de README er opnieuw op uit – het behoudt de gegevens en voegt het updateprogramma toe"},
   "dev.update.protobuf_version_missing": {"text": "kan de versie van google.golang.org/protobuf niet vinden in go.mod"},
   "dev.update.protoc_download_failed": {"text": "kan protoc {version} niet downloaden"},
   "dev.update.protoc_failed": {"text": "protoc is mislukt"},

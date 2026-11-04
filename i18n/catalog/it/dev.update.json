@@ -19,6 +19,7 @@
   "dev.update.no_source_archive": {"text": "la release {release} non ha un archivio sorgente firmato"},
   "dev.update.no_source_dir": {"text": "nessuna cartella dei sorgenti in {path}"},
   "dev.update.no_space": {"text": "spazio libero insufficiente per l’aggiornamento: {path} ha {free} liberi, ne servono {needed}"},
+  "dev.update.no_updater": {"text": "Questo dispositivo è stato configurato senza l’aggiornatore, quindi non può installare le release da solo: esegui di nuovo su di esso lo script di installazione del README, che conserva i suoi dati e aggiunge l’aggiornatore"},
   "dev.update.protobuf_version_missing": {"text": "impossibile trovare la versione di google.golang.org/protobuf in go.mod"},
   "dev.update.protoc_download_failed": {"text": "impossibile scaricare protoc {version}"},
   "dev.update.protoc_failed": {"text": "errore di protoc"},

@@ -82,6 +82,10 @@
     "text": "nicht genug freier Speicher für das Update: {path} hat {free} frei, nötig sind {needed}",
     "en": "not enough free space for the update: {path} has {free} free, it needs {needed}"
   },
+  "dev.update.no_updater": {
+    "text": "Dieses Gerät wurde ohne den Updater eingerichtet und kann Releases daher nicht selbst installieren: Führe das Installationsskript aus dem README erneut darauf aus – es behält seine Daten und fügt den Updater hinzu",
+    "en": "This device was set up without the updater, so it can't install releases itself: run the README's install script on it again, which keeps its data and adds the updater"
+  },
   "dev.update.protobuf_version_missing": {
     "text": "die Version von google.golang.org/protobuf wurde in go.mod nicht gefunden",
     "en": "couldn't find google.golang.org/protobuf's version in go.mod"

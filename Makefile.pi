@@ -1,28 +1,36 @@
 # ============================================================================
-# Makefile.pi — bring up a *clean* Raspberry Pi OS (64-bit) install into a
-# fully running OTC device: RAID1 storage, MariaDB, the Go toolchain, ONNX
-# Runtime, the RAM++ tagging model, the database schema, app config,
-# systemd services, and the app itself (binary + web assets).
+# Makefile.pi — set up an OTC device on a plain Raspberry Pi OS (64-bit)
+# install from another computer, over SSH.
 #
 # Usage:
-#   make -f Makefile.pi bootstrap TARGET=pit.otc DISK1=/dev/sda DISK2=/dev/sdb
-#   make -f Makefile.pi status TARGET=pit.otc
+#   make -f Makefile.pi bootstrap TARGET=<addr> PI_USER=<login> SUBDOMAIN=<name> [DISK1=/dev/sda DISK2=/dev/sdb]
+#   make -f Makefile.pi status TARGET=<addr> PI_USER=<login>
 #   make -f Makefile.pi help
 #
-# Every target is meant to be safe to re-run on its own to retry a failed
-# step, EXCEPT `raid`, which wipes disks and asks for interactive
-# confirmation before doing anything destructive. `bootstrap` runs
-# everything in the right order, including `raid`.
+# `bootstrap` runs the one-line installer on the device (the README's
+# Option 0): scripts/verified-install.sh installs the newest *signed*
+# release - its signature, source archive and web app checked against the
+# release key - and everything that comes with it: RAID1 storage, MariaDB,
+# the pinned toolchain and models, the config (readable by root and the
+# service only), the root helpers that let Settings update the device, its
+# release key and version, and the system's own security updates. Before
+# that it shows the two disks and asks before it lets the installer wipe
+# them (an existing OTC mirror on them is always kept). Re-running it is
+# safe: the installer is idempotent and keeps the device's identity.
 #
-# Assumptions (matching README.md's manual instructions):
-#   - The Pi was imaged with Raspberry Pi OS (64-bit), SSH enabled, and a
-#     user named "otc" with passwordless sudo (the default when you set
-#     this up via the Raspberry Pi Imager's "Customisation" screen).
-#   - This machine can reach the Pi over SSH as that user, and has
-#     ssh/scp/rsync, openssl, and npm (for building the web app) installed.
-#   - Code deploys (once bootstrapped) reuse the existing `makefile`'s
-#     `sync`/`web`/`pi` targets, which build the Go binary natively on the
-#     device (no cross-compiler needed on this machine).
+# It used to do the bring-up itself, step by step - and a device made that
+# way never updated (no update runner, release key or version file, so
+# Update did nothing and every release showed as pending), got no security
+# updates, kept its database password in a config every account could read,
+# and ran downloads checked by nobody. Those steps are gone; the installer
+# is the one way a device is set up.
+#
+# Assumptions:
+#   - The Pi was imaged with Raspberry Pi OS (64-bit), SSH enabled with your
+#     key, and a login account with sudo - any name but "otc": the installer
+#     creates otc as the device's own service account (no login, no sudo),
+#     and would take an existing otc login over as that account.
+#   - This machine can reach the Pi over SSH as that account.
 # ============================================================================
 
 SHELL          := /bin/bash
@@ -30,247 +38,112 @@ SHELL          := /bin/bash
 .ONESHELL:
 .DEFAULT_GOAL  := help
 
+# Every recipe below is one shell script (.ONESHELL, GNU make 3.82 and
+# newer): an older make runs each line on its own and fails with a syntax
+# error. macOS ships 3.81 - `brew install make` adds a current one as gmake.
+ifeq ($(filter oneshell,$(.FEATURES)),)
+$(error Makefile.pi needs GNU make 3.82 or newer (this is $(MAKE_VERSION)). On macOS: brew install make, then gmake -f Makefile.pi ...)
+endif
+
+NO_COLOR       := \033[0m
+WARN_COLOR     := \033[33;01m
+
 # ---- Target device ---------------------------------------------------------
-PI_USER        ?= otc
+PI_USER        ?= pi
 TARGET         ?= pit.otc
 SSH_OPTS       ?= -o StrictHostKeyChecking=accept-new
 SSH            := ssh $(SSH_OPTS) $(PI_USER)@$(TARGET)
+# The same with a terminal, for sudo to ask its password on.
+SSH_TTY        := ssh $(SSH_OPTS) -t $(PI_USER)@$(TARGET)
 SCP            := scp $(SSH_OPTS)
 
-# ---- Generated secrets (see the `secrets` target) --------------------------
-# NOTE: DEVICE_UUID/BRIDGE_SECRET/OTC_DB_PASS/SUBDOMAIN are deliberately NOT
-# pulled in here via -include: on a first bootstrap run, `secrets` creates
-# this file mid-build, and a parse-time -include would keep serving the
-# stale (empty) values for the rest of that same `make` invocation. Instead,
-# the few recipes that need them (`config`, `db-schema`) `source` this file
-# themselves at recipe-execution time - see those targets below.
-ENV_FILE       := .env.pi
-
-# ---- App / environment ------------------------------------------------------
-ENVIRONMENT        ?= dev
-HTTP_PORT          ?= 8080
-HTTPS_PORT         ?= 443
-TLS_CERT           ?=
-TLS_KEY            ?=
-BRIDGE_ADDR        ?= off-the.cloud
-# No BRIDGE_CONNECTIONS knob anymore (issue #53 follow-up) - the device
-# manages its own bridge connection pool dynamically now (see
-# websocket.ensureBridgePool), growing it under load rather than dialing a
-# fixed count once at startup.
-# Full public subdomain this device registers with the bridge as (e.g.
-# pit.off-the.cloud). Defaults to a random otc-<8 hex chars>.$(BRIDGE_ADDR)
-# generated once by the `secrets` target; override to pick a specific name.
-SUBDOMAIN          ?=
-
-STORAGE_PATH   ?= /mnt/storage/
-UNENC_PATH     ?= /mnt/storage/unencrypted/
-MAX_THUMB_PX   ?= 1000
-SHARED_LINK_TTL_HOURS ?= 168
-
-# ---- Storage (RAID1) --------------------------------------------------------
+# ---- What the installer is told ---------------------------------------------
+# The device's name on the bridge (pit for pit.off-the.cloud): on the
+# off-the.cloud bridge it has to belong to an account (README, "Bridge
+# accounts"). BRIDGE_ADDR= (empty) installs a device for the home network
+# only, which needs no name.
+SUBDOMAIN      ?=
+BRIDGE_ADDR    ?= off-the.cloud
+# The two data disks of the RAID1 mirror; SKIP_RAID=1 for a single-disk
+# device (the storage is then a directory on the system disk).
 DISK1          ?= /dev/sda
 DISK2          ?= /dev/sdb
-RAID_DEV       ?= /dev/md0
-MOUNT_POINT    ?= /mnt/storage
-SWAP_MB        ?= 4096
-# Set SKIP_RAID=1 for a single-disk device (e.g. an SD-card-only test Pi with
-# no second/third disk to mirror): the `raid` target then just creates
-# $(MOUNT_POINT) as a plain directory on the root filesystem instead of
-# wiping DISK1/DISK2, and `raid-watch` (the RAID status-LED service) is
-# skipped entirely since there's no array to watch.
 SKIP_RAID      ?= 0
+# The installer, from this project's repository (a fork's own, for a fork).
+INSTALLER_URL  ?= https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/verified-install.sh
 
-# ---- Toolchain / runtime versions ------------------------------------------
-GO_VERSION           ?= 1.26.1
-ONNXRUNTIME_VERSION  ?= 1.24.3
+# ---- For the status targets -----------------------------------------------
+HTTP_PORT      ?= 8080
+MOUNT_POINT    ?= /mnt/storage
 
-# ---- Image-tagging model -----------------------------------------------------
+# ---- models-export (the fallback for the tagging model) --------------------
 MODEL_DIR          ?= /usr/local/models
-# issue #33: an INT8-quantized re-export of the same RAM++ Swin-Large
-# weights/vocabulary (community-hosted on Hugging Face) — ~2-3x faster and
-# half the size of the fp32 export `models-export` produces below, with no
-# measurable accuracy loss in side-by-side testing on real photos. Comes
-# with its own per-tag calibrated thresholds, which are more accurate than
-# one flat cutoff for all 4585 tags regardless of which .onnx is in use.
-MODEL_ONNX         ?= $(MODEL_DIR)/ram_plus_swin_large_14m.int8.onnx
 MODEL_TAGS         ?= $(MODEL_DIR)/tag_list_4585.txt
-MODEL_THRESHOLDS   ?= $(MODEL_DIR)/tag_list_4585_thresholds.txt
-MODEL_HF_REPO      ?= https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main
-TAGS_PER_IMAGE     ?= 10
-MAX_IMAGES_SEARCH  ?= 5
 MODEL_ENV          ?= otc-model-env
+SWAP_MB            ?= 4096
 
-# Pass FORCE=1 to re-run a normally-idempotent (or destructive) step anyway.
+# Pass FORCE=1 to re-run models-export anyway.
 FORCE ?=
 
 .PHONY: help
 help: ## Show this help
 	@echo "Targets:"
-	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-21s\033[0m %s\n", $$1, $$2}'
 	@echo
-	@echo "Common variables: TARGET, DISK1, DISK2, ENVIRONMENT, FORCE"
+	@echo "Common variables: TARGET, PI_USER, SUBDOMAIN, DISK1, DISK2, SKIP_RAID, BRIDGE_ADDR"
 
 # =============================================================================
-# One-time device bring-up
+# Setting up the device
 # =============================================================================
 
 .PHONY: bootstrap
-bootstrap: secrets ping update packages raid raid-watch mariadb go-toolchain onnxruntime models dirs db-schema config service deploy status ## Full bring-up of a clean Pi: everything, in order
-	@echo ""
-	@echo "=========================================================="
-	@echo " OTC bootstrap complete on $(TARGET)"
-	@echo " Web UI: http://$(TARGET):$(HTTP_PORT)/"
-	@echo " First 'Sign In' sets your password permanently - see README.md."
-	@echo " Secrets/config for this device live in $(ENV_FILE)."
-	@echo " NEVER commit $(ENV_FILE) to git."
-	@echo "=========================================================="
-
-.PHONY: secrets
-secrets: ## Generate (once) the per-device secrets file, $(ENV_FILE)
-	@if [ -f $(ENV_FILE) ]; then
-		echo "$(ENV_FILE) already exists, leaving it untouched."
-	else
-		echo "Generating $(ENV_FILE) ..."
-		DEVICE_UUID=$$(command -v uuidgen >/dev/null 2>&1 && uuidgen || cat /proc/sys/kernel/random/uuid)
-		BRIDGE_SECRET=$$(openssl rand -hex 24)
-		OTC_DB_PASS=$$(openssl rand -base64 24 | tr -d '=+/')
-		SUBDOMAIN="$(SUBDOMAIN)"
-		if [ -z "$$SUBDOMAIN" ]; then
-			SUBDOMAIN=otc-$$(echo $$DEVICE_UUID | cut -c1-8).$(BRIDGE_ADDR)
-		fi
-		{
-			echo "# Generated $$(date -u +%FT%TZ) by 'make -f Makefile.pi secrets'."
-			echo "# Keep this out of git - it holds this device's DB password and bridge secret."
-			echo "DEVICE_UUID=$$DEVICE_UUID"
-			echo "BRIDGE_SECRET=$$BRIDGE_SECRET"
-			echo "OTC_DB_PASS=$$OTC_DB_PASS"
-			echo "SUBDOMAIN=$$SUBDOMAIN"
-		} > $(ENV_FILE)
-		echo "Wrote $(ENV_FILE) (SUBDOMAIN=$$SUBDOMAIN). Edit it before deploying if you want different values."
+bootstrap: ping ## Install the newest signed release on TARGET (the one-line installer, over SSH)
+	@if [ "$(PI_USER)" = otc ]; then
+		echo "Log in with an account other than otc (PI_USER=...): the installer makes otc the device's own service account, with no login and no sudo."
+		exit 1
 	fi
+	if [ -n "$(SUBDOMAIN)" ] && ! [[ "$(SUBDOMAIN)" =~ ^[a-z0-9-]+$$ ]]; then
+		echo "SUBDOMAIN is lowercase letters, digits and hyphens only."
+		exit 1
+	fi
+	if [ -n "$(BRIDGE_ADDR)" ] && [ -z "$(SUBDOMAIN)" ]; then
+		echo "Set SUBDOMAIN to the device's name on $(BRIDGE_ADDR), or BRIDGE_ADDR= for a device on the home network only."
+		exit 1
+	fi
+	env="OTC_DISK1=$(DISK1) OTC_DISK2=$(DISK2)"
+	$(if $(filter command line,$(origin BRIDGE_ADDR)),env="$$env OTC_BRIDGE_ADDR=$(BRIDGE_ADDR)")
+	if [ "$(SKIP_RAID)" = "1" ]; then
+		echo "SKIP_RAID=1: the storage is a directory on $(TARGET)'s system disk (no RAID)."
+		env="$$env OTC_SKIP_RAID=1"
+	else
+		echo "The data disks on $(TARGET):"
+		$(SSH) 'lsblk -o NAME,SIZE,MODEL,FSTYPE,MOUNTPOINTS $(DISK1) $(DISK2) 2>&1 || true' < /dev/null
+		# An OTC mirror already on them is assembled and kept, never wiped;
+		# two disks without one are erased only once you say so.
+		if $(SSH) 'sudo mdadm --examine $(DISK1) $(DISK2) 2>/dev/null | grep -q "Raid Level"' < /dev/null; then
+			echo "They hold a RAID array: it is assembled and kept - nothing is wiped."
+		else
+			echo ""
+			echo "No RAID array on $(DISK1) and $(DISK2): the installer will WIPE BOTH and mirror them."
+			echo "This DESTROYS ALL DATA on both. Check the list above: are they really the two to erase?"
+			read -p "Type 'yes' to continue: " confirm
+			[ "$$confirm" = yes ] || { echo "Aborted."; exit 1; }
+			env="$$env OTC_RAID_CONFIRM_WIPE=yes"
+		fi
+	fi
+	echo "Running the installer on $(TARGET) (it takes a while: it builds the device's program there)..."
+	$(SSH_TTY) "curl -fsSL --retry 3 --connect-timeout 30 '$(INSTALLER_URL)' | sudo $$env bash -s -- '$(SUBDOMAIN)'"
+	echo ""
+	echo "=========================================================="
+	echo " OTC installed on $(TARGET) - it updates itself from Settings from now on."
+	echo " Web UI: http://$(TARGET):$(HTTP_PORT)/"
+	echo " The device's identity and database password stay on it, in /etc/otc."
+	echo "=========================================================="
 
 .PHONY: ping
 ping: ## Check SSH connectivity to the device
 	@echo "Checking SSH access to $(PI_USER)@$(TARGET)..."
 	$(SSH) 'echo "OK: $$(hostname) - $$(uname -srm)"' < /dev/null
-
-.PHONY: update
-update: ## apt-get update && upgrade
-	@echo "Updating OS packages on $(TARGET)..."
-	$(SSH) 'sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get -y upgrade' < /dev/null
-
-.PHONY: packages
-packages: update ## Install the OS packages OTC needs (mdadm, mariadb, build tools, python...)
-	@echo "Installing base packages on $(TARGET)..."
-	# libssl-dev/pkg-config: the `models` step builds the tokenizers Rust
-	# extension from source, which links openssl via openssl-sys and needs
-	# its headers + pkg-config file to find them.
-	# gfortran/libopenblas-dev/liblapack-dev: that same step also builds
-	# scipy from source (no prebuilt wheel for this old pin on this
-	# Python/arch), which needs a Fortran compiler + BLAS/LAPACK.
-	# ffmpeg: video tagging (issue #video-tags) extracts sampled frames from
-	# uploaded videos with it before running them through the same RAM++
-	# tagger images use.
-	$(SSH) 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-		mdadm parted mariadb-server build-essential git curl wget rsync \
-		ca-certificates python3 python3-venv python3-pip libssl-dev pkg-config \
-		gfortran libopenblas-dev liblapack-dev ffmpeg' < /dev/null
-	# LED support for raid-watch.service is optional; the script degrades to
-	# a dry-run if RPi.GPIO isn't available, so don't fail the build over it.
-	-$(SSH) 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-rpi-lgpio || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-rpi.gpio' < /dev/null
-
-.PHONY: swap
-# Issue #156: not part of bootstrap any more - a swap file on the SD card can
-# keep decrypted data the service had in memory (install.sh removes it). Only
-# for the one-off models-export; run `sudo dphys-swapfile swapoff &&
-# sudo dphys-swapfile uninstall` afterwards.
-swap: ## Bump swap to $(SWAP_MB)MB on disk (only for models-export - see issue #156)
-	@echo "Setting swap to $(SWAP_MB)MB on $(TARGET)..."
-	$(SSH) '
-		if [ -f /etc/dphys-swapfile ]; then
-			sudo sed -i "s/^CONF_SWAPSIZE=.*/CONF_SWAPSIZE=$(SWAP_MB)/" /etc/dphys-swapfile
-			grep -q "^CONF_SWAPSIZE=" /etc/dphys-swapfile || echo "CONF_SWAPSIZE=$(SWAP_MB)" | sudo tee -a /etc/dphys-swapfile >/dev/null
-			sudo systemctl restart dphys-swapfile
-		else
-			echo "dphys-swapfile not present, skipping (unexpected on Raspberry Pi OS)"
-		fi
-	' < /dev/null
-
-# =============================================================================
-# Storage: RAID1 across DISK1/DISK2, mounted at MOUNT_POINT
-# =============================================================================
-
-.PHONY: raid
-raid: packages ## DESTRUCTIVE: wipe DISK1/DISK2 and build+mount a RAID1 array (asks for confirmation). SKIP_RAID=1 for a single-disk device instead.
-	@if [ "$(SKIP_RAID)" = "1" ]; then
-		echo "SKIP_RAID=1: using $(MOUNT_POINT) as a plain directory on $(TARGET)'s root filesystem (no RAID)."
-		$(SSH) 'sudo mkdir -p $(MOUNT_POINT)/unencrypted' < /dev/null
-		exit 0
-	fi
-	@echo "Disks currently visible on $(TARGET):"
-	@$(SSH) 'lsblk $(DISK1) $(DISK2) 2>&1 || true' < /dev/null
-	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -e $(RAID_DEV) || sudo mdadm --assemble --scan >/dev/null 2>&1; test -e $(RAID_DEV)' < /dev/null; then
-		echo "$(RAID_DEV) already exists on $(TARGET) (assembled from an existing array if it wasn't already) - skipping wipe."
-		echo "Pass FORCE=1 to rebuild it from scratch (DESTROYS the array's data)."
-	else
-		echo ""
-		echo "About to WIPE $(DISK1) and $(DISK2) on $(TARGET) and build RAID1 on $(RAID_DEV)."
-		echo "This DESTROYS ALL DATA on both disks. Check the lsblk output above:"
-		echo "confirm both disks are physically installed in the device and are"
-		echo "really the two you want wiped before continuing."
-		read -p "Type 'yes' to continue: " confirm
-		if [ "$$confirm" != "yes" ]; then
-			echo "Aborted."
-			exit 1
-		fi
-		$(SSH) '
-			set -e
-			sudo wipefs -a $(DISK1)
-			sudo wipefs -a $(DISK2)
-			sudo mdadm --create --verbose --run $(RAID_DEV) --level=1 --raid-devices=2 $(DISK1) $(DISK2)
-			sudo mkfs.ext4 -F $(RAID_DEV)
-			sudo mkdir -p $(MOUNT_POINT)
-			sudo mount $(RAID_DEV) $(MOUNT_POINT)
-			sudo mkdir -p $(MOUNT_POINT)/unencrypted
-			sudo mdadm --detail --scan | sudo tee -a /etc/mdadm/mdadm.conf >/dev/null
-			sudo update-initramfs -u
-			grep -q "$(RAID_DEV)" /etc/fstab || echo "$(RAID_DEV)   $(MOUNT_POINT)   ext4   defaults,nofail,x-systemd.device-timeout=3min   0   0" | sudo tee -a /etc/fstab >/dev/null
-			for u in otc mariadb; do sudo mkdir -p /etc/systemd/system/$$u.service.d; printf "[Unit]\nRequiresMountsFor=$(MOUNT_POINT)\n" | sudo tee /etc/systemd/system/$$u.service.d/otc-storage.conf >/dev/null; done
-			sudo systemctl daemon-reload
-		' < /dev/null
-		echo "RAID1 built and mounted at $(MOUNT_POINT)."
-	fi
-
-.PHONY: raid-status
-raid-status: ## Show RAID/disk status on the device
-	@$(SSH) 'cat /proc/mdstat; echo; df -h $(MOUNT_POINT) 2>&1 || true' < /dev/null
-
-.PHONY: raid-watch
-raid-watch: raid ## Install the RAID status-LED watcher service (scripts/raid_watch.py)
-	@if [ "$(SKIP_RAID)" = "1" ]; then
-		echo "SKIP_RAID=1: no RAID array yet - installing raid-watch.service anyway,"
-		echo "dormant (it polls mdadm and just reports no members until an array"
-		echo "exists). Run 'make raid' once disks are attached to activate it."
-	fi
-	@echo "Installing raid-watch.service on $(TARGET)..."
-	$(SCP) scripts/raid_watch.py $(PI_USER)@$(TARGET):/tmp/raid_watch.py
-	$(SSH) 'sudo mv /tmp/raid_watch.py /usr/local/bin/raid_watch.py && sudo chmod +x /usr/local/bin/raid_watch.py' < /dev/null
-	$(SSH) 'sudo tee /etc/systemd/system/raid-watch.service >/dev/null' <<-'EOF'
-	[Unit]
-	Description=RAID1 watcher + LED driver
-	After=mdadm.service
-	
-	[Service]
-	Type=simple
-	ExecStart=/usr/bin/python3 /usr/local/bin/raid_watch.py
-	Restart=on-failure
-	User=root
-	
-	[Install]
-	WantedBy=multi-user.target
-	EOF
-	$(SSH) 'sudo systemctl daemon-reload && sudo systemctl enable --now raid-watch.service' < /dev/null
-	@echo "NOTE: wire the status LEDs to the GPIO pins in scripts/raid_watch.py's CONFIG before relying on them."
 
 # =============================================================================
 # First-boot WiFi setup (issue #38)
@@ -307,201 +180,46 @@ network-setup-status: ## Show network-setup.service status + active connections 
 	@$(SSH) 'sudo systemctl status network-setup --no-pager; echo; nmcli connection show --active' < /dev/null
 
 # =============================================================================
-# MariaDB
-# =============================================================================
-
-.PHONY: mariadb
-mariadb: raid packages ## Point MariaDB's datadir at the RAID array
-	@echo "Moving MariaDB's datadir onto $(MOUNT_POINT)..."
-	$(SSH) '
-		set -e
-		sudo systemctl stop mariadb
-		sudo mkdir -p $(MOUNT_POINT)/mysql
-		if [ ! -d $(MOUNT_POINT)/mysql/mysql ]; then
-			sudo rsync -aHAX --numeric-ids /var/lib/mysql/ $(MOUNT_POINT)/mysql/
-		fi
-		sudo chown -R mysql:mysql $(MOUNT_POINT)/mysql
-		if grep -q "^datadir" /etc/mysql/mariadb.conf.d/50-server.cnf; then
-			sudo sed -i "s#^datadir.*#datadir = $(MOUNT_POINT)/mysql#" /etc/mysql/mariadb.conf.d/50-server.cnf
-		else
-			echo "datadir = $(MOUNT_POINT)/mysql" | sudo tee -a /etc/mysql/mariadb.conf.d/50-server.cnf >/dev/null
-		fi
-		sudo systemctl start mariadb
-		sudo mysql -N -e "SHOW VARIABLES LIKE \"datadir\""
-	' < /dev/null
-
-.PHONY: db-schema
-db-schema: mariadb secrets ## Create the otc DB/user and load db/db.sql (idempotent)
-	@echo "Configuring the otc database and application user on $(TARGET)..."
-	source $(ENV_FILE)
-	# Unquoted heredoc (expansion is needed for $$OTC_DB_PASS below), so
-	# no backticks in the SQL comments: the shell would run them here
-	# before mysql ever saw them. scripts/install.sh had exactly that and
-	# it broke a fresh Raspberry Pi install outright.
-	$(SSH) 'sudo mysql' <<-SQL
-	CREATE DATABASE IF NOT EXISTS otc;
-	CREATE USER IF NOT EXISTS 'otc'@'localhost' IDENTIFIED BY '$$OTC_DB_PASS';
-	ALTER USER 'otc'@'localhost' IDENTIFIED BY '$$OTC_DB_PASS';
-	GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
-	SQL
-	# Issue #82: the primary instance provisions/drops a whole database +
-	# MySQL user per additional user (dao/provisioning.go). A grantor must
-	# hold what it hands off, so the account holds everything, with GRANT
-	# OPTION, on the otc_<uuid> databases (otc_%: in a GRANT the _ of
-	# otc_<uuid> is itself a wildcard, which an escaped otc\_% doesn't
-	# cover), plus CREATE USER and RELOAD - nothing else on the server (the
-	# same as scripts/install.sh; release 143 narrowed the old ALL ON *.*).
-	# Quoted heredoc: the backticks are SQL.
-	$(SSH) 'sudo mysql' <<-'SQL'
-	GRANT ALL PRIVILEGES ON `otc_%`.* TO 'otc'@'localhost' WITH GRANT OPTION;
-	REVOKE ALL PRIVILEGES ON *.* FROM 'otc'@'localhost';
-	REVOKE GRANT OPTION ON *.* FROM 'otc'@'localhost';
-	GRANT CREATE USER, RELOAD ON *.* TO 'otc'@'localhost';
-	FLUSH PRIVILEGES;
-	SQL
-	if $(SSH) 'sudo mysql otc -N -B' <<<'SHOW TABLES LIKE "files"' | grep -q files; then
-		echo "Schema already present on $(TARGET), skipping table creation."
-		echo "(To apply schema changes, run the relevant SQL from db/db.sql by hand.)"
-	else
-		echo "Loading schema from db/db.sql..."
-		tail -n +10 db/db.sql | $(SSH) 'sudo mysql otc'
-	fi
-	echo "Issue #82: ensuring the users table exists (idempotent upgrade, same reasoning as db-schema's own skip-if-present check above)..."
-	$(SSH) 'sudo mysql otc' <<-SQL
-	CREATE TABLE IF NOT EXISTS users (
-	  uuid VARCHAR(64) NOT NULL,
-	  username VARCHAR(64) NOT NULL,
-	  port INT NOT NULL,
-	  db_name VARCHAR(64) NOT NULL,
-	  db_pass VARCHAR(128) NOT NULL,
-	  storage_path VARCHAR(255) NOT NULL,
-	  subdomain VARCHAR(128) NOT NULL,
-	  bridge_secret VARCHAR(128) NOT NULL,
-	  supervisor_token VARCHAR(128) NOT NULL,
-	  active TINYINT(1) NOT NULL DEFAULT 1,
-	  created DATETIME NOT NULL,
-	  UNIQUE (uuid),
-	  UNIQUE (username),
-	  UNIQUE (port)
-	) ENGINE=InnoDB;
-	-- Issue #89: no is_admin/promote column - the original device owner
-	-- is the only admin there will ever be. Drops it for any device that
-	-- already ran an earlier version of this target before #89 removed
-	-- the concept.
-	ALTER TABLE users DROP COLUMN IF EXISTS is_admin;
-	SQL
-	echo "Issue #92: ensuring social_friendship has notifications_started..."
-	$(SSH) 'sudo mysql otc' <<-SQL
-	-- Ends a friend's notification catch-up suppression once their
-	-- pre-existing backlog is fully replayed (see social.go's
-	-- updateFriendEvents) - defaulting to 0 on an upgrade is fine even
-	-- for already-fully-synced friends, since the very next sync cycle
-	-- finds nothing pending and flips it back on within one 120s tick.
-	ALTER TABLE social_friendship ADD COLUMN IF NOT EXISTS notifications_started TINYINT(1) NOT NULL DEFAULT 0;
-	SQL
-	echo "Recording device identity (device_uuid/subdomain/bridge_secret)..."
-	$(SSH) 'sudo mysql otc' <<-SQL
-	INSERT INTO settings (device_uuid, subdomain, bridge_secret)
-	SELECT '$$DEVICE_UUID', '$$SUBDOMAIN', '$$BRIDGE_SECRET'
-	WHERE NOT EXISTS (SELECT 1 FROM settings);
-	SQL
-
-# =============================================================================
-# Go toolchain + ONNX Runtime
-# =============================================================================
-
-.PHONY: go-toolchain
-go-toolchain: packages ## Install Go $(GO_VERSION) (linux/arm64) on the device
-	@echo "Installing Go $(GO_VERSION) on $(TARGET)..."
-	$(SSH) '
-		set -e
-		if /usr/local/go/bin/go version 2>/dev/null | grep -q "go$(GO_VERSION) "; then
-			echo "Go $(GO_VERSION) already installed."
-		else
-			cd /tmp
-			wget -q https://go.dev/dl/go$(GO_VERSION).linux-arm64.tar.gz
-			sudo rm -rf /usr/local/go
-			sudo tar -C /usr/local -xzf go$(GO_VERSION).linux-arm64.tar.gz
-			rm go$(GO_VERSION).linux-arm64.tar.gz
-		fi
-		grep -q "/usr/local/go/bin" /etc/profile.d/go.sh 2>/dev/null || echo "export PATH=\$$PATH:/usr/local/go/bin:\$$HOME/go/bin" | sudo tee /etc/profile.d/go.sh >/dev/null
-		sudo chmod +x /etc/profile.d/go.sh
-	' < /dev/null
-
-.PHONY: onnxruntime
-onnxruntime: packages ## Install ONNX Runtime $(ONNXRUNTIME_VERSION) (linux/aarch64) to /opt/onnxruntime
-	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -f /opt/onnxruntime/lib/libonnxruntime.so' < /dev/null; then
-		echo "ONNX Runtime already installed on $(TARGET)."
-	else
-		echo "Installing ONNX Runtime $(ONNXRUNTIME_VERSION) on $(TARGET)..."
-		$(SSH) '
-			set -e
-			cd /tmp
-			wget -q https://github.com/microsoft/onnxruntime/releases/download/v$(ONNXRUNTIME_VERSION)/onnxruntime-linux-aarch64-$(ONNXRUNTIME_VERSION).tgz
-			tar -xzf onnxruntime-linux-aarch64-$(ONNXRUNTIME_VERSION).tgz
-			sudo rm -rf /opt/onnxruntime
-			sudo mv onnxruntime-linux-aarch64-$(ONNXRUNTIME_VERSION) /opt/onnxruntime
-			rm onnxruntime-linux-aarch64-$(ONNXRUNTIME_VERSION).tgz
-		' < /dev/null
-	fi
-
-# =============================================================================
-# RAM++ image-tagging model.
-#
-# `models` (default, issue #33): downloads a pre-quantized INT8 ONNX export
-# of the same RAM++ Swin-Large weights/vocabulary — one ~870MB file straight
-# from Hugging Face, no build toolchain needed on the device at all. Roughly
-# 2-3x faster and half the size of the fp32 export below, with no measurable
-# accuracy loss in side-by-side testing (same top tags on real photos); ships
-# its own per-tag calibrated thresholds, which are more accurate than one
-# flat cutoff for all 4585 tags regardless of which .onnx is in use. It's a
-# third-party re-hosting, not the original RAM++ authors — `models-export`
-# below remains as a from-scratch fallback if this ever disappears.
-# =============================================================================
-
-.PHONY: models
-models: packages secrets ## Download the quantized RAM++ ONNX model + per-tag thresholds (issue #33)
-	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -f $(MODEL_ONNX) && test -f $(MODEL_TAGS) && test -f $(MODEL_THRESHOLDS)' < /dev/null; then
-		echo "Models already present at $(MODEL_DIR) on $(TARGET), skipping (pass FORCE=1 to re-download)."
-	else
-		echo "Downloading the RAM++ INT8 model (~870MB) + per-tag thresholds to $(TARGET)..."
-		$(SSH) 'sudo mkdir -p $(MODEL_DIR) && sudo chown $(PI_USER):$(PI_USER) $(MODEL_DIR)' < /dev/null
-		$(SSH) 'curl -fL --retry 5 --retry-delay 2 -o $(MODEL_ONNX) $(MODEL_HF_REPO)/ram_plus_int8.onnx' < /dev/null
-		$(SSH) 'curl -fL --retry 5 --retry-delay 2 -o $(MODEL_THRESHOLDS) $(MODEL_HF_REPO)/ram_tag_list_threshold.txt' < /dev/null
-		# Our own tag_list_4585.txt (not the repo's) — same 4585 tags in the
-		# same order (verified), just our casing convention, which is what
-		# every already-tagged photo's file_tags rows already use.
-		$(SCP) models/tag_list_4585.txt $(PI_USER)@$(TARGET):$(MODEL_TAGS)
-		echo "Models installed at $(MODEL_DIR) on $(TARGET)."
-	fi
-	@echo "Face recognition models (issue #52, ~10MB total, only downloaded once)..."
-	$(SSH) '
-		set -e
-		sudo mkdir -p $(MODEL_DIR)
-		[ -f $(MODEL_DIR)/face_detection_yunet_2023mar.onnx ] || sudo curl -fL --retry 5 --retry-delay 2 -o $(MODEL_DIR)/face_detection_yunet_2023mar.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
-		[ -f $(MODEL_DIR)/face_recognition_sface_2021dec_int8.onnx ] || sudo curl -fL --retry 5 --retry-delay 2 -o $(MODEL_DIR)/face_recognition_sface_2021dec_int8.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec_int8.onnx
-		sudo chown -R $(PI_USER):$(PI_USER) $(MODEL_DIR)
-	' < /dev/null
-
-# =============================================================================
 # Fallback: export the original fp32 RAM++ ONNX model from scratch, directly
-# on the device. Only needed if the INT8 mirror above ever goes away — this
-# installs a full torch/transformers/timm pipeline in a venv on the Pi and
-# runs models/download.py + models/download_tags.py there. Expect this to
-# download several GB and take a long time on Pi hardware; the `swap` target
-# is a prerequisite to reduce the chance of it getting OOM-killed. Writes to
-# its own fp32 filenames, independent of MODEL_ONNX/MODEL_TAGS above — update
-# your etc/otc_*.ini [tagger] section by hand to point at them (and drop
-# thresholds-path, since this export has no per-tag threshold file).
+# on the device. Only needed if the INT8 model the installer downloads ever
+# goes away — this installs a full torch/transformers/timm pipeline in a venv
+# on the Pi and runs models/download.py + models/download_tags.py there.
+# Expect this to download several GB and take a long time on Pi hardware;
+# the `swap` target is a prerequisite to reduce the chance of it getting
+# OOM-killed. Writes to its own fp32 filenames in MODEL_DIR (root's, read by
+# the service) — update your /etc/otc_*.ini [tagger] section by hand to
+# point at them (and drop thresholds-path, since this export has no per-tag
+# threshold file).
 # =============================================================================
+
+# Issue #156: a swap file on the SD card can keep decrypted data the service
+# had in memory (the installer removes it). Only for the one-off
+# models-export; run `sudo dphys-swapfile swapoff && sudo dphys-swapfile
+# uninstall` afterwards.
+.PHONY: swap
+swap: ## Bump swap to $(SWAP_MB)MB on disk (only for models-export - see issue #156)
+	@echo "Setting swap to $(SWAP_MB)MB on $(TARGET)..."
+	$(SSH) '
+		if [ -f /etc/dphys-swapfile ]; then
+			sudo sed -i "s/^CONF_SWAPSIZE=.*/CONF_SWAPSIZE=$(SWAP_MB)/" /etc/dphys-swapfile
+			grep -q "^CONF_SWAPSIZE=" /etc/dphys-swapfile || echo "CONF_SWAPSIZE=$(SWAP_MB)" | sudo tee -a /etc/dphys-swapfile >/dev/null
+			sudo systemctl restart dphys-swapfile
+		else
+			echo "dphys-swapfile not present, skipping (unexpected on Raspberry Pi OS)"
+		fi
+	' < /dev/null
 
 .PHONY: models-export
-models-export: packages secrets swap ## Fallback: export the fp32 RAM++ ONNX model + tag list from scratch on the device
+models-export: swap ## Fallback: export the fp32 RAM++ ONNX model + tag list from scratch on the device
 	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -f $(MODEL_DIR)/ram_plus_swin_large_14m.onnx && test -f $(MODEL_DIR)/ram_plus_swin_large_14m.onnx.data && test -f $(MODEL_TAGS)' < /dev/null; then
 		echo "fp32 model already present at $(MODEL_DIR) on $(TARGET), skipping (pass FORCE=1 to re-export)."
 	else
 		echo "Setting up the model export environment on $(TARGET) - this is slow, budget significant time and bandwidth."
-		$(SSH) 'sudo mkdir -p $(MODEL_DIR) && sudo chown $(PI_USER):$(PI_USER) $(MODEL_DIR)' < /dev/null
+		# libssl-dev/pkg-config: the tokenizers Rust extension below is built
+		# from source and links openssl. gfortran/libopenblas-dev/liblapack-dev:
+		# so is scipy, with no prebuilt wheel for this old pin on this
+		# Python/arch.
+		$(SSH) 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv python3-pip libssl-dev pkg-config gfortran libopenblas-dev liblapack-dev' < /dev/null
 		$(SSH) 'test -d ~/$(MODEL_ENV) || python3 -m venv ~/$(MODEL_ENV)' < /dev/null
 		# transformers==4.25.1 (pinned below for RAM++ compatibility) pulls in
 		# a tokenizers version with no prebuilt wheel for this Python/arch, so
@@ -544,119 +262,18 @@ models-export: packages secrets swap ## Fallback: export the fp32 RAM++ ONNX mod
 		# This model is >2GB, so torch.onnx.export writes its weights to a
 		# companion *.onnx.data file alongside the small .onnx graph file
 		# (ONNX's external-data format) - onnxruntime needs both at the
-		# same relative path to load it, so ship both.
+		# same relative path to load it, so ship both. Into the models
+		# directory as root's files, read-only to the service, as the
+		# installer keeps it.
 		$(SSH) '
 			set -e
-			cp ~/$(MODEL_ENV)/ram_plus/onnx/ram_plus_swin_large_14m.onnx $(MODEL_DIR)/ram_plus_swin_large_14m.onnx
-			cp ~/$(MODEL_ENV)/ram_plus/onnx/ram_plus_swin_large_14m.onnx.data $(MODEL_DIR)/ram_plus_swin_large_14m.onnx.data
-			cp ~/$(MODEL_ENV)/models/ram_plus/tags/tag_list_4585.txt $(MODEL_TAGS)
+			sudo install -d -o root -g root -m 0755 $(MODEL_DIR)
+			sudo install -o root -g root -m 0644 ~/$(MODEL_ENV)/ram_plus/onnx/ram_plus_swin_large_14m.onnx $(MODEL_DIR)/ram_plus_swin_large_14m.onnx
+			sudo install -o root -g root -m 0644 ~/$(MODEL_ENV)/ram_plus/onnx/ram_plus_swin_large_14m.onnx.data $(MODEL_DIR)/ram_plus_swin_large_14m.onnx.data
+			sudo install -o root -g root -m 0644 ~/$(MODEL_ENV)/models/ram_plus/tags/tag_list_4585.txt $(MODEL_TAGS)
 		' < /dev/null
 		echo "fp32 model installed at $(MODEL_DIR) on $(TARGET)."
 	fi
-
-# =============================================================================
-# App config, directories, systemd service, and the code deploy itself
-# =============================================================================
-
-.PHONY: dirs
-dirs: ## Create runtime directories (log, static, storage) with correct ownership
-	@echo "Creating runtime directories on $(TARGET)..."
-	$(SSH) '
-		sudo mkdir -p /var/log/otc /etc/otc /var/www /var/lib/otc/users $(STORAGE_PATH) $(UNENC_PATH)
-		sudo chown $(PI_USER):$(PI_USER) /var/log/otc /var/www /var/lib/otc/users $(STORAGE_PATH) $(UNENC_PATH)
-		sudo chmod 755 /var/log/otc
-	' < /dev/null
-
-.PHONY: config
-config: secrets ## Render and install /etc/otc_$(ENVIRONMENT).ini on the device
-	@echo "Writing /etc/otc_$(ENVIRONMENT).ini on $(TARGET)..."
-	source $(ENV_FILE)
-	$(SSH) 'sudo tee /etc/otc_$(ENVIRONMENT).ini >/dev/null' <<-EOF
-	[otc]
-	bridge-addr=$(BRIDGE_ADDR)
-	storage-path=$(STORAGE_PATH)
-	unenc-storage-path=$(UNENC_PATH)
-	max-thumbnail-width-px=$(MAX_THUMB_PX)
-	shared-link-ttl-hours=$(SHARED_LINK_TTL_HOURS)
-
-	[logger]
-	log_file=/var/log/otc/otc.log
-	max_log_size_mb=10
-	level=info
-	
-	[otc-api]
-	base-url=otc/
-	static=/var/www/
-	port=$(HTTP_PORT)
-	ssl-port=$(HTTPS_PORT)
-	ssl-cert=$(TLS_CERT)
-	ssl-key=$(TLS_KEY)
-	
-	[mysql]
-	user=otc
-	pass=$$OTC_DB_PASS
-	port=3306
-	db=otc
-	
-	[tagger]
-	model-path=$(MODEL_ONNX)
-	tags-path=$(MODEL_TAGS)
-	thresholds-path=$(MODEL_THRESHOLDS)
-	tags-per-image=$(TAGS_PER_IMAGE)
-	max-images-search=$(MAX_IMAGES_SEARCH)
-
-	[faces]
-	detector-model-path=$(MODEL_DIR)/face_detection_yunet_2023mar.onnx
-	recognizer-model-path=$(MODEL_DIR)/face_recognition_sface_2021dec_int8.onnx
-	EOF
-
-.PHONY: service
-service: dirs ## Install the otc.service systemd unit (does not start it)
-	@echo "Installing otc.service on $(TARGET)..."
-	$(SSH) 'sudo tee /etc/otc/otc.env >/dev/null' <<-'EOF'
-	OTC_LOG=info
-	OTC_ADDR=:$(HTTP_PORT)
-	EOF
-	$(SSH) 'sudo tee /etc/systemd/system/otc.service >/dev/null' <<-'EOF'
-	[Unit]
-	Description=Off The Cloud service
-	Wants=network-online.target
-	After=network-online.target mariadb.service
-	
-	[Service]
-	Type=simple
-	User=$(PI_USER)
-	Group=$(PI_USER)
-	WorkingDirectory=/var/lib/otc
-	EnvironmentFile=-/etc/otc/otc.env
-	ExecStart=/usr/bin/otc $(ENVIRONMENT)
-	Restart=on-failure
-	RestartSec=3
-	LimitNOFILE=65535
-	RuntimeDirectory=otc
-	StateDirectory=otc
-	LogsDirectory=otc
-	NoNewPrivileges=true
-	PrivateTmp=true
-	ProtectSystem=full
-	ProtectHome=true
-	ProtectKernelTunables=true
-	ProtectKernelModules=true
-	ProtectControlGroups=true
-	CapabilityBoundingSet=CAP_NET_BIND_SERVICE
-	AmbientCapabilities=CAP_NET_BIND_SERVICE
-	SystemCallArchitectures=native
-	
-	[Install]
-	WantedBy=multi-user.target
-	EOF
-	$(SSH) 'sudo systemctl daemon-reload && sudo systemctl enable otc.service' < /dev/null
-
-.PHONY: deploy
-deploy: dirs config service ## Build + ship the current code (Go binary + web) and (re)start the service
-	@echo "Building and deploying the app to $(TARGET)..."
-	$(MAKE) -f makefile TARGET=$(TARGET) sync web pi
-	@echo "Deployed and restarted otc.service on $(TARGET)."
 
 # =============================================================================
 # Day to day operations
@@ -669,8 +286,13 @@ status: ## Show service/DB/RAID/health status on the device
 		echo; echo "-- mariadb --"; sudo systemctl --no-pager --lines=0 status mariadb || true
 		echo; echo "-- RAID --"; cat /proc/mdstat 2>/dev/null || true
 		echo; echo "-- storage --"; df -h $(MOUNT_POINT) 2>/dev/null || true
+		echo; echo "-- release --"; cat /etc/otc/version 2>/dev/null || echo "no /etc/otc/version"
 		echo; curl -sf http://localhost:$(HTTP_PORT)/check_healty >/dev/null && echo "healthcheck: OK" || echo "healthcheck: FAILED"
 	' < /dev/null
+
+.PHONY: raid-status
+raid-status: ## Show RAID/disk status on the device
+	@$(SSH) 'cat /proc/mdstat; echo; df -h $(MOUNT_POINT) 2>&1 || true' < /dev/null
 
 .PHONY: logs
 logs: ## Tail the otc service logs on the device

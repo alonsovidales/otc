@@ -483,7 +483,16 @@ func Apply() error {
 	}
 
 	// Legacy path, for a device set up by hand before the path unit
-	// existed: run the script ourselves under sudo.
+	// existed: run the script ourselves under sudo - which works only where
+	// this process may become root that way at all. Under NoNewPrivileges
+	// (every otc.service install.sh and Makefile.pi ever wrote) sudo
+	// refuses before it starts, and the run below was released into the
+	// void: nothing updated, Settings showed nothing and the log said the
+	// update had started. Such a device is told it has no updater.
+	if !legacyUpdaterWorks() {
+		log.Info("device update refused: no update runner here, and sudo can't run for this process")
+		return devtext.New(i18n.DevUpdateNoUpdater())
+	}
 	if err := download(updateScriptURL(), cRunnerPath); err != nil {
 		return devtext.Wrap(i18n.DevUpdateRunnerDownloadFailed(err.Error()), err)
 	}
@@ -520,6 +529,46 @@ func Apply() error {
 	log.Info("device update started")
 
 	return nil
+}
+
+// Where the kernel says whether this process may gain privileges, and
+// whether sudo runs a command for it without asking for a password:
+// variables so a test can stand in for both.
+var (
+	procSelfStatus = "/proc/self/status"
+	sudoWorks      = func() bool {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		return exec.CommandContext(ctx, "sudo", "-n", "true").Run() == nil
+	}
+)
+
+// legacyUpdaterWorks reports whether Apply's sudo path can run the update:
+// this process may gain privileges (no NoNewPrivileges), and sudo -n works
+// for it.
+func legacyUpdaterWorks() bool {
+	if noNewPrivileges(procSelfStatus) {
+		return false
+	}
+
+	return sudoWorks()
+}
+
+// noNewPrivileges reads the NoNewPrivs line of a /proc/<pid>/status file.
+// One that can't be read (not Linux) says no.
+func noNewPrivileges(path string) bool {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	for line := range strings.SplitSeq(string(raw), "\n") {
+		if v, ok := strings.CutPrefix(line, "NoNewPrivs:"); ok {
+			return strings.TrimSpace(v) == "1"
+		}
+	}
+
+	return false
 }
 
 // The last manifest that verified, for the few minutes after a release

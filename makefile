@@ -9,12 +9,13 @@ PROTO_OUT := $(PROTO_SRC)/generated
 PROTO_TS_OUT := web/src/proto
 PROTOS    := $(notdir $(wildcard $(PROTO_SRC)/*.proto))
 TARGET    := pit.otc
-# The SSH login on TARGET. A device provisioned by hand (Makefile.pi /
-# install.sh run by you) has the `otc` account with your key; a device set
-# up from the flashable image (issue #38) only has `otc-debug` (the `otc`
-# service account there has no shell), and SSH must first be enabled on
-# its console: sudo systemctl enable --now ssh, plus your key in
-# ~otc-debug/.ssh/authorized_keys.
+# The SSH login on TARGET, for these development targets (sync, pi, web,
+# image): a development box set up by hand with an `otc` login holding your
+# key. A device installed by the installer (the image, the one-line script,
+# Makefile.pi) has `otc` as a service account with no shell: log in there
+# with your own account (the image's console one is `otc-debug`, whose SSH
+# must first be enabled on its console: sudo systemctl enable --now ssh,
+# plus your key in ~otc-debug/.ssh/authorized_keys).
 PI_USER   ?= otc
 #TARGET    := otc
 

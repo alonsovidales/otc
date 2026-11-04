@@ -19,6 +19,7 @@
   "dev.update.no_source_archive": {"text": "la version {release} n’a pas d’archive source signée"},
   "dev.update.no_source_dir": {"text": "aucun dossier source dans {path}"},
   "dev.update.no_space": {"text": "pas assez d’espace libre pour la mise à jour : {path} a {free} de libre, il lui faut {needed}"},
+  "dev.update.no_updater": {"text": "Cet appareil a été configuré sans le programme de mise à jour, il ne peut donc pas installer de versions lui-même : relancez dessus le script d’installation du README, qui conserve ses données et ajoute le programme de mise à jour"},
   "dev.update.protobuf_version_missing": {"text": "impossible de trouver la version de google.golang.org/protobuf dans go.mod"},
   "dev.update.protoc_download_failed": {"text": "impossible de télécharger protoc {version}"},
   "dev.update.protoc_failed": {"text": "échec de protoc"},

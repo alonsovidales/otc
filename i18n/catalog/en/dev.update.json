@@ -19,6 +19,7 @@
   "dev.update.no_source_archive": {"text": "release {release} has no signed source archive", "args": [["release", "text"]]},
   "dev.update.no_source_dir": {"text": "no source directory at {path}", "args": [["path", "text"]]},
   "dev.update.no_space": {"text": "not enough free space for the update: {path} has {free} free, it needs {needed}", "args": [["path", "text"], ["free", "text"], ["needed", "text"]]},
+  "dev.update.no_updater": {"text": "This device was set up without the updater, so it can't install releases itself: run the README's install script on it again, which keeps its data and adds the updater"},
   "dev.update.protobuf_version_missing": {"text": "couldn't find google.golang.org/protobuf's version in go.mod"},
   "dev.update.protoc_download_failed": {"text": "could not download protoc {version}", "args": [["version", "text"]]},
   "dev.update.protoc_failed": {"text": "protoc failed"},

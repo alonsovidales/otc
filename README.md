@@ -161,8 +161,8 @@ There are four ways to set up a device, from least to most work: flash the pre-b
 Raspberry Pi 5 with 8 GB of RAM, or 4 GB (Image Tagging off until you turn it on), or 2 GB for one person - no keyboard, monitor or Linux knowledge needed, RAID1
 included), run the one-line install script against a machine you already have login access to
 (Ubuntu, Debian, Raspberry Pi OS or another Debian-based 64-bit distro - no flashing, RAID1 and the
-status LEDs included, no WiFi setup), run `Makefile.pi` against a plain Raspberry Pi OS install (if
-you want to build from source), or follow the manual steps yourself.
+status LEDs included, no WiFi setup), run that same script on a plain Raspberry Pi OS install from
+your computer with `Makefile.pi`, or follow the manual steps yourself.
 
 **Option 0: One-line install script (any Debian/Ubuntu machine)**
 -------------------------------------------------
@@ -180,10 +180,10 @@ script prompts for one. On the off-the.cloud bridge the name has to belong to an
 first, as [Bridge accounts](#bridge-accounts) explains, or install with `OTC_BRIDGE_ADDR=""` for a
 device on your home network only. It installs MariaDB, a native Go toolchain, ONNX Runtime, the RAM++ tagging
 model, and builds the `otc` binary from source right there, then writes the database schema, app
-config, and a systemd service - the same bring-up `Makefile.pi` automates over SSH from a separate
-dev machine, just run directly on the device itself with no cross-compiling or second computer
-needed. It's safe to re-run any time (e.g. to pick up new code) - device identity (UUID, DB
-password, bridge secret) is only ever generated once, on the first run.
+config, and a systemd service - no cross-compiling or second computer needed (`Makefile.pi`, Option
+2, runs this same script over SSH from another computer). It's safe to re-run any time (e.g. to pick
+up new code) - device identity (UUID, DB password, bridge secret) is only ever generated once, on the
+first run.
 
 Storage is a RAID1 mirror of two disks by default, `OTC_DISK1`/`OTC_DISK2` (`/dev/sda` and
 `/dev/sdb` unless you set them). An existing array on them is reassembled, never wiped - which is
@@ -339,13 +339,16 @@ and the few things listed here:
   `/var/lib/otc/update-status.json`).
 
 To build and publish the image yourself (only needed when the wizard, hotspot or Bluetooth setup scripts change -
-the software it installs always comes from `main`), with `TARGET` in `makefile` pointing at any
+the software it installs is always the newest signed release), with `TARGET` in `makefile` pointing at any
 arm64 Linux box you can SSH to as `otc` (a Pi is fine):
 
 ```
-$ make image           # builds on TARGET (scripts/build_image.sh), copies dist/off-the-cloud-rpi-lite-arm64.img.xz back
-$ make image-publish   # uploads it to the rolling "image" GitHub release, at the URL linked above
+$ make image           # builds on TARGET (scripts/build_image.sh) from HEAD's scripts/, copies dist/off-the-cloud-rpi-lite-arm64.img.xz back
+$ make image-publish   # checks it against its .sha256, signs that, uploads them to the rolling "image" GitHub release and checks what was published
 ```
+
+`make image` builds from a `git archive` of HEAD only, and refuses to start while `scripts/` has
+changes that aren't committed: every device made from the image runs those scripts as root.
 
 **Using the setup wizard**
 ---------------------------
@@ -368,36 +371,34 @@ After that you're dropped into the normal app, signed in. You can change the own
 any time from Settings. There is no Wi-Fi step: once you're in, Settings > Wi-Fi changes the
 network the device uses.
 
-**Option 2: `Makefile.pi` against a plain OS install**
+**Option 2: `Makefile.pi`, from your computer**
 --------------------------------------------------------
-1. Install [Raspberry Pi OS (64-bit)](https://www.raspberrypi.com/software/operating-systems/) in the Raspberry Pi using [this tutorial](https://www.raspberrypi.com/documentation/computers/getting-started.html#raspberry-pi-imager). In `Customisation` select Enable SSH, use `otc` as the user name, and enable passwordless sudo for it (the default for the account created there).
+1. Install [Raspberry Pi OS (64-bit)](https://www.raspberrypi.com/software/operating-systems/) in the Raspberry Pi using [this tutorial](https://www.raspberrypi.com/documentation/computers/getting-started.html#raspberry-pi-imager). In `Customisation` enable SSH with your public key, and create a login account with sudo under any name except `otc`: the installer creates `otc` itself, as the device's own service account, with no login and no sudo.
 
-`Makefile.pi`, in the root of this repository, does everything from step 2 onwards on its own: builds the RAID1 array, installs and configures MariaDB, installs Go and ONNX Runtime, exports the RAM++ tagging model directly on the device, loads the database schema, writes the app config and systemd service, and finally builds and deploys the app itself. Run it from your computer (not the Pi), with the repository checked out:
-
-```
-$ make -f Makefile.pi bootstrap TARGET=<device_addr_or_hostname> DISK1=/dev/sda DISK2=/dev/sdb
-```
-
-A few things worth knowing before you run it:
-- It only wipes `DISK1`/`DISK2` after showing you `lsblk` output and asking you to type `yes` to confirm - double check those are the right two disks before confirming. If a RAID1 array already exists on the device it skips the wipe automatically (pass `FORCE=1` to rebuild it from scratch).
-- The RAM++ model export step runs the full torch/transformers pipeline on the Pi itself, so budget real time and bandwidth for it (a multi-GB download).
-- The device's generated secrets (DB password, device UUID, bridge secret) are written to a local `.env.pi` file the first time you run it - keep that file, don't commit it, and don't lose it, since it's the only place the DB password is recorded.
-- Re-running `bootstrap` (or any individual target) is safe; most steps detect what's already been done and skip it.
-
-Once bootstrapped, day-to-day use is just:
+`Makefile.pi`, in the root of this repository, runs Option 0's installer on the Pi for you, over SSH. Run it from your computer (not the Pi), with the repository checked out; it needs GNU make 3.82 or newer (on a Mac, `brew install make` and use `gmake`):
 
 ```
-$ make -f Makefile.pi deploy   # build the current code and (re)start the service on the device
-$ make -f Makefile.pi status   # service / DB / RAID / healthcheck status
+$ make -f Makefile.pi bootstrap TARGET=<device_addr_or_hostname> PI_USER=<your_login> SUBDOMAIN=<subdomain> DISK1=/dev/sda DISK2=/dev/sdb
+```
+
+It shows the two disks first: an OTC mirror already on them is kept and never wiped, and two disks without one are only erased and mirrored after you type `yes`. `SKIP_RAID=1` installs on a single disk, and `BRIDGE_ADDR=` (empty) installs a device for your home network only, which needs no `SUBDOMAIN`. What it installs is exactly what Option 0 installs - the newest signed release - so the device then updates itself from Settings, gets the system's security updates, and keeps its identity and database password on itself (`/etc/otc`). Re-running `bootstrap` is safe.
+
+Afterwards:
+
+```
+$ make -f Makefile.pi status   # service / DB / RAID / release / healthcheck status
 $ make -f Makefile.pi logs     # tail the service logs
 ```
 
-Run `make -f Makefile.pi help` for the full list of targets (e.g. to re-run just `raid`, `mariadb`, `models`, or `onnxruntime` if one step needs retrying). Wiring the RAID status LEDs to the GPIO pins is still a manual, physical step - see step 4 below for the pinout.
-
-The rest of this section documents what `Makefile.pi` does under the hood, step by step - useful if you want to customize the install, understand what changed on the device, or finish the job by hand if a step fails.
+Run `make -f Makefile.pi help` for the full list of targets. Wiring the RAID status LEDs to the GPIO pins is still a manual, physical step - see step 4 below for the pinout.
 
 **Option 3: Manual installation (step by step)**
 -------------------------------------------------
+These steps show what the installer does, for anyone who wants to customize an install or
+understand what is on the device. A device set up only by hand has none of the installer's root
+helpers, so it can't update itself: Settings > Device version says so when Update is pressed, and
+running Option 0's installer on it adds them (it keeps the device's data and identity).
+
 2. SSH into the device and update the OS:
 ```
 $ sudo apt-get update
@@ -505,8 +506,8 @@ $ sudo mysql -u root
 The last two `GRANT`s (issue #82, multiple users on one device) let the
 `otc` account provision/drop a whole database + dedicated MySQL user per
 additional user at runtime (see `dao/provisioning.go`) — required even if
-you never add a second user, since `scripts/install.sh`/`Makefile.pi` both
-apply them as part of the base setup. A MySQL account can't `GRANT` a
+you never add a second user, since `scripts/install.sh` applies them as
+part of the base setup. A MySQL account can't `GRANT` a
 privilege it doesn't itself hold, so it holds everything, with `GRANT
 OPTION`, on the `otc_<uuid>` databases it creates (`otc_%`: in a `GRANT`
 the `_` of `otc_<uuid>` is itself a wildcard, which the escaped `otc\_%`

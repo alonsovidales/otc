@@ -104,6 +104,11 @@ func DevUpdateNoSpace(path string, free string, needed string) Msg {
 	return Msg{Key: "dev.update.no_space", Args: map[string]any{"path": path, "free": free, "needed": needed}}
 }
 
+// DevUpdateNoUpdater is dev.update.no_updater: "This device was set up without the updater, so it can't install releases itself:…".
+func DevUpdateNoUpdater() Msg {
+	return Msg{Key: "dev.update.no_updater"}
+}
+
 // DevUpdateProtobufVersionMissing is dev.update.protobuf_version_missing: "couldn't find google.golang.org/protobuf's version in go.mod".
 func DevUpdateProtobufVersionMissing() Msg {
 	return Msg{Key: "dev.update.protobuf_version_missing"}

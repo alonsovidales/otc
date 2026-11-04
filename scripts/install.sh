@@ -3,10 +3,9 @@
 # machine into a running OTC device: RAID1 storage, MariaDB, a native Go
 # toolchain, ONNX Runtime, the RAM++ tagging model, the database schema, app
 # config, the RAID status-LED watcher, a systemd service, and the otc binary
-# itself — built from source, live, on this machine, using the exact same
-# versions/URLs Makefile.pi already automates over SSH from a dev machine
-# (see that file for the authoritative, more granular version, e.g. to
-# re-run just one step).
+# itself — built from source, live, on this machine, from the signed
+# release verified-install.sh checked (Makefile.pi runs that same installer
+# over SSH from another computer).
 #
 # Deliberately NOT installed here: network-setup.service (the first-boot
 # WiFi/AP watcher, scripts/network_setup.py). It can take down the very
