@@ -2783,8 +2783,11 @@ that fails is begun again with the same key after 2, 4, 8, 16, 30 and 30 s (`net
 web/scripts/transfer-test.mjs`). Files' uploads are one queue, a row each by id (waiting, reading,
 sending, done, failed with the device's words), sent one at a time from a drop or the Upload button
 beside Sort by (the browser's file chooser: phones, the keyboard and screen readers have no drag);
-a dropped folder's files go under their paths, hidden names left out. The panel goes 2.5 s after the
-last when none failed, else stays with Try again until closed, its title a live region. A folder that
+a dropped folder's files go under their paths, hidden names left out. The queue is the page's
+(`filesUploads.ts`, `node web/scripts/files-uploads-test.mjs`), not Files': it goes on while another
+section shows (App unmounts Files) and Files shows its rows again when opened; the end of a sign-in
+forgets it (App's `watchUploads`), so nothing queued goes into the next one's folders. The panel goes
+2.5 s after the last when none failed, else stays with Try again until closed, its title a live region. A folder that
 can't be listed shows only ".." with its error. The tour's upload step rings Upload. Alerts asks the
 unread count and lists that many (`alertsRead.ts`, at most 500) before it marks them read, so it marks
 only what is on the page.

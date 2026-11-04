@@ -3,7 +3,6 @@
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useWS } from "../net/useWS";
-import { uploadFile } from "../net/upload";
 import { fileSize } from "../net/fileSize";
 import type {
   ReqEnvelope,
@@ -40,6 +39,7 @@ import { openWaitingTab } from "./zipTab";
 import { SelectField } from "./SortBy";
 import { canOpenInline, safeToOpen } from "./inlineTypes";
 import { readPieces, type PiecesResult } from "./mediaDownload";
+import { filesUploads, useUploadRows } from "./filesUploads";
 import { useToasts } from "./useToasts";
 import ToastView from "./ToastView";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -598,31 +598,11 @@ function FilesExplorerView({
   const [openingPath, setOpeningPath] = useState<string | null>(null);
 
   // Issue #86: every file dropped or picked with Upload is a row of the
-  // upload panel (an overall bar, then each file: waiting, read for its
-  // resume key, sending with how much the device holds, done, or failed
-  // with the device's words). One queue, sent one at a time in the order
-  // they came: a drop while others are on their way joins it, and each row
-  // is its own by id - a second drop used to replace the rows the first's
-  // loop went on updating by index. The panel goes 2.5 s after the last
-  // one is done when none failed; with failures it stays, with Try again,
-  // until closed - it used to go 4 s after the drop whatever happened,
-  // never to come back for that batch.
-  type UploadStatus = "waiting" | "reading" | "sending" | "done" | "failed";
-  type UploadItem = { id: number; name: string; size: number; status: UploadStatus; sent: number; error?: UiText };
-  const [uploads, setUploads] = useState<UploadItem[]>([]);
-  const uploadsTimer = useRef<number | null>(null);
-  const stopClearingUploads = () => {
-    if (uploadsTimer.current !== null) window.clearTimeout(uploadsTimer.current);
-    uploadsTimer.current = null;
-  };
-  useEffect(() => () => stopClearingUploads(), []);
-  // What is still to send: the file and where it goes, by its row's id.
-  type UploadJob = { id: number; file: File; path: string };
-  const uploadQueue = useRef<UploadJob[]>([]);
-  // The rows' files, kept for Try again until the panel goes.
-  const uploadFiles = useRef(new Map<number, UploadJob>());
-  const uploadPumping = useRef(false);
-  const uploadSeq = useRef(0);
+  // upload panel, in one queue sent one at a time (filesUploads.ts). The
+  // queue is the page's, not this component's: it goes on while another
+  // section shows, and its rows are here again when Files is opened.
+  const uploads = useUploadRows();
+  // Files is still open (a thumbnail that comes after makes no URL).
   const liveRef = useRef(true);
   useEffect(() => () => { liveRef.current = false; }, []);
 
@@ -758,98 +738,22 @@ function FilesExplorerView({
   pathRef.current = path;
 
   // -------- uploads: drag & drop, and Upload (2) ----------
-  const setUpload = (id: number, change: Partial<UploadItem>) =>
-    setUploads((prev) => prev.map((u) => (u.id === id ? { ...u, ...change } : u)));
-  // One at a time, the queue's order. Once it is empty the folder on
-  // screen is listed again when anything landed in or under it (a dropped
-  // folder's files bring its subfolders), and the panel goes in a moment
-  // if nothing failed.
-  const pumpUploads = async () => {
-    if (uploadPumping.current) return;
-    uploadPumping.current = true;
-    let landed: string[] = [];
-    try {
-      for (;;) {
-        const job = uploadQueue.current.shift();
-        if (!job || !liveRef.current) break;
-        setUpload(job.id, { status: "sending", sent: 0, error: undefined });
-        try {
-          // The device refuses with a reply, not a dropped request: a file
-          // edited and dropped onto its own name ("Duplicated file"), or a
-          // failed disk write. The listing still shows the old file by that
-          // name, so a "Done" here would say the new content was kept.
-          const resp: RespEnvelope = await uploadFile(job.path, job.file, false,
-            (sent) => setUpload(job.id, { status: "sending", sent }),
-            () => setUpload(job.id, { status: "reading" }));
-          if (resp.error || resp.payload?.$case !== "respFile") {
-            const words = isBridgeAnswer(resp) ? "" : resp.errorMessage;
-            setUpload(job.id, { status: "failed", error: words ? asIs(words) : say("web.shell.connection.no_answer") });
-            console.error("Upload failed for", job.path, resp.errorMessage);
-          } else {
-            setUpload(job.id, { status: "done", sent: job.file.size });
-            uploadFiles.current.delete(job.id);
-            landed.push(job.path);
-          }
-        } catch (err) {
-          const words = err instanceof Error ? err.message : "";
-          setUpload(job.id, { status: "failed", error: words ? asIs(words) : say("web.shell.connection.no_answer") });
-          console.error("Upload failed for", job.path, err);
-        }
-        if (uploadQueue.current.length === 0) {
-          const here = normPath(pathRef.current);
-          if (liveRef.current && landed.some((p) => p.startsWith(here))) await loadList(pathRef.current);
-          landed = [];
-        }
-      }
-    } finally {
-      uploadPumping.current = false;
-    }
-    if (!liveRef.current) return;
-    // Nothing failed: the panel goes in a moment. Failures stay until the
-    // panel is closed (or tried again).
-    setUploads((now) => {
-      if (now.length && now.every((u) => u.status === "done")) {
-        stopClearingUploads();
-        uploadsTimer.current = window.setTimeout(() => setUploads((cur) => (cur.every((u) => u.status === "done") ? [] : cur)), 2500);
-      }
-      return now;
-    });
-  };
+  // Once the queue is empty the folder on screen is listed again when
+  // anything landed in or under it (a dropped folder's files bring its
+  // subfolders). Files closed meanwhile lists afresh when it is opened.
+  useEffect(() => filesUploads.onLanded((landed) => {
+    const here = normPath(pathRef.current);
+    if (landed.some((p) => p.startsWith(here))) void loadList(pathRef.current);
+  }), [loadList]);
   // Files to send into `dir` (a folder's path, with its slash), each with
-  // the path it takes under it ("Trip/a.jpg" for a dropped folder's).
+  // the path it takes under it ("Trip/a.jpg" for a dropped folder's). Also
+  // after Files closed: a dropped folder is read before its files queue.
   const queueUploads = (files: { file: File; rel: string }[], dir: string) => {
     if (!files.length || refuseOnDemo()) return;
-    stopClearingUploads();
-    const jobs = files.map(({ file, rel }) => ({ id: ++uploadSeq.current, file, path: joinPath(dir, rel) }));
-    for (const j of jobs) uploadFiles.current.set(j.id, j);
-    setUploads((prev) => {
-      // A panel whose uploads were all done starts afresh.
-      const keep = prev.some((u) => u.status !== "done") ? prev : [];
-      if (!keep.length) for (const u of prev) uploadFiles.current.delete(u.id);
-      return [...keep, ...jobs.map((j, i) => ({ id: j.id, name: files[i].rel, size: j.file.size, status: "waiting" as const, sent: 0 }))];
-    });
-    uploadQueue.current.push(...jobs);
-    void pumpUploads();
+    filesUploads.add(files.map(({ file, rel }) => ({ file, path: joinPath(dir, rel), name: rel })));
   };
-  // The panel's Try again: the failed ones join the queue once more.
-  const retryUploads = () => {
-    const again = uploads.filter((u) => u.status === "failed").map((u) => uploadFiles.current.get(u.id)).filter((j): j is UploadJob => !!j);
-    if (!again.length) return;
-    stopClearingUploads();
-    const ids = new Set(again.map((j) => j.id));
-    setUploads((prev) => prev.map((u) => (ids.has(u.id) ? { ...u, status: "waiting", sent: 0, error: undefined } : u)));
-    uploadQueue.current.push(...again);
-    void pumpUploads();
-  };
-  // The panel's ×: rows still to send stay until they are done.
-  const closeUploads = () => {
-    stopClearingUploads();
-    setUploads((prev) => {
-      const left = prev.filter((u) => u.status === "waiting" || u.status === "reading" || u.status === "sending");
-      for (const u of prev) if (!left.includes(u)) uploadFiles.current.delete(u.id);
-      return left;
-    });
-  };
+  const retryUploads = () => filesUploads.retry();
+  const closeUploads = () => filesUploads.close();
 
   const onDrop: React.DragEventHandler<HTMLDivElement> = (ev) => {
     ev.preventDefault(); ev.stopPropagation(); setDragOver(false);

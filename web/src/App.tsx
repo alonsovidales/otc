@@ -19,6 +19,7 @@ import { useFaceRecognition, watchFaceRecognition } from "./components/faceRecog
 import { usePlacesOn, watchPlaces } from "./components/places";
 import { watchMemories } from "./components/memories";
 import { watchSmartSearch } from "./components/smartSearch";
+import { watchUploads } from "./components/filesUploads";
 import { leaveFilesSearch } from "./components/filesNav";
 import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
@@ -232,6 +233,9 @@ function App() {
   useEffect(() => (authenticated ? watchMemories() : undefined), [authenticated]);
   // Smart search (smartSearch.ts): whether it is on, asked at each sign-in.
   useEffect(() => (authenticated ? watchSmartSearch() : undefined), [authenticated]);
+  // Files' uploads (filesUploads.ts) go on in any section; the end of the
+  // sign-in forgets them, so none goes into the next one's folders.
+  useEffect(() => (authenticated ? watchUploads() : undefined), [authenticated]);
 
   // The page's own host, but on the developer's Vite servers (npm run dev,
   // vite preview), where VITE_DEVICE=pit.off-the.cloud picks the device and
