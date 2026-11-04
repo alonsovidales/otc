@@ -12,3 +12,5 @@ docs/play-store export-ignore
 docs/screenshots export-ignore
 docs/promo export-ignore
 bridge/bin/otc_bridge export-ignore
+# The printable cases (sources, STLs, previews): not the device's to read either.
+hardware export-ignore

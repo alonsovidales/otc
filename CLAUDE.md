@@ -5395,6 +5395,19 @@ when ending the other sessions failed and `SetAdminPassword` doesn't bump the ad
 clients - no final-path check on otc-sync's flash status file, no "could not be read" status on the
 Mac, no `usePageRetry` in the web's Social feed or `DevicePhotoPicker`.
 
+### Cases to print (`hardware/`)
+
+Two OpenSCAD designs for the device (Pi 5 + Armor Lite V5 + the two status LEDs), under CC BY-SA
+4.0 (`hardware/LICENSE.md`), not the AGPL: `hardware/cloud-case/` (`otc-case.scad`) and
+`hardware/screen-case/` (`otc-screen-case.scad`, on a 75 x 75 mm M2.5 screen pattern, hung by two
+keyholes). Every size is a named variable at the top of each source; the reference Pi model in each
+(`pi5_ref`, with `g` to grow parts for clearances) is what the interference checks run against.
+After any change run that folder's `render.sh` (OpenSCAD 2025+, Manifold): it rewrites the STLs
+(committed, in printing orientation) and the previews, and runs the checks - each must come out
+empty or zero-volume (contacts only); the READMEs describe every fit and must follow the source.
+Both use one insert and one screw size (M2.5x4 heat-set inserts, M2.5 screws); keep the two cases'
+shared parts (port cut-outs, LEDs, standoffs, front lid bosses) the same.
+
 ## Cutting a release (issue #94)
 
 Devices update themselves in place: an owner presses **Update** in Settings and the

@@ -185,6 +185,9 @@ With this you can access all your data and social network from any browser just 
 - 1x MicroSD card to host the OS in the RaspberryPi
 - 1x [Power Supply](https://www.raspberrypi.com/products/27w-power-supply/) (Use something of at least 27W since the consumption is quite high when processing images)
 - 1x [Active Cooler](https://www.raspberrypi.com/products/active-cooler/)
+- Optional, to print yourself: a case - the [cloud case](hardware/cloud-case/) for a shelf or a desk,
+  or the [screen case](hardware/screen-case/) that hangs a portable screen on the wall with the device
+  behind it. Both take a GeeekPi Armor Lite V5 cooler in place of the Active Cooler ([all cases](hardware/)).
 
 **Installation of the device**
 ==============================
