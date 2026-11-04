@@ -295,8 +295,10 @@ final class SecretsStore: ObservableObject {
         // Issue #190: the home-network endpoint belongs to the endpoint it
         // was learned on; another device or address starts without one -
         // except the same device at its new address, which keeps its pin
-        // (its first sign-in there is never in the clear).
-        if sameDevice {
+        // (its first sign-in there is never in the clear), and the same
+        // address spelled otherwise (a host's case), which is no change:
+        // dropping its pin would send the next sign-in in the clear.
+        if sameDevice || (!before.isEmpty && Self.sameAddress(before, endpoint)) {
             LocalEndpoint.move(from: before, to: endpointURLString)
         } else {
             LocalEndpoint.clear(unlessFor: endpointURLString)

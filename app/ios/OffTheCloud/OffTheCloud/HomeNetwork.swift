@@ -175,9 +175,10 @@ struct LocalEndpoint: Codable, Equatable, Sendable {
     }
 
     /// The same device at another address (Leave the Bridge points the app
-    /// at its home-network address): what was learned on `old` is kept for
-    /// `new`, so the first sign-in there is already pinned once the pinned
-    /// link was reached. Anything else stored goes, as clear(unlessFor:).
+    /// at its home-network address; the same address saved spelled
+    /// otherwise): what was learned on `old` is kept for `new`, so the
+    /// first sign-in there is already pinned once the pinned link was
+    /// reached. Anything else stored goes, as clear(unlessFor:).
     static func move(from old: String, to new: String) {
         guard old != new, let ep = stored(for: old) else {
             clear(unlessFor: new)

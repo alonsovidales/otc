@@ -149,5 +149,30 @@ struct DeviceChangeSignInTests {
         s.saveCredentials(endpoint: "wss://Pit.invalid/ws", password: "another")
         #expect(s.deviceSession == session + 1)
     }
+
+    @Test func theSameAddressSpelledOtherwiseKeepsItsPin() throws {
+        guard SecretsStore.loadOrCreate().endpoint.isEmpty, HomeNetworkTests.keychainWorks else { return }
+        let s = SecretsStore.loadOrCreate()
+        DeviceChange.onAddressChange = {}
+        defer {
+            DeviceChange.onAddressChange = { DeviceChange.addressChanged() }
+            LocalEndpoint.clear()
+            UserDefaults.standard.removeObject(forKey: DeviceChange.pendingKey)
+            s.saveCredentials(endpoint: "", password: "")
+        }
+        s.saveCredentials(endpoint: "ws://otc-home.invalid:8080/ws", password: "test-dummy")
+        try #require(LocalEndpoint(HomeNetworkTests.answer(["192.168.1.20"]), endpoint: s.endpointURLString)).reachedHere().save()
+        let session = s.deviceSession
+        // The host typed with capitals: the same address, so no change of
+        // device - and the pin stays, or the next sign-in would go in the
+        // clear to whoever holds the address.
+        s.saveCredentials(endpoint: "ws://OTC-Home.invalid:8080/ws", password: "test-dummy")
+        #expect(!DeviceChange.pending)
+        #expect(s.deviceSession == session)
+        let kept = try #require(LocalEndpoint.stored(for: s.endpointURLString))
+        #expect(kept.pin == HomeNetworkTests.goodPin)
+        #expect(kept.reached)
+        #expect(OTCConnection.pinnedOnly(try #require(URL(string: s.endpointURLString)), stored: kept))
+    }
 }
 }

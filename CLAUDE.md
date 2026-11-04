@@ -984,8 +984,10 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     button: whoever answers can't be told from the device). http:// media goes only while the
     session itself is in the clear (`signedInInClear`: a first sign-in, a device without a pin
     or not reached). Every sign-in over the home link asks GetLocalEndpoint again there
-    (`updateOverHome`: new addresses only, the pin never dropped). Tests:
-    `PinnedAddressTests.swift`, `HomeNetworkTests.swift` (the race's outcome).
+    (`updateOverHome`: new addresses only, the pin never dropped). Saving the same address
+    spelled otherwise (a host's case) keeps its pin (`saveCredentials`: `move`), never a sign-in
+    in the clear. Tests: `PinnedAddressTests.swift`, `HomeNetworkTests.swift` (the race's
+    outcome).
   - Video: `/media/<token>` is relative, so the base follows the route. Android plays through
     ExoPlayer on the pinned OkHttp client; iOS streams local media through an
     `AVAssetResourceLoader` on a custom scheme over the pinned URLSession, and bridge media plays as
