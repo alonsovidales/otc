@@ -30,7 +30,12 @@ final class SecretsStore: ObservableObject {
         }
     }
     @Published var includeVideos: Bool {
-        didSet { persistOptions() }
+        didSet {
+            persistOptions()
+            // Back on: the videos taken while it was off are sent too
+            // (PhotoSync.videosTurnedOn). Log Out turns it on signed out.
+            if includeVideos && !oldValue && isConfigured { PhotoSync.shared.videosTurnedOn() }
+        }
     }
     @Published var downloadFromiCloud: Bool {
         didSet { persistOptions() }

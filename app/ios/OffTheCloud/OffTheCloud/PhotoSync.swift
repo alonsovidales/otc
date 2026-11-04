@@ -541,6 +541,16 @@ final class PhotoSync: NSObject {
                 }
             }
             return out
+        case .videos(let date):
+            guard includeVideos else { return [] }
+            let opts = PHFetchOptions()
+            var preds = [NSPredicate(format: "mediaType == %d", PHAssetMediaType.video.rawValue)]
+            if let date { preds.append(NSPredicate(format: "creationDate > %@", date as NSDate)) }
+            opts.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: preds)
+            opts.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
+            var out: [PHAsset] = []
+            PHAsset.fetchAssets(with: opts).enumerateObjects { a, _, _ in out.append(a) }
+            return out
         case .album(let id):
             // Gone since it was turned on: nothing to send.
             guard let album = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [id], options: nil).firstObject else { return [] }
@@ -553,6 +563,19 @@ final class PhotoSync: NSObject {
             PHAsset.fetchAssets(in: album, options: opts).enumerateObjects { a, _, _ in out.append(a) }
             return out
         }
+    }
+
+    /// "Include videos" turned back on. The videos taken while it was
+    /// off are behind the watermark - the runs that went meanwhile moved it
+    /// past them - so a one-off pass sends them, from the point the owner
+    /// chose to sync from (PhotoSources.videos); what the device has is
+    /// found and not sent again. Not while signed out (Log Out puts the
+    /// switch back on).
+    func videosTurnedOn() {
+        syncLock.lock()
+        state.queueBackfill(PhotoSources.videos)
+        syncLock.unlock()
+        Task { try? await runForeground() }
     }
 
     /// The retry list's assets that still exist, whatever their type: a
