@@ -11,6 +11,10 @@
     "text": "ressource introuvable",
     "en": "asset not found"
   },
+  "dev.files.bad_path": {
+    "text": "aucun fichier ne peut être enregistré sous {path} : un chemin commence par / et aucun de ses noms n’est vide, . ou ..",
+    "en": "no file can be saved as {path}: a path starts with / and none of the names in it is empty, . or .."
+  },
   "dev.files.bad_size": {
     "text": "taille incorrecte",
     "en": "bad size"
@@ -136,6 +140,10 @@
   "dev.files.memories_off": {
     "text": "Ce jour-là est désactivé : activez-le dans les Paramètres pour voir vos souvenirs",
     "en": "On this day is off: turn it on in Settings to see your memories"
+  },
+  "dev.files.name_differs_by_spaces": {
+    "text": "« {name} » ne peut pas être enregistré : un fichier porte ici le même nom avec ou sans espaces à la fin, et l’appareil n’en garde qu’un – renommez l’un des deux",
+    "en": "\"{name}\" can't be saved: a file here has the same name with or without spaces at its end, and the device keeps only one of them - rename one"
   },
   "dev.files.no_low_res_photos": {
     "text": "il n’y a aucune photo à partager en basse résolution ici",

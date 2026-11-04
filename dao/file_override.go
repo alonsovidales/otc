@@ -30,7 +30,7 @@ func (dao *Dao) OverrideFile(file *pb.File, cloudID string) (oldHash string, err
 	defer tx.Rollback()
 
 	cloud := sql.NullString{String: cloudID, Valid: cloudID != ""}
-	err = tx.QueryRow("select `hash` from `files` where `path` = ? for update", file.Path).Scan(&oldHash)
+	err = tx.QueryRow("select `hash` from `files` where "+exactPath("`path`")+" for update", file.Path, file.Path).Scan(&oldHash)
 	if err == sql.ErrNoRows {
 		if _, err = tx.Exec(
 			"insert into `files` (`hash`, `mime`, `created`, `modified`, `path`, `size`, `cloud_id`) values (?, ?, ?, ?, ?, ?, ?)",
@@ -61,8 +61,8 @@ func (dao *Dao) OverrideFile(file *pb.File, cloudID string) (oldHash string, err
 			}
 		}
 	}
-	if _, err = tx.Exec("update `files` set `hash` = ?, `mime` = ?, `size` = ?, `created` = ?, `modified` = ?, `cloud_id` = ? where `path` = ?",
-		file.Hash, file.Mime, FileSize(file), file.Created.AsTime(), file.Modified.AsTime(), cloud, file.Path); err != nil {
+	if _, err = tx.Exec("update `files` set `hash` = ?, `mime` = ?, `size` = ?, `created` = ?, `modified` = ?, `cloud_id` = ? where "+exactPath("`path`"),
+		file.Hash, file.Mime, FileSize(file), file.Created.AsTime(), file.Modified.AsTime(), cloud, file.Path, file.Path); err != nil {
 		return "", err
 	}
 

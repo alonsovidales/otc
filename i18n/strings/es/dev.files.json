@@ -11,6 +11,10 @@
     "text": "recurso no encontrado",
     "en": "asset not found"
   },
+  "dev.files.bad_path": {
+    "text": "no se puede guardar ningún archivo como {path}: una ruta empieza por / y ninguno de sus nombres está vacío ni es . o ..",
+    "en": "no file can be saved as {path}: a path starts with / and none of the names in it is empty, . or .."
+  },
   "dev.files.bad_size": {
     "text": "tamaño no válido",
     "en": "bad size"
@@ -136,6 +140,10 @@
   "dev.files.memories_off": {
     "text": "Un día como hoy está desactivado: actívalo en Ajustes para ver tus recuerdos",
     "en": "On this day is off: turn it on in Settings to see your memories"
+  },
+  "dev.files.name_differs_by_spaces": {
+    "text": "no se puede guardar «{name}»: aquí hay un archivo con el mismo nombre con o sin espacios al final, y el dispositivo solo guarda uno de los dos: cambia el nombre de uno",
+    "en": "\"{name}\" can't be saved: a file here has the same name with or without spaces at its end, and the device keeps only one of them - rename one"
   },
   "dev.files.no_low_res_photos": {
     "text": "ahí no hay fotos que compartir en baja resolución",

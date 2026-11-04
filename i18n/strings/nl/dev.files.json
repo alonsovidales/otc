@@ -11,6 +11,10 @@
     "text": "onderdeel van de webapp niet gevonden",
     "en": "asset not found"
   },
+  "dev.files.bad_path": {
+    "text": "er kan geen bestand worden opgeslagen als {path}: een pad begint met / en geen van de namen erin is leeg, . of ..",
+    "en": "no file can be saved as {path}: a path starts with / and none of the names in it is empty, . or .."
+  },
   "dev.files.bad_size": {
     "text": "ongeldige grootte",
     "en": "bad size"
@@ -136,6 +140,10 @@
   "dev.files.memories_off": {
     "text": "Op deze dag staat uit: zet het aan in Instellingen om je herinneringen te zien",
     "en": "On this day is off: turn it on in Settings to see your memories"
+  },
+  "dev.files.name_differs_by_spaces": {
+    "text": "“{name}” kan niet worden opgeslagen: hier staat een bestand met dezelfde naam met of zonder spaties aan het eind, en het apparaat bewaart er maar één: geef er één een andere naam",
+    "en": "\"{name}\" can't be saved: a file here has the same name with or without spaces at its end, and the device keeps only one of them - rename one"
   },
   "dev.files.no_low_res_photos": {
     "text": "er zijn daar geen foto’s om in lage resolutie te delen",

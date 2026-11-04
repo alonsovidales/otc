@@ -526,8 +526,8 @@ func TestDelFileByPathLocksRefCountQuery(t *testing.T) {
 
 	t.Run("last reference cleans up file_tags too", func(t *testing.T) {
 		mock.ExpectBegin()
-		mock.ExpectQuery("select `hash` from `files` where `path` = \\?").
-			WithArgs("/a.jpg").
+		mock.ExpectQuery("select `hash` from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\) for update").
+			WithArgs("/a.jpg", "/a.jpg").
 			WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow(hash))
 		mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\? for update").
 			WithArgs(hash).
@@ -539,8 +539,8 @@ func TestDelFileByPathLocksRefCountQuery(t *testing.T) {
 		mock.ExpectExec("delete from `file_tags` where `hash` = \\?").
 			WithArgs(hash).
 			WillReturnResult(sqlmock.NewResult(0, 1))
-		mock.ExpectExec("delete from `files` where `path` = \\?").
-			WithArgs("/a.jpg").
+		mock.ExpectExec("delete from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\)").
+			WithArgs("/a.jpg", "/a.jpg").
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
@@ -554,8 +554,8 @@ func TestDelFileByPathLocksRefCountQuery(t *testing.T) {
 
 	t.Run("another reference leaves file_tags alone", func(t *testing.T) {
 		mock.ExpectBegin()
-		mock.ExpectQuery("select `hash` from `files` where `path` = \\?").
-			WithArgs("/b.jpg").
+		mock.ExpectQuery("select `hash` from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\) for update").
+			WithArgs("/b.jpg", "/b.jpg").
 			WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow(hash))
 		mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\? for update").
 			WithArgs(hash).
@@ -564,8 +564,8 @@ func TestDelFileByPathLocksRefCountQuery(t *testing.T) {
 		mock.ExpectQuery("select count\\(\\*\\) from `file_versions` where `hash` = \\?").
 			WithArgs(hash).
 			WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
-		mock.ExpectExec("delete from `files` where `path` = \\?").
-			WithArgs("/b.jpg").
+		mock.ExpectExec("delete from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\)").
+			WithArgs("/b.jpg", "/b.jpg").
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 

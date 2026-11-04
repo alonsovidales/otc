@@ -104,6 +104,9 @@ var headEnglish = []struct {
 	{"dev.files.archive_offset", i18n.DevFilesArchiveOffset(512), fmt.Sprintf("offset %d outside the archive", 512)},
 	{"dev.files.archive_too_big", i18n.DevFilesArchiveTooBig(999), fmt.Sprintf("the archive is %d bytes: download it in parts", 999)},
 	{"dev.files.asset_not_found", i18n.DevFilesAssetNotFound(), "asset not found"},
+	// Paths checked and exact (2026-11): new, so their English is the
+	// catalog's from the start.
+	{"dev.files.bad_path", i18n.DevFilesBadPath("/a//b.txt"), "no file can be saved as /a//b.txt: a path starts with / and none of the names in it is empty, . or .."},
 	{"dev.files.bad_size", i18n.DevFilesBadSize(), "bad size"},
 	{"dev.files.chunk_too_big", i18n.DevFilesChunkTooBig(400), fmt.Sprintf("chunk over %d bytes", 400)},
 	{"dev.files.cloud_ids_failed", i18n.DevFilesCloudIdsFailed("boom"), fmt.Sprintf("error checking cloud ids: %s", "boom")},
@@ -132,6 +135,7 @@ var headEnglish = []struct {
 	{"dev.files.locked_by_parent", i18n.DevFilesLockedByParent("Trip", "/Photos"), fmt.Sprintf("%s is inside the upload-only folder %s - unlock %s to unlock it", "Trip", "/Photos", "/Photos")},
 	{"dev.files.locked_by_parent_own", i18n.DevFilesLockedByParentOwn("Trip", "/Photos"), fmt.Sprintf("%s is inside the upload-only folder %s - unlock %s first, then %s", "Trip", "/Photos", "/Photos", "Trip")},
 	{"dev.files.media_not_found", i18n.DevFilesMediaNotFound(), "media not found"},
+	{"dev.files.name_differs_by_spaces", i18n.DevFilesNameDiffersBySpaces("notes.txt "), "\"notes.txt \" can't be saved: a file here has the same name with or without spaces at its end, and the device keeps only one of them - rename one"},
 	{"dev.files.no_low_res_photos", i18n.DevFilesNoLowResPhotos(), "there are no photos to share in low resolution there"},
 	{"dev.files.no_media_to_share", i18n.DevFilesNoMediaToShare(), "there are no photos or videos to share there"},
 	{"dev.files.no_path", i18n.DevFilesNoPath(), "no path"},

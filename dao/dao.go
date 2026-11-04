@@ -521,6 +521,9 @@ func (dao *Dao) GetTags() (tags []string, err error) {
 	return
 }
 
+// GetFileByPath is the row at path, exactly: sql.ErrNoRows when there is
+// none, also when the row = finds is another name that only spaces at its
+// end tell apart (exactPath).
 func (dao *Dao) GetFileByPath(path string) (file *pb.File, err error) {
 	var created, modified time.Time
 	var size int64
@@ -529,12 +532,23 @@ func (dao *Dao) GetFileByPath(path string) (file *pb.File, err error) {
 	err = dao.db.QueryRow(
 		"select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` = ?", path).
 		Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &size)
+	if err == nil && file.Path != path {
+		file, err = new(pb.File), sql.ErrNoRows
+	}
 
 	file.Created = timestamppb.New(created)
 	file.Modified = timestamppb.New(modified)
 	SetFileSize(file, size)
 
 	return
+}
+
+// SamePathAs is the path of the row the unique key takes path for (=,
+// PAD SPACE): path itself, or a name only spaces at its end tell apart
+// from it (exactPath). sql.ErrNoRows when there is none.
+func (dao *Dao) SamePathAs(path string) (stored string, err error) {
+	err = dao.db.QueryRow("select `path` from `files` where `path` = ?", path).Scan(&stored)
+	return stored, err
 }
 
 // DelFileByPath deletes the files row at path. Files are deduplicated on
@@ -577,6 +591,18 @@ func (dao *Dao) DelFileByPath(path string) (err error) {
 // query per file, for every file of a deleted folder - when the
 // transaction here reads it anyway.
 func (dao *Dao) DelFileByPathHash(path string) (hash string, err error) {
+	return dao.DelFileIfHash(path, "")
+}
+
+// ErrOtherContent is DelFileIfHash's refusal: the path holds other content
+// than the one it was to delete (synced over or edited meanwhile).
+var ErrOtherContent = errors.New("the path holds other content now") // i18n-ignore: a sentinel for errors.Is, never shown
+
+// DelFileIfHash is DelFileByPathHash of the row at path only while it
+// holds expected (any content when ""): another content there is left as
+// it is, with ErrOtherContent and its hash. The row is read for update, so
+// an override can't come between the check and the delete.
+func (dao *Dao) DelFileIfHash(path, expected string) (hash string, err error) {
 	log.Debug("Del file SQL:", path)
 
 	tx, err := dao.db.Begin()
@@ -585,8 +611,11 @@ func (dao *Dao) DelFileByPathHash(path string) (hash string, err error) {
 	}
 	defer tx.Rollback()
 
-	if err = tx.QueryRow("select `hash` from `files` where `path` = ?", path).Scan(&hash); err != nil {
+	if err = tx.QueryRow("select `hash` from `files` where "+exactPath("`path`")+" for update", path, path).Scan(&hash); err != nil {
 		return "", err
+	}
+	if expected != "" && hash != expected {
+		return hash, ErrOtherContent
 	}
 
 	// Issue #132: a version still holding this content keeps its tags too.
@@ -603,7 +632,7 @@ func (dao *Dao) DelFileByPathHash(path string) (hash string, err error) {
 		}
 	}
 
-	if _, err = tx.Exec("delete from `files` where `path` = ?", path); err != nil {
+	if _, err = tx.Exec("delete from `files` where "+exactPath("`path`"), path, path); err != nil {
 		return "", err
 	}
 
@@ -655,16 +684,16 @@ func (dao *Dao) ReplaceFileKeepingVersion(file *pb.File, cloudID string) error {
 	defer tx.Rollback()
 	// The content the path held, for the month counts (months.go).
 	var oldHash string
-	if err = tx.QueryRow("select `hash` from `files` where `path` = ? for update", file.Path).Scan(&oldHash); err != nil && err != sql.ErrNoRows {
+	if err = tx.QueryRow("select `hash` from `files` where "+exactPath("`path`")+" for update", file.Path, file.Path).Scan(&oldHash); err != nil && err != sql.ErrNoRows {
 		return err
 	}
 	if _, err = tx.Exec("insert into `file_versions` (`path`, `hash`, `mime`, `size`, `created`, `modified`, `replaced`) "+
-		"select `path`, `hash`, `mime`, `size`, `created`, `modified`, ? from `files` where `path` = ?", time.Now(), file.Path); err != nil {
+		"select `path`, `hash`, `mime`, `size`, `created`, `modified`, ? from `files` where "+exactPath("`path`"), time.Now(), file.Path, file.Path); err != nil {
 		return err
 	}
-	if _, err = tx.Exec("update `files` set `hash` = ?, `mime` = ?, `size` = ?, `created` = ?, `modified` = ?, `cloud_id` = coalesce(?, `cloud_id`) where `path` = ?",
+	if _, err = tx.Exec("update `files` set `hash` = ?, `mime` = ?, `size` = ?, `created` = ?, `modified` = ?, `cloud_id` = coalesce(?, `cloud_id`) where "+exactPath("`path`"),
 		file.Hash, file.Mime, FileSize(file), file.Created.AsTime(), file.Modified.AsTime(),
-		sql.NullString{String: cloudID, Valid: cloudID != ""}, file.Path); err != nil {
+		sql.NullString{String: cloudID, Valid: cloudID != ""}, file.Path, file.Path); err != nil {
 		return err
 	}
 
@@ -678,7 +707,7 @@ func (dao *Dao) ReplaceFileKeepingVersion(file *pb.File, cloudID string) error {
 // GetFileVersions lists a path's older versions, newest first; Modified
 // carries when each stopped being current.
 func (dao *Dao) GetFileVersions(path string) (files []*pb.File, err error) {
-	rows, err := dao.db.Query("select `hash`, `mime`, `size`, `created`, `replaced` from `file_versions` where `path` = ? order by `replaced` desc", path)
+	rows, err := dao.db.Query("select `hash`, `mime`, `size`, `created`, `replaced` from `file_versions` where "+exactPath("`path`")+" order by `replaced` desc", path, path)
 	if err != nil {
 		return nil, err
 	}
@@ -704,7 +733,7 @@ func (dao *Dao) GetFileVersion(path, hash string) (file *pb.File, err error) {
 	file = &pb.File{Path: path}
 	var created, replaced time.Time
 	var size int64
-	err = dao.db.QueryRow("select `hash`, `mime`, `size`, `created`, `replaced` from `file_versions` where `path` = ? and `hash` = ? order by `replaced` desc limit 1", path, hash).
+	err = dao.db.QueryRow("select `hash`, `mime`, `size`, `created`, `replaced` from `file_versions` where "+exactPath("`path`")+" and `hash` = ? order by `replaced` desc limit 1", path, path, hash).
 		Scan(&file.Hash, &file.Mime, &size, &created, &replaced)
 	file.Created = timestamppb.New(created)
 	file.Modified = timestamppb.New(replaced)
@@ -757,7 +786,7 @@ func (dao *Dao) countVersions(cond string, args []any) (map[string]int32, error)
 // DelFileVersions drops a path's versions and returns their hashes, so
 // the caller can remove blobs nothing references any more.
 func (dao *Dao) DelFileVersions(path string) (hashes []string, err error) {
-	rows, err := dao.db.Query("select `hash` from `file_versions` where `path` = ?", path)
+	rows, err := dao.db.Query("select `hash` from `file_versions` where "+exactPath("`path`"), path, path)
 	if err != nil {
 		return nil, err
 	}
@@ -779,7 +808,7 @@ func (dao *Dao) DelFileVersions(path string) (hashes []string, err error) {
 	if len(hashes) == 0 {
 		return nil, nil
 	}
-	_, err = dao.db.Exec("delete from `file_versions` where `path` = ?", path)
+	_, err = dao.db.Exec("delete from `file_versions` where "+exactPath("`path`"), path, path)
 
 	return hashes, err
 }

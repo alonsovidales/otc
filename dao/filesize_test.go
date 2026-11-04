@@ -74,10 +74,10 @@ func TestFileReadersCarryA3GiBSize(t *testing.T) {
 		{"ListMediaForReprocess", "from `files`.*group by `hash`", fileRow, func(d *Dao) ([]*pb.File, error) {
 			return d.ListMediaForReprocess("", 10)
 		}},
-		{"GetFileVersions", "from `file_versions` where `path` = \\? order by", versionRow, func(d *Dao) ([]*pb.File, error) {
+		{"GetFileVersions", "from `file_versions` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\) order by", versionRow, func(d *Dao) ([]*pb.File, error) {
 			return d.GetFileVersions("/v.mp4")
 		}},
-		{"GetFileVersion", "from `file_versions` where `path` = \\? and `hash` = \\?", versionRow, func(d *Dao) ([]*pb.File, error) {
+		{"GetFileVersion", "from `file_versions` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\) and `hash` = \\?", versionRow, func(d *Dao) ([]*pb.File, error) {
 			f, err := d.GetFileVersion("/v.mp4", "h")
 			return []*pb.File{f}, err
 		}},
@@ -134,11 +134,11 @@ func TestFileWritersStoreTheInt64Size(t *testing.T) {
 	}
 
 	mock.ExpectBegin()
-	mock.ExpectQuery("select `hash` from `files` where `path` = \\? for update").WithArgs(f.Path).
+	mock.ExpectQuery("select `hash` from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\) for update").WithArgs(f.Path, f.Path).
 		WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow("old"))
 	mock.ExpectExec("insert into `file_versions`").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec("update `files` set `hash` = \\?, `mime` = \\?, `size` = \\?").
-		WithArgs(f.Hash, f.Mime, threeGiB, sqlmock.AnyArg(), sqlmock.AnyArg(), sql.NullString{}, f.Path).
+		WithArgs(f.Hash, f.Mime, threeGiB, sqlmock.AnyArg(), sqlmock.AnyArg(), sql.NullString{}, f.Path, f.Path).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	if err := d.ReplaceFileKeepingVersion(f, ""); err != nil {
@@ -146,7 +146,7 @@ func TestFileWritersStoreTheInt64Size(t *testing.T) {
 	}
 
 	mock.ExpectBegin()
-	mock.ExpectQuery("select `hash` from `files` where `path` = \\? for update").WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery("select `hash` from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\) for update").WillReturnError(sql.ErrNoRows)
 	mock.ExpectExec("insert into `files`").
 		WithArgs(f.Hash, f.Mime, sqlmock.AnyArg(), sqlmock.AnyArg(), f.Path, threeGiB, sql.NullString{}).
 		WillReturnResult(sqlmock.NewResult(1, 1))

@@ -19,6 +19,11 @@ func DevFilesAssetNotFound() Msg {
 	return Msg{Key: "dev.files.asset_not_found"}
 }
 
+// DevFilesBadPath is dev.files.bad_path: "no file can be saved as {path}: a path starts with / and none of the names in it…".
+func DevFilesBadPath(path string) Msg {
+	return Msg{Key: "dev.files.bad_path", Args: map[string]any{"path": path}}
+}
+
 // DevFilesBadSize is dev.files.bad_size: "bad size".
 func DevFilesBadSize() Msg {
 	return Msg{Key: "dev.files.bad_size"}
@@ -172,6 +177,11 @@ func DevFilesMemoriesBadHide() Msg {
 // DevFilesMemoriesOff is dev.files.memories_off: "On this day is off: turn it on in Settings to see your memories".
 func DevFilesMemoriesOff() Msg {
 	return Msg{Key: "dev.files.memories_off"}
+}
+
+// DevFilesNameDiffersBySpaces is dev.files.name_differs_by_spaces: "\"{name}\" can't be saved: a file here has the same name with or without spaces at…".
+func DevFilesNameDiffersBySpaces(name string) Msg {
+	return Msg{Key: "dev.files.name_differs_by_spaces", Args: map[string]any{"name": name}}
 }
 
 // DevFilesNoLowResPhotos is dev.files.no_low_res_photos: "there are no photos to share in low resolution there".

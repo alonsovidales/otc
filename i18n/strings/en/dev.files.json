@@ -13,6 +13,11 @@
     "text": "asset not found",
     "note": "Error reply when a file of the web app itself (a script, a picture) asked through the bridge doesn't exist on the device."
   },
+  "dev.files.bad_path": {
+    "text": "no file can be saved as {path}: a path starts with / and none of the names in it is empty, . or ..",
+    "args": [["path", "user"]],
+    "note": "Error shown after \"error trying to upload file: \" or \"error trying to link file: \" when an app asks to save a file at a path the device refuses: one that doesn't start with /, has an empty folder name (two / in a row), or a folder or file named . or ... An app fault, or a folder path typed with two / in a row. {path} is the path asked for, such as /Photos//2024/a.jpg."
+  },
   "dev.files.bad_size": {
     "text": "bad size",
     "note": "Error shown after \"error starting the upload: \" when an app starts an upload with a negative size (an app fault)."
@@ -158,6 +163,11 @@
   "dev.files.memories_off": {
     "text": "On this day is off: turn it on in Settings to see your memories",
     "note": "Error reply when the memories (On this day: photos taken on this day in earlier years) are asked for while the user has the feature turned off in Settings. The apps hide them then, so it is rarely shown. On this day is the feature's name, as in the apps' Settings."
+  },
+  "dev.files.name_differs_by_spaces": {
+    "text": "\"{name}\" can't be saved: a file here has the same name with or without spaces at its end, and the device keeps only one of them - rename one",
+    "args": [["name", "user"]],
+    "note": "Error shown after \"error trying to upload file: \" when a computer or phone uploads a file whose name differs from a file already in the same folder only by spaces at the end of the name (\"notes.txt\" and \"notes.txt \"): the device can't keep both. {name} is the file's name, in quotes so that the spaces at its end show."
   },
   "dev.files.no_low_res_photos": {
     "text": "there are no photos to share in low resolution there",

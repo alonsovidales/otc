@@ -363,6 +363,10 @@ func (mg *Manager) BeginUpload(ses *session.Session, path string, size int64, fo
 	if path == "" {
 		return "", 0, devtext.New(i18n.DevFilesNoPath())
 	}
+	// Refused before any content comes (paths.go).
+	if err := mg.checkNewPath(path); err != nil {
+		return "", 0, err
+	}
 	u := pendingUploads
 	u.begin.Lock()
 	defer u.begin.Unlock()

@@ -1134,6 +1134,27 @@ no 0-byte blob after a crash, and a blob owned by another account (a recovered o
 installation's `pi`) can still be replaced; release 22's script hands such files to `otc`. The
 folder is synced after each rename too (`blobstore.SyncDir`: `Commit`, `writeBlob`, social's
 `writeFileAtomic`, the posts' copies), so a power cut can't take a name back while its row stays.
+**Paths** (2026-11, `paths.go`): a path reaches `files` only through `registerUpload` (UploadFile,
+FinishUpload) or `LinkFile` - nothing renames, moves or makes folders on the device (a client moves or
+copies with LinkFile and DelFile; a folder is only its files' paths) - and `checkNewPath` is the one
+rule for all of them, BeginUpload asking it before any content comes: a new file's path starts with
+"/" and none of its names is empty, "." or ".." (no "//", no trailing "/"), and it has no NUL
+(`BadPathError`, `dev.files.bad_path`). The apps and the sync clients only build such paths (otc-sync
+and the Mac from a cleaned local path, the phones and the web from a folder and a name; a web folder
+typed with "//" is now refused). A path already in `files`, byte for byte, stays its client's to
+replace, read and delete whatever it looks like: rows stored before are left as they are, and a share
+archive's entry names drop any empty, "." or ".." name and turn a `\` into `_` (`zipEntryName`), so no
+entry unpacks outside its folder. The path columns are `utf8mb4_bin`, which MariaDB compares PAD
+SPACE: "/a.txt" = "/a.txt " holds and the unique key takes them for one path, so an upload of "notes.txt "
+next to "notes.txt" with override replaced the other file's content, and a DelFile of the one deleted
+the other. Every lookup, change and delete of one path is now exact (`dao.exactPath`: `path = ? and
+length(path) = length(?)`, still a unique-key lookup; `GetFileByPath` checks the row's path), and an
+upload or link whose path the key finds under another name is refused (`SpacesNameError`,
+`dev.files.name_differs_by_spaces`, `dao.SamePathAs`): two names that differ only by spaces at their end
+can't both be on a device (no collation change: a rebuild of `files`, `file_versions` and the folder
+tables on every database, with UNIONs failing on a mix if one stopped halfway). Lists of paths (`path
+in (...)`: favourites, collections, thumbnails) still match PAD SPACE: they name rows the client was
+just given. Tests: `paths_test.go`, dao's `exactpath_test.go` (`TestPathsAreExactMySQL` against MariaDB).
 **Disk space** (`freespace.go`): a write that would leave less than a reserve free - 1 GiB, or 2%
 of a disk under 50 GB, at least 64 MiB: room for MariaDB on the same disk, the thumbnails and the
 alert itself - is refused before it starts: `BeginUpload` (its size plus what the uploads under way
@@ -4558,7 +4579,7 @@ Bluetooth, a Location hint below Android 12 and `Phase.ScanFailed` with Try agai
 "unknown_payload"`, sent since v9 (Android also takes the older bare message) - no device that old
 exists. Optional items skipped: device - no `IsContentHash` guard in `mediastream/reader.go`, no
 write deadlines in its own HTTP server (`api/`), `cloud_id` kept by
-`ReplaceFileKeepingVersion`, no rejection of `.`/`..`/empty path components; bridge - no `interpolateParams`,
+`ReplaceFileKeepingVersion` (`.`/`..`/empty path components are refused since 2026-11); bridge - no `interpolateParams`,
 `admin/ratelimit.go` `purgeLocked` scans on every attempt, `Admin.Logout` answers ok
 when ending the other sessions failed and `SetAdminPassword` doesn't bump the admin epoch;
 clients - no final-path check on otc-sync's flash status file, no "could not be read" status on the

@@ -879,7 +879,7 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 	})
 	for _, file := range files {
 		level = zipLevelFor(file.Mime)
-		h := &zip.FileHeader{Name: strings.TrimPrefix(file.Path, prefix), Method: zip.Deflate}
+		h := &zip.FileHeader{Name: zipEntryName(file.Path, prefix), Method: zip.Deflate}
 		h.SetModTime(file.Modified.AsTime())
 		h.SetMode(0644)
 		wr, err := zw.CreateHeader(h)
@@ -1911,6 +1911,10 @@ func (mg *Manager) delFile(path string) (hashes []string, err error) {
 func (mg *Manager) UploadFile(session *session.Session, path string, content []byte, forceOverride bool, created, modified *timestamppb.Timestamp, cloudID string) (file *pb.File, err error) {
 	// The thumbnails pass waits for uploads to stop (thumbnail_pass.go).
 	noteUploadActivity()
+	// Before anything is written (paths.go).
+	if err := mg.checkNewPath(path); err != nil {
+		return nil, err
+	}
 	mimeType := mimetype.Detect(content)
 	log.Debug("Mime type:", mimeType.String())
 
@@ -2023,6 +2027,9 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 	if modified == nil {
 		modified = timestamppb.Now()
 	}
+	if err := mg.checkNewPath(path); err != nil {
+		return nil, false, err
+	}
 
 	file = &pb.File{
 		Created:  created,
@@ -2051,7 +2058,7 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 		// content's metadata (see git history for the full story).
 		existing, err := mg.dao.GetFileByPath(path)
 		if err != nil {
-			return nil, false, err
+			return nil, false, mg.takenByAnotherName(path, err)
 		}
 		if existing.Hash == hash {
 			if mg.hasBlob(hash) {
@@ -2606,6 +2613,9 @@ func (mg *Manager) hasBlob(hash string) bool {
 // forceOverride) — the one difference is this never touches disk at all.
 func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOverride bool, created, modified *timestamppb.Timestamp, cloudID string) (file *pb.File, err error) {
 	noteUploadActivity() // a sync's hash-first upload
+	if err := mg.checkNewPath(path); err != nil {
+		return nil, err
+	}
 	existing, err := mg.dao.GetFileByHash(hash)
 	if err == sql.ErrNoRows {
 		return nil, devtext.New(i18n.DevFilesNoSuchHash())
@@ -2644,7 +2654,7 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 	if duplicated {
 		existingAtPath, err := mg.dao.GetFileByPath(path)
 		if err != nil {
-			return nil, err
+			return nil, mg.takenByAnotherName(path, err)
 		}
 		if existingAtPath.Hash == hash {
 			log.Debug("Same file already linked at:", path, hash)

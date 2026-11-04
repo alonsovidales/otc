@@ -38,8 +38,8 @@ func TestDelFileVersionsKeepsTheRowsOfACutOffList(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mock.ExpectQuery("select `hash` from `file_versions` where `path` = \\?").
-		WithArgs("/a.jpg").
+	mock.ExpectQuery("select `hash` from `file_versions` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\)").
+		WithArgs("/a.jpg", "/a.jpg").
 		WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow("h1").AddRow("h2").
 			RowError(1, errConnLost))
 	// No delete may run: sqlmock would answer it with an error of its own.
