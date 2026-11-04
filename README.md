@@ -118,6 +118,15 @@ Explorer and a device file whose name Windows can't hold are left as they are on
 folder says so, as it does for files that couldn't be downloaded (no room on the disk, or a file
 over 4 GB on a FAT32 one).
 
+The Mac app follows the same rules. What is deleted on the device goes to the Trash, or on a
+network share that has none to the same `.otc-trash` folder; many files deleted on the Mac at once
+stay on the device; and each two-way folder holds the same kind of hidden `.otc-sync-<id>` file -
+when iCloud's Desktop & Documents is turned off and macOS leaves an empty Documents folder in place
+of the synced one, or another disk with the same name is plugged in, the folder waits instead of
+emptying the device's copy. To sync the folder that is there now, pick it again with Add Folder…,
+which links it to its row and deletes nothing. A file hidden in the Finder or turned into a link
+stays as it is on the device, and the folder says so.
+
 Only one process syncs at a time: with the service installed, the tray app becomes a viewer of
 it, and every change made from the tray or the command line is picked up by the service at once.
 The password goes to the OS keyring (Windows Credential Manager, the Secret Service on a Linux

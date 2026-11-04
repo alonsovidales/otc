@@ -3211,7 +3211,10 @@ and the Mac's connect form when another device is entered while folders are sync
 old password gone - then disconnect first; `otc-sync settings` refuses it and points to `otc-sync
 disconnect`. A respelling of the same address is no change (`engine.SameDevice` /
 `SyncPaths.sameDevice`). Another device never gets the password kept for the old one, which would
-reach it sealed to its own key: otc-sync's Connect asks again for an empty password field unless
+reach it sealed to its own key: the Mac's connect form needs a password and applies the address
+and the password together (`SettingsStore.apply`, which stores them in `saveConnection`'s order
+below; `SyncModel.bind` reconnects once, with the pair, after a 0.3 s debounce), and otc-sync's
+Connect asks again for an empty password field unless
 the address is the device the kept password belongs to (`passwordMissing`,
 `desk.main.password_required`), and saves the old password's removal, the address, then the new
 password, in that order (`saveConnection`; the same device: the password, then the respelled
@@ -3410,7 +3413,8 @@ WSClient.swift + PwCrypto.swift, `engine` = SyncModel.swift (upload folders with
 hash-first uploads, RAID polling), `engine/chunked.go` = ChunkedUpload.swift (the chunked upload
 and its resume, issue #205), `engine/watcher.go` = FolderWatcher.swift (fsnotify, one watch
 per directory, added as directories appear; 4 KiB buffers on Windows, an overflow checks the
-whole folder; a watch limit reached leaves the rest watched), `tray` = PopoverView.swift (fyne.io/systray menu,
+whole folder, as FSEvents' dropped-events flags do a backup's on the Mac,
+`FolderWatcher.eventsLost`; a watch limit reached leaves the rest watched), `tray` = PopoverView.swift (fyne.io/systray menu,
 the OS's own dialogs through ncruces/zenity - no GUI toolkit, no CGO), `config` = SettingsStore
 + the bookmarks (config.json, keyring or a 0600 `secret` file, state.json), `autostart` = the
 registration half of LoginItem.swift (XDG autostart file / HKCU Run key, only with consent - see
@@ -3443,8 +3447,10 @@ deleted). Both directions have a mass-deletion guard (more than 20 files and a q
 folder in one pass): a two-way folder restores what the device lost instead of deleting it
 locally, and holds the device deletes of files gone from here (they stay there with their
 baselines, `desk.main.deletes_held`, until they are back here or deleted there too; content here
-under another name - a move - doesn't count); a backup keeps on the device what vanished locally.
-What a two-way pass deletes here goes to the trash: the Mac's Trash, and otc-sync's system trash
+under another name - a move - doesn't count; `holdMassDeviceDeletes` / `SyncPaths.heldDeviceDeletes`); a backup keeps on the device what vanished locally.
+What a two-way pass deletes here goes to the trash: the Mac's Trash (`trashItem`; on a volume that
+has none, an SMB or NFS share, the same `.otc-trash/<day>/` folder as otc-sync's below, pruned the
+same way: `SyncModel.trashHere`, `SyncPaths.folderTrash` / `pruneFolderTrashes`), and otc-sync's system trash
 (`engine/trash*.go`: the freedesktop.org trash on Linux - the home trash, or the disk's own
 `.Trash/<uid>` or `.Trash-<uid>`, each file with its `.trashinfo`; what otc-sync put there is
 emptied after 30 days, as a service with no desktop has nobody to do it - only its own entries,
@@ -3489,8 +3495,8 @@ gets in the way, rebuild it from a retail ISO (CrystalFetch) with the same answe
 device entry is used only under the folder's prefix and through `safeRelative` (no empty, `.` or
 `..` component, no NUL; the Mac checks by UTF-8 bytes, since a combining mark after `/` hides it from
 a Character split). What is never synced, either way, is one list (`engine/skip.go` /
-`SyncPaths.isExcludedFromSync`): hidden paths (a `.` component; also Finder-hidden on the Mac, the
-Hidden and System attributes on Windows), `.otc-part` files, and Office's and Explorer's scratch
+`SyncPaths.isExcludedFromSync`): hidden paths (a `.` component; what Finder hides on the Mac and
+the Hidden and System attributes on Windows are not synced either, as skipped - below), `.otc-part` files, and Office's and Explorer's scratch
 files (`~$*`, desktop.ini, Thumbs.db, ehthumbs.db, ehthumbs_vista.db, any case). Paths are keyed
 in NFC (`pathKey` / `SyncPaths.key`, records too): what the device has is addressed by its own
 bytes, a new file goes up in NFC, so an NFD path the Mac sent before is never renamed or deleted
@@ -3501,50 +3507,66 @@ an upload replaces it (before LinkFile and FinishUpload) or a delete removes it,
 one path (`deviceStillAsListed`): changed since the listing, it is left for the next pass, which
 keeps both versions. A sync record (`synced/<id>.json`: `{"v": 2, "device": {"domain", "pin"},
 "root", "mounts", "maybe_mounts", "files"}`) names the device it was made with - its home-network certificate pin
-as this sign-in confirmed it (otc-sync's `wsclient.SessionPin`: the home route's pinned handshake,
-or the device's own GetLocalEndpoint answer, asked again at most once a minute by `ConfirmPin`;
-never the pin stored from an earlier sign-in), else the address (`recordDevice`); one of another
+as this sign-in confirmed it (otc-sync's `wsclient.SessionPin`, the Mac's `WSClient.sessionPin`: the
+home route's pinned handshake, or the device's own GetLocalEndpoint answer, asked again at most once
+a minute by `ConfirmPin` / `confirmPin`; never the pin stored from an earlier sign-in), else the
+address (`recordDevice`); one of another
 device counts as none (that pass deletes nothing), an older bare map as the configured device's.
 A record that names its device by a pin, while none is confirmed and the address is the same, is
-uncertain (`recordForDeviceLocked`): the device, or one set up again since under its name. The
+uncertain (`recordForDeviceLocked` / `SyncPaths.recordFor`): the device, or one set up again since under its name. The
 pass holds what it can't take back - deletes either way, downloads over a file here - with their
 baselines, says so (`desk.main.device_unconfirmed`), and the record keeps its pin. The
 mass-deletion guard doesn't count deletes whose content the device lists at a new path (a move
 there). A folder whose own folder is missing waits ("Folder not found - reconnect the drive"),
 untouched on both sides, and resumes once it is back (the Mac resolves its bookmark again and
 follows a move; one that didn't resolve at launch stays listed); it is never removed. So does a
-folder that is there but isn't the synced one (otc-sync `engine/rootid.go`): each two-way folder
+folder that is there but isn't the synced one (otc-sync `engine/rootid.go`; the Mac's
+`SyncPaths.judgeRoot`, `SyncModel.identifyFolder`): each two-way folder
 holds a hidden `.otc-sync-<folder id>` whose token the record keeps (`root`); without it (a record
 from before, the file deleted) the folder must still hold at least half of the files the record
 lists, unchanged - then the file is written again - or it waits the same way ("Not the folder that
 was synced - reconnect its drive", `desk.main.folder_replaced`): the empty mount point of a disk or
-share that isn't mounted, another disk at the same drive letter, a folder made afresh. A folder
+share that isn't mounted, another disk at the same drive letter or volume name, a folder made
+afresh, the empty Documents macOS leaves when iCloud's Desktop & Documents is turned off. The check
+needs nothing from the device and comes before the listing; a folder that waits sends nothing, and
+its watcher stays stopped. The marker is deleted with the folder from the app (off the engine's
+lock / the main actor). On the Mac, a folder whose marker isn't the record's follows its bookmark
+when that finds the folder holding it (renamed away, a fresh one made at its path:
+`followMarkedBookmark`), and a folder picked again where it waits (`relink`: missing or not the
+synced one) keeps its record only when it passes the check - else its record goes and that pass,
+a first pass, deletes nothing (`adoptOnce`). A folder
 inside it that is another file system (st_dev; the record's `mounts`) and is a plain folder again
-holds what is under it like an unreadable one (`mounts.go`). A record from before `mounts` knows of
+holds what is under it like an unreadable one (`mounts.go`, `SyncPaths.goneMounts`). A record from before `mounts` knows of
 none, so at its first pass a folder the record lists files under, with none found under it now, a
 plain folder not changed since the record was written - a mount point nothing touched while its
-disk was away; one emptied by hand since is newer - is held the same way (`maybeMounts`, the
-record's `maybe_mounts`), as is an empty mount point that `/etc/fstab` or a systemd mount unit
-declares there (`declared.go`, Linux), until files are there again or the record lists none under
-it. The folder's identity still counts their files. What the scan skips but is there - a
+disk was away; one emptied by hand since is newer - is held the same way (`maybeMounts` /
+`SyncPaths.maybeMounts`, the record's `maybe_mounts`), as is, on Linux only, an empty mount point
+that `/etc/fstab` or a systemd mount unit declares there (`declared.go`), until files are there
+again or the record lists none under it. The folder's identity still counts their files. What the scan skips but is there - a
 symbolic link, to a file or a folder, anything that is neither a regular file nor a folder, on
-Windows the Hidden or System attribute - is never taken for deleted (`folderScan.skipped`,
+Windows the Hidden or System attribute, on the Mac what Finder hides (UF_HIDDEN) - is never taken
+for deleted (`folderScan.skipped` / `SyncPaths.FolderScan.skipped`; the Mac's scan no longer uses
+the enumerator's `.skipsHiddenFiles`, which dropped those without a word),
 `desk.main.files_not_synced_here`), and a device delete checks, right before it goes, that nothing
-is here under that very name (`presentAsNamed`: each component as its folder lists it, in NFC - on a
+is here under that very name (`presentAsNamed` / `SyncPaths.presentAsNamed`: each component as its folder lists it, in NFC - on a
 disk that ignores case the old name finds the new one after a rename made here only in case, which
 goes up as an upload and a delete). A download is refused before it starts when the disk can't take it (its free
-space less 256 MB, FAT's 4 GiB; `roomFor`); a transfer that failed for a reason of its own waits as
-a busy file does (`fail.go`), and the pass ends saying so (`desk.main.no_space`,
-`desk.main.too_large_for_disk`, `desk.main.files_failed`); the copy of the device's version in a
+space less 256 MB, FAT's 4 GiB; `roomFor` / `SyncPaths.roomProblem`; the Mac takes the most free
+space any of the system's measures gives, what macOS frees for an important file included,
+`SyncPaths.volumeLimits`); a transfer that failed for a reason of its own waits as a busy file does
+(`fail.go`; the Mac's `failWait`, `noteFailed`, logged with `syncLog.error`, not `print`), and the
+pass ends saying so (`desk.main.no_space`, `desk.main.too_large_for_disk`,
+`desk.main.files_failed`; which note wins: `SyncPaths.passNote`); the copy of the device's version in a
 conflict is made once, reused while its upload fails (`conflictCopyOf`), and not at all for a busy
 file. On a disk that ignores case, a folder renamed only in case on the device is renamed so here
-before the pass plans (`casefix.go`); one renamed so here - the record has its files under the
+before the pass plans (`casefix.go` / `SyncPaths.matchFolderCase`); one renamed so here - the record has its files under the
 device's spelling only - is left as it is, and goes up as any rename. On Windows, device names Windows can't hold
 (`\ < > : " | ? *`, a last dot or space, device names - with an extension only where that Windows
 says so, through `filepath.IsLocal`: Windows 11 holds `con.txt`) are left out either way: no
 action for their paths here either, a file here at one kept with its record (`names.go`,
-`excludedHere`, `desk.main.names_not_allowed`). Tests: engine `rootid_test.go`, `skipped_test.go`, `trash_test.go`,
-`fail_test.go`, `casefix_test.go`, `names_test.go`; the engine's tests run with HOME and the XDG
+`excludedHere`, `desk.main.names_not_allowed`; the Mac leaves a device entry it refuses as unsafe
+alone here the same way). Tests: engine `rootid_test.go`, `skipped_test.go`, `trash_test.go`,
+`fail_test.go`, `casefix_test.go`, `names_test.go`; the Mac's `SyncPathsTests` and `WSClientPinTests`; the engine's tests run with HOME and the XDG
 folders in a scratch folder (`TestMain`), the config and command line's against an in-memory
 keyring. Downloads go to a temp name of their own (`name.<random>.otc-part`),
 synced before the rename. Two folders' passes run at a time (`passSlot`; the loops start at once),
@@ -3572,7 +3594,7 @@ way has its own deadline); small requests wait 2 minutes, listings and transfers
 takes a clock jump between its 5 s network checks for a wake. The device has no empty folders, so the folders a pass's local deletions emptied
 are removed after it (`removeEmptiedDirs` / `SyncPaths.removeEmptiedFolders`): up to, never including,
 the synced folder, only while they hold nothing but a `.DS_Store`, with rmdir semantics. An unreadable directory is never a deleted one: paths under it keep their baseline
-and get no action (otc-sync reports "N file(s) could not be read"). Backups run one pass per
+and get no action (both report "N file(s) could not be read", `desk.main.files_unreadable`). Backups run one pass per
 folder, watched changes one upload at a time per folder (`drainChanges`), and a pass stops when its
 folder is removed or the device changes. A backup's `SetUploadOnly` is re-sent until acknowledged,
 and that is forgotten only when the device or password changes. A two-way record entry
@@ -3585,10 +3607,13 @@ whose `--size`/`--name` changed. The Mac's unit tests are hosted by the real app
 `xcodebuild test` launches it with the saved settings and may reach the live device;
 `SyncPathsTests` can run in a scratch SwiftPM package holding only `SyncPaths.swift` (module
 `OffTheCloud`), `LoginItemTests` likewise with only `LoginItem.swift` (a fake login item and a
-throwaway defaults suite), and `ChunkedUploadTests` with `WSClient.swift`, `ChunkedUpload.swift`,
+throwaway defaults suite), and `ChunkedUploadTests` (and `WSClientPinTests`, `WSClientStorageTests`)
+with `WSClient.swift`, `ChunkedUpload.swift`,
 `LocalRoute.swift`, `PwCrypto.swift`, `messages.pb.swift`, `i18n/*.swift` and an in-memory
 `Keychain` stand-in (SwiftProtobuf from the Xcode build's checkout, Swift 5 mode with the target's
-approachable-concurrency features) against a loopback stand-in device.
+approachable-concurrency features) against a loopback stand-in device. `SyncPathsTests` work in
+the temporary folder: they make links, a FIFO, folders hidden with `chflags`, one without
+permissions, and rename a folder in case where the disk ignores case.
 
 ### Native apps (`app/ios`, `app/macos`, `app/android`)
 
