@@ -4368,6 +4368,11 @@ finger is over another (`range` is null). A pick that goes mid-drag (People's `k
 Images' deletes) leaves the drag's base too (`DragSelection.forget`), so the range doesn't
 bring it back. Tests: `DragSelectTest.kt`, `PeopleViewTest.kt`, `PhotoGalleryRetryTest.kt`.
 
+**Text size in the wide layout on iOS** (`AppMenu.swift`): the menu, the rail, the top bar's field
+and chips and the Collections page keep their design sizes (11-16 pt) at the default text size and
+follow the reader's text size from there (`scaledFont`, a `@ScaledMetric` relative to a text style),
+names cut short shrinking first; the rail, a column of fixed width, grows up to xxxLarge and shows an
+item large while pressed (`accessibilityShowsLargeContentViewer`), as a tab bar does.
 **Leaving selection mode on iOS** (`SelectionActionBar.swift`, Images and Files): the count pill
 reads [× N selected]; the × (`onClear`, named `app.shell.clear_selection`) runs the view model's
 `clearSelection()` - everything unpicked, a drag under way ended (its next moves pick nothing),

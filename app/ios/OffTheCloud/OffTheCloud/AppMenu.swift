@@ -440,7 +440,7 @@ struct SideMenu: View {
                 VStack(alignment: .leading, spacing: 2) {
                     if let h = g.heading {
                         Text(h.uppercased())
-                            .font(.system(size: 12, weight: .semibold))
+                            .scaledFont(12, weight: .semibold, relativeTo: .caption)
                             .tracking(0.5)
                             .foregroundStyle(.secondary)
                             .padding(.leading, 16)
@@ -468,9 +468,10 @@ struct SideMenu: View {
                 NavIconView(s.icon, size: 22)
                     .foregroundStyle(active ? MenuStyle.gold : Color.secondary)
                 Text(s.label)
-                    .font(.system(size: 15, weight: active ? .semibold : .regular))
+                    .scaledFont(15, weight: active ? .semibold : .regular, relativeTo: .subheadline)
                     .foregroundStyle(active ? MenuStyle.gold : Color.primary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.75)
                 Spacer(minLength: 0)
                 if count > 0 { UnreadBadge(count: count, small: false) }
             }
@@ -493,9 +494,9 @@ struct SideMenu: View {
                     NavIconView(.storage, size: 22).foregroundStyle(.secondary)
                     // One line: Almacenamiento and Armazenamento are a
                     // little wider than the room beside the chevron.
-                    Text(S.appShellStorage).font(.system(size: 15)).foregroundStyle(.primary)
+                    Text(S.appShellStorage).scaledFont(15, relativeTo: .subheadline).foregroundStyle(.primary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        .minimumScaleFactor(0.75)
                     if storage.attention {
                         Circle().fill(MenuStyle.danger).frame(width: 8, height: 8)
                             .accessibilityLabel(S.iosStorageNeedsAttention)
@@ -551,8 +552,7 @@ struct SideMenu: View {
                         Text(e).foregroundStyle(MenuStyle.danger)
                     }
                 }
-                .font(.system(size: 12))
-                .monospacedDigit()
+                .scaledFont(12, relativeTo: .caption, monospacedDigits: true)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -569,7 +569,7 @@ struct SideMenu: View {
             Text(verbatim: "·").accessibilityHidden(true)
             legalLink(S.appShellTerms, "https://off-the.cloud/terms")
         }
-        .font(.system(size: 12))
+        .scaledFont(12, relativeTo: .caption)
         .foregroundStyle(.secondary)
         .padding(.horizontal, 12)
         .padding(.top, 8)
@@ -605,6 +605,7 @@ struct SideMenu: View {
             gauge
         }
         .padding(.vertical, short ? 4 : 8)
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
     private func railItem(_ s: AppSection) -> some View {
@@ -614,6 +615,12 @@ struct SideMenu: View {
             RailItemLabel(icon: s.icon, label: s.label, active: active, count: count, short: short)
         }
         .buttonStyle(RailItemStyle())
+        // A column of fixed width: at the largest text sizes its item shows
+        // large while pressed, as a tab bar's does.
+        .accessibilityShowsLargeContentViewer {
+            NavIconView(s.icon, size: 24)
+            Text(s.label)
+        }
         .accessibilityLabel(count > 0 ? S.appShellSectionUnread(section: s.label, count: count) : s.label)
         .accessibilityAddTraits(active ? .isSelected : [])
     }
@@ -640,8 +647,7 @@ struct SideMenu: View {
 
 private extension Text {
     func storageLine(bad: Bool = false) -> some View {
-        self.font(.system(size: 13))
-            .monospacedDigit()
+        self.scaledFont(13, relativeTo: .footnote, monospacedDigits: true)
             .foregroundStyle(bad ? MenuStyle.danger : Color.secondary)
             .lineLimit(1)
             .padding(.horizontal, 16)
@@ -725,10 +731,10 @@ private struct RailItemLabel: View {
             }
             .animation(.spring(response: 0.25, dampingFraction: 1), value: active)
             Text(label)
-                .font(.system(size: 11, weight: active ? .bold : .medium))
+                .scaledFont(11, weight: active ? .bold : .medium, relativeTo: .caption2)
                 .foregroundStyle(active ? MenuStyle.gold : Color.secondary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.7)
         }
         .padding(.horizontal, 2)
         .frame(maxWidth: .infinity, minHeight: short ? 52 : 56)
@@ -771,9 +777,10 @@ private struct RailGaugeLabel: View {
                 }
             }
             Text(storage.gaugeText)
-                .font(.system(size: 11, weight: .medium))
-                .monospacedDigit()
+                .scaledFont(11, weight: .medium, relativeTo: .caption2, monospacedDigits: true)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, minHeight: short ? 52 : 56)
         .contentShape(Rectangle())
@@ -823,7 +830,7 @@ struct WideTopBar<Search: View>: View {
                     HStack(spacing: 6) {
                         Image(systemName: "plus").font(.system(size: 16, weight: .semibold))
                         if !actionIconOnly {
-                            Text(action.label).font(.system(size: 15, weight: .semibold))
+                            Text(action.label).scaledFont(15, weight: .semibold, relativeTo: .subheadline)
                         }
                     }
                     .foregroundStyle(MenuStyle.ember)
@@ -949,7 +956,7 @@ struct TopBarSearchField: View {
                 .onKeyPress(.upArrow) { actions.arrow(-1) }
                 .onKeyPress(.downArrow) { actions.arrow(1) }
                 .onKeyPress(.escape) { actions.escape() }
-                .font(.system(size: 16))
+                .scaledFont(16, relativeTo: .callout)
                 .padding(.horizontal, 8)
                 .frame(maxHeight: .infinity)
                 .accessibilityLabel(S.appShellSearchField)
@@ -1045,7 +1052,7 @@ struct TopBarSearchField: View {
         HStack(spacing: 6) {
             if let leading { leading }
             Text(label)
-                .font(.system(size: 14))
+                .scaledFont(14, relativeTo: .subheadline)
                 .foregroundStyle(dim ? Color.secondary : Color.primary)
                 .lineLimit(1)
                 .frame(maxWidth: 160, alignment: .leading)
@@ -1198,13 +1205,12 @@ struct CollectionsPage: View {
             VStack(alignment: .leading, spacing: 0) {
                 CollectionCover(data: g.coverThumbnail, favourites: g.favourites)
                 Text(Self.name(g))
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: .semibold, relativeTo: .subheadline)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .padding(.top, 8)
                 Text(Self.itemsLabel(g.fileCount))
-                    .font(.system(size: 13))
-                    .monospacedDigit()
+                    .scaledFont(13, relativeTo: .footnote, monospacedDigits: true)
                     .foregroundStyle(.secondary)
             }
             .contentShape(Rectangle())
@@ -1404,5 +1410,34 @@ private struct CardPressStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+/// A design size (the wide layout's 11-16 pt) that follows the reader's
+/// text size, as the narrow layout's text styles do: at the default size it
+/// is the size given, and it grows and shrinks with `style`. The wide
+/// layout's menu, rail, top bar and Collections page kept fixed sizes, so
+/// at the larger text sizes they stayed at 11-15 pt.
+private struct ScaledSystemFont: ViewModifier {
+    @ScaledMetric private var size: CGFloat
+    let weight: Font.Weight
+    let monospacedDigits: Bool
+
+    init(size: CGFloat, weight: Font.Weight, relativeTo style: Font.TextStyle, monospacedDigits: Bool) {
+        _size = ScaledMetric(wrappedValue: size, relativeTo: style)
+        self.weight = weight
+        self.monospacedDigits = monospacedDigits
+    }
+
+    func body(content: Content) -> some View {
+        let font = Font.system(size: size, weight: weight)
+        content.font(monospacedDigits ? font.monospacedDigit() : font)
+    }
+}
+
+private extension View {
+    func scaledFont(_ size: CGFloat, weight: Font.Weight = .regular, relativeTo style: Font.TextStyle,
+                    monospacedDigits: Bool = false) -> some View {
+        modifier(ScaledSystemFont(size: size, weight: weight, relativeTo: style, monospacedDigits: monospacedDigits))
     }
 }
