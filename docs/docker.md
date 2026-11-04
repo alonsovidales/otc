@@ -216,6 +216,12 @@ running. Settings › Shut Down Device isn't offered in Docker: stop the contain
 `<your folder>/state/log/otc.log` (only root can read it). To copy it into `docker logs` as well,
 add `OTC_LOG_STDOUT: "1"` under `environment:`.
 
+When the device can't start (a database update that fails, the database that won't start, a port
+another program holds), `docker logs otc` says why, and the container waits before it stops and
+Docker starts it again: 30 seconds the first time, twice as long each time it fails again, up to 30
+minutes (an hour when a model can't be downloaded), so it doesn't restart over and over. Once the
+problem is fixed, `docker compose restart` tries again straight away.
+
 ## Updating
 
 A new image is published for every device release, once it passes start-up and sign-in tests. The device tells you about a release only when its image is there: Settings › Device
@@ -241,7 +247,8 @@ update a pinned device, change the number, then pull and start it as above. A to
 images, such as Diun or What's Up Docker, can tell you when `beta` changes.
 
 On its first start, a new image brings the database up to date. Settings › Logs › Updates shows how
-that went. If it fails, the container stops and says why.
+that went. If it fails, the container says why, and stops after a wait (see
+[Everyday commands](#everyday-commands)).
 
 An older image won't start on a folder that a newer release has used, because the database may not
 work with older code. The log names the release that last used the folder: use that image or a newer
@@ -262,7 +269,9 @@ loads that. It keeps the last 7 days' copies, and always the newest complete one
 `state/models/` too: it is downloaded again.
 
 The nightly copy runs at 03:00 in the container's time zone: UTC, unless you uncomment `TZ` in
-`compose.yaml`. To make a copy now:
+`compose.yaml`. The device keeps running while it is made. Stopping the container stops a copy
+under way at once; that night's copy is then left incomplete, and the next night's is made as
+usual. To make a copy now (one at a time: not while the nightly one runs):
 
 ```
 docker exec otc otc-entrypoint dump

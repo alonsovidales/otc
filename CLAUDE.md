@@ -1021,6 +1021,18 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   are never touched. The VM is stopped at the end if the script started it. Publishing needs gh's
   token with `write:packages` (`gh auth refresh -h github.com -s write:packages`, the owner's to
   run) and logs out of ghcr.io at the end. The test script runs on any Linux Docker host.
+  The entrypoint makes the nightly database copy (03:00) in the background, in a process group of
+  its own (`nightly_dump`: `otc-entrypoint dump` again; in the foreground it held the supervise loop -
+  a device that stopped wasn't started again, and a `docker stop` waited until Docker killed
+  MariaDB), stopped first by `stop_all` (`stop_dump`), one copy at a time (`flock` on
+  `/run/otc-dump.lock`, so a `docker exec ... dump` meanwhile is refused). In `run`, a `die` waits
+  before the container exits (`start_backoff`: Docker's `unless-stopped` starts a container that ran
+  10 s again at once, so a failure that stays - a migration, MariaDB, a busy port - was a tight
+  loop of MariaDB crash recoveries; 30 s doubling with each start that failed in a row up to 30
+  minutes, an hour at least after a model download - `download_failed` -, counted in root's
+  `$CONF/start-failures` and forgotten once the device has run 10 minutes, `start_succeeded`; a stop
+  signal ends the wait). `bash docker/entrypoint-test.sh` tests both on any Linux host, without
+  Docker or root (a copy with its paths in a temporary directory, MariaDB's tools stood in for).
   Mirror mode (opt-in: `docker/compose.mirror.yaml` through `COMPOSE_FILE`, which sets
   `OTC_MIRROR=1`): `.env` names two whole disks (`OTC_MIRROR_DISK1/2`, by-id paths Docker maps to
   `/dev/otc-disk1/2`; their basenames are the labels) and, by the same strings, any that may be wiped
