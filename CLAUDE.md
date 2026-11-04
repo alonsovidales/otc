@@ -53,8 +53,12 @@ means one channel, so a join over it was pinned to 2.4 GHz) is raised only with
 `OTC_ALLOW_HOTSPOT=1`, which nothing sets - its code (captive DNS, `ap_allowed_on`, the band pin,
 the wizard's hotspot texts) stays for that switch alone. network_setup.py takes down a hotspot left
 over from an older image on every poll before setup and rechecks once a minute after it
-(`ap_recheck_s`), lifting the 2.4 GHz pin once (`lift_band_limit`); a Bluetooth join uses any band
-(`any_band` in the join request). network_setup.py makes its join only before setup - never once
+(`ap_recheck_s`), lifting the 2.4 GHz pin once (`lift_band_limit`: only an `OTC-WiFi` still pinned
+to a band is changed and brought up again, and the marker that it was done is root's,
+`/var/lib/otc-network-setup/wifi-band-lifted` - one in the otc user's `/var/lib/otc`, which that user
+could remove, had root re-activate the Wi-Fi every minute); a Bluetooth join uses any band
+(`any_band` in the join request). `python3 scripts/network_setup.py --selftest` tests the lift with
+nmcli stood in for. network_setup.py makes its join only before setup - never once
 root's `/etc/otc/.install-complete` exists (`setup_done()`'s own marker is in the otc user's
 `/var/lib/otc`) - opens the request with O_NOFOLLOW (a regular file of at most 4 KiB), and
 removes anything else found under that name (a directory too) without reading it. Release 143 puts
