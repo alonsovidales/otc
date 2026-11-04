@@ -580,7 +580,7 @@ On other Linux hosts:
 | `/mnt/storage/mysql holds files of user ...` | The database's files have another owner. If you changed it, the message gives the command that gives it back. |
 | `this storage was last used by release ..., newer than this image` | Use that release's image or a newer one (see [Updating](#updating)). |
 | `this processor lacks SSE4.1` | The image's photo decoder needs it. Use a server with a newer processor. |
-| `could not download ... - trying again in an hour` | The first start couldn't download a model. Check that the server can reach huggingface.co and github.com, then run `docker compose restart`. |
+| `could not download ...` (or `... does not match its pinned hash`), then `the container stops in 3600 s and starts again` | The first start couldn't download a model, and the container tries again in an hour. Check that the server can reach huggingface.co and github.com, then run `docker compose restart` to try at once. |
 | `MariaDB stopped while starting` | The database's own log is `storage/mysql/mariadb.err`. Two containers can't use the same folder. |
 | `the device stopped 5 times in 2 minutes` | The device's log, `state/log/otc.log`, says why. |
 | `... is not a disk: check OTC_MIRROR_DISK1 in .env` | The name in `.env` isn't a whole disk. Check it with `ls -l /dev/disk/by-id/` (see [Two disks, mirrored](#two-disks-mirrored-optional)). |
