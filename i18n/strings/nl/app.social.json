@@ -73,6 +73,14 @@
     "text": "Filteren op tag…",
     "en": "Filter by tag…"
   },
+  "app.social.compose.move_left": {
+    "text": "Naar links verplaatsen",
+    "en": "Move left"
+  },
+  "app.social.compose.move_right": {
+    "text": "Naar rechts verplaatsen",
+    "en": "Move right"
+  },
   "app.social.compose.order": {
     "text": "Volgorde in het bericht",
     "en": "Order in post"
@@ -80,6 +88,10 @@
   "app.social.compose.photos_access": {
     "text": "Toegang tot je foto’s is nodig om van je telefoon te kiezen.",
     "en": "Photos access is needed to pick from your phone."
+  },
+  "app.social.compose.position": {
+    "text": "Nummer {position} in het bericht",
+    "en": "Number {position} in the post"
   },
   "app.social.compose.publish": {
     "text": "Publiceren",
@@ -120,6 +132,10 @@
   "app.social.compose.trim_load_failed": {
     "text": "Kan die video niet laden om hem in te korten: {detail}",
     "en": "Could not load that video to trim it: {detail}"
+  },
+  "app.social.compose.unpick": {
+    "text": "Uit het bericht verwijderen",
+    "en": "Remove from the post"
   },
   "app.social.compose.uploading": {
     "text": "Uploaden ({done} van {total})…",

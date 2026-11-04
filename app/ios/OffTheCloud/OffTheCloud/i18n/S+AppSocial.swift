@@ -104,6 +104,16 @@ extension S {
     /// Placeholder of the search box over the Synced photos in the New Post composer: typing a tag (a word the device found in photos, such as beach) narrows the photos to those with it.
     static var appSocialComposeFilterPlaceholder: String { L("app.social.compose.filter_placeholder", table: "AppSocial") }
 
+    /// Move left
+    ///
+    /// Screen-reader name of the left arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place earlier in the post.
+    static var appSocialComposeMoveLeft: String { L("app.social.compose.move_left", table: "AppSocial") }
+
+    /// Move right
+    ///
+    /// Screen-reader name of the right arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place later in the post.
+    static var appSocialComposeMoveRight: String { L("app.social.compose.move_right", table: "AppSocial") }
+
     /// Order in post
     ///
     /// Small heading of the strip of the photos picked for a new post, in the New Post composer: the order they will appear in the post (arrows under each move it).
@@ -113,6 +123,13 @@ extension S {
     ///
     /// Alert in the New Post composer when the app isn't allowed to read the phone's photos, so the Phone source (the phone's own photos) can't show them.
     static var appSocialComposePhotosAccess: String { L("app.social.compose.photos_access", table: "AppSocial") }
+
+    /// Number {position} in the post
+    ///
+    /// What a screen reader says after a photo's name in the New Post composer, once it is picked: its place in the post's order (1 is first). Read as the tile's value, after e.g. "Photo, 5 October 2026".
+    static func appSocialComposePosition(position: Int) -> String {
+        L("app.social.compose.position", table: "AppSocial", position)
+    }
 
     /// Publish
     ///
@@ -169,6 +186,11 @@ extension S {
     static func appSocialComposeTrimLoadFailed(detail: String) -> String {
         L("app.social.compose.trim_load_failed", table: "AppSocial", detail)
     }
+
+    /// Remove from the post
+    ///
+    /// Screen-reader name of the × at the corner of a picked photo in the New Post composer's strip of picked photos: takes it out of the post (nothing is deleted).
+    static var appSocialComposeUnpick: String { L("app.social.compose.unpick", table: "AppSocial") }
 
     /// Uploading {done} of {total}…
     ///

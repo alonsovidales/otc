@@ -21,8 +21,11 @@
     <string name="app_social_compose_caption_placeholder">Write a caption…</string>
     <string name="app_social_compose_empty_response">Empty response</string>
     <string name="app_social_compose_filter_placeholder">Filter by tag…</string>
+    <string name="app_social_compose_move_left">Move left</string>
+    <string name="app_social_compose_move_right">Move right</string>
     <string name="app_social_compose_order">Order in post</string>
     <string name="app_social_compose_photos_access">Photos access is needed to pick from your phone.</string>
+    <string name="app_social_compose_position">Number %1$s in the post</string>
     <string name="app_social_compose_publish">Publish</string>
     <string name="app_social_compose_publish_count">Publish (%1$s)</string>
     <string name="app_social_compose_publish_failed">Could not publish</string>
@@ -33,6 +36,7 @@
     <string name="app_social_compose_title">New Post</string>
     <string name="app_social_compose_trim_badge">✂ Trim</string>
     <string name="app_social_compose_trim_load_failed">Could not load that video to trim it: %1$s</string>
+    <string name="app_social_compose_unpick">Remove from the post</string>
     <string name="app_social_compose_uploading">Uploading %1$s of %2$s…</string>
     <string name="app_social_feed_empty_text">Share a photo or a video with your friends - it goes from your device to theirs, with no cloud in between.</string>
     <string name="app_social_feed_empty_title">No social posts</string>

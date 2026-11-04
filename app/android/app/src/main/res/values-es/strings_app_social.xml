@@ -23,8 +23,11 @@
     <string name="app_social_compose_caption_placeholder">Escribe un pie de foto…</string>
     <string name="app_social_compose_empty_response">Respuesta vacía</string>
     <string name="app_social_compose_filter_placeholder">Filtrar por etiqueta…</string>
+    <string name="app_social_compose_move_left">Mover a la izquierda</string>
+    <string name="app_social_compose_move_right">Mover a la derecha</string>
     <string name="app_social_compose_order">Orden en la publicación</string>
     <string name="app_social_compose_photos_access">Se necesita acceso a las fotos para elegir desde tu teléfono.</string>
+    <string name="app_social_compose_position">Número %1$s de la publicación</string>
     <string name="app_social_compose_publish">Publicar</string>
     <string name="app_social_compose_publish_count">Publicar (%1$s)</string>
     <string name="app_social_compose_publish_failed">No se ha podido publicar</string>
@@ -35,6 +38,7 @@
     <string name="app_social_compose_title">Nueva publicación</string>
     <string name="app_social_compose_trim_badge">✂ Cortar</string>
     <string name="app_social_compose_trim_load_failed">No se ha podido cargar ese vídeo para recortarlo: %1$s</string>
+    <string name="app_social_compose_unpick">Quitar de la publicación</string>
     <string name="app_social_compose_uploading">Subiendo %1$s de %2$s…</string>
     <string name="app_social_feed_empty_text">Comparte una foto o un vídeo con tus amigos: va de tu dispositivo a los suyos, sin ninguna nube de por medio.</string>
     <string name="app_social_feed_empty_title">No hay publicaciones en Social</string>

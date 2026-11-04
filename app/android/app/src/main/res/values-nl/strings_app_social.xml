@@ -22,8 +22,11 @@
     <string name="app_social_compose_caption_placeholder">Schrijf een bijschrift…</string>
     <string name="app_social_compose_empty_response">Leeg antwoord</string>
     <string name="app_social_compose_filter_placeholder">Filteren op tag…</string>
+    <string name="app_social_compose_move_left">Naar links verplaatsen</string>
+    <string name="app_social_compose_move_right">Naar rechts verplaatsen</string>
     <string name="app_social_compose_order">Volgorde in het bericht</string>
     <string name="app_social_compose_photos_access">Toegang tot je foto’s is nodig om van je telefoon te kiezen.</string>
+    <string name="app_social_compose_position">Nummer %1$s in het bericht</string>
     <string name="app_social_compose_publish">Publiceren</string>
     <string name="app_social_compose_publish_count">Publiceren (%1$s)</string>
     <string name="app_social_compose_publish_failed">Kan niet publiceren</string>
@@ -34,6 +37,7 @@
     <string name="app_social_compose_title">Nieuw bericht</string>
     <string name="app_social_compose_trim_badge">✂ Knippen</string>
     <string name="app_social_compose_trim_load_failed">Kan die video niet laden om hem in te korten: %1$s</string>
+    <string name="app_social_compose_unpick">Uit het bericht verwijderen</string>
     <string name="app_social_compose_uploading">Uploaden (%1$s van %2$s)…</string>
     <string name="app_social_feed_empty_text">Deel een foto of video met je vrienden: die gaat van jouw apparaat naar dat van hen, zonder cloud ertussen.</string>
     <string name="app_social_feed_empty_title">Geen berichten</string>

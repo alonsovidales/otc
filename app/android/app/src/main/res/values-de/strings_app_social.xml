@@ -22,8 +22,11 @@
     <string name="app_social_compose_caption_placeholder">Bildunterschrift…</string>
     <string name="app_social_compose_empty_response">Leere Antwort</string>
     <string name="app_social_compose_filter_placeholder">Nach Tag filtern…</string>
+    <string name="app_social_compose_move_left">Nach links verschieben</string>
+    <string name="app_social_compose_move_right">Nach rechts verschieben</string>
     <string name="app_social_compose_order">Reihenfolge im Beitrag</string>
     <string name="app_social_compose_photos_access">Zum Auswählen von deinem Handy ist Zugriff auf deine Fotos nötig.</string>
+    <string name="app_social_compose_position">Nummer %1$s im Beitrag</string>
     <string name="app_social_compose_publish">Veröffentlichen</string>
     <string name="app_social_compose_publish_count">Veröffentlichen (%1$s)</string>
     <string name="app_social_compose_publish_failed">Veröffentlichen fehlgeschlagen</string>
@@ -34,6 +37,7 @@
     <string name="app_social_compose_title">Neuer Beitrag</string>
     <string name="app_social_compose_trim_badge">✂ Kürzen</string>
     <string name="app_social_compose_trim_load_failed">Dieses Video konnte zum Kürzen nicht geladen werden: %1$s</string>
+    <string name="app_social_compose_unpick">Aus dem Beitrag entfernen</string>
     <string name="app_social_compose_uploading">Wird hochgeladen (%1$s von %2$s)…</string>
     <string name="app_social_feed_empty_text">Teile ein Foto oder Video mit deinen Freunden – es geht von deinem Gerät direkt auf ihre, ohne Cloud dazwischen.</string>
     <string name="app_social_feed_empty_title">Keine Social-Beiträge</string>

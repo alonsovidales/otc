@@ -87,6 +87,14 @@
     "note": "Placeholder of the search box over the Synced photos in the New Post composer: typing a tag (a word the device found in photos, such as beach) narrows the photos to those with it.",
     "max": 30
   },
+  "app.social.compose.move_left": {
+    "text": "Move left",
+    "note": "Screen-reader name of the left arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place earlier in the post."
+  },
+  "app.social.compose.move_right": {
+    "text": "Move right",
+    "note": "Screen-reader name of the right arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place later in the post."
+  },
   "app.social.compose.order": {
     "text": "Order in post",
     "note": "Small heading of the strip of the photos picked for a new post, in the New Post composer: the order they will appear in the post (arrows under each move it).",
@@ -95,6 +103,11 @@
   "app.social.compose.photos_access": {
     "text": "Photos access is needed to pick from your phone.",
     "note": "Alert in the New Post composer when the app isn't allowed to read the phone's photos, so the Phone source (the phone's own photos) can't show them."
+  },
+  "app.social.compose.position": {
+    "text": "Number {position} in the post",
+    "args": [["position", "int"]],
+    "note": "What a screen reader says after a photo's name in the New Post composer, once it is picked: its place in the post's order (1 is first). Read as the tile's value, after e.g. \"Photo, 5 October 2026\"."
   },
   "app.social.compose.publish": {
     "text": "Publish",
@@ -145,6 +158,10 @@
     "text": "Could not load that video to trim it: {detail}",
     "args": [["detail", "text"]],
     "note": "Alert in the New Post composer when a picked video couldn't be opened for trimming. {detail} says why (the phone's reason, or app.social.compose.empty_response)."
+  },
+  "app.social.compose.unpick": {
+    "text": "Remove from the post",
+    "note": "Screen-reader name of the × at the corner of a picked photo in the New Post composer's strip of picked photos: takes it out of the post (nothing is deleted)."
   },
   "app.social.compose.uploading": {
     "text": "Uploading {done} of {total}…",

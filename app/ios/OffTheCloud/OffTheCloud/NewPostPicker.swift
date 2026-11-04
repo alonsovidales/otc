@@ -56,6 +56,12 @@ final class NewPostPickerVM: ObservableObject {
         // A synced item's content hash: its thumbnail's key in the cache
         // on this phone (ThumbDiskCache). "" for a phone item.
         var hash: String = ""
+        // A synced item's date (its File's created); a phone item's is its
+        // asset's.
+        var created: Date? = nil
+
+        /// When it was taken, for VoiceOver's name of its tile.
+        var taken: Date? { created ?? asset?.creationDate }
 
         // UIImage/PHAsset aren't Hashable, and don't need to be: id alone
         // already uniquely identifies an item.
@@ -357,7 +363,7 @@ final class NewPostPickerVM: ObservableObject {
             guard mine == searchGeneration, source == .synced else { return }
             let filtered = fresh.enumerated().map { i, f in
                 Item(id: ids[i], path: f.path, thumbData: keep.indices.contains(i) ? keep[i] : nil,
-                     isVideo: f.mime.hasPrefix("video/"), hash: f.hash)
+                     isVideo: f.mime.hasPrefix("video/"), hash: f.hash, created: f.hasCreated ? f.created.date : nil)
             }
             if !filtered.isEmpty { items.append(contentsOf: filtered) }
             token = lof.token.isEmpty ? nil : lof.token
@@ -859,7 +865,18 @@ struct NewPostPickerView: View {
                                 ForEach(vm.chips, id: \.self) { chip in
                                     HStack(spacing: 6) {
                                         Text(chip)
-                                        Button("×") { vm.removeChip(chip) }
+                                        // As Images' chips have it: a glyph,
+                                        // named for VoiceOver (a bare "×" read
+                                        // as "multiplication sign").
+                                        Button { vm.removeChip(chip) } label: {
+                                            Image(systemName: "xmark")
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(.secondary)
+                                                .frame(width: 24, height: 24)
+                                                .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel(S.appShellSearchRemove(name: chip))
                                     }
                                     .padding(.horizontal, 8).padding(.vertical, 4)
                                     .background(Color.blue.opacity(0.15))
@@ -1215,6 +1232,13 @@ private struct PickTile: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
+        // One element for VoiceOver: what it is and when it was taken, and
+        // its place in the post once picked - its number alone read "1".
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(PhotoMonths.tileLabel(video: item.isVideo, date: item.taken))
+        .accessibilityValue(selectionNumber.map { S.appSocialComposePosition(position: $0) } ?? "")
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : [.isButton])
+        .accessibilityAction { onTap() }
     }
 }
 
@@ -1322,12 +1346,39 @@ private struct SelectedThumb: View {
                 // the chosen length is shown.
                 .contentShape(RoundedRectangle(cornerRadius: 6))
                 .onTapGesture { if !trimLoading { trim?() } }
+                // VoiceOver: what it is, when it was taken and its place in
+                // the post; a video's opens the trimmer.
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(PhotoMonths.tileLabel(video: item.isVideo, date: item.taken))
+                .accessibilityValue(S.appSocialComposePosition(position: position))
+                .accessibilityAddTraits(trim != nil ? [.isButton] : [])
+                .accessibilityAction { if !trimLoading { trim?() } }
 
-                Button(action: remove) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.white, .black.opacity(0.6))
+                // A 44 pt square answers it, the glyph as small as it was.
+                TouchTarget {
+                    Button(action: remove) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.white, .black.opacity(0.6))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(S.appSocialComposeUnpick)
                 }
                 .offset(x: 6, y: -6)
+
+                // Its place in the post (the arrows below move it).
+                Text("\(position)")
+                    .font(.caption2.bold())
+                    .monospacedDigit()
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 5)
+                    .frame(minWidth: 18, minHeight: 18)
+                    .background(Color.black.opacity(0.6), in: Capsule())
+                    .padding(3)
+                    .frame(width: 60, height: 60, alignment: .topLeading)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
 
                 // Issue #108: shows the length that survives once a trim
                 // is set, so the strip carries the decision without
@@ -1362,20 +1413,26 @@ private struct SelectedThumb: View {
                     .allowsHitTesting(false)
                 }
             }
-            HStack(spacing: 2) {
-                Button(action: moveLeft) {
-                    Image(systemName: "chevron.left.circle.fill")
-                }
-                .disabled(!canMoveLeft)
-                Text("\(position)").font(.caption2).monospacedDigit()
-                Button(action: moveRight) {
-                    Image(systemName: "chevron.right.circle.fill")
-                }
-                .disabled(!canMoveRight)
+            // Each arrow a 44 pt target, side by side under the thumbnail.
+            HStack(spacing: 0) {
+                moveButton("chevron.left.circle.fill", S.appSocialComposeMoveLeft, enabled: canMoveLeft, action: moveLeft)
+                moveButton("chevron.right.circle.fill", S.appSocialComposeMoveRight, enabled: canMoveRight, action: moveRight)
             }
-            .font(.caption2)
             .foregroundStyle(.secondary)
         }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func moveButton(_ symbol: String, _ label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.title3)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityLabel(label)
     }
 }
 
