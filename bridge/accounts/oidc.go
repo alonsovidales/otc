@@ -369,14 +369,20 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 			a.pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
 			return
 		}
-		if acc != nil && acc.PasswordHash != "" {
-			// A password account for this email: whoever signed up with
-			// it may not be the person now proving they own the address.
-			// The provider sign-in wins - the password is cleared (a new
-			// one can be set from the account page).
-			// Not linked unless cleared: the old password would go on
-			// working on the linked account. Nothing is changed yet, so
+		if acc != nil && acc.PasswordHash != "" && !acc.EmailVerified {
+			// A password account for this email that never proved it:
+			// whoever signed up with it may not be the person now proving
+			// they own the address (an account made in someone else's
+			// name ahead of them). The provider sign-in wins - the
+			// password is cleared (a new one can be set from the account
+			// page). Not linked unless cleared: the old password would go
+			// on working on the linked account. Nothing is changed yet, so
 			// the user can simply try again.
+			//
+			// An account whose email was proven keeps its password: the
+			// person who confirmed the address is the one signing in with
+			// it now, and clearing it only left them "wrong email or
+			// password" the next time they typed it, with no word why.
 			if err := a.dao.SetAccountPassword(acc.ID, ""); err != nil {
 				log.Error("could not clear the password of an account being linked:", err)
 				a.pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)

@@ -623,3 +623,33 @@ func TestOAuthStartOnlyAsAPage(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// A verified email/password account that signs in with Google (the same
+// email) is linked and keeps its password: the person who proved the
+// address is the one proving it again. Nothing ends its sessions either.
+func TestProviderLinkKeepsAVerifiedAccountsPassword(t *testing.T) {
+	a, mock := testAccounts(t)
+	newFakeIdP(t, a)
+	state := strings.Repeat("ef", 32)
+	expectStateConsumed(mock, state, "")
+	mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols))
+	mock.ExpectQuery("from `accounts` where `email` = \\?").WithArgs("a@b.c").WillReturnRows(sqlmock.NewRows(accountCols).
+		AddRow("acc1", "a@b.c", "A", "B", "ES", "$2a$12$owners-own", time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now(), ""))
+	// No password cleared, no email to verify, no sessions ended: the link,
+	// the provider user's cookie, and the account touched.
+	mock.ExpectExec("insert ignore into `account_logins`").WithArgs("google", "google-sub", "acc1").WillReturnResult(sqlmock.NewResult(0, 1))
+	epochRow(mock, 3)
+	mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
+
+	w := httptest.NewRecorder()
+	a.OAuthCallback(w, withStateCookie(callbackRequest(state, "code"), state, false))
+	if w.Code != http.StatusFound || w.Header().Get("Location") != "/account" {
+		t.Fatalf("callback: %d %q", w.Code, w.Header().Get("Location"))
+	}
+	if c := sessionCookie(w); !strings.HasPrefix(c, "acc1|3|") {
+		t.Errorf("the provider user's cookie: %q", c)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}

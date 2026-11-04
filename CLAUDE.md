@@ -3026,7 +3026,9 @@ cookie (403 `cConfirmEmailFirst`, or `cAcceptTermsFirst` without the current ter
 unverified account (a database error loading the account there is a 500, not "confirm your email";
 `LookupSetupToken` is the error-aware form of `AccountForSetupToken`, and `IssueSetupToken` returns
 database errors as they are, so `ErrEmailNotVerified` means just that); Google/Apple
-accounts are verified by the provider, and linking one verifies an email account; accounts from
+accounts are verified by the provider, and linking one verifies an email account - clearing the
+password of one that was never verified (someone may have signed up in the owner's name) and
+ending its sessions, while a verified account keeps its password; accounts from
 before migration 007 were kept verified. `?for=setup` sign-in/sign-up of an unverified account
 answers `verify_email: true` (and resends the link on a sign-in); the setup wizard shows "Confirm
 your email" and signs in again. Password reset: `/api/account/forgot` (same answer for any
