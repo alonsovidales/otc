@@ -1498,7 +1498,8 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
     if (!group || uncollecting || refuseOnDemo()) return;
     const files = sel;
     if (!files.length) return;
-    const name = group.name;
+    // A collection without a name is named as everywhere else.
+    const named = group.name;
     setUncollecting(true);
     try {
       const resp = await ask({ $case: "reqRemoveFromImageGroup", reqRemoveFromImageGroup: { groupId: group.id, paths: files.map((f) => f.path) } });
@@ -1508,9 +1509,9 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
         const hashes = new Set(files.map((f) => f.hash));
         dropDeleted(new Set(items.filter((f) => hashes.has(f.hash)).map((f) => f.path)));
         clearSel();
-        showToast({ text: (t) => t("web.images.uncollect.done", { name }) });
+        showToast({ text: (t) => t("web.images.uncollect.done", { name: collectionName(named) }) });
       } else {
-        toastError((t) => t("web.images.uncollect.failed", { name }));
+        toastError((t) => t("web.images.uncollect.failed", { name: collectionName(named) }));
       }
     } catch {
       toastError(say("web.images.error.unreachable"));

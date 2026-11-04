@@ -7,6 +7,7 @@ import type { File as MsgFile, ImageGroup, RespEnvelope } from "../proto/message
 import { asIs, say, type UiText } from "./uiText";
 import { isBridgeAnswer } from "../net/deviceStatus";
 import { useBackLayer } from "./backStack";
+import { collectionName } from "./libraryStore";
 import "./DevicePhotoPicker.css";
 
 // Issue #178: the profile picture can come from the photos on the device
@@ -193,7 +194,7 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
           <button className={`dpp-chip${group === "" ? " on" : ""}`} onClick={() => setGroup("")}>{t("web.images.picker.all")}</button>
           {groups.map(g => (
             <button key={g.id} className={`dpp-chip${group === g.id ? " on" : ""}`} onClick={() => setGroup(g.id)}>
-              {g.name} <span className="dpp-count">{g.fileCount}</span>
+              {collectionName(g.name)} <span className="dpp-count">{g.fileCount}</span>
             </button>
           ))}
         </div>
