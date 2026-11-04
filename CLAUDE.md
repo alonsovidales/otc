@@ -400,6 +400,12 @@ Use `idb ui describe-all` / `ui tap x y` / `ui text`, with points, not pixels; t
 buttons aren't in the accessibility tree, so tap them by position. Decline photo access in a
 simulator signed in to a real device, or its sample photos get uploaded to it. Android's emulator
 (`otc_pixel`) is driven with `adb shell input` and `uiautomator dump`.
+Build the iOS unit tests (`xcodebuild test -only-testing:OffTheCloudTests`, a simulator of your own)
+with the simulator's usual signing, never `CODE_SIGNING_ALLOWED=NO`: unsigned, the app has no
+Keychain, the address and password it saves read back empty, and the sign-in suites
+(`StalledSignInTests`, `StorageUnavailableTests`) fail on a correct tree. The iOS target bundles
+`app/ios/OffTheCloud/web-dist` (git-ignored; `cp -a web/dist/* app/ios/OffTheCloud/web-dist/`
+after a web build), which a fresh worktree lacks.
 ```
 npm run dev --prefix web       # local dev server
 npm run build --prefix web     # tsc -b && vite build
