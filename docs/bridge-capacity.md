@@ -111,7 +111,10 @@ bridge and the MySQL primary, so these are lower bounds.
 2. On bridge2: `/etc/otc_loadtest.ini`, a copy of the bridge's config with
    `port=9080`, `ssl-port=9443`, `db=otc_loadtest`,
    `open-registration=true`, `max-connections-per-device=100000` and no
-   `[cluster]`; started beside production with
+   `[cluster]`, and - its clients all come from one machine and never sign
+   in - `[bridge] max-unpaired-per-addr=1000000` (`idle`) and
+   `max-unauthenticated-per-addr` above clients per device (`relay`);
+   started beside production with
    `systemd-run --unit otc-loadtest --uid ubuntu --gid ubuntu -p
    LimitNOFILE=1048576 /usr/bin/otc_bridge loadtest`; `ufw allow from
    <generator ip> to any port 9443 proto tcp`.

@@ -2218,7 +2218,9 @@ start takes its file.
   `ensureBridgePool()`/`openBridgeConn()`, which the device uses to dial *out* to the bridge relay
   (`[otc] bridge-addr`) so the bridge can reach an otherwise unreachable home device. The pool is
   self-managing (5 ready, refilling in batches of 2 once it dips to 3) rather than a fixed count
-  dialed once at startup — see `ensureBridgePool`'s doc comment. Issue #170: a pooled connection stops counting as available at its first relayed message (the bridge keeps it for the client's whole session), and the pool refills right then - `serveConnection`'s `onFirst`.
+  dialed once at startup — see `ensureBridgePool`'s doc comment. On those connections the requests
+  running 10 s or more are named to the bridge every 20 s (`bridge_busy.go`: a pong carrying
+  `BusyPrefix` and the ids), so it waits for a long one instead of answering "unreachable" at 90 s. Issue #170: a pooled connection stops counting as available at its first relayed message (the bridge keeps it for the client's whole session), and the pool refills right then - `serveConnection`'s `onFirst`.
   The pool's `pending` counts dials in flight *and* retries waiting out a backoff; a successful
   registration ends every backoff (`bridgePool.wake`). Replies go through `writeReply` (stall
   deadline `cReplyStall`, 1 min, renewed per 64 KiB piece) and `marshalReply` (a marshal error sends
@@ -2558,13 +2560,62 @@ keyed by domain (`bridgePool` in `bridge/websocket/websocket.go`) and proxies fr
 to the right device — the device never accepts inbound connections directly.
 
 Relay invariants: a `/ws` socket not yet paired has a 2 min read deadline (`cUnpairedReadTimeout`)
-and is closed on every return path unless a device relay owns it (`handedOff`). Every write to a
+and is closed on every return path unless a device relay owns it (`handedOff`); one address has at
+most 64 of them open (an IPv6 /64, and 256 per /48: `[bridge] max-unpaired-per-addr`), and their messages are
+read with 64 KiB outside a budget of their own (`unpairedBudget`, 256 MiB), held until each is
+handled - a pairing's first request until the device has it. One address (an IPv6 /64) may hold 16
+MiB of it and one /48 32 MiB (`cUnpairedShare`, `cUnpairedWideShare`: `wsframe.NewShare`, a budget
+within another), so one sender's unfinished messages can't make everyone else's - a device's logs,
+a friend request with a picture - wait 30 s (`wsframe.RoomWait`) and fail. A paired client's messages are read
+with 256 KiB outside `frameBudget` (`frameRules`): 32 in flight held 4 MiB each outside it. An
+unpaired socket is closed after 30 requests answered "unreachable" or refused
+(`cUnpairedMaxRefusals`; the web's unreachable screen asks every 5 s and reconnects). A device's
+disabled flag is read through `Manager.DeviceDisabled` (`hosts.go`): remembered 5 s
+(`cDisabledTTL`; a change through this node shows at once), and looked up only for a host that can
+be a device's (`IsDeviceHost`: one label under `[otc-api] tld`; an IP, a port or a name of another
+domain never) at most 5 a second per address after a burst of 30. A device's message (registration,
+secret rotation, release, logs, name check, user address, disabled state, push) whose identity can't
+be a device's - an owner, domain or secret past its `devices` column (64/150/150 bytes), a domain of
+other than host-name characters - is refused as a wrong secret before anything in it is looked up
+or logged (`identity.go`); its info lines name the domain only once the secret checked out, and
+refusals are a line a minute per address (`logRefusal`), as is the API's cross-origin refusal, with
+the Origin and path cut to 160 bytes. Every write to a
 client goes through `writeClient` (fragments above 256 KiB, a fresh 60 s deadline per piece, so only
 a client that stopped reading trips it) - never on a device socket; `pingLoop` uses `WriteControl`
-so pongs flow during large uploads. Device replies are read under `replyBudget` (8 GiB), and
+so pongs flow during large uploads. A forward waits for its reply 90 s (`cForwardTimeout`) from the
+last sign of the device working on it, not from when it was sent: on a connection it opened to the
+bridge, a device names the requests running 10 s or more every 20 s in an unsolicited pong
+(`otcbusy` and the ids as uvarints; `websocket/bridge_busy.go`, read by `busyIDs` in `busy.go`), so
+a post whose videos are cut, a big folder deleted or a large file over a slow line is waited for -
+up to 2 h (`cForwardMaxWait`) - while a request the device stopped answering, or never names, still
+fails at 90 s. The reply of a request sent earlier on the same connection also starts the clock
+again for the ones sent after it, which waited behind it (a device sends its replies one after
+another: a video's span asked ahead, on a slow line); a later request's reply never does, so a
+forgotten request still fails. A one-off (a static asset, a `/media` span) is waited for at most 3 x
+45 s in all however long it is named (`oneOffMaxWait`, what its 3 attempts took before), since it
+holds one of the device's 3 one-off slots meanwhile, and a `/media` response's session is closed as
+soon as its client hangs up (`Session.Close` from `context.AfterFunc`), its first span and probes
+included. A bridge from before this takes those pongs for any pong, and a device from before it
+sends none and is waited for as it always was. A client's request the device keeps naming is ended
+by the client's own clock, not the bridge's 90 s: for a page or a sign-in, the apps' 120 s
+(`PAGE_TIMEOUT_MS`/`pageTimeout`, `SIGN_IN_TIMEOUT_MS`/`signInTimeout`), after which the screen asks
+again with more patience. Device replies are read under `replyBudget` (8 GiB), and
 `forward()`'s `release` is never nil. Pairing is limited per client address (IPv6 by /64) and Host
 to 64 open (`[bridge] max-paired-per-addr`), 2/s with a burst of 30, and per device to 64 in use
-(`[bridge] max-paired-per-device`). A relay records its owner uuid (never the secret), and a
+(`[bridge] max-paired-per-device`). A paired session is a stranger's until the device accepts a
+sign-in on it (`sessions.go`; read off the relayed frames, so for devices of any release: a payload
+of Auth, AuthWithToken or AuthAsFriend answered by an Ack with ok and no error - `isSignIn`,
+`isAccepted` - and never for an id sent twice at once). Strangers' sessions count against a share
+per address and device - an IPv4 address, an IPv6 /64 and its /48, a quarter of the device's cap
+(`[bridge] max-unauthenticated-per-addr`; a newcomer waits up to 3 s for room, as a household's
+tabs sign in) - one with nothing in flight is closed after 2 min without a message
+(`cAnonPairedIdle`; the web app and the shared pages reconnect with their next request), and at the
+device's cap a newcomer closes one of the address (or IPv6 /48) holding the most: the one paired the
+longest ago, 5 s or more with nothing in flight (`cEvictAfter`) or 60 s or more whatever it is doing
+(`cEvictBusyAfter`; its requests are answered "unreachable") - by age, not idleness, as strangers
+sending a small request every few seconds were never idle (`evictAnon`). Signed-in sessions are never closed for anyone. A client whose relay dies while
+it has nothing in flight is hung up on at once (`deviceRelay.dead`), so its next request pairs anew
+instead of being told the device is unreachable. A relay records its owner uuid (never the secret), and a
 registration evicts other owners' relays. `DropDomains` (release, account deletion,
 `BridgeReleaseDomain`, inactivity) and `DropReplacedIdentity` (claim replace, `accountNewIdentity`)
 publish on Redis `otc:drop` for every node, and every 20 s each node checks its domains against
@@ -3365,8 +3416,23 @@ and the sign-in callback's form post (Apple's) through `limits.ParseForm`
 (64 KB, 15 s to arrive - the servers bound only headers, since a whole-request `ReadTimeout`
 would also cut the websockets the cluster router proxies); one-off device GETs (static assets,
 `/media`) are limited per address (`oneOffPerAddr`, 10/s, burst 60 - the forwarded address for a
-cluster hop) and per device to `cOneOffConcurrent` (3) in flight, so they can't drain a device's
-pool; `auth_events` takes one row per address and reason a minute; relays read only an
+cluster hop; before the device's disabled flag is looked up) and per device to `cOneOffConcurrent` (3) in flight, so they can't drain a device's
+pool. A `/media` response counts once however many spans it takes, and fetches them through a
+`websocket.Session` (`session.go`, `api/media.go`): one of the device's connections for the whole
+response - a pool connection per 4 MiB span had sat idle and started each with a cold TCP window,
+the device dialling a replacement for each - with the next 2 spans asked for while one is written
+(`cMediaReadAhead`; the device answers a connection that hasn't signed in 4 requests at a time, each
+span holding twice its size of its memory). Spans asked ahead are held, until written or dropped,
+under the node's `mediaAhead` budget (512 MiB, 32 MiB per address - an IPv6 /64), asked only while
+it has room: a response always has one span of its own outside it, as before it asked ahead, so a
+client that stops reading pins one span plus what fits, not three. Each span still holds one of the device's 3 one-off
+slots while in flight, in turn with the static assets'; at most 4 connections per device are kept
+for sessions (`cMaxSessionConns`, past them a response goes the one-off way) and one with nothing
+asked of it for 10 s (a paused player) is given back (`cSessionIdle`). Kept: a range answered
+whole (AVFoundation), HEAD from one byte, suffix ranges, nothing more asked once the client hangs
+up; `/api/device-online` answers 1 a second per address after 10 (429 with Retry-After: it may ask
+Redis), and the cluster router asks Redis which node holds an address only when it can be a
+device's (`websocket.IsDeviceHost`); `auth_events` takes one row per address and reason a minute; relays read only an
 envelope's id (`envelopeID`, protowire) instead of unmarshalling every frame; store errors reach
 clients as `cInternalErrorMsg`; sign-ups are limited to 5 an hour per address, sign-in answers
 the same for unknown, wrong and Google/Apple-only accounts, and new bridge passwords use bcrypt
@@ -3387,7 +3453,9 @@ rows keep the address itself. The account sign-in's, sign-up's and email 429s ca
 as the admin login's does. Proxied device responses go out through `limits.WriteAll`
 (deadline renewed
 per 32 KiB: 30 s for static assets, `cMediaWriteStall` 5 min for media, since paused players stop
-reading) and the cluster router's `deadlineWriter`; no `http.Server` `WriteTimeout`, because of the
+reading) and the cluster router's `deadlineWriter` - every forwarded request (a stray `Upgrade` header
+alone is an ordinary one: `isUpgrade` is ReverseProxy's own test), and a forwarded websocket's
+hijacked connection too (`stallConn`, 60 s like `writeClient`); no `http.Server` `WriteTimeout`, because of the
 websockets. Only hashed Vite assets (`/assets/<name>-<8 chars>.<ext>`) are cached `immutable`. Only
 `dao.IsDuplicateKey` (1062) means 409 "taken"; other insert errors are a 500, which releases the
 contact/claim cooldown (`releaseCooldown`).

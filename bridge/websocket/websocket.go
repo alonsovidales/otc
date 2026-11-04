@@ -30,6 +30,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -85,7 +86,12 @@ var cOfflineAlertGrace = 60 * time.Second
 // deliver). Generous rather than tight: a real GetFile for a large photo/
 // video over a slow connection can legitimately take a while, and this
 // only exists to catch "will actually never answer", not to race normal
-// slow requests. Var, not const, so tests can shrink it.
+// slow requests. It runs from the last sign of the device working on the
+// request: a device names the ones it is still on (busy.go), so a long
+// one is waited for (up to cForwardMaxWait) and one it stopped answering
+// still fails after this; the reply of a request sent before it on the
+// same connection, which it waited behind, counts too. Var, not const, so
+// tests can shrink it.
 var cForwardTimeout = 90 * time.Second
 
 // maxConnectionsPerDevice reads [bridge] max-connections-per-device,
@@ -109,9 +115,11 @@ func maxConnectionsPerDevice() int {
 // tab and every app holds one paired socket for as long as it is open, so
 // a household behind one NAT (or one IPv6 /64) - a browser restoring about
 // 20 tabs, phones, a desktop app, otc-sync - needs a few dozen: the
-// per-address cap is as high as the per-device one, and it is the
-// per-device cap and the rate that bound abuse. Vars so tests can shrink
-// them.
+// per-address cap is as high as the per-device one. What keeps one
+// address from holding the whole device is that its sessions sign in: the
+// ones that don't count against a quarter of the device, are closed when
+// they go quiet, and make room for newcomers (sessions.go). Vars so tests
+// can shrink them.
 var (
 	cPairPerSecond             = 2.0
 	cPairBurst                 = 30.0
@@ -257,6 +265,11 @@ var (
 // uplink. Var so tests can shrink it.
 var cUnpairedReadTimeout = 2 * time.Minute
 
+// cUnpairedMaxRefusals: a socket not paired yet is closed after this many
+// requests answered "unreachable" (or refused), about two and a half
+// minutes of the web's unreachable screen. Var so tests can shrink it.
+var cUnpairedMaxRefusals = 30
+
 type deviceRelay struct {
 	conn    *gorilla.Conn
 	writeMu sync.Mutex // gorilla tolerates only one concurrent writer
@@ -270,7 +283,9 @@ type deviceRelay struct {
 	registeredAt time.Time
 
 	mu      sync.Mutex
-	waiters map[int32]chan deviceReply
+	waiters map[int32]*waiter
+	// sent numbers the waiters in the order their requests were sent.
+	sent uint64
 	// budget bounds the memory of the replies read here (replyBudget).
 	budget *wsframe.Budget
 
@@ -286,8 +301,12 @@ type deviceRelay struct {
 	onDeath func()
 	once    sync.Once
 
-	stopPing chan struct{}  // closed once, from failAll, to stop pingLoop
-	wg       sync.WaitGroup // readLoop + pingLoop, so Close() can wait for both to actually exit
+	stopPing chan struct{} // closed once, from failAll, to stop pingLoop
+	// dead is closed once, from failAll, when the connection is gone: the
+	// client paired with it is hung up on then (handleConnection), so its
+	// next request opens a socket with a live connection.
+	dead chan struct{}
+	wg   sync.WaitGroup // readLoop + pingLoop, so Close() can wait for both to actually exit
 }
 
 // newDeviceRelay wraps conn and immediately starts reading from it via
@@ -312,7 +331,7 @@ func newDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
 // so a registration can answer the device before anything else may write
 // to conn or the relay's death can be counted.
 func newIdleDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
-	d := &deviceRelay{conn: conn, waiters: make(map[int32]chan deviceReply), budget: replyBudget, onDeath: onDeath, stopPing: make(chan struct{})}
+	d := &deviceRelay{conn: conn, waiters: make(map[int32]*waiter), budget: replyBudget, onDeath: onDeath, stopPing: make(chan struct{}), dead: make(chan struct{})}
 
 	// The registration was read with cUnpairedReadLimit, and gorilla keeps
 	// a connection's limit: from here on this connection carries the
@@ -325,8 +344,13 @@ func newIdleDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
 	conn.SetWriteDeadline(time.Time{})
 
 	conn.SetReadDeadline(time.Now().Add(cPongWait))
-	conn.SetPongHandler(func(string) error {
+	conn.SetPongHandler(func(data string) error {
 		conn.SetReadDeadline(time.Now().Add(cPongWait))
+		// A device (from this release on) names the requests it is
+		// still working on in pongs of its own (busy.go).
+		if ids := busyIDs(data); len(ids) > 0 {
+			d.stillWorking(ids)
+		}
 		return nil
 	})
 	return d
@@ -400,12 +424,21 @@ func (d *deviceRelay) readLoop() {
 			continue
 		}
 		d.mu.Lock()
-		ch, ok := d.waiters[id]
+		w, ok := d.waiters[id]
 		if ok {
 			delete(d.waiters, id)
 			// Sent under d.mu (the channel has room for it), so abandon
 			// knows a reply is either in ch or never coming.
-			ch <- deviceReply{frame, release}
+			w.ch <- deviceReply{frame, release}
+			// A device sends its replies one after another: those of the
+			// requests sent after this one waited behind it, and their
+			// clocks start again now (a video's next spans behind the one
+			// before, on a slow line).
+			for _, o := range d.waiters {
+				if o.seq > w.seq {
+					o.signOfLife()
+				}
+			}
 		}
 		d.mu.Unlock()
 		if !ok {
@@ -422,10 +455,10 @@ func (d *deviceRelay) readLoop() {
 func (d *deviceRelay) failAll() {
 	d.mu.Lock()
 	waiters := d.waiters
-	d.waiters = make(map[int32]chan deviceReply)
+	d.waiters = make(map[int32]*waiter)
 	d.mu.Unlock()
-	for _, ch := range waiters {
-		close(ch)
+	for _, w := range waiters {
+		close(w.ch)
 	}
 
 	// Close the underlying socket here, not just when the public Close()
@@ -450,6 +483,7 @@ func (d *deviceRelay) failAll() {
 	// exiting right after this, so there's nothing left probing this
 	// connection's liveness once it's gone anyway.
 	close(d.stopPing)
+	close(d.dead)
 
 	// Exactly once per relay, regardless of how many times failAll could
 	// theoretically run (readLoop only calls it the one time it returns,
@@ -529,7 +563,7 @@ func envelopeID(frame []byte) (int32, error) {
 // The returned release gives the reply's share of replyBudget back: call
 // it once the reply is written on. Never nil.
 func (d *deviceRelay) forward(frame []byte) ([]byte, func(), error) {
-	return d.forwardWithTimeout(frame, cForwardTimeout)
+	return d.forwardWithTimeout(frame, cForwardTimeout, cForwardMaxWait)
 }
 
 func noRelease() {}
@@ -546,20 +580,27 @@ func noRelease() {}
 // ran against a device whose pool had accumulated any (issue #95's own
 // testing, against a device redeployed and restarted many times over one
 // long session).
-func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([]byte, func(), error) {
+//
+// maxWait bounds the wait, from the request's write, however long the
+// device says it is still working on it: cForwardMaxWait for a client's
+// session, far less for a one-off, which holds one of the device's few
+// one-off slots meanwhile (oneOffMaxWait).
+func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout, maxWait time.Duration) ([]byte, func(), error) {
 	id, err := envelopeID(frame)
 	if err != nil {
 		return nil, noRelease, fmt.Errorf("bad proto: %w", err) // i18n-ignore: logged, never sent
 	}
 
-	ch := make(chan deviceReply, 1)
+	w := &waiter{ch: make(chan deviceReply, 1), since: time.Now()}
 	d.mu.Lock()
-	d.waiters[id] = ch
+	d.sent++
+	w.seq = d.sent
+	d.waiters[id] = w
 	d.mu.Unlock()
 
 	err = d.writeFrame(frame)
 	if err != nil {
-		d.abandon(id, ch)
+		d.abandon(id, w)
 		return nil, noRelease, err
 	}
 
@@ -571,28 +612,81 @@ func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([
 	// closes was a client's request (and the client itself) hanging
 	// forever with no error at all, which is worse than the request just
 	// failing.
-	select {
-	case resp, ok := <-ch:
-		if !ok {
-			return nil, noRelease, errors.New("device connection closed") // i18n-ignore: logged, never sent
+	//
+	// timeout runs from the last sign that the device is working on the
+	// request: the write, each pong naming it (busy.go), and the reply of
+	// a request sent before it on this connection, which it waited behind
+	// (readLoop). A device that stopped answering is given up on as
+	// before; one cutting a post's videos or deleting a big folder is
+	// waited for, up to maxWait.
+	w.signOfLife()
+	// As durations since w.since, like alive: the end of the write plus
+	// maxWait is the latest it may end.
+	last := time.Duration(w.alive.Load()) + maxWait
+	left := func() time.Duration {
+		return min(time.Duration(w.alive.Load())+timeout, last) - time.Since(w.since)
+	}
+	timer := time.NewTimer(left())
+	defer timer.Stop()
+	for {
+		select {
+		case resp, ok := <-w.ch:
+			if !ok {
+				return nil, noRelease, errors.New("device connection closed") // i18n-ignore: logged, never sent
+			}
+			return resp.frame, resp.release, nil
+		case <-timer.C:
+			if l := left(); l > 0 {
+				timer.Reset(l)
+				continue
+			}
+			d.abandon(id, w)
+			return nil, noRelease, fmt.Errorf("timed out waiting for device response") // i18n-ignore: logged, never sent
 		}
-		return resp.frame, resp.release, nil
-	case <-time.After(timeout):
-		d.abandon(id, ch)
-		return nil, noRelease, fmt.Errorf("timed out waiting for device response") // i18n-ignore: logged, never sent
 	}
 }
 
-// abandon gives up waiting on ch. A reply readLoop already handed over in
-// the meantime is released, or its budget share would be lost for good.
-func (d *deviceRelay) abandon(id int32, ch chan deviceReply) {
+// waiter is a forward() waiting for its reply.
+type waiter struct {
+	ch chan deviceReply
+	// alive is when the device last showed it is working on the request -
+	// the request written, or a pong naming it - as time since since (the
+	// monotonic clock: a change of the wall clock moves nothing).
+	since time.Time
+	alive atomic.Int64
+	// seq is its place in the order the relay's requests were sent.
+	seq uint64
+}
+
+// signOfLife records that the device is working on w's request now.
+func (w *waiter) signOfLife() { w.alive.Store(int64(time.Since(w.since))) }
+
+// cForwardMaxWait bounds a request the device keeps saying it works on:
+// longer than any real one (a post with long videos on a Pi), short of
+// forever. Var so tests can shrink it.
+var cForwardMaxWait = 2 * time.Hour
+
+// stillWorking marks the requests ids names as worked on now.
+func (d *deviceRelay) stillWorking(ids []int32) {
 	d.mu.Lock()
-	if d.waiters[id] == ch {
+	defer d.mu.Unlock()
+	for _, id := range ids {
+		if w := d.waiters[id]; w != nil {
+			w.signOfLife()
+		}
+	}
+}
+
+// abandon gives up waiting on w. A reply readLoop already handed over in
+// the meantime is released, or its budget share would be lost for good.
+func (d *deviceRelay) abandon(id int32, w *waiter) {
+	d.mu.Lock()
+	if d.waiters[id] == w {
 		delete(d.waiters, id)
 	}
 	d.mu.Unlock()
 	select {
-	case r, ok := <-ch:
+	case r, ok := <-w.ch:
 		if ok {
 			r.release()
 		}
@@ -654,6 +748,9 @@ type Manager struct {
 	bridges          map[string]*bridgePool // The domain is the key and the value the pool of connections
 	// oneOffSlots: domain -> chan struct{} of cOneOffConcurrent (issue #163).
 	oneOffSlots sync.Map
+	// sessionConns: domain -> chan struct{} of cMaxSessionConns, the
+	// connections sessions keep (session.go).
+	sessionConns sync.Map
 	// mailer and logsPerDomain: devices' "Send logs to us".
 	mailer        *mailer.Mailer
 	logsPerDomain *limits.Rate
@@ -666,6 +763,28 @@ type Manager struct {
 	pairedMu     sync.Mutex
 	pairedByAddr map[string]int
 	refusalLog   *limits.Rate
+	// sessions are the paired clients by device, and anonByKey how many
+	// of them haven't signed in by address share (sessions.go). Under
+	// pairedMu.
+	sessions  map[string]map[*clientSession]struct{}
+	anonByKey map[string]int
+	// unpairedByAddr counts the sockets not paired yet by address and
+	// /48 (reserveUnpaired), and unpairedShares are those keys' shares of
+	// unpairedBudget, kept while a socket of theirs is open.
+	unpairedMu     sync.Mutex
+	unpairedByAddr map[string]int
+	unpairedShares map[string]*wsframe.Budget
+
+	// tld is [otc-api] tld: device addresses are one label under it
+	// (IsDeviceHost). "" when not configured: any host may be one.
+	tld string
+	// disabled remembers the devices' disabled flags for a few seconds,
+	// and lookupPerAddr limits the lookups of the ones it doesn't
+	// (hosts.go).
+	disabledMu    sync.Mutex
+	disabled      map[string]disabledFlag
+	disabledKept  int
+	lookupPerAddr *limits.Rate
 
 	// Issue #144: nil on a single bridge. dirty queues the domains whose
 	// claim in Redis may have to change; one goroutine (clusterSync)
@@ -828,6 +947,7 @@ func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
 		logsPerDomain:    limits.NewRate(3.0/3600, 3),
 		pairPerAddr:      limits.NewRate(cPairPerSecond, cPairBurst),
 		refusalLog:       limits.NewRate(1.0/60, 1),
+		lookupPerAddr:    limits.NewRate(cLookupPerSecond, cLookupBurst),
 		baseUrl:          baseUrl,
 		dao:              dao,
 		openRegistration: cfg.HasSection("accounts") && cfg.GetStr("accounts", "open-registration") == "true",
@@ -836,6 +956,9 @@ func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
 		bridges: make(map[string]*bridgePool),
+	}
+	if cfg.HasSection("otc-api") {
+		mg.tld = cfg.GetStr("otc-api", "tld")
 	}
 	if dao != nil {
 		mg.onlineEvents = make(chan onlineEvent, 4096)
@@ -1248,6 +1371,15 @@ var cOneOffForwardTimeout = 45 * time.Second
 // stale entries without ever being able to drain the pool.
 const cOneOffMaxAttempts = 3
 
+// oneOffMaxWait bounds how long one one-off request (a static asset, a
+// span of a video) holds its slot, however long the device says it is
+// still working on it (busy.go): what its cOneOffMaxAttempts attempts
+// could take before devices said so. A device names every request still
+// running, one stuck on a disk read included, and waited for up to
+// cForwardMaxWait, three such requests held all of its one-off slots - its
+// pages and videos answered "busy" - for hours.
+func oneOffMaxWait() time.Duration { return cOneOffMaxAttempts * cOneOffForwardTimeout }
+
 // cPairMaxAttempts caps the pool connections a client's first request may
 // spend before it is told the device is unreachable, for the same reason
 // (see TestForwardOneOffCannotDrainThePool): each failed attempt closes
@@ -1461,14 +1593,15 @@ func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte,
 		return nil, ErrDeviceBusy
 	}
 
-	for attempt := 0; attempt < cOneOffMaxAttempts; attempt++ {
-		candidate := takeAvailable(pool, cOneOffConnWait)
+	giveUp := time.Now().Add(oneOffMaxWait())
+	for attempt := 0; attempt < cOneOffMaxAttempts && time.Now().Before(giveUp); attempt++ {
+		candidate := takeAvailable(pool, min(cOneOffConnWait, time.Until(giveUp)))
 		if candidate == nil {
 			return nil, errors.New("no available connections in the pool for this device") // i18n-ignore: logged, never sent
 		}
 
 		var release func()
-		respFrame, release, err = candidate.forwardWithTimeout(frame, cOneOffForwardTimeout)
+		respFrame, release, err = candidate.forwardWithTimeout(frame, cOneOffForwardTimeout, time.Until(giveUp))
 		candidate.Close()
 		if err != nil {
 			log.Error("error forwarding one-off request, trying the next available connection:", err)
@@ -1477,8 +1610,10 @@ func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte,
 		// One-off replies are few (cOneOffConcurrent a device) and bounded
 		// by the device: budgeted while read, not while the caller writes.
 		release()
-		if dbErr := mg.dao.RecordDeviceActivity(domain, int64(len(frame)), int64(len(respFrame))); dbErr != nil {
-			log.Error("error recording device activity:", dbErr)
+		if mg.dao != nil {
+			if dbErr := mg.dao.RecordDeviceActivity(domain, int64(len(frame)), int64(len(respFrame))); dbErr != nil {
+				log.Error("error recording device activity:", dbErr)
+			}
 		}
 		return respFrame, nil
 	}
@@ -1548,6 +1683,9 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	// before this function returns — makes sure none of them are left
 	// trying to write to conn after it's already closed.
 	var relay *deviceRelay
+	// sess is the client's session once paired: whether it has signed in,
+	// and the idle deadline of one that hasn't (sessions.go).
+	var sess *clientSession
 	var writeMu sync.Mutex
 	var wg sync.WaitGroup
 	defer wg.Wait()
@@ -1566,25 +1704,55 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		}
 	}()
 
+	// One address may have only so many sockets waiting to pair (or to
+	// register, a device's): counted until this one does, or ends.
+	addr := clientAddr(r, conn)
+	unpairedKeys, unpairedShare, ok := mg.reserveUnpaired(addr)
+	if !ok {
+		mg.logRefusal(clientaddr.Bucket(addr), "too many connections not paired yet from", addr) // i18n-ignore: a log line
+		return
+	}
+	unpairedHeld := true
+	stopUnpaired := func() {
+		if unpairedHeld {
+			unpairedHeld = false
+			mg.releaseUnpaired(unpairedKeys)
+		}
+	}
+	defer stopUnpaired()
+	// An unpaired message's budget share is held until it has been
+	// handled - a pairing's first request until the device has it - and
+	// given back here on the way out.
+	var unpairedRelease func()
+	defer func() {
+		if unpairedRelease != nil {
+			unpairedRelease()
+		}
+	}()
+	// How many requests the socket had answered for the device, unpaired.
+	refused := 0
+
 	for {
 		// Small until the client is paired with a device (its first
 		// request, a device's registration); a relayed request may carry a
 		// whole file (up to 1000 MB) and is budgeted (see wsframe).
-		limit := int64(cUnpairedReadLimit)
-		if relay != nil {
-			limit = cRelayedReadLimit
-		} else {
-			// Paired clients may sit idle as long as they like: the
-			// deadline is cleared when the pairing happens.
+		limit, free, budget := frameRules(relay != nil, unpairedShare)
+		if relay == nil {
+			// Once paired, the deadline is the session's (sessions.go):
+			// none after it has signed in, cAnonPairedIdle while it
+			// hasn't and has nothing in flight.
 			conn.SetReadDeadline(time.Now().Add(cUnpairedReadTimeout))
 		}
-		_, frame, releaseFrame, err := wsframe.Read(conn, limit, frameBudget)
+		_, frame, releaseFrame, err := wsframe.ReadFree(conn, limit, free, budget)
 		if err != nil {
 			var ne net.Error
-			if relay == nil && errors.As(err, &ne) && ne.Timeout() {
+			switch {
+			case (relay == nil || sess.anonymous()) && errors.As(err, &ne) && ne.Timeout():
 				// A background tab, mostly: not worth an error line each.
-				log.Debug("closing an unpaired connection that went quiet:", err)
-			} else {
+				log.Debug("closing a connection that went quiet before signing in:", err)
+			case sess.wasEvicted():
+				log.Debug("closing a session closed for a new client:", err)
+			default:
 				log.Error("error processing message:", err)
 			}
 			return
@@ -1603,10 +1771,22 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		if relay != nil {
 			inFlight <- struct{}{}
 			wg.Add(1)
+			reqID, idErr := envelopeID(frame)
+			signIn := isSignIn(frame)
+			sess.started(reqID)
 			go func(frame []byte) {
 				defer wg.Done()
 				defer func() { <-inFlight }()
 				defer releaseFrame()
+				// Last, once the answer is out: a sign-in the device
+				// accepted ends the session's stranger limits, and one
+				// that hasn't signed in starts its idle clock again.
+				accepted := false
+				defer func() {
+					if sess.finished(reqID, accepted) {
+						mg.releaseAnon(sess.keys)
+					}
+				}()
 				// Mirrors handleConnection's own top-level recover: this
 				// now runs on its own goroutine, which the outer recover
 				// above can't reach — an unrecovered panic here would
@@ -1618,9 +1798,9 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}()
 
 				reqLen := int64(len(frame))
-				reqID, idErr := envelopeID(frame)
 				respFrame, releaseResp, err := relay.forward(frame)
 				defer releaseResp()
+				accepted = err == nil && signIn && isAccepted(respFrame)
 				// The request is on the device now: its budget share and
 				// memory aren't needed while the reply goes out, which a
 				// slow client can stretch out.
@@ -1639,7 +1819,11 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// RespAck a fresh connection gets means both routes
 					// into this situation end up telling the client the
 					// same thing.
-					log.Error("error forwarding message, device unreachable:", err)
+					if sess.wasEvicted() {
+						log.Debug("a request of a session closed for a new client:", err)
+					} else {
+						log.Error("error forwarding message, device unreachable:", err)
+					}
 					if idErr != nil {
 						log.Error("error building unreachable response:", idErr)
 						return
@@ -1695,8 +1879,8 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			}(frame)
 		} else {
 			// Unpaired: a small message (see cUnpairedReadLimit), handled
-			// right here - its share of the budget isn't needed past this.
-			releaseFrame()
+			// right here.
+			unpairedRelease = releaseFrame
 			var env pb.ReqEnvelope
 			if err := proto.Unmarshal(frame, &env); err != nil {
 				log.Error("bad proto:", err)
@@ -1705,6 +1889,19 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 
 			resp := &pb.RespEnvelope{
 				Id: env.Id,
+			}
+			// A device's message is refused before anything in it is
+			// looked up or logged when its identity can't be any device's:
+			// it may carry 8 MiB of anything.
+			if owner, domain, secret, isDevice := deviceIdentity(&env); isDevice && !plausibleIdentity(owner, domain, secret) {
+				mg.logRefusal("identity|"+clientaddr.Bucket(addr), "refused a device message whose identity no device can have, from", addr) // i18n-ignore: a log line
+				resp.Error = true
+				resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
+				respBin, _ := proto.Marshal(resp)
+				if err := writeClient(conn, respBin); err != nil {
+					log.Error("error responding:", err)
+				}
+				return
 			}
 			switch p := env.Payload.(type) {
 			case *pb.ReqEnvelope_ReqBridgeRegister:
@@ -1720,7 +1917,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					if mg.openRegistration {
 						err = mg.dao.RegistreDevice(p.ReqBridgeRegister.OwnerUuid, domain, p.ReqBridgeRegister.Secret)
 					} else {
-						log.Error("rejected registration for", domain, "from", conn.RemoteAddr().String(), "- the domain is not registered to any account")
+						mg.logRefusal("unregistered|"+clientaddr.Bucket(addr), "rejected registration for", domain, "from", addr, "- the domain is not registered to any account") // i18n-ignore: a log line
 						resp.Error = true
 						resp.ErrorMessage = "This domain is not registered: create an account at https://" + mg.baseHost() + "/account and add it there, or run the setup again signed in" // i18n-ignore: a registration reply, which reaches only the device's log
 						// Issue #182: a device whose name stays unknown here
@@ -1758,8 +1955,8 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// registering bridge: <nil>" with no domain, which sent
 					// an outage investigation down the wrong path. The
 					// secret itself is deliberately not logged.
-					log.Error("rejected registration for", domain, "from", conn.RemoteAddr().String(),
-						"- owner/secret do not match the bridge's record (owner claimed:", p.ReqBridgeRegister.OwnerUuid, ")")
+					claimed := p.ReqBridgeRegister.OwnerUuid
+					mg.logRefusal("secret|"+clientaddr.Bucket(addr), "rejected registration for", domain, "from", addr, "- owner/secret do not match the bridge's record (owner claimed:", claimed, ")") // i18n-ignore: a log line
 					resp.Error = true
 					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
 					// Someone tried to register an already-claimed domain with
@@ -1853,7 +2050,6 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				// connection, so this always closes the connection instead
 				// of returning early like ReqBridgeRegister does above.
 				defer conn.Close()
-				log.Info("Rotate bridge secret for device:", p.ReqRotateBridgeSecret.Domain)
 				// Issue #157: random bytes, not two UUIDs glued together.
 				secretBytes := make([]byte, 32)
 				if _, err := rand.Read(secretBytes); err != nil {
@@ -1872,13 +2068,14 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = cInternalErrorMsg
 				} else if !ok {
-					log.Error("rotate secret rejected: no matching device/secret")
+					mg.logRefusal("secret|"+clientaddr.Bucket(addr), "rotate secret rejected: no matching device/secret, from", addr) // i18n-ignore: a log line
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), p.ReqRotateBridgeSecret.Domain, p.ReqRotateBridgeSecret.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
 						log.Error("error logging auth event:", logErr)
 					}
 					resp.Error = true
 					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
 				} else {
+					log.Info("Rotated the bridge secret of device:", p.ReqRotateBridgeSecret.Domain)
 					resp.Payload = &pb.RespEnvelope_RespRotateBridgeSecretAck{
 						RespRotateBridgeSecretAck: &pb.RotateBridgeSecretAck{
 							NewSecret: newSecret,
@@ -1983,6 +2180,11 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				} else if !defined || !validSecret {
 					resp.Error = true
 					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
+				} else if !plausibleDomain(req.CandidateDomain) {
+					// No device's name, so no new user's either.
+					resp.Payload = &pb.RespEnvelope_RespDomainAvailable{
+						RespDomainAvailable: &pb.RespDomainAvailable{Available: false},
+					}
 				} else if registered, err := mg.dao.IsDomainRegistered(req.CandidateDomain); err != nil {
 					log.Error("error checking whether", req.CandidateDomain, "is registered:", err)
 					resp.Error = true
@@ -2024,7 +2226,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = cInternalErrorMsg
 				} else if !defined || !validSecret {
-					log.Error("disabled-state update rejected: invalid device/secret for", req.Domain)
+					mg.logRefusal("secret|"+clientaddr.Bucket(addr), "disabled-state update rejected: invalid device/secret for", req.Domain, "from", addr) // i18n-ignore: a log line
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
 						log.Error("error logging auth event:", logErr)
 					}
@@ -2035,6 +2237,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = cInternalErrorMsg
 				} else {
+					mg.rememberDisabled(req.Domain, req.Disabled, time.Now())
 					log.Info("Set device disabled:", req.Domain, req.Disabled)
 					resp.Payload = &pb.RespEnvelope_RespAck{
 						RespAck: &pb.Ack{Ok: true},
@@ -2055,7 +2258,6 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			case *pb.ReqEnvelope_ReqBridgeNotify:
 				defer conn.Close()
 				req := p.ReqBridgeNotify
-				log.Info("Relay push for device:", req.Domain)
 
 				defined, validSecret, err := mg.dao.IsValidDevice(req.OwnerUuid, req.Domain, req.Secret)
 				if err != nil && err != sql.ErrNoRows {
@@ -2063,7 +2265,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = cInternalErrorMsg
 				} else if !defined || !validSecret {
-					log.Error("push relay rejected: invalid device/secret for", req.Domain)
+					mg.logRefusal("secret|"+clientaddr.Bucket(addr), "push relay rejected: invalid device/secret for", req.Domain, "from", addr) // i18n-ignore: a log line
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
 						log.Error("error logging auth event:", logErr)
 					}
@@ -2074,6 +2276,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = cInternalErrorMsg
 				} else {
+					log.Info("Relay push for device:", req.Domain)
 					ps.NotifyMobile(req.Title, req.Body, push.Target{Kind: req.Kind, PubUUID: req.PubUuid, CommentUUID: req.CommentUuid})
 					resp.Payload = &pb.RespEnvelope_RespBridgeNotifyAck{
 						RespBridgeNotifyAck: &pb.BridgeNotifyAck{Ok: true},
@@ -2095,7 +2298,6 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				// device ever goes offline.
 				defer conn.Close()
 				req := p.ReqUpdatePushRegistrations
-				log.Info("Update push registrations for device:", req.Domain)
 
 				defined, validSecret, err := mg.dao.IsValidDevice(req.OwnerUuid, req.Domain, req.Secret)
 				if err != nil && err != sql.ErrNoRows {
@@ -2103,13 +2305,14 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = cInternalErrorMsg
 				} else if !defined || !validSecret {
-					log.Error("push registration update rejected: invalid device/secret for", req.Domain)
+					mg.logRefusal("secret|"+clientaddr.Bucket(addr), "push registration update rejected: invalid device/secret for", req.Domain, "from", addr) // i18n-ignore: a log line
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
 						log.Error("error logging auth event:", logErr)
 					}
 					resp.Error = true
 					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
 				} else {
+					log.Info("Update push registrations for device:", req.Domain)
 					// The offline alert posts to these from the bridge itself.
 					apnsTokens, fcmTokens, webSubs, dropped := filterPushRegistrations(req)
 					if dropped > 0 {
@@ -2149,7 +2352,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				// disabled-page check at all) gets a real explanation
 				// instead of a generic connection failure indistinguishable
 				// from "temporarily unreachable".
-				if disabled, err := mg.dao.IsDeviceDisabled(r.Host); err != nil {
+				if disabled, err := mg.DeviceDisabled(addr, r.Host); err != nil {
 					log.Error("error checking disabled state for", r.Host, ":", err)
 				} else if disabled {
 					resp.Error = true
@@ -2185,7 +2388,8 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				if ok {
 					// Reserved before a candidate is popped, so a refused
 					// client never costs the device the first round trip.
-					pairKey := pairingKey(clientAddr(r, conn), r.Host)
+					pairKey := pairingKey(addr, r.Host)
+					shareKeys := anonKeys(addr, r.Host)
 					allowed := mg.reservePairing(pairKey)
 					if !allowed {
 						mg.logRefusal(pairKey, "too many open connections from one address to", r.Host) // i18n-ignore: a log line
@@ -2193,7 +2397,15 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						mg.releasePairing(pairKey)
 						allowed = false
 						mg.logRefusal(pairKey, "too many new connections from one address to", r.Host) // i18n-ignore: a log line
+					} else if !mg.waitAnon(shareKeys, cAnonShareWait) {
+						// Every new session counts as a stranger's until it
+						// signs in; this address holds its share of the
+						// device in sessions that haven't.
+						mg.releasePairing(pairKey)
+						allowed = false
+						mg.logRefusal(pairKey, "too many sessions that never signed in from one address to", r.Host) // i18n-ignore: a log line
 					}
+					evicted := false
 					for attempt := 0; allowed && picked == nil && attempt < cPairMaxAttempts; attempt++ {
 						// pool.lock is held only long enough to pop a
 						// candidate - never across the round trips to the
@@ -2224,6 +2436,14 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						// of memory.
 						if pool.liveCount-len(pool.availableConns) >= maxPairedPerDevice() {
 							pool.lock.Unlock()
+							// Once, and spending no attempt: a session that
+							// never signed in makes room (sessions.go), so
+							// strangers can't keep the device's people out.
+							if !evicted && mg.evictAnon(r.Host) {
+								evicted = true
+								attempt--
+								continue
+							}
 							mg.logRefusal(r.Host, "device at its cap of connections in use:", r.Host) // i18n-ignore: a log line
 							break
 						}
@@ -2258,10 +2478,12 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 							continue
 						}
 						log.Debug("Connected")
+						releaseFrame()
+						unpairedRelease = nil
+						stopUnpaired()
 
 						picked = candidate
 						relay = candidate
-						conn.SetReadDeadline(time.Time{})
 						// Single use connection, close as soon as it is
 						// finished since they are authenticated. Close()
 						// triggers candidate's onDeath exactly once (via
@@ -2270,6 +2492,29 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						// deviceRelay.onDeath's doc comment.
 						defer relay.Close()
 						defer mg.releasePairing(pairKey)
+						sess = newClientSession(r.Host, shareKeys, conn, relay)
+						mg.addSession(sess)
+						defer mg.removeSession(sess)
+						if isSignIn(frame) && isAccepted(respFrame) {
+							mg.signedIn(sess)
+						}
+						sess.idleFrom(time.Now())
+						// The device's end of an idle session gone, the
+						// client's goes too: its next request opens a new
+						// socket, paired with a live connection, where it
+						// would have been answered "unreachable". Requests
+						// in flight are answered so, and hang up themselves.
+						sessionOver := make(chan struct{})
+						defer close(sessionOver)
+						go func(s *clientSession, dead <-chan struct{}) {
+							select {
+							case <-dead:
+								if s.idle() {
+									conn.Close()
+								}
+							case <-sessionOver:
+							}
+						}(sess, relay.dead)
 
 						err = writeClient(conn, respFrame)
 						releaseResp()
@@ -2283,6 +2528,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					}
 					if allowed && picked == nil {
 						mg.releasePairing(pairKey)
+						mg.releaseAnon(shareKeys)
 					}
 				}
 
@@ -2293,7 +2539,11 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// page for this (issue #97's unavailable.html), but a
 					// native app, or a browser tab that was already open
 					// when the device went away, only ever reaches here.
-					log.Error("no available connections in the pool for", r.Host)
+					if IsDeviceHost(r.Host, mg.tld) {
+						mg.logRefusal("unreachable|"+logged(r.Host), "no available connections in the pool for", logged(r.Host)) // i18n-ignore: a log line
+					} else {
+						log.Debug("no device has the address", logged(r.Host))
+					}
 					resp.Error = true
 					resp.ErrorMessage = cDeviceUnreachableMsg
 					// Wrapped in a RespAck for the same reason the disabled
@@ -2313,8 +2563,18 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						log.Error("error responding, closing the connection:", err)
 						return
 					}
+					// A client asking again and again on one socket (the
+					// web's unreachable screen asks every 5 s) is let go
+					// after a while: its next attempt opens a new one.
+					if refused++; refused >= cUnpairedMaxRefusals {
+						log.Debug("closing a connection that kept asking for a device it couldn't have:", r.Host)
+						return
+					}
 				}
 			}
+			// Handled, and the socket goes on: its next message is read.
+			releaseFrame()
+			unpairedRelease = nil
 		}
 	}
 }
@@ -2336,10 +2596,111 @@ const (
 	cUnpairedReadLimit = 8 << 20
 	// cRelayedReadLimit: a relayed request may carry a whole file.
 	cRelayedReadLimit = 1000<<20 + 1<<20
+	// cUnpairedFree and cRelayedFree are how much of a message is read
+	// outside its budget, before and after pairing. Every request but a
+	// file's piece fits; what goes past them is budgeted. Read whole up to
+	// 4 MiB (wsframe's default), anyone's socket held up to 8 MiB of an
+	// unfinished first message, and a paired one 32 messages of 4 MiB
+	// queued for the device: memory nothing bounded but the senders'
+	// bandwidth.
+	cUnpairedFree = 64 << 10
+	cRelayedFree  = 256 << 10
 )
+
+// frameRules is how a client's next message is read: its largest size,
+// how much of it outside its budget, and the budget for the rest
+// (wsframe.ReadFree) - before pairing, share: its address's share of
+// unpairedBudget (reserveUnpaired).
+func frameRules(paired bool, share *wsframe.Budget) (limit, free int64, budget *wsframe.Budget) {
+	if paired {
+		return cRelayedReadLimit, cRelayedFree, frameBudget
+	}
+	return cUnpairedReadLimit, cUnpairedFree, share
+}
 
 // frameBudget bounds the memory of large messages being relayed at once.
 var frameBudget = wsframe.NewBudget(8 << 30)
+
+// unpairedBudget is frameBudget for the messages of sockets not paired
+// yet, held until each has been handled: a device's logs, mostly. Of
+// their own, so strangers' first messages never take the room uploads
+// wait on.
+var unpairedBudget = wsframe.NewBudget(256 << 20)
+
+// cUnpairedShare and cUnpairedWideShare are how much of unpairedBudget
+// the sockets not paired yet of one address (an IPv6 /64) and of one /48
+// may hold: 32 messages of 8 MiB left unfinished from one address held all
+// of it, and every other message over 64 KiB on the node - a device's
+// logs, a friend request carrying a picture - waited 30 s and failed. A
+// device's largest, its logs, is 2 MiB. Vars so tests can shrink them.
+var (
+	cUnpairedShare     int64 = 16 << 20
+	cUnpairedWideShare int64 = 32 << 20
+)
+
+// cMaxUnpairedPerAddr caps the sockets one address (an IPv6 /64) has open
+// before they pair with a device or register as one, and four times it
+// those of one IPv6 /48: nothing did, and each holds a goroutine and the
+// message it is sending. Every client pairs with its first request and a
+// device's connection registers with its first, so even a household of
+// devices dialling in at once stays far below. [bridge]
+// max-unpaired-per-addr sets it (a load test's bridge, whose idle sockets
+// all come from one machine). Var so tests can shrink it.
+var cMaxUnpairedPerAddr = 64
+
+func maxUnpairedPerAddr() int {
+	return bridgeLimit("max-unpaired-per-addr", cMaxUnpairedPerAddr)
+}
+
+// reserveUnpaired counts one more socket not paired yet from addr, unless
+// its address or its /48 already has its cap, and returns the budget its
+// messages are read under: its address's share of unpairedBudget, within
+// its /48's. releaseUnpaired gives it back.
+func (mg *Manager) reserveUnpaired(addr string) (keys []string, share *wsframe.Budget, ok bool) {
+	limit := maxUnpairedPerAddr()
+	keys = []string{clientaddr.Bucket(addr)}
+	caps := []int{limit}
+	sizes := []int64{cUnpairedShare}
+	if w := clientaddr.Wide(addr); w != "" {
+		keys, caps, sizes = append(keys, w), append(caps, 4*limit), append(sizes, cUnpairedWideShare)
+	}
+	mg.unpairedMu.Lock()
+	defer mg.unpairedMu.Unlock()
+	for i, k := range keys {
+		if mg.unpairedByAddr[k] >= caps[i] {
+			return nil, nil, false
+		}
+	}
+	if mg.unpairedByAddr == nil {
+		mg.unpairedByAddr = map[string]int{}
+		mg.unpairedShares = map[string]*wsframe.Budget{}
+	}
+	// The /48's share first: the address's is within it. A share lives as
+	// long as a socket of its key does, so an address's sockets share one.
+	share = unpairedBudget
+	for i := len(keys) - 1; i >= 0; i-- {
+		k := keys[i]
+		mg.unpairedByAddr[k]++
+		if mg.unpairedShares[k] == nil {
+			mg.unpairedShares[k] = wsframe.NewShare(share, sizes[i])
+		}
+		share = mg.unpairedShares[k]
+	}
+	return keys, share, true
+}
+
+func (mg *Manager) releaseUnpaired(keys []string) {
+	mg.unpairedMu.Lock()
+	defer mg.unpairedMu.Unlock()
+	for _, k := range keys {
+		if mg.unpairedByAddr[k] <= 1 {
+			delete(mg.unpairedByAddr, k)
+			delete(mg.unpairedShares, k)
+		} else {
+			mg.unpairedByAddr[k]--
+		}
+	}
+}
 
 // replyBudget is frameBudget for the devices' replies. Separate: a client's
 // request holds its frameBudget share until its reply has arrived, so
