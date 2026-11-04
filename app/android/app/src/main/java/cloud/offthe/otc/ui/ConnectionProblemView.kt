@@ -189,7 +189,10 @@ fun DeviceUnreachableView(message: String, code: String, onClose: (() -> Unit)? 
                     Icon(Icons.Default.Close, contentDescription = S.appShellCloseAndLeave().resolve(), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            // Scrolls: held sideways or at a large text size, Still trying
+            // and the language menu - the only way to change the language
+            // while this card covers the app - were cut off.
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 val icon = when {
                     disabled -> Icons.Default.Block
                     noStorage -> Icons.Default.DiscFull
