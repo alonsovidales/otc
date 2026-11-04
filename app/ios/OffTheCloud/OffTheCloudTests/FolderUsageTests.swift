@@ -342,8 +342,9 @@ struct FolderUsageExplorerTests {
         // A folder's has none.
         #expect(byPath["/Docs/Sub"]?.hasHash == false)
         #expect(sent.deletes.allSatisfy { !$0.hasEveryCopy })
-        #expect(vm.toast == "this file has changed since it was shown")
-        #expect(toasts == ["this file has changed since it was shown"])
+        // In "Delete failed: ...", as Images and the web say a refusal.
+        #expect(vm.toast == S.appPhotosNoticeDeleteFailed(detail: "this file has changed since it was shown"))
+        #expect(toasts == [S.appPhotosNoticeDeleteFailed(detail: "this file has changed since it was shown")])
         // Listed again.
         #expect(sent.list.filter { if case .reqListFiles = $0 { return true } else { return false } }.count == listings + 1)
     }

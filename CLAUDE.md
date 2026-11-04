@@ -4484,7 +4484,7 @@ sends the tile's `hash` on every delete (Files' rows too, files only) and `every
 where copies is above 1. A refusal keeps the tile and shows the device's words in
 `app.photos.notice.delete_failed`; `changed` closes the viewer and runs the search again from
 where it began (`reloadSearch`: a jump at its month), the Files viewer lists its folder again
-(`onDeleted`), Files' own delete toasts the words; Files now shows its viewer's alerts too
+(`onDeleted`), Files' own delete toasts the words (in `delete_failed`, as Images says them); Files now shows its viewer's alerts too
 (`ViewerNotice`). Save downloads the original (`FileDownload.download(original:)`, ReadFile
 even for HEIC) and adds it as it is (`PHAssetCreationRequest` `.photo`/`.video` resource,
 `creationDate` = the item's date), add-only access as before; Save spins (`savingPath`,
