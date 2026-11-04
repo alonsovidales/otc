@@ -2290,8 +2290,10 @@ per address and device - an IPv4 address, an IPv6 /64 and its /48, a quarter of 
 (`[bridge] max-unauthenticated-per-addr`; a newcomer waits up to 3 s for room, as a household's
 tabs sign in) - one with nothing in flight is closed after 2 min without a message
 (`cAnonPairedIdle`; the web app and the shared pages reconnect with their next request), and at the
-device's cap a newcomer closes the one idle for 5 s or more of the address holding the most
-(`evictIdleAnon`). Signed-in sessions are never closed for anyone. A client whose relay dies while
+device's cap a newcomer closes one of the address (or IPv6 /48) holding the most: the one paired the
+longest ago, 5 s or more with nothing in flight (`cEvictAfter`) or 60 s or more whatever it is doing
+(`cEvictBusyAfter`; its requests are answered "unreachable") - by age, not idleness, as strangers
+sending a small request every few seconds were never idle (`evictAnon`). Signed-in sessions are never closed for anyone. A client whose relay dies while
 it has nothing in flight is hung up on at once (`deviceRelay.dead`), so its next request pairs anew
 instead of being told the device is unreachable. A relay records its owner uuid (never the secret), and a
 registration evicts other owners' relays. `DropDomains` (release, account deletion,

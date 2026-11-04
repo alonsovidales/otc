@@ -28,8 +28,12 @@ import (
 //   - is closed once it has sent nothing, with nothing in flight, for
 //     cAnonPairedIdle (the web app and the shared pages reconnect with
 //     their next request);
-//   - at the device's cap, makes room for a newcomer: the idle one of the
-//     address holding the most of them is closed.
+//   - at the device's cap, makes room for a newcomer: of the address
+//     holding the most of them, the one paired the longest ago is closed
+//     - from cEvictAfter after its pairing with nothing in flight, from
+//     cEvictBusyAfter whatever it is doing. By age, not by idleness: a
+//     stranger sending a small request every few seconds on each of its
+//     sessions was never idle, and kept the device's people out.
 //
 // Signing in is read off the relayed traffic, so this works with devices
 // of every release: a request whose payload is an Auth, an AuthWithToken
@@ -43,9 +47,13 @@ var (
 	// address's share - a household restoring many tabs at once signs
 	// them in within a moment.
 	cAnonShareWait = 3 * time.Second
-	// cEvictAfter: a session must have been idle this long before a
+	// cEvictAfter: a session must have been paired this long before a
 	// newcomer may close it, so one about to sign in is left alone.
 	cEvictAfter = 5 * time.Second
+	// cEvictBusyAfter: paired this long, a session that never signed in
+	// may be closed for a newcomer with a request in flight too (answered
+	// "unreachable", as when a device connection dies).
+	cEvictBusyAfter = 60 * time.Second
 )
 
 // maxAnonPerAddr is how many sessions that haven't signed in one address
@@ -125,6 +133,7 @@ type clientSession struct {
 	anon     bool      // no sign-in seen on it yet
 	inFlight int       // requests relayed and not answered yet
 	lastUsed time.Time // its last request or answer
+	pairedAt time.Time
 	evicted  bool
 	// ids counts the requests in flight by envelope id, and dup marks an
 	// id sent again while one was in flight: an answer to it could be
@@ -134,10 +143,11 @@ type clientSession struct {
 }
 
 func newClientSession(host string, keys []string, conn *gorilla.Conn, relay *deviceRelay) *clientSession {
-	return &clientSession{host: host, keys: keys, conn: conn, relay: relay, anon: true, lastUsed: time.Now()}
+	now := time.Now()
+	return &clientSession{host: host, keys: keys, conn: conn, relay: relay, anon: true, lastUsed: now, pairedAt: now}
 }
 
-// addSession lists s among host's sessions (evictIdleAnon looks there).
+// addSession lists s among host's sessions (evictAnon looks there).
 func (mg *Manager) addSession(s *clientSession) {
 	mg.pairedMu.Lock()
 	defer mg.pairedMu.Unlock()
@@ -271,28 +281,39 @@ func (s *clientSession) wasEvicted() bool {
 	return s.evicted
 }
 
-// evictIdleAnon closes one of host's sessions that hasn't signed in, has
-// nothing in flight and has been idle for cEvictAfter, to make room for a
-// newcomer at the device's cap: one of the address holding the most of
-// them, the one idle the longest. Its device connection is closed before
-// this returns, so the cap counts it out. Reports whether there was one.
-func (mg *Manager) evictIdleAnon(host string) bool {
+// evictAnon closes one of host's sessions that hasn't signed in, to make
+// room for a newcomer at the device's cap: one paired cEvictAfter ago or
+// more with nothing in flight, or cEvictBusyAfter ago or more. Of the
+// address holding the most of them (its bucket or, for IPv6, its /48,
+// whichever holds more), one with nothing in flight first, then the one
+// paired the longest ago. Its device connection is closed before this
+// returns, so the cap counts it out; its socket is hung up on once its
+// requests in flight are answered "unreachable" (deviceRelay.dead, and
+// the relayed request's own error). Reports whether there was one.
+func (mg *Manager) evictAnon(host string) bool {
 	now := time.Now()
 	var victim *clientSession
 	var victimShare int
-	var victimUsed time.Time
+	var victimBusy bool
+	var victimPaired time.Time
 	mg.pairedMu.Lock()
 	for s := range mg.sessions[host] {
 		s.mu.Lock()
-		idle := s.anon && !s.evicted && s.inFlight == 0 && now.Sub(s.lastUsed) >= cEvictAfter
-		used := s.lastUsed
+		age := now.Sub(s.pairedAt)
+		busy := s.inFlight > 0
+		ok := s.anon && !s.evicted && age >= cEvictAfter && (!busy || age >= cEvictBusyAfter)
+		paired := s.pairedAt
 		s.mu.Unlock()
-		if !idle {
+		if !ok {
 			continue
 		}
-		share := mg.anonByKey[s.keys[0]]
-		if victim == nil || share > victimShare || (share == victimShare && used.Before(victimUsed)) {
-			victim, victimShare, victimUsed = s, share, used
+		share := 0
+		for _, k := range s.keys {
+			share = max(share, mg.anonByKey[k])
+		}
+		if victim == nil || share > victimShare ||
+			(share == victimShare && (victimBusy && !busy || victimBusy == busy && paired.Before(victimPaired))) {
+			victim, victimShare, victimBusy, victimPaired = s, share, busy, paired
 		}
 	}
 	if victim != nil {
@@ -304,11 +325,12 @@ func (mg *Manager) evictIdleAnon(host string) bool {
 	if victim == nil {
 		return false
 	}
-	mg.logRefusal("evicted|"+host, "closed an idle session that never signed in, for a new client of", host) // i18n-ignore: a log line
-	victim.conn.Close()
-	if victim.relay != nil {
-		victim.relay.Close()
+	mg.logRefusal("evicted|"+host, "closed a session that never signed in, for a new client of", host) // i18n-ignore: a log line
+	if victim.relay == nil {
+		victim.conn.Close()
+		return true
 	}
+	victim.relay.Close()
 	return true
 }
 

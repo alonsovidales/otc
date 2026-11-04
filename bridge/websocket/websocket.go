@@ -1799,7 +1799,11 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// RespAck a fresh connection gets means both routes
 					// into this situation end up telling the client the
 					// same thing.
-					log.Error("error forwarding message, device unreachable:", err)
+					if sess.wasEvicted() {
+						log.Debug("a request of a session closed for a new client:", err)
+					} else {
+						log.Error("error forwarding message, device unreachable:", err)
+					}
 					if idErr != nil {
 						log.Error("error building unreachable response:", idErr)
 						return
@@ -2412,10 +2416,10 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						// of memory.
 						if pool.liveCount-len(pool.availableConns) >= maxPairedPerDevice() {
 							pool.lock.Unlock()
-							// Once, and spending no attempt: an idle session
-							// that never signed in makes room (sessions.go),
-							// so strangers can't keep the device's people out.
-							if !evicted && mg.evictIdleAnon(r.Host) {
+							// Once, and spending no attempt: a session that
+							// never signed in makes room (sessions.go), so
+							// strangers can't keep the device's people out.
+							if !evicted && mg.evictAnon(r.Host) {
 								evicted = true
 								attempt--
 								continue

@@ -303,10 +303,10 @@ func TestAQuietSessionThatNeverSignedInIsClosed(t *testing.T) {
 	waitFor(t, func() bool { return anonCount(mg) == 0 }, "the closed sessions' shares given back")
 }
 
-// At the device's cap, a newcomer closes an idle session that never
-// signed in - the one of the address holding the most of them - so
-// strangers can't keep the device's own people out; signed-in sessions
-// are never closed for one, and nor is a session with a request in flight.
+// At the device's cap, a newcomer closes a session that never signed in -
+// one of the address holding the most of them - so strangers can't keep
+// the device's own people out; signed-in sessions are never closed for
+// one.
 func TestANewcomerMakesRoomByClosingAnIdleStranger(t *testing.T) {
 	setVar(t, &cDefaultMaxPairedPerDevice, 4) // a share of 1
 	setVar(t, &cEvictAfter, 50*time.Millisecond)
@@ -343,6 +343,107 @@ func TestANewcomerMakesRoomByClosingAnIdleStranger(t *testing.T) {
 	}
 	if !ask(t, member, envelopeFrame(t, 2)) {
 		t.Fatal("a signed-in session was closed for a newcomer")
+	}
+}
+
+// A stranger's session is closed for a newcomer by how long it has been
+// one, not by how long it has been idle: strangers sending a small request
+// every 100 ms on each of their sessions, from four addresses - a quarter
+// of the device each - kept the owner out for as long as they went on.
+func TestStrangersKeepingTheirSessionsBusyStillMakeRoom(t *testing.T) {
+	setVar(t, &cDefaultMaxPairedPerDevice, 8) // a share of 2
+	setVar(t, &cEvictAfter, 300*time.Millisecond)
+	setVar(t, &cAnonShareWait, 100*time.Millisecond)
+	_, dialFrom, _ := sessionsBridge(t, 12, nil)
+
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	defer close(stop)
+	for a := 1; a <= 4; a++ {
+		for i := 0; i < 2; i++ {
+			c := dialFrom(fmt.Sprintf("198.51.100.%d", a))
+			if !ask(t, c, envelopeFrame(t, 1)) {
+				t.Fatalf("stranger %d was refused", a)
+			}
+			wg.Add(1)
+			go func(c *gorilla.Conn) {
+				defer wg.Done()
+				for id := int32(2); ; id++ {
+					select {
+					case <-stop:
+						return
+					case <-time.After(100 * time.Millisecond):
+					}
+					if c.WriteMessage(gorilla.BinaryMessage, envelopeFrame(t, id)) != nil {
+						return
+					}
+					c.SetReadDeadline(time.Now().Add(2 * time.Second))
+					if _, _, err := c.ReadMessage(); err != nil {
+						return // closed for the owner
+					}
+				}
+			}(c)
+		}
+	}
+	time.Sleep(2 * cEvictAfter)
+	if !ask(t, dialFrom("203.0.113.9"), signInFrame(t, 1, "good")) {
+		t.Fatal("the owner was kept out by strangers who never let their sessions go idle")
+	}
+}
+
+// A stranger's session with a request in flight is closed for a newcomer
+// only once it has been one for cEvictBusyAfter, and its request is then
+// answered "unreachable"; one paired less than cEvictAfter ago never is.
+func TestAStrangerWithARequestInFlightIsClosedOnlyOnceOld(t *testing.T) {
+	setVar(t, &cDefaultMaxPairedPerDevice, 4) // a share of 1
+	setVar(t, &cEvictAfter, 50*time.Millisecond)
+	setVar(t, &cEvictBusyAfter, 800*time.Millisecond)
+	setVar(t, &cAnonShareWait, 100*time.Millisecond)
+	_, dialFrom, _ := sessionsBridge(t, 8, func(id int32) time.Duration {
+		if id >= 100 {
+			return 10 * time.Second
+		}
+		return 0
+	})
+
+	paired := time.Now()
+	var strangers []*gorilla.Conn
+	for i := 1; i <= 4; i++ {
+		c := dialFrom(fmt.Sprintf("198.51.100.%d", i))
+		if !ask(t, c, envelopeFrame(t, 1)) {
+			t.Fatalf("stranger %d was refused", i)
+		}
+		if err := c.WriteMessage(gorilla.BinaryMessage, envelopeFrame(t, int32(100+i))); err != nil {
+			t.Fatal(err)
+		}
+		strangers = append(strangers, c)
+	}
+	time.Sleep(200 * time.Millisecond)
+	if ask(t, dialFrom("203.0.113.9"), signInFrame(t, 1, "good")) {
+		t.Fatal("a stranger's session with a request in flight was closed before cEvictBusyAfter")
+	}
+	time.Sleep(time.Until(paired.Add(cEvictBusyAfter + 100*time.Millisecond)))
+	if !ask(t, dialFrom("203.0.113.9"), signInFrame(t, 1, "good")) {
+		t.Fatal("the owner was kept out past cEvictBusyAfter by strangers' requests in flight")
+	}
+	unreachable := make(chan bool, len(strangers))
+	for _, c := range strangers {
+		go func(c *gorilla.Conn) {
+			c.SetReadDeadline(time.Now().Add(2 * time.Second))
+			_, data, err := c.ReadMessage()
+			var resp pb.RespEnvelope
+			unreachable <- err == nil && proto.Unmarshal(data, &resp) == nil && resp.GetRespAck().GetCode() == cCodeDeviceUnreachable
+		}(c)
+	}
+	told := 0
+	for range strangers {
+		if <-unreachable {
+			told++
+		}
+	}
+	if told != 1 {
+		t.Errorf("%d strangers' requests were answered unreachable, want the one closed for the owner", told)
 	}
 }
 
