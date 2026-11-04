@@ -2096,7 +2096,7 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 		// content's metadata (see git history for the full story).
 		existing, err := mg.dao.GetFileByPath(path)
 		if err != nil {
-			return nil, false, mg.takenByAnotherName(path, err)
+			return nil, false, mg.takenByAnotherName(path, forceOverride, err)
 		}
 		if existing.Hash == hash {
 			if mg.hasBlob(hash) {
@@ -2692,7 +2692,7 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 	if duplicated {
 		existingAtPath, err := mg.dao.GetFileByPath(path)
 		if err != nil {
-			return nil, mg.takenByAnotherName(path, err)
+			return nil, mg.takenByAnotherName(path, forceOverride, err)
 		}
 		if existingAtPath.Hash == hash {
 			log.Debug("Same file already linked at:", path, hash)

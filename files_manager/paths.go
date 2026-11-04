@@ -78,10 +78,14 @@ func (mg *Manager) checkNewPath(p string) error {
 // SpacesNameError is an upload's or a link's refusal when its path is
 // taken by a file whose name differs from it only by spaces at its end
 // ("notes.txt" and "notes.txt "). The database keeps the two as one key
-// (dao.exactPath), so the second can't be stored: it used to replace the
-// first one's content (a sync client's edit), or be refused as a
-// duplicate on every pass.
-type SpacesNameError struct{ Path string }
+// (dao.exactPath), so the second can't be stored: with override (a sync
+// client's edit) it used to replace the first one's content.
+type SpacesNameError struct {
+	Path string
+	// Override is whether the upload or link asked to replace what is at
+	// its path (forceOverride: the sync clients always do).
+	Override bool
+}
 
 func (e *SpacesNameError) msg() i18n.Msg { return i18n.DevFilesNameDiffersBySpaces(path.Base(e.Path)) }
 
@@ -95,16 +99,39 @@ func (e *SpacesNameError) Localized(lang string) string {
 	return e.msg().Render(lang)
 }
 
+// Is makes the refusal of an upload or link that didn't ask to override a
+// duplicate (ErrDuplicatedFile, error_code duplicated_file), as it always
+// was: the phones' photo sync and the web's "keep both" then store the
+// file under another name. One that asked is refused outright - nothing
+// else may take the other file's place - with no code, and a sync client
+// says why and tries again on its next pass.
+func (e *SpacesNameError) Is(target error) bool {
+	return target == ErrDuplicatedFile && !e.Override
+}
+
+// spacesNameTaken is the SpacesNameError of an upload or link to p
+// (override: its forceOverride) when the key takes p for a file stored
+// under another name; nil when it doesn't, or can't be asked.
+func (mg *Manager) spacesNameTaken(p string, override bool) error {
+	if mg.dao == nil {
+		return nil
+	}
+	if stored, err := mg.dao.SamePathAs(p); err == nil && stored != p {
+		return &SpacesNameError{Path: p, Override: override}
+	}
+	return nil
+}
+
 // takenByAnotherName is what an insert at p refused as duplicated says
 // when no row is at p itself, byte for byte (err, GetFileByPath's
 // sql.ErrNoRows): a SpacesNameError when the row the key found has
 // another name; err itself when there is none (deleted in between).
-func (mg *Manager) takenByAnotherName(p string, err error) error {
+func (mg *Manager) takenByAnotherName(p string, override bool, err error) error {
 	if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
-	if stored, serr := mg.dao.SamePathAs(p); serr == nil && stored != p {
-		return &SpacesNameError{Path: p}
+	if serr := mg.spacesNameTaken(p, override); serr != nil {
+		return serr
 	}
 	return err
 }

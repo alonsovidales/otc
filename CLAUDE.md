@@ -1163,11 +1163,15 @@ next to "notes.txt" with override replaced the other file's content, and a DelFi
 the other. Every lookup, change and delete of one path is now exact (`dao.exactPath`: `path = ? and
 length(path) = length(?)`, still a unique-key lookup; `GetFileByPath` checks the row's path), and an
 upload or link whose path the key finds under another name is refused (`SpacesNameError`,
-`dev.files.name_differs_by_spaces`, `dao.SamePathAs`): two names that differ only by spaces at their end
-can't both be on a device (no collation change: a rebuild of `files`, `file_versions` and the folder
-tables on every database, with UNIONs failing on a mix if one stopped halfway). Lists of paths (`path
-in (...)`: favourites, collections, thumbnails) still match PAD SPACE: they name rows the client was
-just given. Tests: `paths_test.go`, dao's `exactpath_test.go` (`TestPathsAreExactMySQL` against MariaDB).
+`dev.files.name_differs_by_spaces`, `dao.SamePathAs`), a chunked one at BeginUpload, before its content
+comes: with override (the sync clients) outright, with no code; without it as a duplicate (`errors.Is`
+`ErrDuplicatedFile`, error_code `duplicated_file`, from BeginUpload too), so the phones' photo sync,
+the post composer and the web's "keep both" store it under another name, as they always did. Two names
+that differ only by spaces at their end can't both be on a device (no collation change: a rebuild of
+`files`, `file_versions` and the folder tables on every database, with UNIONs failing on a mix if one
+stopped halfway). Lists of paths (`path in (...)`: favourites, collections, thumbnails) still match
+PAD SPACE: they name rows the client was just given. Tests: `paths_test.go`, dao's `exactpath_test.go`
+(`TestPathsAreExactMySQL` against MariaDB), websocket's `duplicated_file_test.go`.
 **Disk space** (`freespace.go`): a write that would leave less than a reserve free - 1 GiB, or 2%
 of a disk under 50 GB, at least 64 MiB: room for MariaDB on the same disk, the thumbnails and the
 alert itself - is refused before it starts: `BeginUpload` (its size plus what the uploads under way
@@ -2222,7 +2226,7 @@ that moves text into the catalog) and builds what embeds the catalog. It gates
 `web/node_modules`), `scripts/desktop-release.sh` (needs `i18n/` committed), `make -C bridge
 bridge`, `make android-release` and CI (`.github/workflows/i18n.yml`). Codes before prose: clients check `error_code` first and read
 the English message only when the code is empty (`duplicated_file` on UploadFile/FinishUpload/
-LinkFile, from `filesmanager.ErrDuplicatedFile`; `unknown_payload`) - iOS/macOS `ErrorCodes.swift`,
+LinkFile, from `filesmanager.ErrDuplicatedFile`, and on BeginUpload for `SpacesNameError`; `unknown_payload`) - iOS/macOS `ErrorCodes.swift`,
 Android `net/ErrorCodes.kt`, otc-sync `engine/requests.go`. Machine alerts (update, RAID, disk
 space, Wi-Fi wiring) live in `websocket/machine_alerts.go`; `raidwatch.MissingPorts()` keeps the failed disks'
 ports as data; update alerts are one per `notifications.update_version`, with the legacy English

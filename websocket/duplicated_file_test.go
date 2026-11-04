@@ -5,6 +5,7 @@ package websocket
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,7 +25,9 @@ const cDuplicatedChildEnv = "OTC_WS_DUPLICATED_CHILD"
 // An upload or link refused because the path holds other content answers
 // error_code duplicated_file - on UploadFile, FinishUpload and LinkFile -
 // with the message it always had, which apps released before the code
-// match; any other refusal of the same requests carries no code.
+// match; so does one without override whose name another file's differs
+// from only by spaces at its end, from BeginUpload on. Any other refusal
+// of the same requests carries no code.
 func TestTakenPathAnswersDuplicatedFile(t *testing.T) {
 	if os.Getenv(cDuplicatedChildEnv) != "1" {
 		// In a child process: the files manager reads [otc] storage-path,
@@ -83,6 +86,14 @@ func TestTakenPathAnswersDuplicatedFile(t *testing.T) {
 	sum = sha256.Sum256(content)
 	hash = hex.EncodeToString(sum[:])
 	t.Cleanup(func() { os.Remove(filepath.Join(storage, hash)) })
+	samePath := func(asked string, stored ...string) {
+		rows := sqlmock.NewRows([]string{"path"})
+		for _, p := range stored {
+			rows.AddRow(p)
+		}
+		mock.ExpectQuery("select `path` from `files` where `path` = \\?").WithArgs(asked).WillReturnRows(rows)
+	}
+	samePath("/docs/b.txt")
 	resp, _ = ch.processMessage(&pb.ReqEnvelope{Id: 12, Payload: &pb.ReqEnvelope_ReqBeginUpload{
 		ReqBeginUpload: &pb.BeginUpload{Path: "/docs/b.txt", Size: int64(len(content))},
 	}})
@@ -103,6 +114,22 @@ func TestTakenPathAnswersDuplicatedFile(t *testing.T) {
 		ReqFinishUpload: &pb.FinishUpload{UploadId: id, Sha256: hash},
 	}})
 	refused("FinishUpload", resp, "duplicated_file", "error finishing the upload: Duplicated file")
+
+	// A name another file's differs from only by spaces at its end, refused
+	// at BeginUpload: without override a duplicate, which the photo syncs
+	// and the web store under another name; with it, no code.
+	for _, force := range []bool{false, true} {
+		samePath("/docs/b.txt ", "/docs/b.txt")
+		resp, _ = ch.processMessage(&pb.ReqEnvelope{Id: 17, Payload: &pb.ReqEnvelope_ReqBeginUpload{
+			ReqBeginUpload: &pb.BeginUpload{Path: "/docs/b.txt ", Size: 5, ForceOverride: force},
+		}})
+		code := "duplicated_file"
+		if force {
+			code = ""
+		}
+		refused(fmt.Sprintf("BeginUpload, override %v", force), resp, code,
+			"error starting the upload: \"b.txt \" can't be saved: a file here has the same name with or without spaces at its end, and the device keeps only one of them - rename one")
+	}
 
 	// LinkFile.
 	hash = strings.Repeat("d", 64)

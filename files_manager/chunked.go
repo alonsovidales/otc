@@ -367,8 +367,12 @@ func (mg *Manager) BeginUpload(ses *session.Session, path string, size int64, fo
 	if path == "" {
 		return "", 0, devtext.New(i18n.DevFilesNoPath())
 	}
-	// Refused before any content comes (paths.go).
+	// Refused before any content comes (paths.go), as FinishUpload would
+	// once all of it had: a sync client sent it all again on every pass.
 	if err := mg.checkNewPath(path); err != nil {
+		return "", 0, err
+	}
+	if err := mg.spacesNameTaken(path, forceOverride); err != nil {
 		return "", 0, err
 	}
 	u := pendingUploads

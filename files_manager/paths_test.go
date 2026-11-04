@@ -128,9 +128,13 @@ func TestNewPathsAreChecked(t *testing.T) {
 }
 
 // "notes.txt " and "notes.txt" are one key to the database: an upload of
-// the one where the other is is refused, saying why - it used to replace
-// the other's content (a sync client's edit) - and leaves nothing behind;
-// a link too.
+// the one where the other is is refused, saying why, and leaves nothing
+// behind; a link too. With override (a sync client's edit, which used to
+// replace the other's content) the refusal is outright; without it, it is
+// a duplicate (ErrDuplicatedFile, error_code duplicated_file), so the
+// phones' photo sync and the web store the file under another name, as
+// they did. A chunked upload is refused at BeginUpload, before any of its
+// content comes.
 func TestNameDifferingBySpacesIsRefused(t *testing.T) {
 	_, ses := galleryTestEnv(t)
 	db, mock, _ := sqlmock.New()
@@ -144,43 +148,94 @@ func TestNameDifferingBySpacesIsRefused(t *testing.T) {
 		mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
 			WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(n))
 	}
+	samePath := func(asked string, stored ...string) {
+		rows := sqlmock.NewRows([]string{"path"})
+		for _, p := range stored {
+			rows.AddRow(p)
+		}
+		mock.ExpectQuery("select `path` from `files` where `path` = \\?").WithArgs(asked).WillReturnRows(rows)
+	}
 	taken := func() {
 		mock.ExpectExec("insert into `files`").WillReturnError(&mysql.MySQLError{Number: 1062})
 		rowAt(mock, spaced, there, strings.Repeat("e", 64))
-		mock.ExpectQuery("select `path` from `files` where `path` = \\?").WithArgs(spaced).
-			WillReturnRows(sqlmock.NewRows([]string{"path"}).AddRow(there))
+		samePath(spaced, there)
 	}
-	referenced(0) // contentKnown
-	taken()
-	referenced(0) // the written content, unused: removed
-	var spaces *SpacesNameError
-	_, err := mg.UploadFile(ses, spaced, content, true, nil, nil, "")
-	if !errors.As(err, &spaces) {
-		t.Fatalf("UploadFile: %v", err)
-	}
-	if want := "\"notes.txt \" can't be saved: a file here has the same name with or without spaces at its end, and the device keeps only one of them - rename one"; err.Error() != want {
-		t.Errorf("its English: %q", err.Error())
-	}
-	if _, err := os.Stat(blobPath(hash)); !os.IsNotExist(err) {
-		os.Remove(blobPath(hash))
-		t.Error("the refused upload's content stayed on the disk")
-	}
-
 	linked := strings.Repeat("c", 64)
 	if err := os.WriteFile(blobPath(linked), []byte("content"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(blobPath(linked))
 	now := time.Now()
-	mock.ExpectQuery("select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `hash` = \\?").WithArgs(linked).
-		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).AddRow(linked, "text/plain", now, now, "/x.txt", 7))
-	taken()
-	if _, err := mg.LinkFile(ses, spaced, linked, true, nil, nil, ""); !errors.As(err, &spaces) {
-		t.Errorf("LinkFile: %v", err)
+	owner := new(int)
+	t.Cleanup(func() { (&Manager{}).ReleaseUploadsOf(owner) })
+	refused := func(what string, override bool, err error) {
+		t.Helper()
+		var spaces *SpacesNameError
+		if !errors.As(err, &spaces) {
+			t.Errorf("%s, override %v: %v", what, override, err)
+			return
+		}
+		if errors.Is(err, ErrDuplicatedFile) == override {
+			t.Errorf("%s, override %v: a duplicate is %v", what, override, !override)
+		}
+	}
+
+	for _, override := range []bool{true, false} {
+		referenced(0) // contentKnown
+		taken()
+		referenced(0) // the written content, unused: removed
+		_, err := mg.UploadFile(ses, spaced, content, override, nil, nil, "")
+		refused("UploadFile", override, err)
+		if want := "\"notes.txt \" can't be saved: a file here has the same name with or without spaces at its end, and the device keeps only one of them - rename one"; err == nil || err.Error() != want {
+			t.Errorf("its English: %v", err)
+		}
+		if _, err := os.Stat(blobPath(hash)); !os.IsNotExist(err) {
+			os.Remove(blobPath(hash))
+			t.Error("the refused upload's content stayed on the disk")
+		}
+
+		mock.ExpectQuery("select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `hash` = \\?").WithArgs(linked).
+			WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).AddRow(linked, "text/plain", now, now, "/x.txt", 7))
+		taken()
+		_, err = mg.LinkFile(ses, spaced, linked, override, nil, nil, "")
+		refused("LinkFile", override, err)
+
+		samePath(spaced, there)
+		id, _, err := mg.BeginUpload(ses, spaced, int64(len(content)), override, nil, nil, "", "", owner)
+		refused("BeginUpload", override, err)
+		if id != "" || pendingOf(owner) != 0 {
+			t.Errorf("BeginUpload, override %v: begun anyway (%q)", override, id)
+		}
+	}
+
+	// A name of its own, or a file's own name, begins as before.
+	samePath("/Docs/other.txt")
+	samePath(there, there)
+	for _, p := range []string{"/Docs/other.txt", there} {
+		if _, _, err := mg.BeginUpload(ses, p, int64(len(content)), true, nil, nil, "", "", owner); err != nil {
+			t.Errorf("BeginUpload of %s: %v", p, err)
+		}
+	}
+	if n := pendingOf(owner); n != 2 {
+		t.Errorf("%d uploads begun, want 2", n)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err) // an override would show up here
 	}
+}
+
+// pendingOf is how many chunked uploads owner has under way.
+func pendingOf(owner any) int {
+	u := pendingUploads
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	n := 0
+	for _, up := range u.by {
+		if up.owner == owner {
+			n++
+		}
+	}
+	return n
 }
 
 func TestZipEntryName(t *testing.T) {
