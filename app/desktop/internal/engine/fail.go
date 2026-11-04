@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"path/filepath"
 	"strings"
 	"time"
@@ -41,6 +42,18 @@ const spaceReserve = 256 << 20
 
 // diskLimits is volumeLimits (a test sets the disk's room).
 var diskLimits = volumeLimits
+
+// freeOf is the free space a file system reports - avail blocks of bsize
+// bytes, of total blocks - or, when it reports no size at all (total 0:
+// libfuse's default statfs, some gvfs mounts), no limit: an unknown size is
+// no reason to refuse a download.
+func freeOf(total, avail, bsize uint64) uint64 {
+	if total == 0 {
+		return math.MaxUint64
+	}
+
+	return avail * bsize
+}
 
 // roomFor refuses a download of size bytes into dir that the disk can't
 // take (errTooLarge, errNoSpace), when the system says.

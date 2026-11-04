@@ -3,6 +3,7 @@
 package engine
 
 import (
+	"errors"
 	"math"
 	"os"
 	"path/filepath"
@@ -176,5 +177,27 @@ func TestRoomFor(t *testing.T) {
 	}
 	if err := roomFor("/x", 1<<32); failKindOf(err) != failTooLarge {
 		t.Fatalf("a 4 GB file on FAT32: %v", err)
+	}
+}
+
+// A file system that reports no size (total blocks 0: libfuse's default
+// statfs, some gvfs mounts) is no limit: every download used to be refused
+// there as "Not enough space".
+func TestNoSizeIsNoLimit(t *testing.T) {
+	if got := freeOf(0, 0, 4096); got != math.MaxUint64 {
+		t.Fatalf("no size: %d free", got)
+	}
+	if got := freeOf(1000, 10, 4096); got != 40960 {
+		t.Fatalf("10 blocks of 4 KiB: %d free", got)
+	}
+	old := diskLimits
+	t.Cleanup(func() { diskLimits = old })
+	diskLimits = func(string) (uint64, int64, bool) { return freeOf(0, 0, 4096), math.MaxInt64, true }
+	if err := roomFor(t.TempDir(), 5<<30); err != nil {
+		t.Fatalf("a 5 GB download refused where the size is unknown: %v", err)
+	}
+	diskLimits = func(string) (uint64, int64, bool) { return freeOf(1000, 10, 4096), math.MaxInt64, true }
+	if err := roomFor(t.TempDir(), 1<<20); !errors.Is(err, errNoSpace) {
+		t.Fatalf("no room: %v", err)
 	}
 }

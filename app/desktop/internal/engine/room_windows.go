@@ -12,7 +12,8 @@ import (
 )
 
 // volumeLimits is the free space on dir's volume and the largest file it
-// can hold (FAT and FAT32: 4 GiB less a byte), when the system says.
+// can hold (FAT and FAT32: 4 GiB less a byte), when the system says
+// (freeOf: a volume of no size is no limit).
 func volumeLimits(dir string) (free uint64, maxFile int64, ok bool) {
 	name, err := windows.UTF16PtrFromString(dir)
 	if err != nil {
@@ -33,5 +34,5 @@ func volumeLimits(dir string) (free uint64, maxFile int64, ok bool) {
 		}
 	}
 
-	return free, maxFile, true
+	return freeOf(total, free, 1), maxFile, true
 }
