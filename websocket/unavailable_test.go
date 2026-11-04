@@ -299,3 +299,37 @@ func TestUnavailableThroughTheBridge(t *testing.T) {
 		t.Errorf("dialled %d more after Stop", after-before)
 	}
 }
+
+// Without its storage, a page at the device's own name on the bridge
+// reached at home (the network's DNS pointing it at the device) gets its
+// socket, as Listen's own check and the full device take it; another
+// site's page doesn't.
+func TestUnavailableTakesAPageAtTheDevicesBridgeName(t *testing.T) {
+	saved := allowedOrigins
+	allowedOrigins = func() map[string]bool { return map[string]bool{} }
+	t.Cleanup(func() { allowedOrigins = saved })
+	u := NewUnavailable(t.TempDir()+"/", false)
+	t.Cleanup(u.Stop)
+	mg := u.mgs[0]
+	mg.settings = settings.Offline("uuid-1", "anna.off-the.cloud", "s3cret")
+	srv := httptest.NewServer(http.HandlerFunc(mg.Listen))
+	t.Cleanup(srv.Close)
+	url := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+
+	dial := func(host string) (*http.Response, error) {
+		h := http.Header{}
+		h.Set("Host", host)
+		h.Set("Origin", "https://"+host)
+		c, resp, err := gorilla.DefaultDialer.Dial(url, h)
+		if err == nil {
+			c.Close()
+		}
+		return resp, err
+	}
+	if resp, err := dial("anna.off-the.cloud"); err != nil {
+		t.Fatalf("the device's own name on the bridge: %v, %v", err, resp)
+	}
+	if resp, err := dial("evil.example"); err == nil || resp == nil || resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("another site's page: %v, %v; want a 403", err, resp)
+	}
+}
