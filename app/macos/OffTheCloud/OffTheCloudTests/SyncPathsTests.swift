@@ -423,6 +423,60 @@ struct SyncPathsTests {
         #expect(SyncPaths.maybeMounts(root: root, meta: meta, record: record, here: here.union(["usb/new.jpg"]), known: none, written: later).isEmpty)
     }
 
+    /// Disk images mounted inside the folder, one inside the other. The
+    /// enumerator lists a mount point as an empty folder: the files on a
+    /// disk mounted in a two-way folder were neither sent nor seen, one
+    /// downloaded onto it read as deleted here at every pass after, and
+    /// the disk as an emptied folder at the first pass of an older record.
+    /// Needs hdiutil, outside the app's sandbox (a scratch SwiftPM package).
+    @Test(.enabled(if: canAttachImages, "attaches disk images with hdiutil"))
+    func aDiskMountedInTheFolderIsWalkedAsTheRest() throws {
+        let dir = try scratchDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let fm = FileManager.default
+        let root = dir.appendingPathComponent("root").path
+        try fm.createDirectory(atPath: root + "/nas", withIntermediateDirectories: true)
+        try Data("b".utf8).write(to: URL(fileURLWithPath: root + "/b.txt"))
+        let nas = try DiskImage(dir.appendingPathComponent("nas.dmg"), at: root + "/nas")
+        defer { nas.detach() }
+        try fm.createDirectory(atPath: root + "/nas/photos", withIntermediateDirectories: true)
+        try fm.createDirectory(atPath: root + "/nas/inner", withIntermediateDirectories: true)
+        try Data("c".utf8).write(to: URL(fileURLWithPath: root + "/nas/photos/c.jpg"))
+        let inner = try DiskImage(dir.appendingPathComponent("inner.dmg"), at: root + "/nas/inner")
+        defer { inner.detach() }
+        try Data("d".utf8).write(to: URL(fileURLWithPath: root + "/nas/inner/d.jpg"))
+
+        func scanned() -> (files: Set<String>, scan: SyncPaths.FolderScan) {
+            let scan = SyncPaths.scanFolder(at: URL(fileURLWithPath: root))
+            return (Set(scan.files.compactMap { SyncPaths.relativePath($0.standardizedFileURL.path, root: root) }), scan)
+        }
+        let (files, scan) = scanned()
+        #expect(files == ["b.txt", "nas/photos/c.jpg", "nas/inner/d.jpg"])
+        #expect(Set(scan.mounts) == ["nas", "nas/inner"] && scan.complete && scan.skipped.isEmpty)
+        // Mounted: nothing is held.
+        #expect(SyncPaths.goneMounts(root: root, recorded: ["nas", "nas/inner"], now: scan.mounts).gone.isEmpty)
+        let record = ["b.txt": "h", "nas/photos/c.jpg": "h", "nas/inner/d.jpg": "h"]
+        #expect(SyncPaths.maybeMounts(root: root, meta: .init(), record: record, here: Set(files), known: { _ in false },
+                                      written: Date().addingTimeInterval(60)).isEmpty)
+        // A file on a disk goes to that disk's .otc-trash: a rename can't
+        // leave its file system.
+        #expect(SyncPaths.trashTop(root + "/nas/photos/c.jpg", root: root) == root + "/nas")
+        #expect(SyncPaths.trashTop(root + "/nas/inner/d.jpg", root: root) == root + "/nas/inner")
+        let now = Date()
+        let day = SyncPaths.trashDay(now)
+        #expect(try SyncPaths.folderTrash(root + "/nas/photos/c.jpg", root: root, now: now) == root + "/nas/.otc-trash/\(day)/photos/c.jpg")
+        #expect(try SyncPaths.folderTrash(root + "/nas/inner/d.jpg", root: root, now: now) == root + "/nas/inner/.otc-trash/\(day)/d.jpg")
+        #expect(scanned().files == ["b.txt"])
+        SyncPaths.pruneFolderTrashes(root: root, mounts: scan.mounts, now: now.addingTimeInterval(40 * 86400))
+        #expect(!fm.fileExists(atPath: root + "/nas/.otc-trash") && !fm.fileExists(atPath: root + "/nas/inner/.otc-trash"))
+        // Not mounted any more: an empty folder, held.
+        inner.detach()
+        nas.detach()
+        let (after, unmounted) = scanned()
+        #expect(after == ["b.txt"] && unmounted.mounts.isEmpty)
+        #expect(SyncPaths.goneMounts(root: root, recorded: scan.mounts, now: unmounted.mounts).gone == ["nas"])
+    }
+
     // MARK: A folder renamed only in case on the device
 
     /// As otc-sync's TestFolderRenamedInCaseOnTheDevice, on this Mac's
@@ -609,6 +663,41 @@ struct SyncPathsTests {
 }
 
 /// A folder of its own in the temporary directory, removed by the caller.
+/// hdiutil is there, and this isn't the app's sandbox, where it can't
+/// attach anything.
+private let canAttachImages = FileManager.default.isExecutableFile(atPath: "/usr/bin/hdiutil")
+    && ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] == nil
+
+/// A small HFS+ disk image made at `image` and attached at `mountPoint`
+/// (an empty folder), out of the Finder's sight; detach() is safe twice.
+private final class DiskImage {
+    let mountPoint: String
+    private var attached = false
+
+    init(_ image: URL, at mountPoint: String) throws {
+        self.mountPoint = mountPoint
+        try Self.hdiutil(["create", "-quiet", "-size", "4m", "-fs", "HFS+", "-volname", "SyncPathsTests", "-layout", "NONE", image.path])
+        try Self.hdiutil(["attach", "-quiet", "-nobrowse", "-noautoopen", "-noverify", "-mountpoint", mountPoint, image.path])
+        attached = true
+    }
+
+    func detach() {
+        guard attached else { return }
+        attached = (try? Self.hdiutil(["detach", "-quiet", "-force", mountPoint])) == nil
+    }
+
+    private static func hdiutil(_ args: [String]) throws {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+        p.arguments = args
+        p.standardOutput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
+        try p.run()
+        p.waitUntilExit()
+        guard p.terminationStatus == 0 else { throw POSIXError(.EIO) }
+    }
+}
+
 private func scratchDirectory() throws -> URL {
     let dir = FileManager.default.temporaryDirectory.appendingPathComponent("SyncPathsTests-" + UUID().uuidString, isDirectory: true)
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

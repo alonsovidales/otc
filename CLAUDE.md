@@ -3534,7 +3534,10 @@ lock / the main actor). On the Mac, a folder whose marker isn't the record's fol
 when that finds the folder holding it (renamed away, a fresh one made at its path:
 `followMarkedBookmark`), and a folder picked again where it waits (`relink`: missing or not the
 synced one) keeps its record only when it passes the check - else its record goes and that pass,
-a first pass, deletes nothing (`adoptOnce`). A folder
+a first pass, deletes nothing (`adoptOnce`). A disk or share mounted inside a two-way folder or a
+backup is synced with it: the scan goes into it as into any folder (`filepath.WalkDir`; the Mac's
+`FileManager` enumerator lists a mount point as an empty folder, so `SyncPaths.scanFolder` walks
+each one it finds on its own). A folder
 inside it that is another file system (st_dev; the record's `mounts`) and is a plain folder again
 holds what is under it like an unreadable one (`mounts.go`, `SyncPaths.goneMounts`). A record from before `mounts` knows of
 none, so at its first pass a folder the record lists files under, with none found under it now, a
@@ -3613,7 +3616,8 @@ with `WSClient.swift`, `ChunkedUpload.swift`,
 `Keychain` stand-in (SwiftProtobuf from the Xcode build's checkout, Swift 5 mode with the target's
 approachable-concurrency features) against a loopback stand-in device. `SyncPathsTests` work in
 the temporary folder: they make links, a FIFO, folders hidden with `chflags`, one without
-permissions, and rename a folder in case where the disk ignores case.
+permissions, rename a folder in case where the disk ignores case, and attach two 4 MB disk images
+inside it with `hdiutil` (detached at the end; that test is skipped inside the app's sandbox).
 
 ### Native apps (`app/ios`, `app/macos`, `app/android`)
 

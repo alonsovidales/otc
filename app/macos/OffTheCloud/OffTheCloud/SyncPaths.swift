@@ -441,8 +441,8 @@ enum SyncPaths {
         /// its copy on the device must not be deleted for it.
         var skipped: [String] = []
         /// The folders below the root that are another file system than
-        /// their parent - a disk or a share mounted there -, relative, as
-        /// the disk spells them.
+        /// their parent - a disk or a share mounted there, walked as the
+        /// rest -, relative, as the disk spells them.
         var mounts: [String] = []
         /// Every file of the folder is in `files`.
         var complete: Bool { rootReadable && failed.isEmpty }
@@ -456,6 +456,14 @@ enum SyncPaths {
     /// without a word: a synced file hidden since read as one deleted here,
     /// and was deleted on the device. As otc-sync's scanFolder. Self-contained
     /// and nonisolated: the walk of a big tree runs off the main actor.
+    ///
+    /// The enumerator stops at a disk or share mounted below the folder it
+    /// walks - it lists the mount point as an empty folder - so each one
+    /// found is walked on its own, as otc-sync's WalkDir goes into it: its
+    /// files used to be neither sent nor seen here, a device file downloaded
+    /// onto it was taken for deleted here at every pass after, and the disk
+    /// itself, at the first pass of an older record, for a folder emptied
+    /// while the disk was away.
     static func scanFolder(at root: URL) -> FolderScan {
         var scan = FolderScan()
         // The enumerator skipped what it couldn't read without a word, and
@@ -466,55 +474,70 @@ enum SyncPaths {
         func relative(_ url: URL) -> String { relativePath(url.standardizedFileURL.path, root: rootPath) ?? "" }
         // Each folder's file system, to find those mounted below the root.
         var devs: [String: dev_t] = [:]
-        var st = stat()
-        if stat(rootPath, &st) == 0 { devs[rootPath] = st.st_dev }
+        var rootStat = stat()
+        if stat(rootPath, &rootStat) == 0 { devs[rootPath] = rootStat.st_dev }
         let keys: [URLResourceKey] = [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey, .isHiddenKey]
-        guard let e = FileManager.default.enumerator(at: root, includingPropertiesForKeys: keys, options: [],
-                                                     errorHandler: { url, _ in failures.urls.append(url); return true }) else {
+        // One file system's part of the tree, from `dir` down; false when
+        // `dir` couldn't be listed at all.
+        func walk(_ dir: URL) -> Bool {
+            guard let e = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: keys, options: [],
+                                                         errorHandler: { url, _ in failures.urls.append(url); return true }) else {
+                return false
+            }
+            for case let url as URL in e {
+                let name = url.lastPathComponent
+                let v = try? url.resourceValues(forKeys: Set(keys))
+                // A folder's own: skipDescendants skips the folder obtained
+                // last, which after a file may be another one.
+                let isFolder = v?.isDirectory == true && v?.isSymbolicLink != true
+                // By its first byte, as isExcludedFromSync: a combining mark
+                // after the dot makes it another Character.
+                if name.utf8.first == UInt8(ascii: ".") {
+                    if isFolder { e.skipDescendants() }
+                    continue
+                }
+                guard let v else { continue }
+                // Neither followed nor synced, nor taken for deleted.
+                if v.isSymbolicLink == true {
+                    scan.skipped.append(relative(url))
+                    continue
+                }
+                if v.isHidden == true {
+                    scan.skipped.append(relative(url))
+                    if isFolder { e.skipDescendants() }
+                    continue
+                }
+                if v.isDirectory == true {
+                    let full = url.standardizedFileURL.path
+                    var st = stat()
+                    if let parent = devs[url.deletingLastPathComponent().standardizedFileURL.path], lstat(full, &st) == 0 {
+                        devs[full] = st.st_dev
+                        if st.st_dev != parent {
+                            scan.mounts.append(relative(url))
+                            // Walked here, once: should this enumerator go
+                            // into it after all, nothing is listed twice.
+                            e.skipDescendants()
+                            if !walk(url) { failures.urls.append(url) }
+                        }
+                    }
+                    continue
+                }
+                // A download in progress (download() writes to a ".otc-part"
+                // file first) is not a file of the folder: it used to be found
+                // and uploaded, half-written. Nor are Office's and Explorer's
+                // scratch files.
+                if name.hasSuffix(".otc-part") || skippedName(name) { continue }
+                if v.isRegularFile == true {
+                    scan.files.append(url)
+                } else {
+                    scan.skipped.append(relative(url))
+                }
+            }
+            return true
+        }
+        guard walk(root) else {
             scan.rootReadable = false
             return scan
-        }
-        for case let url as URL in e {
-            let name = url.lastPathComponent
-            let v = try? url.resourceValues(forKeys: Set(keys))
-            // A folder's own: skipDescendants skips the folder obtained
-            // last, which after a file may be another one.
-            let isFolder = v?.isDirectory == true && v?.isSymbolicLink != true
-            // By its first byte, as isExcludedFromSync: a combining mark
-            // after the dot makes it another Character.
-            if name.utf8.first == UInt8(ascii: ".") {
-                if isFolder { e.skipDescendants() }
-                continue
-            }
-            guard let v else { continue }
-            // Neither followed nor synced, nor taken for deleted.
-            if v.isSymbolicLink == true {
-                scan.skipped.append(relative(url))
-                continue
-            }
-            if v.isHidden == true {
-                scan.skipped.append(relative(url))
-                if isFolder { e.skipDescendants() }
-                continue
-            }
-            if v.isDirectory == true {
-                let full = url.standardizedFileURL.path
-                if let parent = devs[url.deletingLastPathComponent().standardizedFileURL.path], lstat(full, &st) == 0 {
-                    devs[full] = st.st_dev
-                    if st.st_dev != parent { scan.mounts.append(relative(url)) }
-                }
-                continue
-            }
-            // A download in progress (download() writes to a ".otc-part"
-            // file first) is not a file of the folder: it used to be found
-            // and uploaded, half-written. Nor are Office's and Explorer's
-            // scratch files.
-            if name.hasSuffix(".otc-part") || skippedName(name) { continue }
-            if v.isRegularFile == true {
-                scan.files.append(url)
-            } else {
-                scan.skipped.append(relative(url))
-            }
         }
         if failures.urls.contains(where: { $0.standardizedFileURL.path == rootPath }) { scan.rootReadable = false }
         scan.failed = failures.urls
