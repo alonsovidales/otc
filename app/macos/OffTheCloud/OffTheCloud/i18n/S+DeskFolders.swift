@@ -50,6 +50,13 @@ extension S {
         L("desk.folders.flash_card_in_use", table: "DeskFolders", L10n.isolate(mount))
     }
 
+    /// the disk is mounted at {mount} by the system, not by the desktop - unmount it first if it really is the card
+    ///
+    /// otc-sync: Set Up a New Device… on Linux - why the card wasn't written: a file system on the disk is mounted somewhere the desktop's automounter doesn't mount cards (a line in /etc/fstab, /mnt/...), which suggests it isn't the card; the person can unmount it themselves and try again. Shown after 'The setup stopped:'. {mount} is where it is mounted.
+    static func deskFoldersFlashCardMounted(mount: String) -> String {
+        L("desk.folders.flash_card_mounted", table: "DeskFolders", L10n.isolate(mount))
+    }
+
     /// the card is too small ({size}) - it needs 8 GB or more
     ///
     /// otc-sync: reason Set Up a New Device stopped, after "The setup stopped:". {size} is the card's size ("4.0 GB"). Lower case: it follows a colon.
@@ -374,6 +381,13 @@ extension S {
     /// otc-sync: Set Up a New Device, text above the list of removable disks the image can be written to. Ends with a colon: the list follows.
     static var deskFoldersSetupChooseCard: String { L("desk.folders.setup_choose_card", table: "DeskFolders") }
 
+    /// {disk} holds {folder}, a folder otc-sync syncs - it can't be the device's card. Choose another disk.
+    ///
+    /// otc-sync: Set Up a New Device… - warning when the disk chosen to be erased for the new device holds one of the folders otc-sync syncs (so it is surely not the SD card). {disk} describes the disk (its name, size and short name), {folder} is the synced folder's path. The list of disks opens again.
+    static func deskFoldersSetupDiskHasFolder(disk: String, folder: String) -> String {
+        L("desk.folders.setup_disk_has_folder", table: "DeskFolders", disk, L10n.isolate(folder))
+    }
+
     /// Downloading… {done} of {total} MB
     ///
     /// otc-sync: Set Up a New Device's progress dialog while the device image downloads: {done} megabytes of {total}.
@@ -412,6 +426,13 @@ extension S {
     ///
     /// otc-sync: first dialog of Set Up a New Device, answered Start or Cancel: the three steps, numbered one per line, then what is needed. Step 2 warns that the card is erased. Keep the line breaks and the numbering.
     static var deskFoldersSetupIntro: String { L("desk.folders.setup_intro", table: "DeskFolders") }
+
+    /// {disk} is much larger than an SD card. Is it really the card for the device? Everything on it will be erased, for good.
+    ///
+    /// otc-sync: Set Up a New Device… - a second question, after the first one to erase the disk, when the disk chosen is larger than 128 GB: more likely a USB backup drive than the SD card. Its buttons are Erase and Cancel. {disk} describes the disk (its name, size and short name).
+    static func deskFoldersSetupLargeDisk(disk: String) -> String {
+        L("desk.folders.setup_large_disk", table: "DeskFolders", disk)
+    }
 
     /// The card was not written: writing an SD card needs administrator permission. Choose {item} again when you are ready (the download is kept).
     ///

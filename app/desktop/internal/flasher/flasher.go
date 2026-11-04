@@ -41,6 +41,11 @@ const (
 	// card as it installs - an "8 GB" card (sold sizes are a little less).
 	MinCardSize = 7_500_000_000
 
+	// LargeDiskSize: a disk larger than this is more likely a USB backup
+	// drive than an SD card - the list offers every USB disk - and erasing
+	// it is asked about a second time.
+	LargeDiskSize = 128_000_000_000
+
 	cChunk     = 4 << 20 // a multiple of every sector size
 	cFirstPart = 1 << 20 // written last, so nothing mounts a half-written card
 )
@@ -513,6 +518,31 @@ func writeIn(lang string, image string, chosen Disk, report func(Progress)) erro
 	dev.Close()
 	eject(*disk)
 	return nil
+}
+
+// HoldsFolder is the first of paths - the folders otc-sync syncs - that is
+// on disk d, when one is: such a disk is no card to erase, whatever it
+// looks like. As far as the system says (Linux: what is mounted from the
+// disk, through LUKS and LVM too; Windows: its partitions' drive letters
+// and folders).
+func HoldsFolder(d Disk, paths []string) (string, bool) {
+	tops := diskMountPoints(d)
+	for _, p := range paths {
+		if p == "" {
+			continue
+		}
+		abs := filepath.Clean(p)
+		if real, err := filepath.EvalSymlinks(abs); err == nil {
+			abs = real
+		}
+		for _, top := range tops {
+			if under(abs, top) {
+				return p, true
+			}
+		}
+	}
+
+	return "", false
 }
 
 // sameDisk is want among the removable disks now. Device names and disk

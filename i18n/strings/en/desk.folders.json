@@ -37,6 +37,11 @@
     "args": [["mount", "user"]],
     "note": "otc-sync (Linux): reason Set Up a New Device stopped, after \"The setup stopped:\": a partition of the SD card couldn't be unmounted. {mount} is where it is mounted (a folder, such as /media/ana/boot). Lower case: it follows a colon."
   },
+  "desk.folders.flash_card_mounted": {
+    "text": "the disk is mounted at {mount} by the system, not by the desktop - unmount it first if it really is the card",
+    "args": [["mount", "user"]],
+    "note": "otc-sync: Set Up a New Device… on Linux - why the card wasn't written: a file system on the disk is mounted somewhere the desktop's automounter doesn't mount cards (a line in /etc/fstab, /mnt/...), which suggests it isn't the card; the person can unmount it themselves and try again. Shown after 'The setup stopped:'. {mount} is where it is mounted."
+  },
   "desk.folders.flash_card_too_small": {
     "text": "the card is too small ({size}) - it needs 8 GB or more",
     "args": [["size", "text"]],
@@ -313,6 +318,11 @@
     "text": "Choose the SD card:",
     "note": "otc-sync: Set Up a New Device, text above the list of removable disks the image can be written to. Ends with a colon: the list follows."
   },
+  "desk.folders.setup_disk_has_folder": {
+    "text": "{disk} holds {folder}, a folder otc-sync syncs - it can't be the device's card. Choose another disk.",
+    "args": [["disk", "text"], ["folder", "user"]],
+    "note": "otc-sync: Set Up a New Device… - warning when the disk chosen to be erased for the new device holds one of the folders otc-sync syncs (so it is surely not the SD card). {disk} describes the disk (its name, size and short name), {folder} is the synced folder's path. The list of disks opens again."
+  },
   "desk.folders.setup_downloading": {
     "text": "Downloading… {done} of {total} MB",
     "args": [["done", "int"], ["total", "int"]],
@@ -342,6 +352,12 @@
     "note": "otc-sync: first dialog of Set Up a New Device, answered Start or Cancel: the three steps, numbered one per line, then what is needed. Step 2 warns that the card is erased. Keep the line breaks and the numbering.",
     "review": "required",
     "reviewed": "shipped 2026-10-11 #6bbf5390"
+  },
+  "desk.folders.setup_large_disk": {
+    "text": "{disk} is much larger than an SD card. Is it really the card for the device? Everything on it will be erased, for good.",
+    "args": [["disk", "text"]],
+    "note": "otc-sync: Set Up a New Device… - a second question, after the first one to erase the disk, when the disk chosen is larger than 128 GB: more likely a USB backup drive than the SD card. Its buttons are Erase and Cancel. {disk} describes the disk (its name, size and short name).",
+    "review": "required"
   },
   "desk.folders.setup_not_written": {
     "text": "The card was not written: writing an SD card needs administrator permission. Choose {item} again when you are ready (the download is kept).",

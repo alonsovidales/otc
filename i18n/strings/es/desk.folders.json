@@ -32,6 +32,10 @@
     "text": "la tarjeta está en uso ({mount}): cierra cualquier ventana o programa que la esté usando y vuelve a intentarlo",
     "en": "the card is in use ({mount}): close any window or program using it and try again"
   },
+  "desk.folders.flash_card_mounted": {
+    "text": "el sistema tiene el disco montado en {mount}, no el escritorio: desmóntalo antes si de verdad es la tarjeta",
+    "en": "the disk is mounted at {mount} by the system, not by the desktop - unmount it first if it really is the card"
+  },
   "desk.folders.flash_card_too_small": {
     "text": "la tarjeta es demasiado pequeña ({size}): necesita 8 GB o más",
     "en": "the card is too small ({size}) - it needs 8 GB or more"
@@ -258,6 +262,10 @@
     "text": "Elige la tarjeta SD:",
     "en": "Choose the SD card:"
   },
+  "desk.folders.setup_disk_has_folder": {
+    "text": "{disk} contiene {folder}, una carpeta que otc-sync sincroniza: no puede ser la tarjeta del dispositivo. Elige otro disco.",
+    "en": "{disk} holds {folder}, a folder otc-sync syncs - it can't be the device's card. Choose another disk."
+  },
   "desk.folders.setup_downloading": {
     "text": "Descargando… {done} de {total} MB",
     "en": "Downloading… {done} of {total} MB"
@@ -280,6 +288,10 @@
     "text": "Esto prepara la tarjeta SD para un nuevo dispositivo Off The Cloud:\n\n1. Descargar la imagen del dispositivo (unos 560 MB).\n2. Escribirla en una tarjeta SD de 8 GB o más: se borra todo lo que hay en la tarjeta.\n3. Eliminar la descarga.\n\nNecesitas una Raspberry Pi 5 con 8 GB de RAM, la tarjeta SD y dos discos USB.",
     "en": "This prepares the SD card for a new Off The Cloud device:\n\n1. Download the device image (about 560 MB).\n2. Write it to an SD card of 8 GB or more - everything on the card is erased.\n3. Delete the download.\n\nYou need a Raspberry Pi 5 with 8 GB of RAM, the SD card and two USB disks.",
     "reviewed": "claude-backtranslation 2026-10-11 #cddac968"
+  },
+  "desk.folders.setup_large_disk": {
+    "text": "{disk} es mucho más grande que una tarjeta SD. ¿Seguro que es la tarjeta para el dispositivo? Se borrará todo lo que contiene, para siempre.",
+    "en": "{disk} is much larger than an SD card. Is it really the card for the device? Everything on it will be erased, for good."
   },
   "desk.folders.setup_not_written": {
     "text": "No se ha escrito la tarjeta: escribir en una tarjeta SD requiere permiso de administrador. Vuelve a elegir {item} cuando quieras (la descarga se conserva).",

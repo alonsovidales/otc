@@ -15,3 +15,20 @@ func TestWithEnv(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestUnderADriveOrFolder(t *testing.T) {
+	for _, tc := range []struct {
+		p, top string
+		want   bool
+	}{
+		{`E:\Photos`, `E:\`, true},
+		{`e:\photos\2024`, `E:\`, true},
+		{`F:\Photos`, `E:\`, false},
+		{`C:\Mounts\Card\x`, `C:\Mounts\Card\`, true},
+		{`C:\Mounts\Cards\x`, `C:\Mounts\Card\`, false},
+	} {
+		if got := under(tc.p, tc.top); got != tc.want {
+			t.Errorf("under(%q, %q) = %v", tc.p, tc.top, got)
+		}
+	}
+}

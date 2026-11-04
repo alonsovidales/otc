@@ -44,6 +44,11 @@ func DeskFoldersFlashCardInUse(mount string) Msg {
 	return Msg{Key: "desk.folders.flash_card_in_use", Args: map[string]any{"mount": mount}}
 }
 
+// DeskFoldersFlashCardMounted is desk.folders.flash_card_mounted: "the disk is mounted at {mount} by the system, not by the desktop - unmount it fi…".
+func DeskFoldersFlashCardMounted(mount string) Msg {
+	return Msg{Key: "desk.folders.flash_card_mounted", Args: map[string]any{"mount": mount}}
+}
+
 // DeskFoldersFlashCardTooSmall is desk.folders.flash_card_too_small: "the card is too small ({size}) - it needs 8 GB or more".
 func DeskFoldersFlashCardTooSmall(size string) Msg {
 	return Msg{Key: "desk.folders.flash_card_too_small", Args: map[string]any{"size": size}}
@@ -319,6 +324,11 @@ func DeskFoldersSetupChooseCard() Msg {
 	return Msg{Key: "desk.folders.setup_choose_card"}
 }
 
+// DeskFoldersSetupDiskHasFolder is desk.folders.setup_disk_has_folder: "{disk} holds {folder}, a folder otc-sync syncs - it can't be the device's card. …".
+func DeskFoldersSetupDiskHasFolder(disk string, folder string) Msg {
+	return Msg{Key: "desk.folders.setup_disk_has_folder", Args: map[string]any{"disk": disk, "folder": folder}}
+}
+
 // DeskFoldersSetupDownloading is desk.folders.setup_downloading: "Downloading… {done} of {total} MB".
 func DeskFoldersSetupDownloading(done int, total int) Msg {
 	return Msg{Key: "desk.folders.setup_downloading", Args: map[string]any{"done": int64(done), "total": int64(total)}}
@@ -342,6 +352,11 @@ func DeskFoldersSetupInsertCard() Msg {
 // DeskFoldersSetupIntro is desk.folders.setup_intro: "This prepares the SD card for a new Off The Cloud device:\n\n1. Download the devic…".
 func DeskFoldersSetupIntro() Msg {
 	return Msg{Key: "desk.folders.setup_intro"}
+}
+
+// DeskFoldersSetupLargeDisk is desk.folders.setup_large_disk: "{disk} is much larger than an SD card. Is it really the card for the device? Eve…".
+func DeskFoldersSetupLargeDisk(disk string) Msg {
+	return Msg{Key: "desk.folders.setup_large_disk", Args: map[string]any{"disk": disk}}
 }
 
 // DeskFoldersSetupNotWritten is desk.folders.setup_not_written: "The card was not written: writing an SD card needs administrator permission. Cho…".

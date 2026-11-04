@@ -194,10 +194,34 @@ func cmdFlash(args []string) error {
 	if disk.Size < flasher.MinCardSize {
 		return fmt.Errorf("the card is too small (%s) - it needs 8 GB or more", flasher.HumanSize(disk.Size))
 	}
+	// A disk holding a folder otc-sync syncs is no card.
+	if cfg, err := config.Load(); err == nil {
+		var paths []string
+		for _, f := range cfg.Folders {
+			paths = append(paths, f.Path)
+		}
+		for _, f := range cfg.RemoteFolders {
+			paths = append(paths, f.LocalPath)
+		}
+		if folder, ok := flasher.HoldsFolder(*disk, paths); ok {
+			return fmt.Errorf("%s holds %s, which otc-sync syncs - it can't be the device's card", disk.Label(), folder)
+		}
+	}
+	in := bufio.NewReader(os.Stdin)
 	fmt.Printf("Everything on %s will be erased. Type yes to continue: ", disk.Label())
-	line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	line, _ := in.ReadString('\n')
 	if strings.TrimSpace(line) != "yes" {
 		return errors.New("cancelled")
+	}
+	// Every USB disk is listed: one far larger than a card is likely a
+	// backup drive.
+	if disk.Size > flasher.LargeDiskSize {
+		size := flasher.HumanSize(disk.Size)
+		fmt.Printf("%s is much larger than an SD card - is it really the card? To erase it anyway, type its size (%s): ", disk.Label(), size)
+		line, _ = in.ReadString('\n')
+		if !strings.EqualFold(strings.Join(strings.Fields(line), " "), size) {
+			return errors.New("cancelled")
+		}
 	}
 	path, err := flasher.Download(context.Background(), func(done, total int64) {
 		if total > 0 {

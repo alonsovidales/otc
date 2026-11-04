@@ -377,6 +377,53 @@
         }
       }
     },
+    "desk.folders.flash_card_mounted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "das Laufwerk ist vom System unter %1$@ eingehängt, nicht vom Desktop – hänge es zuerst aus, wenn es wirklich die Karte ist"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the disk is mounted at %1$@ by the system, not by the desktop - unmount it first if it really is the card"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el sistema tiene el disco montado en %1$@, no el escritorio: desmóntalo antes si de verdad es la tarjeta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le disque est monté sur %1$@ par le système, pas par le bureau : démontez-le d’abord s’il s’agit vraiment de la carte"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "il disco è montato in %1$@ dal sistema, non dal desktop: smontalo prima se è davvero la scheda"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "de schijf is door het systeem gekoppeld op %1$@, niet door het bureaublad – ontkoppel hem eerst als het echt de kaart is"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "o disco está montado em %1$@ pelo sistema, não pelo ambiente de trabalho: desmonta-o primeiro se for mesmo o cartão"
+          }
+        }
+      }
+    },
     "desk.folders.flash_card_too_small" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2962,6 +3009,53 @@
         }
       }
     },
+    "desk.folders.setup_disk_has_folder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ enthält %2$@, einen Ordner, den otc-sync synchronisiert – das kann nicht die Karte für das Gerät sein. Wähle ein anderes Laufwerk."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ holds %2$@, a folder otc-sync syncs - it can't be the device's card. Choose another disk."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ contiene %2$@, una carpeta que otc-sync sincroniza: no puede ser la tarjeta del dispositivo. Elige otro disco."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ contient %2$@, un dossier qu’otc-sync synchronise : ce ne peut pas être la carte de l’appareil. Choisissez un autre disque."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ contiene %2$@, una cartella che otc-sync sincronizza: non può essere la scheda del dispositivo. Scegli un altro disco."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ bevat %2$@, een map die otc-sync synchroniseert – dat kan niet de kaart voor het apparaat zijn. Kies een andere schijf."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ contém %2$@, uma pasta que o otc-sync sincroniza: não pode ser o cartão do dispositivo. Escolhe outro disco."
+          }
+        }
+      }
+    },
     "desk.folders.setup_downloading" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3193,6 +3287,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Isto prepara o cartão SD para um novo dispositivo Off The Cloud:\n\n1. Transferir a imagem do dispositivo (cerca de 560 MB).\n2. Escrevê-la num cartão SD de 8 GB ou mais: tudo o que estiver no cartão é apagado.\n3. Eliminar a transferência.\n\nPrecisas de um Raspberry Pi 5 com 8 GB de RAM, do cartão SD e de dois discos USB."
+          }
+        }
+      }
+    },
+    "desk.folders.setup_large_disk" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$@ ist viel größer als eine SD-Karte. Ist das wirklich die Karte für das Gerät? Alles darauf wird gelöscht, endgültig."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ is much larger than an SD card. Is it really the card for the device? Everything on it will be erased, for good."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$@ es mucho más grande que una tarjeta SD. ¿Seguro que es la tarjeta para el dispositivo? Se borrará todo lo que contiene, para siempre."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$@ est bien plus grand qu’une carte SD. Est-ce vraiment la carte de l’appareil ? Tout ce qu’il contient sera effacé, définitivement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$@ è molto più grande di una scheda SD. È davvero la scheda per il dispositivo? Tutto ciò che contiene verrà cancellato, per sempre."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$@ is veel groter dan een SD-kaart. Is het echt de kaart voor het apparaat? Alles erop wordt gewist, voorgoed."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$@ é muito maior do que um cartão SD. É mesmo o cartão para o dispositivo? Tudo o que contém será apagado, para sempre."
           }
         }
       }

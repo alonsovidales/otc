@@ -33,15 +33,7 @@ func hidden(cmd *exec.Cmd) *exec.Cmd {
 // the user could plant a module that Get-Disk would load.
 func ListDisks() ([]Disk, error) {
 	const script = `$d = @(Get-Disk | Where-Object { ($_.BusType -eq 'USB' -or $_.BusType -eq 'SD' -or $_.BusType -eq 'MMC') -and -not $_.IsBoot -and -not $_.IsSystem -and $_.Size -gt 0 } | Select-Object Number,FriendlyName,Size); ConvertTo-Json -InputObject $d -Compress`
-	ps, env := "powershell.exe", os.Environ()
-	if sys, err := windows.GetSystemDirectory(); err == nil {
-		home := filepath.Join(sys, "WindowsPowerShell", "v1.0")
-		ps = filepath.Join(home, "powershell.exe")
-		env = withEnv(env, "PSModulePath", filepath.Join(home, "Modules"))
-	}
-	cmd := hidden(exec.Command(ps, "-NoProfile", "-NonInteractive", "-Command", script))
-	cmd.Env = env
-	out, err := cmd.Output()
+	out, err := powerShell(script)
 	if err != nil {
 		return nil, wrapped(i18n.DeskFoldersFlashListingFailed(err.Error()), err)
 	}
@@ -60,6 +52,54 @@ func ListDisks() ([]Disk, error) {
 		disks = append(disks, Disk{ID: `\\.\PhysicalDrive` + strconv.Itoa(r.Number), Name: strings.TrimSpace(r.FriendlyName), Size: r.Size})
 	}
 	return disks, nil
+}
+
+// powerShell runs script in Windows' own PowerShell, with Windows' own
+// modules only (see ListDisks), and returns what it printed.
+func powerShell(script string) ([]byte, error) {
+	ps, env := "powershell.exe", os.Environ()
+	if sys, err := windows.GetSystemDirectory(); err == nil {
+		home := filepath.Join(sys, "WindowsPowerShell", "v1.0")
+		ps = filepath.Join(home, "powershell.exe")
+		env = withEnv(env, "PSModulePath", filepath.Join(home, "Modules"))
+	}
+	cmd := hidden(exec.Command(ps, "-NoProfile", "-NonInteractive", "-Command", script))
+	cmd.Env = env
+
+	return cmd.Output()
+}
+
+// diskMountPoints are the drive letters and folders the partitions on d
+// are reached at (E:\, C:\Mounts\Card\).
+func diskMountPoints(d Disk) []string {
+	n, err := diskNumber(d.ID)
+	if err != nil {
+		return nil
+	}
+	script := fmt.Sprintf(`$p = @(Get-Partition -DiskNumber %d -ErrorAction SilentlyContinue | ForEach-Object { $_.AccessPaths } | Where-Object { $_ -and -not $_.StartsWith('\\?\') }); ConvertTo-Json -InputObject $p -Compress`, n)
+	out, err := powerShell(script)
+	if err != nil {
+		return nil
+	}
+	var paths []string
+	if s := strings.TrimSpace(string(out)); s != "" {
+		_ = json.Unmarshal([]byte(s), &paths)
+	}
+
+	return paths
+}
+
+// under: p is top or inside it, ignoring case as Windows does.
+func under(p, top string) bool {
+	p, top = strings.ToLower(filepath.Clean(p)), strings.ToLower(filepath.Clean(top))
+	if p == top {
+		return true
+	}
+	if !strings.HasSuffix(top, `\`) {
+		top += `\`
+	}
+
+	return strings.HasPrefix(p, top)
 }
 
 // withEnv is env with name set to value (names ignore case on Windows).
