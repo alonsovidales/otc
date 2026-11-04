@@ -630,6 +630,14 @@ fun S.appSettingsSyncFooter(): UiText =
 fun S.appSettingsSyncFromNow(): UiText =
     UiText.Res(R.string.app_settings_sync_from_now)
 
+/** "Photos and videos not backed up yet won't be, those waiting to be tried again included. Only what you take or save from now on is sent. Sync All goes back over the whole library.": Text of the confirmation app.settings.sync.from_now_title. It must say plainly that what hasn't reached the device yet is then left out (it stays on the phone, it is not deleted). Sync All is the button app.settings.sync.all. */
+fun S.appSettingsSyncFromNowText(): UiText =
+    UiText.Res(R.string.app_settings_sync_from_now_text)
+
+/** "Sync only from now on?": Title of the confirmation after Settings › Sync Options › Sync From Now (app.settings.sync.from_now). Buttons: Cancel and app.settings.sync.from_now (which does it). */
+fun S.appSettingsSyncFromNowTitle(): UiText =
+    UiText.Res(R.string.app_settings_sync_from_now_title)
+
 /** "Sync Options": Heading of the section of Settings with the options of the photo sync from this phone to the device. */
 fun S.appSettingsSyncTitle(): UiText =
     UiText.Res(R.string.app_settings_sync_title)

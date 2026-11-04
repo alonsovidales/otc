@@ -190,6 +190,8 @@
     <string name="app_settings_sync_authorize">Autorizar acesso às fotos</string>
     <string name="app_settings_sync_footer">«Sincronizar tudo» percorre novamente toda a biblioteca. «Sincronizar a partir de agora» ignora tudo o que já lá está: só são carregadas as fotos e os vídeos tirados a partir de agora.</string>
     <string name="app_settings_sync_from_now">Sincronizar a partir de agora</string>
+    <string name="app_settings_sync_from_now_text">As fotos e os vídeos ainda sem cópia de segurança já não a vão ter, incluindo os que esperam nova tentativa. Só é enviado o que tirares ou guardares a partir de agora. «Sincronizar tudo» volta a percorrer a biblioteca inteira.</string>
+    <string name="app_settings_sync_from_now_title">Sincronizar só a partir de agora?</string>
     <string name="app_settings_sync_title">Opções de sincronização</string>
     <string name="app_settings_sync_videos">Incluir vídeos</string>
     <string name="app_settings_sync_wifi_only">Apenas por Wi-Fi</string>

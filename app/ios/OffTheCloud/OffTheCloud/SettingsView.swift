@@ -514,6 +514,8 @@ struct SettingsView: View {
     @ObservedObject private var smartSearch = SmartSearchSupport.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var confirmLogout = false
+    /// Sync From Now asks first: it gives up on every photo not sent yet.
+    @State private var confirmSyncFromNow = false
     // Whether the app may read the photo library (full or limited): the
     // Authorize Photos Access button shows only while it can't.
     @State private var photosAuthorized = SettingsView.photosAuthorizedNow()
@@ -650,7 +652,7 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.bordered)
                     Button(S.appSettingsSyncFromNow) {
-                        PhotoSync.shared.syncFromNow()
+                        confirmSyncFromNow = true
                     }
                     .buttonStyle(.bordered)
                 }
@@ -876,6 +878,14 @@ struct SettingsView: View {
             // Replaced by a newer read meanwhile: that one's list wins.
             guard !Task.isCancelled else { return }
             albumIDs = existing
+        }
+        // Next to Sync All, and what it does can't be undone (only Sync All
+        // goes back over the library): it asks first.
+        .alert(S.appSettingsSyncFromNowTitle, isPresented: $confirmSyncFromNow) {
+            Button(S.appSettingsSyncFromNow, role: .destructive) { PhotoSync.shared.syncFromNow() }
+            Button(S.commonCancel, role: .cancel) {}
+        } message: {
+            Text(S.appSettingsSyncFromNowText)
         }
         .alert(S.appSettingsConnectionLogOutTitle, isPresented: $confirmLogout) {
             Button(S.appSettingsConnectionLogOutConfirm, role: .destructive) { logOut() }

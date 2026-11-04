@@ -4294,7 +4294,8 @@ from iCloud off waits on its iCloud side until that is on, but never one whose c
 cancelled mid-copy) or whose own file failed (`PhotoSync.waitsForICloud`); a run sends new, then retried, then
 one-off assets, and goes once more for a trigger that came meanwhile (`rerunWanted`). Its writes are
 gated by generations bumped by `cancel()` (Log Out, which cancels again right before the wipe) and
-by Sync All and Sync From Now. "Wi-Fi only" holds a run before it and between chunks ("Waiting for
+by Sync All and Sync From Now. Settings' Sync From Now asks first (`app.settings.sync.from_now_title`,
+`_text`): it gives up on everything not sent yet, the retry list included, and sits next to Sync All. "Wi-Fi only" holds a run before it and between chunks ("Waiting for
 Wi-Fi", Android UNMETERED jobs), `storage_full` stops it ("Your device is full", 30 min), a small run
 (< 100 assets) skips the folder's listing, and between chunks the transfer hold lets a put-off route
 check run. What the viewer's Save wrote stays out of the sync and Free Up Space (iOS `SavedToPhone`,

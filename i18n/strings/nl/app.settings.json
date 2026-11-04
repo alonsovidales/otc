@@ -712,6 +712,16 @@
     "text": "Vanaf nu synchroniseren",
     "en": "Sync From Now"
   },
+  "app.settings.sync.from_now_text": {
+    "text": "Foto’s en video’s zonder reservekopie krijgen er geen meer, ook niet die op een nieuwe poging wachten. Alleen wat je vanaf nu maakt of bewaart, wordt verstuurd. “Alles synchroniseren” gaat opnieuw door de hele bibliotheek.",
+    "en": "Photos and videos not backed up yet won't be, those waiting to be tried again included. Only what you take or save from now on is sent. Sync All goes back over the whole library.",
+    "reviewed": "claude-backtranslation 2026-11-04 #d0fcd5a3"
+  },
+  "app.settings.sync.from_now_title": {
+    "text": "Alleen vanaf nu synchroniseren?",
+    "en": "Sync only from now on?",
+    "reviewed": "claude-backtranslation 2026-11-04 #8e2b70fd"
+  },
   "app.settings.sync.title": {
     "text": "Synchronisatieopties",
     "en": "Sync Options"

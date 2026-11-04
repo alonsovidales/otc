@@ -712,6 +712,16 @@
     "text": "Ab jetzt synchronisieren",
     "en": "Sync From Now"
   },
+  "app.settings.sync.from_now_text": {
+    "text": "Fotos und Videos ohne Backup bekommen keines mehr, auch nicht die, die noch einmal versucht werden sollten. Nur was du ab jetzt aufnimmst oder speicherst, wird gesendet. „Alles synchronisieren“ geht die ganze Mediathek noch einmal durch.",
+    "en": "Photos and videos not backed up yet won't be, those waiting to be tried again included. Only what you take or save from now on is sent. Sync All goes back over the whole library.",
+    "reviewed": "claude-backtranslation 2026-11-04 #4791a17f"
+  },
+  "app.settings.sync.from_now_title": {
+    "text": "Nur noch ab jetzt synchronisieren?",
+    "en": "Sync only from now on?",
+    "reviewed": "claude-backtranslation 2026-11-04 #369fd579"
+  },
   "app.settings.sync.title": {
     "text": "Synchronisierungsoptionen",
     "en": "Sync Options"
