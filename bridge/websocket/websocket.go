@@ -89,7 +89,9 @@ var cOfflineAlertGrace = 60 * time.Second
 // slow requests. It runs from the last sign of the device working on the
 // request: a device names the ones it is still on (busy.go), so a long
 // one is waited for (up to cForwardMaxWait) and one it stopped answering
-// still fails after this. Var, not const, so tests can shrink it.
+// still fails after this; the reply of a request sent before it on the
+// same connection, which it waited behind, counts too. Var, not const, so
+// tests can shrink it.
 var cForwardTimeout = 90 * time.Second
 
 // maxConnectionsPerDevice reads [bridge] max-connections-per-device,
@@ -282,6 +284,8 @@ type deviceRelay struct {
 
 	mu      sync.Mutex
 	waiters map[int32]*waiter
+	// sent numbers the waiters in the order their requests were sent.
+	sent uint64
 	// budget bounds the memory of the replies read here (replyBudget).
 	budget *wsframe.Budget
 
@@ -426,6 +430,15 @@ func (d *deviceRelay) readLoop() {
 			// Sent under d.mu (the channel has room for it), so abandon
 			// knows a reply is either in ch or never coming.
 			w.ch <- deviceReply{frame, release}
+			// A device sends its replies one after another: those of the
+			// requests sent after this one waited behind it, and their
+			// clocks start again now (a video's next spans behind the one
+			// before, on a slow line).
+			for _, o := range d.waiters {
+				if o.seq > w.seq {
+					o.signOfLife()
+				}
+			}
 		}
 		d.mu.Unlock()
 		if !ok {
@@ -580,6 +593,8 @@ func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout, maxWait time.Dur
 
 	w := &waiter{ch: make(chan deviceReply, 1), since: time.Now()}
 	d.mu.Lock()
+	d.sent++
+	w.seq = d.sent
 	d.waiters[id] = w
 	d.mu.Unlock()
 
@@ -599,10 +614,11 @@ func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout, maxWait time.Dur
 	// failing.
 	//
 	// timeout runs from the last sign that the device is working on the
-	// request: the write, then each pong naming it (busy.go). A device
-	// that stopped answering is given up on as before; one cutting a
-	// post's videos or deleting a big folder is waited for, up to
-	// maxWait.
+	// request: the write, each pong naming it (busy.go), and the reply of
+	// a request sent before it on this connection, which it waited behind
+	// (readLoop). A device that stopped answering is given up on as
+	// before; one cutting a post's videos or deleting a big folder is
+	// waited for, up to maxWait.
 	w.signOfLife()
 	// As durations since w.since, like alive: the end of the write plus
 	// maxWait is the latest it may end.
@@ -638,6 +654,8 @@ type waiter struct {
 	// monotonic clock: a change of the wall clock moves nothing).
 	since time.Time
 	alive atomic.Int64
+	// seq is its place in the order the relay's requests were sent.
+	seq uint64
 }
 
 // signOfLife records that the device is working on w's request now.

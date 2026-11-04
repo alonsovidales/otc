@@ -2275,7 +2275,10 @@ bridge, a device names the requests running 10 s or more every 20 s in an unsoli
 (`otcbusy` and the ids as uvarints; `websocket/bridge_busy.go`, read by `busyIDs` in `busy.go`), so
 a post whose videos are cut, a big folder deleted or a large file over a slow line is waited for -
 up to 2 h (`cForwardMaxWait`) - while a request the device stopped answering, or never names, still
-fails at 90 s. A one-off (a static asset, a `/media` span) is waited for at most 3 x 45 s in all
+fails at 90 s. The reply of a request sent earlier on the same connection also starts the clock
+again for the ones sent after it, which waited behind it (a device sends its replies one after
+another: a video's span asked ahead, on a slow line); a later request's reply never does, so a
+forgotten request still fails. A one-off (a static asset, a `/media` span) is waited for at most 3 x 45 s in all
 however long it is named (`oneOffMaxWait`, what its 3 attempts took before), since it holds one of
 the device's 3 one-off slots meanwhile, and a `/media` response's session is closed as soon as its
 client hangs up (`Session.Close` from `context.AfterFunc`), its first span and probes included. A bridge from before this takes those pongs for any pong, and a device from before

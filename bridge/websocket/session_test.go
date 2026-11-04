@@ -306,3 +306,103 @@ func TestClosingASessionEndsItsRequestsAtOnce(t *testing.T) {
 		t.Errorf("%d slots still taken", n)
 	}
 }
+
+// serialDevice stands in for a device on a slow uplink that predates the
+// busy pongs: its replies go out one after another, each taking send, and
+// it answers every request but those forget names. It counts the requests.
+func serialDevice(t *testing.T, send time.Duration, forget func(int32) bool) (url string, requests *atomic.Int32) {
+	t.Helper()
+	requests = &atomic.Int32{}
+	upgrader := gorilla.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		queue := make(chan int32, 64)
+		defer close(queue)
+		go func() {
+			for id := range queue {
+				time.Sleep(send)
+				b, _ := proto.Marshal(&pb.RespEnvelope{Id: id, ErrorMessage: "span"})
+				conn.WriteMessage(gorilla.BinaryMessage, b)
+			}
+		}()
+		for {
+			_, frame, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			requests.Add(1)
+			if id, _ := envelopeID(frame); forget == nil || !forget(id) {
+				queue <- id
+			}
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return "ws" + strings.TrimPrefix(srv.URL, "http"), requests
+}
+
+// A video's span asked for ahead waits on the connection for the reply in
+// front of it as well as its own; its clock starts again when that one has
+// arrived. It ran from its own write, so on a line slower than about two
+// spans per cOneOffForwardTimeout a span the one-at-a-time loop delivered
+// timed out, dropped the connection, and was asked again on a cold one.
+func TestASpanQueuedBehindAnotherIsWaitedForFromItsTurn(t *testing.T) {
+	setVar(t, &cOneOffForwardTimeout, 450*time.Millisecond)
+	url, requests := serialDevice(t, 280*time.Millisecond, nil)
+	mg := &Manager{bridges: map[string]*bridgePool{}}
+	for i := 0; i < 3; i++ {
+		poolRelayTo(t, mg, "pit.otc", url)
+	}
+	t.Cleanup(func() { stopOfflineTimer(mg, "pit.otc") })
+	s := mg.OpenSession("pit.otc")
+	defer s.Close()
+	var wg sync.WaitGroup
+	for i := int32(1); i <= 2; i++ {
+		wg.Add(1)
+		go func(id int32) {
+			defer wg.Done()
+			if _, err := s.Forward(envelopeFrame(t, id)); err != nil {
+				t.Errorf("span %d: %v", id, err)
+			}
+		}(i)
+		time.Sleep(10 * time.Millisecond)
+	}
+	wg.Wait()
+	if n := requests.Load(); n != 2 {
+		t.Errorf("the device was asked %d times for 2 spans: one was asked again", n)
+	}
+}
+
+// Only the replies of requests sent before it start a request's clock
+// again: one the device forgot still times out, however many replies of
+// requests sent after it arrive.
+func TestRepliesOfLaterRequestsDontKeepAForgottenOneWaiting(t *testing.T) {
+	url, _ := serialDevice(t, 50*time.Millisecond, func(id int32) bool { return id == 1 })
+	relay := dialRelay(t, url)
+	defer relay.Close()
+	stop := make(chan struct{})
+	defer close(stop)
+	go func() {
+		for id := int32(2); ; id++ {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			if _, release, err := relay.forwardWithTimeout(envelopeFrame(t, id), time.Second, time.Hour); err == nil {
+				release()
+			}
+		}
+	}()
+	time.Sleep(20 * time.Millisecond)
+	start := time.Now()
+	if _, _, err := relay.forwardWithTimeout(envelopeFrame(t, 1), 300*time.Millisecond, 3*time.Second); err == nil {
+		t.Fatal("a request the device forgot was answered")
+	}
+	if d := time.Since(start); d > time.Second {
+		t.Errorf("a request the device forgot was waited for %v, kept by later replies", d)
+	}
+}
