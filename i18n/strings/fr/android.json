@@ -301,9 +301,24 @@
     "text": "Dans la recherche",
     "en": "In the search"
   },
+  "android.secrets_start_over": {
+    "text": "Recommencer",
+    "en": "Start over",
+    "reviewed": "claude-backtranslation 2026-11-04 #b7c4dd63"
+  },
+  "android.secrets_start_over_text": {
+    "text": "Off The Cloud oublie sa connexion et ce qu’il a déjà sauvegardé de ce téléphone, comme s’il venait d’être installé : vous vous reconnectez avec l’adresse et le mot de passe de l’appareil, et les photos de ce téléphone sont sauvegardées à nouveau comme celles d’un nouveau téléphone. Rien n’est supprimé sur l’appareil.",
+    "en": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password, and this phone's photos are backed up again as a new phone's. Nothing on the device is deleted.",
+    "reviewed": "claude-backtranslation 2026-11-04 #876b8fd8"
+  },
+  "android.secrets_start_over_title": {
+    "text": "Recommencer sur ce téléphone ?",
+    "en": "Start over on this phone?",
+    "reviewed": "claude-backtranslation 2026-11-04 #eca836e6"
+  },
   "android.secrets_unavailable": {
-    "text": "Off The Cloud n’a pas pu ouvrir pour le moment le stockage sécurisé de ce téléphone, où il garde votre connexion. Rien n’a été perdu : réessayez dans un instant.",
-    "en": "Off The Cloud couldn't open this phone's secure storage, where it keeps your sign-in, just now. Nothing has been lost: try again in a moment."
+    "text": "Off The Cloud ne parvient pas à ouvrir le stockage sécurisé de ce téléphone, où il garde votre connexion. Cela se règle généralement après un redémarrage ou une mise à jour du système : réessayez dans un instant. Si cela continue, vous pouvez recommencer et vous reconnecter.",
+    "en": "Off The Cloud can't open this phone's secure storage, where it keeps your sign-in. This usually clears up after a restart or a system update: try again in a moment. If it keeps happening, you can start over and sign in again."
   },
   "android.settings.bridge_leave_delete": {
     "text": "Quitter et supprimer",

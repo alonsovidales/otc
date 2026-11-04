@@ -332,32 +332,80 @@ class SecretsStore private constructor(
          * use ([Unavailable]) and keeps the file. It used to wipe the
          * sign-in, the device id (a second folder on the device at the next
          * sign-in) and the sync's watermark after two quick tries.
+         *
+         * An error of the second kind can be for good too - a key whose blob
+         * the Keystore no longer takes after an OS or firmware update
+         * ("Invalid key blob"), one that loads as null - so how long it has
+         * lasted is kept ([SecretsFailures]): once it has failed on
+         * [SecretsFailures.STUCK_LAUNCHES] launches over a day at least, it
+         * counts as unusable and the store starts over; the owner can also
+         * start over from RootView's screen ([startOver]).
          */
         private fun openSecure(): SharedPreferences {
             val ctx = OTCApp.instance
             var last: Exception? = null
             for (pause in longArrayOf(0) + retryPauses) {
                 if (pause > 0) Thread.sleep(pause)
-                try { return createSecure(ctx) } catch (e: Exception) {
+                try {
+                    return createSecure(ctx).also { failures(ctx).opened() }
+                } catch (e: Exception) {
                     last = e
                     if (keysetUnusable(e)) break
                     Log.w(TAG, "secrets unreadable, trying again: ${e.javaClass.simpleName}")
                 }
             }
-            if (last != null && !keysetUnusable(last)) throw Unavailable(last)
-            Log.w(TAG, "secrets can't be read on this phone, starting over: ${last?.javaClass?.simpleName}")
+            if (last != null && !keysetUnusable(last)) {
+                if (!failures(ctx).failed(System.currentTimeMillis())) throw Unavailable(last)
+                Log.w(TAG, "secrets unreadable on every launch for a day, starting over: ${last.javaClass.simpleName}")
+            } else {
+                Log.w(TAG, "secrets can't be read on this phone, starting over: ${last?.javaClass?.simpleName}")
+            }
+            return startAfresh(ctx)
+        }
+
+        /**
+         * The secure store as on a fresh install: the file and what came
+         * with it gone, the master key made again if it is itself broken.
+         * Throws [Unavailable] when even that can't be opened.
+         */
+        private fun startAfresh(ctx: Context): SharedPreferences {
             ctx.deleteSharedPreferences("otc_secrets") // the keyset lives in the same file
             forgetRestoredState(ctx)
+            failures(ctx).opened()
             return try {
                 createSecure(ctx)
             } catch (e: Exception) {
                 // The master key itself is broken. Only otc_secrets uses it,
                 // and that is already gone.
-                Log.w(TAG, "secrets: recreating the master key: $e")
-                KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
-                createSecure(ctx)
+                Log.w(TAG, "secrets: recreating the master key: ${e.javaClass.simpleName}")
+                try {
+                    KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+                    createSecure(ctx)
+                } catch (e2: Exception) {
+                    throw Unavailable(e2)
+                }
             }
         }
+
+        /**
+         * RootView's Start over, asked first, while the secure store can't
+         * be opened: this phone's sign-in, device id and sync history go, as
+         * on a fresh install, and the store is opened anew. Nothing on the
+         * device is touched. Throws [Unavailable] when even that can't be
+         * opened.
+         */
+        fun startOver() {
+            synchronized(this) {
+                if (securePrefs != null) return
+                Log.w(TAG, "secrets: starting over, as asked")
+                securePrefs = startAfresh(OTCApp.instance)
+            }
+        }
+
+        private fun failures(ctx: Context) = SecretsFailures(SecretsFailures.prefsStore(ctx), launch)
+
+        // This process: a launch, as SecretsFailures counts them.
+        private val launch = UUID.randomUUID().toString()
 
         // What came back from the old phone with the secrets: its sync
         // watermark (would hide every photo here taken before it), its

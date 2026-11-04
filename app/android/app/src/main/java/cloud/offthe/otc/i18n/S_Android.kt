@@ -266,7 +266,19 @@ fun S.androidPhotosSearchClose(): UiText =
 fun S.androidPhotosSearchInSearch(): UiText =
     UiText.Res(R.string.android_photos_search_in_search)
 
-/** "Off The Cloud couldn't open this phone's secure storage, where it keeps your sign-in, just now. Nothing has been lost: try again in a moment.": Shown alone on the screen at launch, above a Try again button (common.try_again), when Android's secure storage (the Keystore, where the app keeps the device's address and password) can't be opened for a moment - for instance right after a system update. Nothing is deleted; trying again usually works. */
+/** "Start over": Button under that text (android.secrets_unavailable), beside Try again, and the confirm button of its question (android.secrets_start_over_title): forget the sign-in kept on this phone and start as a fresh install. */
+fun S.androidSecretsStartOver(): UiText =
+    UiText.Res(R.string.android_secrets_start_over)
+
+/** "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password, and this phone's photos are backed up again as a new phone's. Nothing on the device is deleted.": Text of that question (android.secrets_start_over_title). The app's secure storage is reset: the device's address and password, this phone's id and the record of which photos were already sent are lost, so after signing in again the photos go to the device as from a new phone. The device and everything on it stay as they are. */
+fun S.androidSecretsStartOverText(): UiText =
+    UiText.Res(R.string.android_secrets_start_over_text)
+
+/** "Start over on this phone?": Title of the question asked after Start over (android.secrets_start_over) on the screen that says the phone's secure storage can't be opened. Buttons: Cancel and Start over. */
+fun S.androidSecretsStartOverTitle(): UiText =
+    UiText.Res(R.string.android_secrets_start_over_title)
+
+/** "Off The Cloud can't open this phone's secure storage, where it keeps your sign-in. This usually clears up after a restart or a system update: try again in a moment. If it keeps happening, you can start over and sign in again.": Shown alone on the screen at launch, above Try again (common.try_again) and Start over (android.secrets_start_over), when Android's secure storage (the Keystore, where the app keeps the device's address and password) can't be opened - for instance right after a system update. Nothing is deleted unless Start over is chosen; trying again usually works. */
 fun S.androidSecretsUnavailable(): UiText =
     UiText.Res(R.string.android_secrets_unavailable)
 

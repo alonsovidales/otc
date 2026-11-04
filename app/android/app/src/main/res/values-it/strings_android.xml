@@ -87,7 +87,10 @@
     <string name="android_photos_people_merge_dimmed">Unisci (seleziona 2 o più volti da unire)</string>
     <string name="android_photos_search_close">Chiudi ricerca</string>
     <string name="android_photos_search_in_search">Nella ricerca</string>
-    <string name="android_secrets_unavailable">Off The Cloud non è riuscito ad aprire in questo momento l’archivio sicuro di questo telefono, dove conserva il tuo accesso. Non è andato perso nulla: riprova tra un attimo.</string>
+    <string name="android_secrets_start_over">Ricomincia da capo</string>
+    <string name="android_secrets_start_over_text">Off The Cloud dimentica il suo accesso e ciò che ha già salvato da questo telefono, come appena installato: accedi di nuovo con l’indirizzo e la password del dispositivo, e le foto di questo telefono vengono salvate di nuovo come quelle di un telefono nuovo. Sul dispositivo non viene eliminato nulla.</string>
+    <string name="android_secrets_start_over_title">Ricominciare da capo su questo telefono?</string>
+    <string name="android_secrets_unavailable">Off The Cloud non riesce ad aprire l’archivio sicuro di questo telefono, dove conserva il tuo accesso. Di solito si risolve dopo un riavvio o un aggiornamento di sistema: riprova tra un attimo. Se continua a succedere, puoi ricominciare da capo e accedere di nuovo.</string>
     <string name="android_settings_bridge_leave_delete">Lascia ed elimina</string>
     <string name="android_settings_crop_hint">Trascina la foto per centrare il tuo viso</string>
     <string name="android_settings_crop_zoom">Zoom</string>

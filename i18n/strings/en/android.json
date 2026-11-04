@@ -328,9 +328,29 @@
     "text": "In the search",
     "note": "Screen-reader name of the check mark beside a person in the search suggestions who is already a chip in the search."
   },
+  "android.secrets_start_over": {
+    "text": "Start over",
+    "note": "Button under that text (android.secrets_unavailable), beside Try again, and the confirm button of its question (android.secrets_start_over_title): forget the sign-in kept on this phone and start as a fresh install.",
+    "max": 40,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #67f88b2e"
+  },
+  "android.secrets_start_over_text": {
+    "text": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password, and this phone's photos are backed up again as a new phone's. Nothing on the device is deleted.",
+    "note": "Text of that question (android.secrets_start_over_title). The app's secure storage is reset: the device's address and password, this phone's id and the record of which photos were already sent are lost, so after signing in again the photos go to the device as from a new phone. The device and everything on it stay as they are.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #1aa5eef7"
+  },
+  "android.secrets_start_over_title": {
+    "text": "Start over on this phone?",
+    "note": "Title of the question asked after Start over (android.secrets_start_over) on the screen that says the phone's secure storage can't be opened. Buttons: Cancel and Start over.",
+    "max": 60,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #73dc4239"
+  },
   "android.secrets_unavailable": {
-    "text": "Off The Cloud couldn't open this phone's secure storage, where it keeps your sign-in, just now. Nothing has been lost: try again in a moment.",
-    "note": "Shown alone on the screen at launch, above a Try again button (common.try_again), when Android's secure storage (the Keystore, where the app keeps the device's address and password) can't be opened for a moment - for instance right after a system update. Nothing is deleted; trying again usually works."
+    "text": "Off The Cloud can't open this phone's secure storage, where it keeps your sign-in. This usually clears up after a restart or a system update: try again in a moment. If it keeps happening, you can start over and sign in again.",
+    "note": "Shown alone on the screen at launch, above Try again (common.try_again) and Start over (android.secrets_start_over), when Android's secure storage (the Keystore, where the app keeps the device's address and password) can't be opened - for instance right after a system update. Nothing is deleted unless Start over is chosen; trying again usually works."
   },
   "android.settings.bridge_leave_delete": {
     "text": "Leave and Delete",

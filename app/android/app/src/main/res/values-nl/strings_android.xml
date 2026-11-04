@@ -82,7 +82,10 @@
     <string name="android_photos_people_merge_dimmed">Samenvoegen (selecteer er 2 of meer om samen te voegen)</string>
     <string name="android_photos_search_close">Zoeken sluiten</string>
     <string name="android_photos_search_in_search">In de zoekopdracht</string>
-    <string name="android_secrets_unavailable">Off The Cloud kon de beveiligde opslag van deze telefoon, waarin het je aanmelding bewaart, nu niet openen. Er is niets verloren gegaan: probeer het zo opnieuw.</string>
+    <string name="android_secrets_start_over">Opnieuw beginnen</string>
+    <string name="android_secrets_start_over_text">Off The Cloud vergeet zijn aanmelding en wat het al van deze telefoon heeft geback-upt, alsof het net is geïnstalleerd: je meldt je opnieuw aan met het adres en het wachtwoord van het apparaat, en de foto\'s van deze telefoon worden opnieuw geback-upt als die van een nieuwe telefoon. Op het apparaat wordt niets verwijderd.</string>
+    <string name="android_secrets_start_over_title">Opnieuw beginnen op deze telefoon?</string>
+    <string name="android_secrets_unavailable">Off The Cloud kan de beveiligde opslag van deze telefoon, waarin het je aanmelding bewaart, niet openen. Dit gaat meestal over na een herstart of een systeemupdate: probeer het zo opnieuw. Blijft het gebeuren, dan kun je opnieuw beginnen en je weer aanmelden.</string>
     <string name="android_settings_bridge_leave_delete">Verlaten en verwijderen</string>
     <string name="android_settings_crop_hint">Sleep de foto om je gezicht in het midden te zetten</string>
     <string name="android_settings_crop_zoom">Zoomen</string>

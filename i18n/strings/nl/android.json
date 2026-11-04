@@ -301,9 +301,24 @@
     "text": "In de zoekopdracht",
     "en": "In the search"
   },
+  "android.secrets_start_over": {
+    "text": "Opnieuw beginnen",
+    "en": "Start over",
+    "reviewed": "claude-backtranslation 2026-11-04 #a6ac5db1"
+  },
+  "android.secrets_start_over_text": {
+    "text": "Off The Cloud vergeet zijn aanmelding en wat het al van deze telefoon heeft geback-upt, alsof het net is geïnstalleerd: je meldt je opnieuw aan met het adres en het wachtwoord van het apparaat, en de foto's van deze telefoon worden opnieuw geback-upt als die van een nieuwe telefoon. Op het apparaat wordt niets verwijderd.",
+    "en": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password, and this phone's photos are backed up again as a new phone's. Nothing on the device is deleted.",
+    "reviewed": "claude-backtranslation 2026-11-04 #5b984456"
+  },
+  "android.secrets_start_over_title": {
+    "text": "Opnieuw beginnen op deze telefoon?",
+    "en": "Start over on this phone?",
+    "reviewed": "claude-backtranslation 2026-11-04 #3f64088e"
+  },
   "android.secrets_unavailable": {
-    "text": "Off The Cloud kon de beveiligde opslag van deze telefoon, waarin het je aanmelding bewaart, nu niet openen. Er is niets verloren gegaan: probeer het zo opnieuw.",
-    "en": "Off The Cloud couldn't open this phone's secure storage, where it keeps your sign-in, just now. Nothing has been lost: try again in a moment."
+    "text": "Off The Cloud kan de beveiligde opslag van deze telefoon, waarin het je aanmelding bewaart, niet openen. Dit gaat meestal over na een herstart of een systeemupdate: probeer het zo opnieuw. Blijft het gebeuren, dan kun je opnieuw beginnen en je weer aanmelden.",
+    "en": "Off The Cloud can't open this phone's secure storage, where it keeps your sign-in. This usually clears up after a restart or a system update: try again in a moment. If it keeps happening, you can start over and sign in again."
   },
   "android.settings.bridge_leave_delete": {
     "text": "Verlaten en verwijderen",

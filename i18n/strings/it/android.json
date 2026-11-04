@@ -301,9 +301,24 @@
     "text": "Nella ricerca",
     "en": "In the search"
   },
+  "android.secrets_start_over": {
+    "text": "Ricomincia da capo",
+    "en": "Start over",
+    "reviewed": "claude-backtranslation 2026-11-04 #849a5767"
+  },
+  "android.secrets_start_over_text": {
+    "text": "Off The Cloud dimentica il suo accesso e ciò che ha già salvato da questo telefono, come appena installato: accedi di nuovo con l’indirizzo e la password del dispositivo, e le foto di questo telefono vengono salvate di nuovo come quelle di un telefono nuovo. Sul dispositivo non viene eliminato nulla.",
+    "en": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password, and this phone's photos are backed up again as a new phone's. Nothing on the device is deleted.",
+    "reviewed": "claude-backtranslation 2026-11-04 #21971d53"
+  },
+  "android.secrets_start_over_title": {
+    "text": "Ricominciare da capo su questo telefono?",
+    "en": "Start over on this phone?",
+    "reviewed": "claude-backtranslation 2026-11-04 #08dbdefe"
+  },
   "android.secrets_unavailable": {
-    "text": "Off The Cloud non è riuscito ad aprire in questo momento l’archivio sicuro di questo telefono, dove conserva il tuo accesso. Non è andato perso nulla: riprova tra un attimo.",
-    "en": "Off The Cloud couldn't open this phone's secure storage, where it keeps your sign-in, just now. Nothing has been lost: try again in a moment."
+    "text": "Off The Cloud non riesce ad aprire l’archivio sicuro di questo telefono, dove conserva il tuo accesso. Di solito si risolve dopo un riavvio o un aggiornamento di sistema: riprova tra un attimo. Se continua a succedere, puoi ricominciare da capo e accedere di nuovo.",
+    "en": "Off The Cloud can't open this phone's secure storage, where it keeps your sign-in. This usually clears up after a restart or a system update: try again in a moment. If it keeps happening, you can start over and sign in again."
   },
   "android.settings.bridge_leave_delete": {
     "text": "Lascia ed elimina",

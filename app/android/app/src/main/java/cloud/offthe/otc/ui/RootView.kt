@@ -23,8 +23,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.androidSecretsStartOver
+import cloud.offthe.otc.i18n.androidSecretsStartOverText
+import cloud.offthe.otc.i18n.androidSecretsStartOverTitle
 import cloud.offthe.otc.i18n.androidSecretsUnavailable
+import cloud.offthe.otc.i18n.commonCancel
 import cloud.offthe.otc.i18n.commonTryAgain
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -88,19 +98,27 @@ class SessionStores : ViewModel() {
 fun RootView() {
     // The secure store, opened once; while the Keystore can't open it (busy,
     // not ready after an OS update), a screen that says so and tries again -
-    // nothing is wiped (SecretsStore.Unavailable).
+    // nothing is wiped (SecretsStore.Unavailable) unless the owner starts
+    // over from it, or it has failed on every launch for a day.
     var attempt by remember { mutableStateOf(0) }
     val secrets = remember(attempt) { SecretsStore.openOrNull() }
     if (secrets == null) {
-        SecretsUnavailableView { attempt++ }
+        SecretsUnavailableView(onRetry = { attempt++ }, onStartedOver = { attempt++ })
         return
     }
     RootContent(secrets)
 }
 
-/** The secure store couldn't be opened just now: said, with Try again. */
+/**
+ * The secure store couldn't be opened: said, with Try again, and Start over
+ * (asked first) for a key the Keystore will never take again - it used to
+ * be the only way out but clearing the app's data in system settings.
+ */
 @Composable
-private fun SecretsUnavailableView(onRetry: () -> Unit) {
+private fun SecretsUnavailableView(onRetry: () -> Unit, onStartedOver: () -> Unit) {
+    var confirm by remember { mutableStateOf(false) }
+    var working by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Column(
             Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(28.dp),
@@ -108,8 +126,32 @@ private fun SecretsUnavailableView(onRetry: () -> Unit) {
         ) {
             Text(S.androidSecretsUnavailable().resolve(), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
             Spacer(Modifier.height(16.dp))
-            Button(onClick = onRetry) { Text(S.commonTryAgain().resolve()) }
+            Button(onClick = onRetry, enabled = !working) { Text(S.commonTryAgain().resolve()) }
+            Spacer(Modifier.height(4.dp))
+            TextButton(onClick = { confirm = true }, enabled = !working) {
+                Text(S.androidSecretsStartOver().resolve(), color = MaterialTheme.colorScheme.error)
+            }
         }
+    }
+    if (confirm) {
+        AlertDialog(
+            onDismissRequest = { confirm = false },
+            title = { Text(S.androidSecretsStartOverTitle().resolve()) },
+            text = { Text(S.androidSecretsStartOverText().resolve()) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirm = false
+                    working = true
+                    scope.launch {
+                        // Off the main thread: a Keystore key made again.
+                        withContext(Dispatchers.IO) { runCatching { SecretsStore.startOver() } }
+                        working = false
+                        onStartedOver()
+                    }
+                }) { Text(S.androidSecretsStartOver().resolve(), color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text(S.commonCancel().resolve()) } },
+        )
     }
 }
 

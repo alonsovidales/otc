@@ -4367,8 +4367,14 @@ unless added there on purpose; `SecretsStore` recovers an `otc_secrets` restored
 Keystore key by resetting to a fresh install - only when its keyset can never be read
 (`keysetUnusable`: a bad tag, a key that isn't there, a corrupt file); any other Keystore error is
 tried again (0.2, 0.5, 1 s), then fails that use (`SecretsStore.Unavailable`) with the file kept:
-RootView says `android.secrets_unavailable` with Try again, a background run is retried, and the
-device id is never replaced because it couldn't be read; `PhotoSync.hasPermission()` must match
+RootView says `android.secrets_unavailable` with Try again and Start over (asked first,
+`SecretsStore.startOver`), a background run is retried, and a read that failed once never
+replaces the device id. Such an error can be for good too (a key whose blob the Keystore no
+longer takes after an OS or firmware update): how long it has lasted is kept in the plain,
+not-backed-up `otc_secrets_health` prefs (`SecretsFailures`: the first failure and the launches
+since, forgotten at the next open that works), and once it has failed on 3 launches over a day at
+least, the store starts over as for a restored file, the master key made again if need be (tests:
+`SecretsRecoveryTest`); `PhotoSync.hasPermission()` must match
 `mediaPermissions()`. Both: connection forms edit drafts and write `SecretsStore` only on Save
 (`saveCredentials`; options `persistOptions`), since every reconnect dials the stored values. iOS
 unit tests: `OffTheCloudTests` (Swift Testing), on a simulator with `-only-testing:OffTheCloudTests`.

@@ -87,7 +87,10 @@
     <string name="android_photos_people_merge_dimmed">Combinar (selecciona 2 o más para combinarlas)</string>
     <string name="android_photos_search_close">Cerrar búsqueda</string>
     <string name="android_photos_search_in_search">En la búsqueda</string>
-    <string name="android_secrets_unavailable">Off The Cloud no ha podido abrir ahora el almacenamiento seguro de este teléfono, donde guarda tu inicio de sesión. No se ha perdido nada: vuelve a intentarlo en un momento.</string>
+    <string name="android_secrets_start_over">Empezar de nuevo</string>
+    <string name="android_secrets_start_over_text">Off The Cloud olvida su inicio de sesión y lo que ya ha copiado de este teléfono, como recién instalado: vuelves a iniciar sesión con la dirección y la contraseña del dispositivo, y las fotos de este teléfono se copian otra vez como las de un teléfono nuevo. No se borra nada del dispositivo.</string>
+    <string name="android_secrets_start_over_title">¿Empezar de nuevo en este teléfono?</string>
+    <string name="android_secrets_unavailable">Off The Cloud no puede abrir el almacenamiento seguro de este teléfono, donde guarda tu inicio de sesión. Esto suele resolverse tras un reinicio o una actualización del sistema: vuelve a intentarlo en un momento. Si sigue ocurriendo, puedes empezar de nuevo e iniciar sesión otra vez.</string>
     <string name="android_settings_bridge_leave_delete">Salir y eliminar</string>
     <string name="android_settings_crop_hint">Arrastra la foto para centrar tu cara</string>
     <string name="android_settings_crop_zoom">Zoom</string>

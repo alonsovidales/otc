@@ -301,9 +301,24 @@
     "text": "En la búsqueda",
     "en": "In the search"
   },
+  "android.secrets_start_over": {
+    "text": "Empezar de nuevo",
+    "en": "Start over",
+    "reviewed": "claude-backtranslation 2026-11-04 #076784f5"
+  },
+  "android.secrets_start_over_text": {
+    "text": "Off The Cloud olvida su inicio de sesión y lo que ya ha copiado de este teléfono, como recién instalado: vuelves a iniciar sesión con la dirección y la contraseña del dispositivo, y las fotos de este teléfono se copian otra vez como las de un teléfono nuevo. No se borra nada del dispositivo.",
+    "en": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password, and this phone's photos are backed up again as a new phone's. Nothing on the device is deleted.",
+    "reviewed": "claude-backtranslation 2026-11-04 #5c6063d4"
+  },
+  "android.secrets_start_over_title": {
+    "text": "¿Empezar de nuevo en este teléfono?",
+    "en": "Start over on this phone?",
+    "reviewed": "claude-backtranslation 2026-11-04 #0fc03506"
+  },
   "android.secrets_unavailable": {
-    "text": "Off The Cloud no ha podido abrir ahora el almacenamiento seguro de este teléfono, donde guarda tu inicio de sesión. No se ha perdido nada: vuelve a intentarlo en un momento.",
-    "en": "Off The Cloud couldn't open this phone's secure storage, where it keeps your sign-in, just now. Nothing has been lost: try again in a moment."
+    "text": "Off The Cloud no puede abrir el almacenamiento seguro de este teléfono, donde guarda tu inicio de sesión. Esto suele resolverse tras un reinicio o una actualización del sistema: vuelve a intentarlo en un momento. Si sigue ocurriendo, puedes empezar de nuevo e iniciar sesión otra vez.",
+    "en": "Off The Cloud can't open this phone's secure storage, where it keeps your sign-in. This usually clears up after a restart or a system update: try again in a moment. If it keeps happening, you can start over and sign in again."
   },
   "android.settings.bridge_leave_delete": {
     "text": "Salir y eliminar",
