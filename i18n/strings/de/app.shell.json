@@ -280,6 +280,11 @@
     "text": "Nicht verbunden",
     "en": "Not connected"
   },
+  "app.shell.not_known_device": {
+    "text": "Unter dieser Adresse hat etwas geantwortet, aber nicht das Gerät, das dieses Telefon kennt, deshalb wurde dein Passwort nicht gesendet. Wenn du dein Gerät neu eingerichtet hast, wähle „{button}“ und melde dich erneut an.",
+    "en": "Something answered at this address, but not the device this phone knows, so your password wasn't sent. If you set your device up again, choose “{button}” and sign in again.",
+    "reviewed": "claude-backtranslation 2026-11-04 #f76548e8"
+  },
   "app.shell.not_otc": {
     "text": "Unter der Adresse hat etwas geantwortet, aber nicht wie ein Gerät von Off The Cloud. Prüfe, ob sie auf /ws endet und auf dein Gerät oder seinen Bridge-Namen zeigt.",
     "en": "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name."

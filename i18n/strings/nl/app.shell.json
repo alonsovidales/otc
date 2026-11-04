@@ -280,6 +280,11 @@
     "text": "Niet verbonden",
     "en": "Not connected"
   },
+  "app.shell.not_known_device": {
+    "text": "Er antwoordde iets op dit adres, maar niet het apparaat dat deze telefoon kent, dus je wachtwoord is niet verstuurd. Als je je apparaat opnieuw hebt ingesteld, kies dan “{button}” en meld je opnieuw aan.",
+    "en": "Something answered at this address, but not the device this phone knows, so your password wasn't sent. If you set your device up again, choose “{button}” and sign in again.",
+    "reviewed": "claude-backtranslation 2026-11-04 #cfbc006e"
+  },
   "app.shell.not_otc": {
     "text": "Het adres reageerde, maar niet als een Off The Cloud-apparaat. Controleer of het eindigt op /ws en naar je apparaat of de bridgenaam ervan verwijst.",
     "en": "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name."

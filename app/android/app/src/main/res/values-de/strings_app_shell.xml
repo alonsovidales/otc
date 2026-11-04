@@ -74,6 +74,7 @@
     <string name="app_shell_no_storage">Dein Gerät kann seine Speicherlaufwerke nicht erreichen. Prüfe, ob sie angeschlossen und eingeschaltet sind; es startet von selbst neu, sobald sie wieder da sind.</string>
     <string name="app_shell_no_storage_title">Der Speicher deines Geräts ist nicht verfügbar</string>
     <string name="app_shell_not_connected">Nicht verbunden</string>
+    <string name="app_shell_not_known_device">Unter dieser Adresse hat etwas geantwortet, aber nicht das Gerät, das dieses Telefon kennt, deshalb wurde dein Passwort nicht gesendet. Wenn du dein Gerät neu eingerichtet hast, wähle „%1$s“ und melde dich erneut an.</string>
     <string name="app_shell_not_otc">Unter der Adresse hat etwas geantwortet, aber nicht wie ein Gerät von Off The Cloud. Prüfe, ob sie auf /ws endet und auf dein Gerät oder seinen Bridge-Namen zeigt.</string>
     <string name="app_shell_not_this_person">Nicht diese Person</string>
     <string name="app_shell_notifications_continue">Weiter</string>

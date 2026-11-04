@@ -258,6 +258,10 @@ fun S.appShellNoStorageTitle(): UiText =
 fun S.appShellNotConnected(): UiText =
     UiText.Res(R.string.app_shell_not_connected)
 
+/** "Something answered at this address, but not the device this phone knows, so your password wasn't sent. If you set your device up again, choose “{button}” and sign in again.": Why the app can't connect, on the card shown over the app: the address starts with ws:// (no encryption, used only on the home network), this phone has signed in to the device there before and knows its security certificate, and now something else answers at that address (another network that uses the same addresses, or the device set up again from scratch), so the app refused to send the password. {button} is the card's button app.shell.leave_button, quoted. */
+fun S.appShellNotKnownDevice(button: String): UiText =
+    UiText.Res(R.string.app_shell_not_known_device, listOf(button))
+
 /** "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name.": Why the app can't connect, on the card shown over the app: something answered at the address, but not the device's WebSocket. /ws is the end of the address: keep it as it is. */
 fun S.appShellNotOtc(): UiText =
     UiText.Res(R.string.app_shell_not_otc)

@@ -249,6 +249,9 @@ DgMCGgUABBR+1dGhR5jekE6FFuZrpwXE0PpSMgQQRxHu9Z2J2jjcmw37u5wv0wICCAA=
 final class TestServer: @unchecked Sendable {
     enum Mode {
         case webSocketEcho
+        /// A device on the home network: each request answered as `reply`
+        /// makes it (its id set here); nil answers nothing.
+        case webSocketDevice(@Sendable (Msg_ReqEnvelope) -> Msg_RespEnvelope?)
         case http(Data, mime: String)
         case raw
     }
@@ -295,10 +298,13 @@ final class TestServer: @unchecked Sendable {
         let tls = NWProtocolTLS.Options()
         sec_protocol_options_set_local_identity(tls.securityProtocolOptions, try #require(sec_identity_create(try identity(p12))))
         let params = NWParameters(tls: tls)
-        if case .webSocketEcho = mode {
+        switch mode {
+        case .webSocketEcho, .webSocketDevice:
             let ws = NWProtocolWebSocket.Options()
             ws.autoReplyPing = true
             params.defaultProtocolStack.applicationProtocols.insert(ws, at: 0)
+        default:
+            break
         }
         let server = TestServer(listener: try NWListener(using: params, on: .any), mode: mode)
         try await server.run()
@@ -338,8 +344,27 @@ final class TestServer: @unchecked Sendable {
         conn.start(queue: queue)
         switch mode {
         case .webSocketEcho: echo(conn)
+        case .webSocketDevice(let reply): answer(conn, reply)
         case .http(let body, let mime): serve(conn, body: body, mime: mime, buffer: Data())
         case .raw: sink(conn)
+        }
+    }
+
+    private func answer(_ conn: NWConnection, _ reply: @escaping @Sendable (Msg_ReqEnvelope) -> Msg_RespEnvelope?) {
+        conn.receiveMessage { [weak self] content, _, _, error in
+            guard let self, error == nil else { conn.cancel(); return }
+            if let content, let req = try? Msg_ReqEnvelope(serializedBytes: content) {
+                self.lock.withLock { self._received += content.count }
+                if var resp = reply(req) {
+                    resp.id = req.id
+                    if let data = try? resp.serializedData() {
+                        let meta = NWProtocolWebSocket.Metadata(opcode: .binary)
+                        let ctx = NWConnection.ContentContext(identifier: "answer", metadata: [meta])
+                        conn.send(content: data, contentContext: ctx, isComplete: true, completion: .idempotent)
+                    }
+                }
+            }
+            self.answer(conn, reply)
         }
     }
 

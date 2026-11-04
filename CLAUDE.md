@@ -957,6 +957,23 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     transfer runs (`TransferActivity` / `OTCConnection.transfer {}` / `folderBusy`). A check put
     off is recorded and runs after. Settings shows "Connected over your home network" or
     "Connected through off-the.cloud".
+  - A ws:// address on the phones (a device set up without the bridge, or left it): a private
+    address or a `.local` name is the home network only while the phone is at home, and on
+    another network with the same range whoever held it got the sign-in in the clear, the key the
+    password is sealed with included. Once its device's pin is known (`OTCConnection.pinnedOnly`:
+    learned at the first sign-in there, or kept by Leave the Bridge, `LocalEndpoint.move`) it
+    goes only the pinned way, the address's own host raced too at the pinned port
+    (`LocalEndpoint.including`: a `.local` name or a Tailscale address where the listed ones
+    don't answer). When that finds nothing, whatever answers at the address is asked for
+    GetPubKey alone (`probeInTheClear`, nothing of the phone's in it) and never sent the
+    password: nothing answers - the usual "isn't answering"; `storage_unavailable` - issue
+    #207's state in the app's own words (a device without its storage serves no listener, and
+    nothing proves it is the device); anything else - `app.shell.not_known_device` (something
+    else answers there; a device set up again from scratch is reached again through "Set up or
+    connect a different device"). http:// media goes only while the session itself is in the
+    clear (`signedInInClear`: a first sign-in, a device without a pin). Every sign-in over the
+    home link asks GetLocalEndpoint again there (`updateOverHome`: new addresses only, the pin
+    never dropped). Tests: `PinnedAddressTests.swift`.
   - Video: `/media/<token>` is relative, so the base follows the route. Android plays through
     ExoPlayer on the pinned OkHttp client; iOS streams local media through an
     `AVAssetResourceLoader` on a custom scheme over the pinned URLSession, and bridge media plays as
@@ -3602,6 +3619,21 @@ Until it is answered (`syncChoicePending`, UserDefaults / the `otc_sync` prefs) 
 returns at once - background runs included. No run asks for access: Photos/media are asked from Start
 Sync (iOS registers its PHPhotoLibrary observer only once allowed - registering asks), notifications
 once after the first accepted sign-in and the tour, with what they bring (`NotificationsAsk`).
+**Another address in Settings** (iOS `DeviceChange.swift`; Android follows the same rules): Settings
+› Connection's Save, or the "can't connect" card's Save & Retry, with another address (not the same
+one respelled, nor a first sign-in) may be another device or the same one reached another way. The
+screens are made afresh at once (`addressChanged`: the session models Log Out resets, and RootView
+makes MainView again, `SecretsStore.deviceSession`), Settings' Save first has the device left forget
+this phone's push token (`unregisterPushBeforeLeaving`, 3 s at most), and until the new address's
+device says who it is (`DeviceChange.pending`: the last device's pin kept in UserDefaults) no photo
+sync runs (`onePass` returns skipped) and the wallpaper isn't kept in step. Its GetLocalEndpoint
+answer decides (`refreshLocalEndpoint`; asked again 5 times, 30 s apart, when it says nothing): the
+same pin - nothing changes and the sync goes on; another pin, `unknown_payload`/`local_unavailable`,
+or no pin known for the last one - another device: the run stops, SyncChoice is asked as at a
+sign-in, and the wallpaper stops as at Log Out (`apply`). Until then the last device's watermark
+carried over, so the new one never got the photos taken before it. Leave the Bridge is the same
+device (`saveCredentials(sameDevice:)`): no check, and its pin moves to the new address. Tests:
+`DeviceChangeTests.swift`.
 **Folders and albums to back up** (Android `sync/PhotoFolders.kt` + `ui/settings/FoldersView.kt` <->
 iOS `PhotoSources.swift` + `AlbumsView.swift`; owner's request 2026-10-24, after a user's folders seemed
 missing): Settings > Sync Options > Folders (Android: MediaStore buckets by `BUCKET_ID`, with path and
@@ -4262,7 +4294,8 @@ Auth (an empty `Ack.code`, or `too_many_attempts`) `OTCConnection` fails the sam
 without dialling for 5 s doubling to 300 s; success, `invalidate()` or new credentials lift it;
 both show the can't-connect card, never `statusCode`. A request is sent again only if it never left
 (`retriesAfter`; else `WSClient.SentNoAnswer`), and ws:// goes only to the home network
-(`CleartextRule`, before dialling and for media URLs).
+(`CleartextRule`, before dialling and for media URLs) - and only over the pinned home link once
+its device's pin is known (Home network, above).
 Files open, versions, trimming and the gallery's video fallback read 4 MiB `ReadFile` pieces
 (`FileDownload.swift` / `ChunkedDownload.kt`); `GetFile` stays for HEIC and as the
 `unknown_payload` fallback. Android keeps at most 3 `UploadChunk`s in flight (OkHttp closes a

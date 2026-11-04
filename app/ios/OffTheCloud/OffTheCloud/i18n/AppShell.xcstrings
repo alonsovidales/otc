@@ -3424,6 +3424,53 @@
         }
       }
     },
+    "app.shell.not_known_device" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unter dieser Adresse hat etwas geantwortet, aber nicht das Gerät, das dieses Telefon kennt, deshalb wurde dein Passwort nicht gesendet. Wenn du dein Gerät neu eingerichtet hast, wähle „%1$@“ und melde dich erneut an."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Something answered at this address, but not the device this phone knows, so your password wasn't sent. If you set your device up again, choose “%1$@” and sign in again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Algo respondió en esta dirección, pero no el dispositivo que conoce este teléfono, así que no se envió tu contraseña. Si has vuelto a configurar tu dispositivo, elige “%1$@” e inicia sesión de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelque chose a répondu à cette adresse, mais pas l’appareil que ce téléphone connaît : votre mot de passe n’a donc pas été envoyé. Si vous avez configuré à nouveau votre appareil, choisissez « %1$@ » et reconnectez-vous."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualcosa ha risposto a questo indirizzo, ma non il dispositivo che questo telefono conosce, quindi la tua password non è stata inviata. Se hai configurato di nuovo il dispositivo, scegli “%1$@” e accedi di nuovo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Er antwoordde iets op dit adres, maar niet het apparaat dat deze telefoon kent, dus je wachtwoord is niet verstuurd. Als je je apparaat opnieuw hebt ingesteld, kies dan “%1$@” en meld je opnieuw aan."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Algo respondeu neste endereço, mas não o dispositivo que este telemóvel conhece, por isso a tua palavra-passe não foi enviada. Se voltaste a configurar o dispositivo, escolhe «%1$@» e inicia sessão outra vez."
+          }
+        }
+      }
+    },
     "app.shell.not_otc" : {
       "extractionState" : "manual",
       "localizations" : {

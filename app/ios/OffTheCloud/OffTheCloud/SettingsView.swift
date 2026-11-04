@@ -1052,6 +1052,8 @@ private struct ConnectionSettingsSection: View {
     /// Bumped when the saved address changes: the fields are made again
     /// from the new draft, their name and mode with it.
     @State private var fieldsID = 0
+    /// Another address is being saved (save()).
+    @State private var saving = false
     @FocusState private var passwordFocused: Bool
 
     init(secrets: SecretsStore, onLogOut: @escaping () -> Void) {
@@ -1078,7 +1080,7 @@ private struct ConnectionSettingsSection: View {
                 .foregroundColor(.secondary)
             Button(S.appSettingsConnectionSave, action: save)
                 .buttonStyle(.bordered)
-                .disabled(!canSave)
+                .disabled(!canSave || saving)
             Button(S.appSettingsConnectionLogOut, role: .destructive, action: onLogOut)
                 .buttonStyle(.bordered)
         }
@@ -1096,9 +1098,23 @@ private struct ConnectionSettingsSection: View {
     private var canSave: Bool { !trimmed.isEmpty && !password.isEmpty }
 
     private func save() {
-        guard canSave else { return }
-        secrets.saveCredentials(endpoint: trimmed, password: password)
-        OTCConnection.shared.invalidate()
+        guard canSave, !saving else { return }
+        let address = trimmed
+        let typed = password
+        // Another address: the device left forgets this phone's push token
+        // first (a moment at most), then the new one is dialled.
+        guard !SecretsStore.sameAddress(address, secrets.endpoint) else {
+            secrets.saveCredentials(endpoint: address, password: typed)
+            OTCConnection.shared.invalidate()
+            return
+        }
+        saving = true
+        Task {
+            await OTCConnection.shared.unregisterPushBeforeLeaving(within: 3)
+            secrets.saveCredentials(endpoint: address, password: typed)
+            OTCConnection.shared.invalidate()
+            saving = false
+        }
     }
 }
 

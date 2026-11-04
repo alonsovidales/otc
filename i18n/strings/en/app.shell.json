@@ -308,6 +308,13 @@
     "text": "Not connected",
     "note": "Error shown where an action failed because there was no connection to the device at that moment (often after Upload failed: or a similar start)."
   },
+  "app.shell.not_known_device": {
+    "text": "Something answered at this address, but not the device this phone knows, so your password wasn't sent. If you set your device up again, choose “{button}” and sign in again.",
+    "args": [["button", "text"]],
+    "note": "Why the app can't connect, on the card shown over the app: the address starts with ws:// (no encryption, used only on the home network), this phone has signed in to the device there before and knows its security certificate, and now something else answers at that address (another network that uses the same addresses, or the device set up again from scratch), so the app refused to send the password. {button} is the card's button app.shell.leave_button, quoted.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #bf9d7f42"
+  },
   "app.shell.not_otc": {
     "text": "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name.",
     "note": "Why the app can't connect, on the card shown over the app: something answered at the address, but not the device's WebSocket. /ws is the end of the address: keep it as it is."

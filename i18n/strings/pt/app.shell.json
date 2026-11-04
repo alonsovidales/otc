@@ -280,6 +280,11 @@
     "text": "Sem ligação",
     "en": "Not connected"
   },
+  "app.shell.not_known_device": {
+    "text": "Algo respondeu neste endereço, mas não o dispositivo que este telemóvel conhece, por isso a tua palavra-passe não foi enviada. Se voltaste a configurar o dispositivo, escolhe «{button}» e inicia sessão outra vez.",
+    "en": "Something answered at this address, but not the device this phone knows, so your password wasn't sent. If you set your device up again, choose “{button}” and sign in again.",
+    "reviewed": "claude-backtranslation 2026-11-04 #0a513d38"
+  },
   "app.shell.not_otc": {
     "text": "O endereço respondeu, mas não como um dispositivo Off The Cloud. Verifica se termina em /ws e se aponta para o teu dispositivo ou para o nome dele na ponte.",
     "en": "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name."

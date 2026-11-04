@@ -77,6 +77,7 @@
     <string name="app_shell_no_storage">Votre appareil ne parvient pas à accéder à ses disques de stockage. Vérifiez qu’ils sont branchés et allumés ; il redémarre de lui-même dès qu’ils sont de retour.</string>
     <string name="app_shell_no_storage_title">Le stockage de votre appareil n’est pas disponible</string>
     <string name="app_shell_not_connected">Non connecté</string>
+    <string name="app_shell_not_known_device">Quelque chose a répondu à cette adresse, mais pas l’appareil que ce téléphone connaît : votre mot de passe n’a donc pas été envoyé. Si vous avez configuré à nouveau votre appareil, choisissez « %1$s » et reconnectez-vous.</string>
     <string name="app_shell_not_otc">L’adresse a répondu, mais pas comme un appareil Off The Cloud. Vérifiez qu’elle se termine par /ws et qu’elle pointe vers votre appareil ou son nom sur la passerelle.</string>
     <string name="app_shell_not_this_person">Pas cette personne</string>
     <string name="app_shell_notifications_continue">Continuer</string>

@@ -77,6 +77,7 @@
     <string name="app_shell_no_storage">O teu dispositivo não consegue aceder aos seus discos de armazenamento. Verifica se estão ligados e com alimentação; volta a arrancar sozinho assim que estiverem de volta.</string>
     <string name="app_shell_no_storage_title">O armazenamento do teu dispositivo não está disponível</string>
     <string name="app_shell_not_connected">Sem ligação</string>
+    <string name="app_shell_not_known_device">Algo respondeu neste endereço, mas não o dispositivo que este telemóvel conhece, por isso a tua palavra-passe não foi enviada. Se voltaste a configurar o dispositivo, escolhe «%1$s» e inicia sessão outra vez.</string>
     <string name="app_shell_not_otc">O endereço respondeu, mas não como um dispositivo Off The Cloud. Verifica se termina em /ws e se aponta para o teu dispositivo ou para o nome dele na ponte.</string>
     <string name="app_shell_not_this_person">Não é esta pessoa</string>
     <string name="app_shell_notifications_continue">Continuar</string>

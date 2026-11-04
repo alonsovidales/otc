@@ -319,6 +319,8 @@ struct WallpaperModelTests {
         let m = WallpaperModel(device: device.device, albumStore: album, stateStore: WallpaperStateStore(defaults: defaults), widgetRoot: root)
         m.wifiOnly = { false }
         m.expensive = { false }
+        // Not the app's own check (DeviceChange), which other suites set.
+        m.isDeviceCheckPending = { false }
         m.reloadWidget = {}
         m.groupDefaults = defaults
         m.albumSide = 300
@@ -376,6 +378,27 @@ struct WallpaperModelTests {
         // Deleted: stopped, its copies gone.
         device.groups = []
         await m.keepInStep(force: true)
+        #expect(m.widget == nil)
+        #expect(WidgetCatalog.load(root: root).collections.isEmpty)
+    }
+
+    @Test func nothingIsKeptInStepWhileTheDeviceIsBeingChecked() async throws {
+        let device = FakeWallpaperDevice()
+        device.set("favourites", "Favourites", photos: 3)
+        let (m, root, defaults, suite) = try model(device)
+        defer { try? FileManager.default.removeItem(at: root); defaults.removePersistentDomain(forName: suite) }
+        await m.startWidget(collection: "favourites", name: "Favourites", photos: try await m.photos(of: "favourites"))
+        let fetched = device.fetched.count
+        // Another address saved, its device not known yet: its collections
+        // may be another library's (every device's Favourites has this id).
+        device.set("favourites", "Favourites", photos: 5, from: 10)
+        m.isDeviceCheckPending = { true }
+        await m.keepInStep(force: true)
+        #expect(device.fetched.count == fetched)
+        #expect(Set(try #require(m.widget).files.keys) == Set(hashes(3)))
+        // Another device after all: both ways stop.
+        m.isDeviceCheckPending = { false }
+        await m.deviceChanged()
         #expect(m.widget == nil)
         #expect(WidgetCatalog.load(root: root).collections.isEmpty)
     }

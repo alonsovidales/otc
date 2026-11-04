@@ -306,6 +306,8 @@ final class WallpaperModel: ObservableObject {
     }()
     /// How long "Wi-Fi only" is waited for between checks.
     var wifiPoll: TimeInterval = 2
+    /// A device check waits (DeviceChange.pending); tests decide.
+    var isDeviceCheckPending: () -> Bool = { DeviceChange.pending }
     var rng = WallpaperRandom()
     /// When the collections were last kept in step, and how often at most.
     private var lastStep: Date?
@@ -534,6 +536,11 @@ final class WallpaperModel: ObservableObject {
     /// name.
     func keepInStep(force: Bool = false) async {
         guard !busy, album != nil || widget != nil else { return }
+        // Another address saved and its device not known yet: its
+        // collections may be another library's (every device's Favourites
+        // has the same id), so nothing is copied from it until it is
+        // (DeviceChange; another device stops both ways).
+        guard !isDeviceCheckPending() else { return }
         if !force, let lastStep, Date().timeIntervalSince(lastStep) < stepEvery { return }
         // The first time after a launch the widget is drawn again (a new
         // version of the app draws it differently).
@@ -627,6 +634,12 @@ final class WallpaperModel: ObservableObject {
             // sync: SavedToPhone).
             if !(await stopAlbum()) { forgetAlbum() }
         }
+    }
+
+    /// Another device at the address saved (DeviceChange): as Log Out,
+    /// both stop - their photos were the last device's.
+    func deviceChanged() async {
+        await signedOut()
     }
 
     /// Log Out (and so a change of device): both stop - their photos are

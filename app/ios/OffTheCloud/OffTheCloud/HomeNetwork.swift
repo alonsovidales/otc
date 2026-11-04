@@ -92,6 +92,18 @@ struct LocalEndpoint: Codable, Equatable, Sendable {
         URL(string: "wss://\(Self.authority(address, port: port))/ws")
     }
 
+    /// The addresses to race for a ws:// endpoint whose device this is: the
+    /// endpoint's own host too, at the pinned port - a .local name, or a
+    /// Tailscale address, reaches the device where the addresses it listed
+    /// don't (a new DHCP lease, away from home over Tailscale). Only the pin
+    /// decides, so a host is as safe to try as a listed address.
+    func including(host: String?) -> LocalEndpoint {
+        var h = host ?? ""
+        if h.hasPrefix("[") && h.hasSuffix("]") { h = String(h.dropFirst().dropLast()) }
+        guard !h.isEmpty, !addresses.contains(where: { $0.caseInsensitiveCompare(h) == .orderedSame }) else { return self }
+        return LocalEndpoint(endpoint: endpoint, addresses: addresses + [h], port: port, pin: pin)
+    }
+
     // MARK: Storage
 
     private static let keychainKey = "local_endpoint"
@@ -122,6 +134,24 @@ struct LocalEndpoint: Codable, Equatable, Sendable {
         if ep?.endpoint != endpoint { clear() }
     }
 
+    /// The same device at another address (Leave the Bridge points the app
+    /// at its home-network address): what was learned on `old` is kept for
+    /// `new`, so the first sign-in there is already pinned. Anything else
+    /// stored goes, as clear(unlessFor:).
+    static func move(from old: String, to new: String) {
+        guard old != new, let ep = stored(for: old) else {
+            clear(unlessFor: new)
+            return
+        }
+        LocalEndpoint(endpoint: new, addresses: ep.addresses, port: ep.port, pin: ep.pin).save()
+    }
+
+    /// The pin stored for `endpoint`, if any (DeviceChange: the device the
+    /// phone was signed in to).
+    static func pin(for endpoint: String) -> Data? {
+        stored(for: endpoint)?.pin
+    }
+
     // MARK: GetLocalEndpoint's answer
 
     enum Update: Equatable {
@@ -144,6 +174,15 @@ struct LocalEndpoint: Codable, Equatable, Sendable {
         if resp.error, resp.errorCode == "unknown_payload" || resp.errorCode == "local_unavailable" {
             return .clear
         }
+        return .keep
+    }
+
+    /// The same answer, asked over the pinned home link: only new addresses
+    /// count. Whoever answers there holds the pinned certificate, and the
+    /// pin is never dropped for what it says - a ws:// endpoint would go
+    /// back to signing in in the clear.
+    static func updateOverHome(for resp: Msg_RespEnvelope, endpoint: String) -> Update {
+        if case .store(let ep) = update(for: resp, endpoint: endpoint) { return .store(ep) }
         return .keep
     }
 }

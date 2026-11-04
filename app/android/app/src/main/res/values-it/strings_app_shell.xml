@@ -77,6 +77,7 @@
     <string name="app_shell_no_storage">Il tuo dispositivo non riesce a raggiungere i suoi dischi di archiviazione. Controlla che siano collegati e accesi; ripartirà da solo appena saranno di nuovo disponibili.</string>
     <string name="app_shell_no_storage_title">L’archiviazione del tuo dispositivo non è disponibile</string>
     <string name="app_shell_not_connected">Non connesso</string>
+    <string name="app_shell_not_known_device">Qualcosa ha risposto a questo indirizzo, ma non il dispositivo che questo telefono conosce, quindi la tua password non è stata inviata. Se hai configurato di nuovo il dispositivo, scegli “%1$s” e accedi di nuovo.</string>
     <string name="app_shell_not_otc">L’indirizzo ha risposto, ma non come un dispositivo Off The Cloud. Controlla che termini con /ws e che punti al tuo dispositivo o al suo nome sul bridge.</string>
     <string name="app_shell_not_this_person">Non è questa persona</string>
     <string name="app_shell_notifications_continue">Continua</string>

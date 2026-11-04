@@ -73,6 +73,7 @@
     <string name="app_shell_no_storage">Your device can\'t reach its storage disks. Check they\'re plugged in and switched on; it starts again by itself once they\'re back.</string>
     <string name="app_shell_no_storage_title">Your device\'s storage isn\'t available</string>
     <string name="app_shell_not_connected">Not connected</string>
+    <string name="app_shell_not_known_device">Something answered at this address, but not the device this phone knows, so your password wasn\'t sent. If you set your device up again, choose “%1$s” and sign in again.</string>
     <string name="app_shell_not_otc">The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name.</string>
     <string name="app_shell_not_this_person">Not this person</string>
     <string name="app_shell_notifications_continue">Continue</string>

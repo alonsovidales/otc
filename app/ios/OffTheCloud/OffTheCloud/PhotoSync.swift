@@ -711,6 +711,13 @@ final class PhotoSync: NSObject {
             print("Sync waits for the sync choice")
             return .skipped
         }
+        // Another address saved, and its device hasn't said yet whether it
+        // is the last one (DeviceChange): its watermark may not be this
+        // device's to go on from.
+        guard !DeviceChange.pending else {
+            print("Sync waits: is the device at the new address the same one?")
+            return .skipped
+        }
         // Never asked here: the sync choice's Start Sync asks for access, and
         // Settings has the button, so no run - in the background, over
         // Welcome - brings the question up.
