@@ -506,7 +506,10 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   completeUntilFirstUserAuthentication). Full-size photos (2026-10-24, `FullPhotoCache` on both,
   in `Caches/full-photos` / `cacheDir/full-photos`): the viewer keeps GetFile's bytes (a HEIC comes
   as JPEG) by the answer's `File.hash`, looked up by the item's, so reopening a photo decodes it
-  from the phone, nothing asked. Those bytes are the original's, so a JPEG carries its EXIF
+  from the phone, nothing asked. Processing tells a HEIC as GetFile does (`isHeicFile`: `.heic` in any
+  case, or `image/heic`) - it read only `.HEIC`, so a Samsung's `.heic` photos got thumbnails on their
+  side under an upright full size until release 170 (Reprocess Media re-makes those;
+  `TestProcessingARotatedHEICWritesUprightThumbnails`). Those bytes are the original's, so a JPEG carries its EXIF
   orientation and the app turns it when decoding: Android's `decodeBitmap` (`ui/common/Util.kt`)
   uses ImageDecoder, never BitmapFactory, which ignored it and showed the Fold's photos on their
   side under upright thumbnails (2026-11-05); iOS's `decodeForDisplay` (CGImageSource with the
@@ -620,7 +623,8 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   quarter hour, when a zone can have it, -12 to +14 h), else the clock read as UTC (`Info.TakenClock`
   keeps the clock as written); a video's `creation_time` is UTC. GetFileInfo's taken time is the same
   instant. Applied where the metadata is read: `processMedia` (both lanes and Reprocess; before the
-  decode, so a photo the device can't show gets it too; a lower-case `.heic` read by its boxes for this),
+  decode, so a photo the device can't show gets it too; an AVIF, or a HEIF under another name, read by its
+  boxes for this),
   and once for what a database held before: `BackfillDatesTaken`, after `FitStoredThumbnails` in
   `startBackfillOnce` (before Places and On this day), reads every media hash (`ListMediaForReprocess`,
   500 a page) up to its metadata only (`readStoredMetadata`, shared with Places: a photo up to its EXIF,

@@ -144,8 +144,8 @@ func TestProcessingGivesThePhotoItsDateTaken(t *testing.T) {
 		t.Error("On this day not told")
 	}
 
-	// A HEIC named in lower case, which processing doesn't read as one:
-	// its date is read from its boxes (an iPhone's, with its offset).
+	// A HEIC named in lower case, read as one like ".HEIC": its date is
+	// read from its EXIF (an iPhone's, with its offset).
 	heic, err := os.ReadFile("../exifinfo/testdata/gps_test.heic")
 	if err != nil {
 		t.Fatal(err)

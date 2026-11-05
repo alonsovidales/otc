@@ -218,7 +218,7 @@ func isMedia(file *pb.File) bool {
 	if neverPreviewed(file.Mime) {
 		return false
 	}
-	return strings.HasPrefix(file.Mime, "image") || strings.HasPrefix(file.Mime, "video/") || strings.HasSuffix(file.Path, ".HEIC")
+	return strings.HasPrefix(file.Mime, "image") || strings.HasPrefix(file.Mime, "video/") || isHeicFile(file.Path, file.Mime)
 }
 
 // enqueueMedia queues a just-stored upload: thumbnail first, analysis

@@ -279,3 +279,36 @@ func TestThumbnailMaxSideDefaults(t *testing.T) {
 		t.Errorf("got %d, want %d", got, cDefaultThumbnailMaxSide)
 	}
 }
+
+// testdata/rotated-landscape.heic is a 400x300 picture stored on its side,
+// with the turn to show it upright (90° clockwise) in its container - as a
+// phone held upright saves a photo (made with macOS's sips from a JPEG
+// tagged Orientation 6). Its thumbnails are upright, 300 wide and 400
+// tall, whatever case its name is in: a Samsung phone names its HEIC
+// photos ".heic", and processing used to read only ".HEIC" as one, so
+// those thumbnails came out on their side while GetFile's full size, which
+// reads either, was upright.
+func TestProcessingARotatedHEICWritesUprightThumbnails(t *testing.T) {
+	content, err := os.ReadFile("testdata/rotated-landscape.heic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, ses := galleryTestEnv(t)
+	for i, name := range []string{"/Phone/IMG_0001.HEIC", "/Phone/20261105_120000.heic"} {
+		mg, mock, _ := recordingMock(t)
+		keptOut(mg)
+		mock.MatchExpectationsInOrder(false)
+		h := testHash(string(rune('a' + i)))
+		file := storedFile(t, ses, h, name, "image/heic", content)
+		referenced(mock, h)
+		if !mg.processMedia(ses, file, blobPath(h), content, nil, stageThumbnail) {
+			t.Fatalf("%s: processing failed", name)
+		}
+		if w, hh := storedSize(t, ses, thumbnailPath(h)); w != 300 || hh != 400 {
+			t.Errorf("%s: big thumbnail %dx%d, want 300x400", name, w, hh)
+		}
+		if w, hh := storedSize(t, ses, smallThumbnailPath(h)); w*4 != hh*3 {
+			t.Errorf("%s: small thumbnail %dx%d, want it upright", name, w, hh)
+		}
+	}
+}

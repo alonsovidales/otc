@@ -1746,7 +1746,7 @@ func exifFrom(r io.ReaderAt, size, limit int64, mime, path string) (*exifinfo.In
 		return exifinfo.FromJPEGReader(io.NewSectionReader(r, 0, size))
 	case isJPEGContent(head):
 		return exifinfo.FromJPEGReader(near)
-	case isHeif(head), strings.HasSuffix(path, ".HEIC"):
+	case isHeif(head), isHeicFile(path, mime):
 		return exifinfo.FromHEICReader(near)
 	case strings.HasPrefix(mime, "image/"):
 		return exifinfo.FromJPEGReader(near)
@@ -1761,7 +1761,7 @@ func extractExif(content []byte, mime, path string) (*exifinfo.Info, error) {
 	switch {
 	case strings.HasPrefix(mime, "video/"):
 		return exifinfo.FromVideo(content)
-	case strings.HasSuffix(path, ".HEIC"):
+	case isHeicFile(path, mime):
 		return exifinfo.FromHEIC(content)
 	case strings.HasPrefix(mime, "image/"):
 		return exifinfo.FromJPEG(content)
@@ -2223,9 +2223,13 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 	}
 	// We will try to create a thumbnail of images only
 	// A ".HEIC" that is really a JPEG (some apps export one under the
-	// original's name) is decoded as the JPEG it is.
-	isHeic := strings.HasSuffix(file.Path, ".HEIC") && !isJPEGContent(content)
-	if file.Mime[:5] == "image" || strings.HasSuffix(file.Path, ".HEIC") {
+	// original's name) is decoded as the JPEG it is. A HEIC is told as
+	// GetFile tells it (isHeicFile): ".heic" in any case - a Samsung names
+	// its photos in lower case, and those were decoded without their turn,
+	// their thumbnails on their side under an upright full size - or the
+	// HEIC MIME type.
+	isHeic := isHeicFile(file.Path, file.Mime) && !isJPEGContent(content)
+	if file.Mime[:5] == "image" || isHeicFile(file.Path, file.Mime) {
 		// Issue #42: read GPS/EXIF from the *original* bytes before any
 		// HEIC->JPEG re-encode below, which (like most re-encodes) drops
 		// the EXIF segment entirely.
@@ -2242,8 +2246,8 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		}
 		// Its date taken, for its rows that are later copies (date_taken.go)
 		// - before the decode, so a photo the device can't show gets it too.
-		// A HEIF not read as one above (".heic" in lower case, an AVIF) has
-		// its EXIF read from its boxes for this alone.
+		// A HEIF not read as one above (an AVIF, a HEIF under another name)
+		// has its EXIF read from its boxes for this alone.
 		dated := exif
 		if dated == nil && !isHeic && isHeif(content) {
 			dated, _ = exifinfo.FromHEICReader(bytes.NewReader(content))
