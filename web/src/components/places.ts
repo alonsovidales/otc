@@ -6,7 +6,7 @@
 // going to Images and back keeps it all: the map comes back as it was,
 // with nothing asked again.
 //
-// Places is off unless the user turns it on in Settings
+// Places is on unless the user turns it off in Settings
 // (Settings.places_enabled: the device keeps where each photo was taken,
 // unencrypted, only while it is on; a device before Places doesn't say).
 // The device is asked once per sign-in (watchPlaces, from App); Settings'

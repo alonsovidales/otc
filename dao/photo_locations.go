@@ -238,9 +238,9 @@ func (dao *Dao) SetLocationsBackfilled() error {
 	return schemaBehind(err)
 }
 
-// PlacesEnabled is whether Places is on (settings.places_enabled, off
-// unless the user turns it on): only then does the device keep where its
-// photos were taken. ErrSchemaBehind before the release that added it,
+// PlacesEnabled is whether Places is on (settings.places_enabled, on
+// unless the user turns it off - since release 170): only then does the
+// device keep where its photos were taken. ErrSchemaBehind before the release that added it,
 // which callers read as off.
 func (dao *Dao) PlacesEnabled() (on bool, err error) {
 	err = dao.db.QueryRow("select `places_enabled` from `settings`").Scan(&on)

@@ -12,9 +12,9 @@ import (
 	"github.com/alonsovidales/otc/session"
 )
 
-// The Places switch (settings.places_enabled), off unless the user turns
-// it on: the positions are kept unencrypted, so the device keeps them only
-// while it is on. Off, nothing writes a photo_locations row, the backfill
+// The Places switch (settings.places_enabled), on unless the user turns
+// it off (since release 170): the positions are kept unencrypted, so the
+// device keeps them only while it is on. Off, nothing writes a photo_locations row, the backfill
 // doesn't run and GetPhotoPlaces answers ErrPlacesOff; turning it off
 // deletes every row before it answers, and turning it on reads them again
 // in the background.

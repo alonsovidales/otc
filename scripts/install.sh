@@ -1453,7 +1453,7 @@ SQL
 SQL
     # Release 148 (updates/148.sh): Places, the map in Images - where each
     # photo was taken, whether the one-off read of what the device held
-    # before has run, and the switch, off until the user turns it on (see
+    # before has run, and the switch, on by default since release 170 (see
     # db.sql).
     mysql "$db" <<'SQL'
     CREATE TABLE IF NOT EXISTS photo_locations (
@@ -1463,7 +1463,7 @@ SQL
       PRIMARY KEY (`hash`)
     ) ENGINE=InnoDB;
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS locations_backfilled TINYINT(1) NOT NULL DEFAULT 0;
-    ALTER TABLE settings ADD COLUMN IF NOT EXISTS places_enabled TINYINT(1) NOT NULL DEFAULT 0;
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS places_enabled TINYINT(1) NOT NULL DEFAULT 1;
 SQL
     # Release 150 (updates/150.sh): On this day - how each photo looks, what
     # the user hid from the memories, and the switch, on by default (see
@@ -1572,6 +1572,15 @@ SQL
     # the ratings stored before into it at its next start.
     mysql "$db" <<'SQL'
     CREATE TABLE IF NOT EXISTS photo_rating_sources (`group_id` VARCHAR(36) NOT NULL, `hash` VARCHAR(64) NOT NULL, `source` VARCHAR(64) NOT NULL, `stars` TINYINT NOT NULL DEFAULT 0, `comment` BLOB NULL, `link_comment` BLOB NULL, `updated` DATETIME(6) NOT NULL, PRIMARY KEY (`group_id`, `hash`, `source`), KEY (`hash`)) ENGINE=InnoDB;
+SQL
+    # Release 170 (updates/170.sh): Places on by default. A database whose
+    # column still defaults to off (148's) is turned on once, then defaults
+    # to on - the default is the mark, so a later run never turns back on a
+    # library its user turned off.
+    mysql "$db" <<'SQL'
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS places_enabled TINYINT(1) NOT NULL DEFAULT 1;
+    UPDATE settings SET places_enabled = 1 WHERE (SELECT COLUMN_DEFAULT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'settings' AND COLUMN_NAME = 'places_enabled') = '0';
+    ALTER TABLE settings ALTER COLUMN places_enabled SET DEFAULT 1;
 SQL
 }
 

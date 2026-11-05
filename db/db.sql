@@ -112,8 +112,8 @@ create table skipped_analysis
 
 -- Places, the map in Images: where each photo or video was taken, by
 -- content, from its GPS tags (degrees, WGS 84), kept as they are (not
--- encrypted) so the map opens quickly - and so only while the user has
--- turned Places on (settings.places_enabled): turning it off empties the
+-- encrypted) so the map opens quickly - and so only while Places is on
+-- (settings.places_enabled, on by default): turning it off empties the
 -- table. Written when the device processes the content (thumbnail or
 -- analysis), and once in the background for what it held before
 -- (settings.locations_backfilled), while it is on. A
@@ -388,12 +388,13 @@ create table settings
   -- (files_manager/location_backfill.go). Cleared when Places is turned
   -- off, so turning it on again reads them afresh.
   `locations_backfilled` tinyint(1) not null default 0,
-  -- Places, the map in Images: off unless the user turns it on
-  -- (SetPlacesEnabled). Only while it is on does the device keep where
-  -- each photo was taken (photo_locations, unencrypted); turning it off
-  -- deletes them. The city and country search tags (issue #42, file_tags)
-  -- don't depend on it.
-  `places_enabled` tinyint(1) not null default 0,
+  -- Places, the map in Images: on unless the user turns it off
+  -- (SetPlacesEnabled; off by default from release 148 to 169, turned on
+  -- once by updates/170.sh). Only while it is on does the device keep
+  -- where each photo was taken (photo_locations, unencrypted); turning it
+  -- off deletes them. The city and country search tags (issue #42,
+  -- file_tags) don't depend on it.
+  `places_enabled` tinyint(1) not null default 1,
   -- On this day (Memories): on unless the user turns it off
   -- (SetMemoriesEnabled). While it is on the device measures how each photo
   -- looks (photo_quality); off, it measures nothing and GetMemories answers

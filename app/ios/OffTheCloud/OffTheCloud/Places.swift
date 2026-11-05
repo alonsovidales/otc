@@ -490,7 +490,7 @@ struct PlacesCache {
 // MARK: - Whether the device has them
 
 /// Whether Places shows: the signed-in device has it (release 148) and its
-/// user turned it on (Settings.places_enabled, off by default). Asked on
+/// user has it on (Settings.places_enabled, on by default). Asked on
 /// every connection (it may have been updated, or turned on or off on
 /// another app), with the answer this phone had last standing in
 /// meanwhile, so Places doesn't come and go at each launch; Settings'

@@ -66,7 +66,7 @@ final class DeviceSettingsViewModel: ObservableObject {
     // Release 164 (issue #209): a device under 6 GB, where Image Tagging is
     // off until turned on: a note under the switch says what it costs.
     @Published var imageTaggingHeavy = false
-    // Places, the map in Images: off unless turned on - the device keeps
+    // Places, the map in Images: on unless turned off - the device keeps
     // where each photo was taken, unencrypted, only while it is on. nil: a
     // device before Places (or not answered yet), with no switch.
     @Published var placesEnabled: Bool?

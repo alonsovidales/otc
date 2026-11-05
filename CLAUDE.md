@@ -804,9 +804,13 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
 - Places, the map in Images (2026-10-29, device side; release 148's `updates/148.sh`):
   - The switch (owner, 2026-10-29: "Since we are extracting the coordinates from the Metadata and
     leaving them unencrypted, this feature should be behind a feature flag in the settings").
-    `settings.places_enabled` is off by default and on every device after the update; each user
-    turns it on for their own library (`SetPlacesEnabled` = 148, Ack; `Settings.places_enabled` 8,
-    `optional`: absent = a device before Places). `files_manager/places_switch.go`:
+    `settings.places_enabled` was off by default from release 148; the owner turned it on by default
+    on 2026-11-05 ("places should be on by default"): release 170's `updates/170.sh` turns every
+    library on once and makes the column default to on - the default is the mark, as 152's for Smart
+    search, so a library turned off after that stays off (install.sh runs the same statements,
+    `updater/release170_test.go`). Each user turns it off or on for their own library
+    (`SetPlacesEnabled` = 148, Ack; `Settings.places_enabled` 8, `optional`: absent = a device
+    before Places). `files_manager/places_switch.go`:
     - Off, nothing is kept: `storeLocation` and the backfill write only through `placesWrite`,
       which checks the switch under `placesSwitch.mu`'s read lock; `GetPhotoPlaces` answers
       `error_code "places_off"` (`ErrPlacesOff`, `dev.files.places_off`); an area holds nothing
@@ -4609,7 +4613,7 @@ the unanswered ones are asked again after 5 s, doubling to a minute, while Setti
 them whenever Settings shows and at each wake.
 **Places, the map in Images** (2026-10-29; iOS `Places.swift`; Android `Places.kt`, `PlacesModel.kt`,
 `PlacesMap.kt` - its own paragraph below; the shared texts are `app.settings.places.*` and
-`app.photos.places.*`). Only while Places is on - the user's switch, off by default, as the device keeps where each photo
+`app.photos.places.*`). Only while Places is on - the user's switch, on by default since release 170, as the device keeps where each photo
 was taken unencrypted only then (`PlacesSupport`: `GetSettings`' `places_enabled`, absent on a device
 before Places = off, asked on every connection from `OTCConnection.connected`, the last answer kept in
 defaults `placesOn` so it doesn't come and go at launch, reset at Log Out; Settings' Places section

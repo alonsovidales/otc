@@ -2081,8 +2081,9 @@ export interface Settings {
     | string
     | undefined;
   /**
-   * Places, the map in Images: off unless the user turns it on
-   * (SetPlacesEnabled), for their own library. Only while it is on does
+   * Places, the map in Images: on unless the user turns it off
+   * (SetPlacesEnabled), for their own library - off by default before
+   * release 170. Only while it is on does
    * the device keep where each photo and video was taken - read from its
    * GPS tags, kept unencrypted so the map opens quickly - and only then do
    * the apps show the map (GetPhotoPlaces answers error_code "places_off"

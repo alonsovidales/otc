@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Whether Places shows (the map in Images): the signed-in device has it
- * (release 148) and its user turned it on (Settings.places_enabled, off by
+ * (release 148) and its user has it on (Settings.places_enabled, on by
  * default - the device keeps where each photo was taken, unencrypted, only
  * while it is on). iOS's PlacesSupport, the web's places.ts. Told by the
  * device's Settings - asked once after sign-in with face recognition's

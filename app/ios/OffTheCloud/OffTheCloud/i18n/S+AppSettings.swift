@@ -507,9 +507,9 @@ extension S {
     /// Title of the screen that lists the photos on the user's device to pick the profile photo from (Settings > Profile > Change photo > From your device).
     static var appSettingsPickerTitle: String { L("app.settings.picker.title", table: "AppSettings") }
 
-    /// Show your photos and videos on a map, at the places they were taken. Off unless you turn it on. While it is on, the device reads where each one was taken from its location data and keeps those locations unencrypted, so the map opens quickly. Turning it off deletes them. The map itself comes from a map service, which sees the area you look at but never your photos.
+    /// Show your photos and videos on a map, at the places they were taken. While it is on, the device reads where each one was taken from its location data and keeps those locations unencrypted, so the map opens quickly. Turning it off deletes them. The map itself comes from a map service, which sees the area you look at but never your photos.
     ///
-    /// Explanation and consent text under the Places switch in Settings (the map of photos in Images, off unless the user turns it on). The device reads each photo's GPS location and keeps it unencrypted while it is on; turning it off deletes those locations. The map's own picture (streets, names) comes from a map service, which sees the area on screen but never the photos. Say plainly that the locations are kept unencrypted.
+    /// Explanation and consent text under the Places switch in Settings (the map of photos in Images, on unless the user turns it off). The device reads each photo's GPS location and keeps it unencrypted while it is on; turning it off deletes those locations. The map's own picture (streets, names) comes from a map service, which sees the area on screen but never the photos. Say plainly that the locations are kept unencrypted.
     static var appSettingsPlacesFooter: String { L("app.settings.places.footer", table: "AppSettings") }
 
     /// Places

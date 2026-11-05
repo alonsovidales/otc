@@ -49,7 +49,8 @@ real usage.
    - `otc-put` uploads the library made as described in `docs/demo-device/content/README.md`
      (`echo PASSWORD | otc-put -address ws://127.0.0.1:18080/ws <content>/library /`);
    - once the device has analysed it (`pending_analysis` empty), `otc-demo-setup` turns Places on
-     (the map in Images, off on every other device until its user turns it on), sets the profile,
+     (the map in Images, on by default since release 170; a demo device refuses the switch, so it
+     is set here for a demo made before), sets the profile,
      names each person after the name most of their photos list, deletes the rest (the dog,
      strangers), puts `favourites.json`'s photos in Favourites and makes the collections and
      posts (a demo set up before Favourites gets them with `-favourites-only -address … <content>`).
