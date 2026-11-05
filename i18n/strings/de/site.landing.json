@@ -1087,6 +1087,10 @@
     "text": "Menü",
     "en": "Menu"
   },
+  "site.landing.nav.printable": {
+    "text": "Zum Drucken",
+    "en": "Printable"
+  },
   "site.landing.nav.sign_in": {
     "text": "Anmelden",
     "en": "Sign in"
@@ -1126,6 +1130,50 @@
   "site.landing.phone.title": {
     "text": "Dein Feed und deine Fotos auf dem Handy",
     "en": "Your feed and your photos, on your phone"
+  },
+  "site.landing.printable.cloud.alt": {
+    "text": "Das wolkenförmige Gehäuse mit Off The Cloud und off-the.cloud auf dem Deckel, seinen Anschlüssen und seinen zwei Statuslichtern",
+    "en": "The cloud-shaped case, with Off The Cloud and off-the.cloud on its lid, its ports and its two status lights"
+  },
+  "site.landing.printable.cloud.text": {
+    "text": "Für ein Regal oder einen Schreibtisch: eine Wolke mit Off The Cloud auf dem Deckel, einem Gitter über dem Lüfter und den zwei Statuslichtern neben den USB-Anschlüssen. Die microSD-Karte und alle Anschlüsse bleiben erreichbar.",
+    "en": "For a shelf or a desk: a cloud with Off The Cloud on its lid, a grille over the fan and the two status lights beside the USB ports. The microSD card and every port stay within reach."
+  },
+  "site.landing.printable.cloud.title": {
+    "text": "Wolkengehäuse",
+    "en": "Cloud case"
+  },
+  "site.landing.printable.eyebrow": {
+    "text": "Zum Drucken",
+    "en": "Printable"
+  },
+  "site.landing.printable.files": {
+    "text": "Dateien und Anleitung",
+    "en": "Files and instructions"
+  },
+  "site.landing.printable.lead": {
+    "text": "Zwei Gehäuse zum Drucken zu Hause, für den Raspberry Pi 5 mit dem Kühler GeeekPi Armor Lite V5. Beide werden ohne Stützstrukturen gedruckt und mit M2.5-Gewindeeinsätzen zum Einschmelzen und Schrauben verschlossen, und du darfst sie frei drucken, ändern und teilen.",
+    "en": "Two cases to print at home, for the Raspberry Pi 5 with a GeeekPi Armor Lite V5 cooler. Both print without supports and close with M2.5 heat-set inserts and screws, and you are free to print, change and share them."
+  },
+  "site.landing.printable.licence": {
+    "text": "Beide stehen unter der Lizenz <cclicence>CC BY-SA 4.0</cclicence>: Nenne Off The Cloud und teile, was du daraus machst, unter derselben Lizenz.",
+    "en": "Both are under the <cclicence>CC BY-SA 4.0</cclicence> licence: credit Off The Cloud, and share what you make from them under the same licence."
+  },
+  "site.landing.printable.screen.alt": {
+    "text": "Das Bildschirmgehäuse von der Wandseite: seine zwei Schlüssellochaufhängungen und Off The Cloud auf der Rückseite",
+    "en": "The screen case seen from the wall side: its two keyholes and Off The Cloud on its back"
+  },
+  "site.landing.printable.screen.text": {
+    "text": "Für die Wand: Es wird auf die Rückseite eines tragbaren Bildschirms mit vier M2.5-Löchern in einem Quadrat von 75 x 75 mm geschraubt, und beide hängen an zwei Schrauben. Ein kurzes Kabel führt das HDMI des Pi zum Bildschirm.",
+    "en": "For the wall: it screws onto the back of a portable screen with four M2.5 holes in a 75 x 75 mm square, and hangs both on two screws. A short cable takes the Pi's HDMI to the screen."
+  },
+  "site.landing.printable.screen.title": {
+    "text": "Bildschirmgehäuse",
+    "en": "Screen case"
+  },
+  "site.landing.printable.title": {
+    "text": "Gehäuse zum Drucken für dein Gerät",
+    "en": "Cases to print for your device"
   },
   "site.landing.shots.desktop_group": {
     "text": "Computer-Apps",

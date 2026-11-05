@@ -271,11 +271,13 @@ header{
 /* The Menu: a <details> whose summary is the button, its links a panel
    under the header. On a phone "Create an account" moves into it too. */
 .nav-menu{display:none;position:relative}
-/* The links and buttons need ~1006px side by side in English and up to
-   ~1110px in the other languages (Spanish); below that they would wrap
-   under the buttons, so the links move into the Menu beside them. */
-@media (max-width:1005px){ .navlinks{display:none} .nav-menu{display:block} }
-@media (max-width:1119px){ html:not([lang="en"]) .navlinks{display:none} html:not([lang="en"]) .nav-menu{display:block} }
+/* The logo, the links and the buttons need 1147px side by side in English
+   and up to 1267px in the other languages (Spanish; measured in Chrome with
+   the fonts loaded, 2026-11-05), plus room for a scrollbar that takes its
+   width from the page (Windows); below that a link would break onto two
+   lines, so the links move into the Menu beside the buttons. */
+@media (max-width:1179px){ .navlinks{display:none} .nav-menu{display:block} }
+@media (max-width:1299px){ html:not([lang="en"]) .navlinks{display:none} html:not([lang="en"]) .nav-menu{display:block} }
 .nav-menu summary{list-style:none;cursor:pointer;width:44px;height:44px;display:grid;place-items:center;
   border:1px solid var(--line);border-radius:12px;color:var(--mist)}
 .nav-menu summary::-webkit-details-marker{display:none}

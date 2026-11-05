@@ -10,9 +10,10 @@ Off The Cloud
 @a.href=/#download
 @a.href=/#what
 @a.href=/#screenshots
+@a.href=/#printable
 @a.href=/#faq
 @a.href=https://github.com/alonsovidales/otc
-Get started Download What it is Gallery FAQ GitHub
+Get started Download What it is Gallery Printable FAQ GitHub
 @a.href=/account
 @a.href=/account?signup=1
 Sign in Create an account
@@ -21,10 +22,11 @@ Menu
 @a.href=/#download
 @a.href=/#what
 @a.href=/#screenshots
+@a.href=/#printable
 @a.href=/#faq
 @a.href=https://github.com/alonsovidales/otc
 @a.href=/account?signup=1
-Get started Download What it is Gallery FAQ GitHub Create an account
+Get started Download What it is Gallery Printable FAQ GitHub Create an account
 A Raspberry Pi 5 home server for your family
 Off The Cloud is free, open-source software that turns a Raspberry Pi 5 and two USB drives into your family's home server: a private social network for your family and friends, a backup of everyone's photos and videos, and a NAS for your files. The computer app prepares its card, your phone or Mac finishes the setup in about 20 minutes, and each drive keeps a full copy of everything.
 @a.href=https://demo.off-the.cloud/

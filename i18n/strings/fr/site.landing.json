@@ -1087,6 +1087,10 @@
     "text": "Menu",
     "en": "Menu"
   },
+  "site.landing.nav.printable": {
+    "text": "À imprimer",
+    "en": "Printable"
+  },
   "site.landing.nav.sign_in": {
     "text": "Se connecter",
     "en": "Sign in"
@@ -1126,6 +1130,50 @@
   "site.landing.phone.title": {
     "text": "Votre fil et vos photos, sur votre téléphone",
     "en": "Your feed and your photos, on your phone"
+  },
+  "site.landing.printable.cloud.alt": {
+    "text": "Le boîtier en forme de nuage, avec Off The Cloud et off-the.cloud sur le couvercle, ses ports et ses deux voyants d’état",
+    "en": "The cloud-shaped case, with Off The Cloud and off-the.cloud on its lid, its ports and its two status lights"
+  },
+  "site.landing.printable.cloud.text": {
+    "text": "Pour une étagère ou un bureau : un nuage avec Off The Cloud sur le couvercle, une grille au-dessus du ventilateur et les deux voyants d’état à côté des ports USB. La carte microSD et tous les ports restent à portée de main.",
+    "en": "For a shelf or a desk: a cloud with Off The Cloud on its lid, a grille over the fan and the two status lights beside the USB ports. The microSD card and every port stay within reach."
+  },
+  "site.landing.printable.cloud.title": {
+    "text": "Boîtier nuage",
+    "en": "Cloud case"
+  },
+  "site.landing.printable.eyebrow": {
+    "text": "À imprimer",
+    "en": "Printable"
+  },
+  "site.landing.printable.files": {
+    "text": "Fichiers et instructions",
+    "en": "Files and instructions"
+  },
+  "site.landing.printable.lead": {
+    "text": "Deux boîtiers à imprimer chez vous, pour le Raspberry Pi 5 avec le dissipateur GeeekPi Armor Lite V5. Les deux s’impriment sans supports et se ferment avec des inserts thermiques et des vis M2.5, et vous êtes libre de les imprimer, de les modifier et de les partager.",
+    "en": "Two cases to print at home, for the Raspberry Pi 5 with a GeeekPi Armor Lite V5 cooler. Both print without supports and close with M2.5 heat-set inserts and screws, and you are free to print, change and share them."
+  },
+  "site.landing.printable.licence": {
+    "text": "Les deux sont sous licence <cclicence>CC BY-SA 4.0</cclicence> : citez Off The Cloud et partagez ce que vous en faites sous la même licence.",
+    "en": "Both are under the <cclicence>CC BY-SA 4.0</cclicence> licence: credit Off The Cloud, and share what you make from them under the same licence."
+  },
+  "site.landing.printable.screen.alt": {
+    "text": "Le boîtier écran vu du côté du mur : ses deux trous d’accrochage en trou de serrure et Off The Cloud au dos",
+    "en": "The screen case seen from the wall side: its two keyholes and Off The Cloud on its back"
+  },
+  "site.landing.printable.screen.text": {
+    "text": "Pour le mur : il se visse au dos d’un écran portable doté de quatre trous M2.5 formant un carré de 75 x 75 mm, et les deux s’accrochent à deux vis. Un câble court relie la sortie HDMI du Pi à l’écran.",
+    "en": "For the wall: it screws onto the back of a portable screen with four M2.5 holes in a 75 x 75 mm square, and hangs both on two screws. A short cable takes the Pi's HDMI to the screen."
+  },
+  "site.landing.printable.screen.title": {
+    "text": "Boîtier écran",
+    "en": "Screen case"
+  },
+  "site.landing.printable.title": {
+    "text": "Des boîtiers à imprimer pour votre appareil",
+    "en": "Cases to print for your device"
   },
   "site.landing.shots.desktop_group": {
     "text": "Apps pour ordinateur",

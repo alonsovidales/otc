@@ -1286,6 +1286,11 @@
     "note": "Website top bar: the name of the button that opens the site's links on narrower screens, where they don't fit in the bar. The button shows three lines; screen readers read this name.",
     "max": 18
   },
+  "site.landing.nav.printable": {
+    "text": "Printable",
+    "note": "Website landing page: link in the top bar that jumps to the section with the cases to make for the device with a 3D printer. On narrower screens it is in the Menu (site.landing.nav.menu). Keep it short.",
+    "max": 18
+  },
   "site.landing.nav.sign_in": {
     "text": "Sign in",
     "note": "Website landing page: button in the top bar that opens the account page to sign in to an off-the.cloud account. Also shown on phones, where space is tight.",
@@ -1331,6 +1336,56 @@
   "site.landing.phone.title": {
     "text": "Your feed and your photos, on your phone",
     "note": "Website landing page: heading of the section with the iPhone and Android apps.",
+    "max": 50
+  },
+  "site.landing.printable.cloud.alt": {
+    "text": "The cloud-shaped case, with Off The Cloud and off-the.cloud on its lid, its ports and its two status lights",
+    "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): description of the picture of the cloud case, for screen readers. Keep off-the.cloud as it is."
+  },
+  "site.landing.printable.cloud.text": {
+    "text": "For a shelf or a desk: a cloud with Off The Cloud on its lid, a grille over the fan and the two status lights beside the USB ports. The microSD card and every port stay within reach.",
+    "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): what the cloud case is. The status lights: the device's two small LEDs, one per mirrored drive (the same words as the FAQ's question about them)."
+  },
+  "site.landing.printable.cloud.title": {
+    "text": "Cloud case",
+    "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): the name of the first case, a case shaped like a cloud.",
+    "max": 30
+  },
+  "site.landing.printable.eyebrow": {
+    "text": "Printable",
+    "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): small label above the heading (shown in capitals). The same word as the top bar's link to it (site.landing.nav.printable).",
+    "max": 30
+  },
+  "site.landing.printable.files": {
+    "text": "Files and instructions",
+    "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): button under each case that opens its folder on GitHub: the files to print and how to put it together.",
+    "max": 30
+  },
+  "site.landing.printable.lead": {
+    "text": "Two cases to print at home, for the Raspberry Pi 5 with a GeeekPi Armor Lite V5 cooler. Both print without supports and close with M2.5 heat-set inserts and screws, and you are free to print, change and share them.",
+    "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): the sentences under the heading. GeeekPi Armor Lite V5 is a product name (a heatsink with a fan): keep it. Supports: the extra plastic a 3D printer adds under overhangs. Heat-set inserts: small brass threaded inserts pressed into the plastic with a soldering iron; M2.5 is the screw size: keep it."
+  },
+  "site.landing.printable.licence": {
+    "text": "Both are under the <cclicence>CC BY-SA 4.0</cclicence> licence: credit Off The Cloud, and share what you make from them under the same licence.",
+    "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): the line under the two cases. CC BY-SA 4.0 is the licence's name: keep it; the link opens it. Credit: say that the design comes from Off The Cloud.",
+    "rich": ["cclicence"]
+  },
+  "site.landing.printable.screen.alt": {
+    "text": "The screen case seen from the wall side: its two keyholes and Off The Cloud on its back",
+    "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): description of the picture of the screen case, for screen readers. Keyholes: keyhole-shaped slots a screw head goes into, to hang something on a wall."
+  },
+  "site.landing.printable.screen.text": {
+    "text": "For the wall: it screws onto the back of a portable screen with four M2.5 holes in a 75 x 75 mm square, and hangs both on two screws. A short cable takes the Pi's HDMI to the screen.",
+    "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): what the screen case is: it is screwed to a small portable monitor's four mounting holes, and the case with the monitor on it hangs on two screws in the wall. M2.5, 75 x 75 mm and HDMI: keep them."
+  },
+  "site.landing.printable.screen.title": {
+    "text": "Screen case",
+    "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): the name of the second case, which goes on the back of a portable screen.",
+    "max": 30
+  },
+  "site.landing.printable.title": {
+    "text": "Cases to print for your device",
+    "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): heading. To print: with a 3D printer. The device: the Raspberry Pi 5 running Off The Cloud.",
     "max": 50
   },
   "site.landing.shots.desktop_group": {

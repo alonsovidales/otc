@@ -3051,8 +3051,9 @@ English, rendered and read back into Markdown (its `<main>`; no pictures, script
 once per origin. Every FAQ question is a `<details id="faq-<key>">` (`faqID`:
 `site.landing.faq.social_how.q` is `#faq-social-how`) that common.html's `faq-script` opens when
 the address names it. The header links the account page in the page's language (`.Account`, and
-`localHref` for the texts' `account`/`signup` tags); below the width its links need (1006 px in
-English, 1120 px otherwise) they move into a Menu, a `<details>` with no script, and on a phone
+`localHref` for the texts' `account`/`signup` tags); below the width its links need (1180 px in
+English, 1300 px otherwise: measured in Chrome with the fonts loaded, plus a scrollbar's room -
+measure again when a link is added or renamed) they move into a Menu, a `<details>` with no script, and on a phone
 (480 px) "Create an account" too. It stays at the top of the whole page (a `body` only as tall as
 the window let it go after the first screen), and `scroll-padding-top` keeps a `#section` below
 it. `site.css` carries `bridge/static/fonts/fonts.css`'s `@font-face` rules word for word
@@ -3093,7 +3094,12 @@ behind it inert and keeps Tab on its buttons; the JSON-LD's screenshots are full
 (`TestStructuredData`, `TestLandingPictures`). No picture shows a real person (the AI sample
 library of `docs/promo/source/library`, animals, or nothing). A picture that replaces another
 keeps its file name, because the deploy copies over `/var/www` and never deletes, so the old file
-is overwritten. It, and its thumbnails made again, also get a new `?v=` in the page.
+is overwritten. It, and its thumbnails made again, also get a new `?v=` in the page. The
+Printable section (`#printable`, after the gallery; the header's "Printable") shows the two cases
+of `hardware/` (Cases to print, below) - a render each, `img/case-{cloud,screen}-{600,1200}.webp`
+(OpenSCAD's Tomorrow Night scheme with its background swapped for `--ink-2` by ffmpeg's colorkey,
+the commands in the page's comment), what it is, a "Files and instructions" button to its folder
+on GitHub, and the CC BY-SA 4.0 line (tag `cclicence`); its claims are the cases' READMEs'.
 
 Web invariants: never call `URL.createObjectURL` during render. PhotoGallery and NewPostPicker use
 `useObjectURLs(items, make)` (`make` module-level and stable); other URLs are made in a memo or

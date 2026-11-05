@@ -447,6 +447,9 @@ var tags = map[string]span{
 	"imager":   {El: "a", Href: "https://www.raspberrypi.com/software/"},
 	"winarm":   {El: "a", Href: releases + "desktop/otc-sync-windows-arm64.exe", Download: true},
 	"linuxarm": {El: "a", Href: releases + "desktop/otc-sync-linux-arm64", Download: true},
+	// The printable cases' licence (hardware/LICENSE.md), the landing
+	// page's Printable section.
+	"cclicence": {El: "a", Href: "https://creativecommons.org/licenses/by-sa/4.0/"},
 }
 
 // localHref is a tag's link on a page in code: the account page's English

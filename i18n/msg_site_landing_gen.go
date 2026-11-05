@@ -1304,6 +1304,11 @@ func SiteLandingNavMenu() Msg {
 	return Msg{Key: "site.landing.nav.menu"}
 }
 
+// SiteLandingNavPrintable is site.landing.nav.printable: "Printable".
+func SiteLandingNavPrintable() Msg {
+	return Msg{Key: "site.landing.nav.printable"}
+}
+
 // SiteLandingNavSignIn is site.landing.nav.sign_in: "Sign in".
 func SiteLandingNavSignIn() Msg {
 	return Msg{Key: "site.landing.nav.sign_in"}
@@ -1352,6 +1357,61 @@ func SiteLandingPhoneLead() Msg {
 // SiteLandingPhoneTitle is site.landing.phone.title: "Your feed and your photos, on your phone".
 func SiteLandingPhoneTitle() Msg {
 	return Msg{Key: "site.landing.phone.title"}
+}
+
+// SiteLandingPrintableCloudAlt is site.landing.printable.cloud.alt: "The cloud-shaped case, with Off The Cloud and off-the.cloud on its lid, its port…".
+func SiteLandingPrintableCloudAlt() Msg {
+	return Msg{Key: "site.landing.printable.cloud.alt"}
+}
+
+// SiteLandingPrintableCloudText is site.landing.printable.cloud.text: "For a shelf or a desk: a cloud with Off The Cloud on its lid, a grille over the …".
+func SiteLandingPrintableCloudText() Msg {
+	return Msg{Key: "site.landing.printable.cloud.text"}
+}
+
+// SiteLandingPrintableCloudTitle is site.landing.printable.cloud.title: "Cloud case".
+func SiteLandingPrintableCloudTitle() Msg {
+	return Msg{Key: "site.landing.printable.cloud.title"}
+}
+
+// SiteLandingPrintableEyebrow is site.landing.printable.eyebrow: "Printable".
+func SiteLandingPrintableEyebrow() Msg {
+	return Msg{Key: "site.landing.printable.eyebrow"}
+}
+
+// SiteLandingPrintableFiles is site.landing.printable.files: "Files and instructions".
+func SiteLandingPrintableFiles() Msg {
+	return Msg{Key: "site.landing.printable.files"}
+}
+
+// SiteLandingPrintableLead is site.landing.printable.lead: "Two cases to print at home, for the Raspberry Pi 5 with a GeeekPi Armor Lite V5 …".
+func SiteLandingPrintableLead() Msg {
+	return Msg{Key: "site.landing.printable.lead"}
+}
+
+// SiteLandingPrintableLicence is site.landing.printable.licence: "Both are under the <cclicence>CC BY-SA 4.0</cclicence> licence: credit Off The C…".
+func SiteLandingPrintableLicence() Rich {
+	return Rich{Key: "site.landing.printable.licence"}
+}
+
+// SiteLandingPrintableScreenAlt is site.landing.printable.screen.alt: "The screen case seen from the wall side: its two keyholes and Off The Cloud on i…".
+func SiteLandingPrintableScreenAlt() Msg {
+	return Msg{Key: "site.landing.printable.screen.alt"}
+}
+
+// SiteLandingPrintableScreenText is site.landing.printable.screen.text: "For the wall: it screws onto the back of a portable screen with four M2.5 holes …".
+func SiteLandingPrintableScreenText() Msg {
+	return Msg{Key: "site.landing.printable.screen.text"}
+}
+
+// SiteLandingPrintableScreenTitle is site.landing.printable.screen.title: "Screen case".
+func SiteLandingPrintableScreenTitle() Msg {
+	return Msg{Key: "site.landing.printable.screen.title"}
+}
+
+// SiteLandingPrintableTitle is site.landing.printable.title: "Cases to print for your device".
+func SiteLandingPrintableTitle() Msg {
+	return Msg{Key: "site.landing.printable.title"}
 }
 
 // SiteLandingShotsDesktopGroup is site.landing.shots.desktop_group: "Computer apps".

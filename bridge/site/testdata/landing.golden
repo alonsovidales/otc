@@ -10,9 +10,10 @@ Off The Cloud
 @a.href=#download
 @a.href=#what
 @a.href=#screenshots
+@a.href=#printable
 @a.href=#faq
 @a.href=https://github.com/alonsovidales/otc
-Get started Download What it is Gallery FAQ GitHub
+Get started Download What it is Gallery Printable FAQ GitHub
 @a.href=/account
 @a.href=/account?signup=1
 Sign in Create an account
@@ -21,10 +22,11 @@ Menu
 @a.href=#download
 @a.href=#what
 @a.href=#screenshots
+@a.href=#printable
 @a.href=#faq
 @a.href=https://github.com/alonsovidales/otc
 @a.href=/account?signup=1
-Get started Download What it is Gallery FAQ GitHub Create an account
+Get started Download What it is Gallery Printable FAQ GitHub Create an account
 🔓 100% open source · social network, photos and files on your own device
 A private social network your family owns.Off the cloud, at home.
 @img.src=/img/hero-1600.jpg
@@ -243,6 +245,23 @@ Web app
 @img.alt=Storage in the web app: how much space each folder takes
 @img.src=/img/web-6-450.webp?v=1
 @img.alt=Social in the web app
+Printable
+Cases to print for your device
+Two cases to print at home, for the Raspberry Pi 5 with a GeeekPi Armor Lite V5 cooler. Both print without supports and close with M2.5 heat-set inserts and screws, and you are free to print, change and share them.
+@img.src=/img/case-cloud-600.webp?v=1
+@img.alt=The cloud-shaped case, with Off The Cloud and off-the.cloud on its lid, its ports and its two status lights
+Cloud case
+For a shelf or a desk: a cloud with Off The Cloud on its lid, a grille over the fan and the two status lights beside the USB ports. The microSD card and every port stay within reach.
+@a.href=https://github.com/alonsovidales/otc/tree/main/hardware/cloud-case
+Files and instructions
+@img.src=/img/case-screen-600.webp?v=1
+@img.alt=The screen case seen from the wall side: its two keyholes and Off The Cloud on its back
+Screen case
+For the wall: it screws onto the back of a portable screen with four M2.5 holes in a 75 x 75 mm square, and hangs both on two screws. A short cable takes the Pi's HDMI to the screen.
+@a.href=https://github.com/alonsovidales/otc/tree/main/hardware/screen-case
+Files and instructions
+@a.href=https://creativecommons.org/licenses/by-sa/4.0/
+Both are under the CC BY-SA 4.0 licence: credit Off The Cloud, and share what you make from them under the same licence.
 FAQ
 Questions people actually ask
 How does the private social network work?

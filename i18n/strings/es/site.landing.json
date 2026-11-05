@@ -1087,6 +1087,10 @@
     "text": "Menú",
     "en": "Menu"
   },
+  "site.landing.nav.printable": {
+    "text": "Imprimibles",
+    "en": "Printable"
+  },
   "site.landing.nav.sign_in": {
     "text": "Iniciar sesión",
     "en": "Sign in"
@@ -1126,6 +1130,50 @@
   "site.landing.phone.title": {
     "text": "Tu feed y tus fotos, en tu teléfono",
     "en": "Your feed and your photos, on your phone"
+  },
+  "site.landing.printable.cloud.alt": {
+    "text": "La carcasa con forma de nube, con Off The Cloud y off-the.cloud en la tapa, sus puertos y sus dos luces de estado",
+    "en": "The cloud-shaped case, with Off The Cloud and off-the.cloud on its lid, its ports and its two status lights"
+  },
+  "site.landing.printable.cloud.text": {
+    "text": "Para una estantería o un escritorio: una nube con Off The Cloud en la tapa, una rejilla sobre el ventilador y las dos luces de estado junto a los puertos USB. La tarjeta microSD y todos los puertos quedan a mano.",
+    "en": "For a shelf or a desk: a cloud with Off The Cloud on its lid, a grille over the fan and the two status lights beside the USB ports. The microSD card and every port stay within reach."
+  },
+  "site.landing.printable.cloud.title": {
+    "text": "Carcasa nube",
+    "en": "Cloud case"
+  },
+  "site.landing.printable.eyebrow": {
+    "text": "Imprimibles",
+    "en": "Printable"
+  },
+  "site.landing.printable.files": {
+    "text": "Archivos e instrucciones",
+    "en": "Files and instructions"
+  },
+  "site.landing.printable.lead": {
+    "text": "Dos carcasas para imprimir en casa, para la Raspberry Pi 5 con el disipador GeeekPi Armor Lite V5. Las dos se imprimen sin soportes y se cierran con insertos térmicos y tornillos M2.5, y puedes imprimirlas, modificarlas y compartirlas libremente.",
+    "en": "Two cases to print at home, for the Raspberry Pi 5 with a GeeekPi Armor Lite V5 cooler. Both print without supports and close with M2.5 heat-set inserts and screws, and you are free to print, change and share them."
+  },
+  "site.landing.printable.licence": {
+    "text": "Las dos tienen la licencia <cclicence>CC BY-SA 4.0</cclicence>: cita a Off The Cloud y comparte lo que hagas a partir de ellas con la misma licencia.",
+    "en": "Both are under the <cclicence>CC BY-SA 4.0</cclicence> licence: credit Off The Cloud, and share what you make from them under the same licence."
+  },
+  "site.landing.printable.screen.alt": {
+    "text": "La carcasa de pantalla vista desde el lado de la pared: sus dos ranuras para colgar y Off The Cloud en la parte trasera",
+    "en": "The screen case seen from the wall side: its two keyholes and Off The Cloud on its back"
+  },
+  "site.landing.printable.screen.text": {
+    "text": "Para la pared: se atornilla a la parte trasera de una pantalla portátil con cuatro agujeros M2.5 en un cuadrado de 75 x 75 mm, y las dos se cuelgan de dos tornillos. Un cable corto lleva el HDMI de la Pi a la pantalla.",
+    "en": "For the wall: it screws onto the back of a portable screen with four M2.5 holes in a 75 x 75 mm square, and hangs both on two screws. A short cable takes the Pi's HDMI to the screen."
+  },
+  "site.landing.printable.screen.title": {
+    "text": "Carcasa de pantalla",
+    "en": "Screen case"
+  },
+  "site.landing.printable.title": {
+    "text": "Carcasas imprimibles para tu dispositivo",
+    "en": "Cases to print for your device"
   },
   "site.landing.shots.desktop_group": {
     "text": "Apps para ordenador",

@@ -81,6 +81,19 @@
     .proof-home-text p{margin:0 0 6px;color:var(--mist-dim);font-size:17px}
     @media (max-width:979px){ .proof-home{grid-template-columns:minmax(0,1fr)} }
 
+    /* Printable: the two cases side by side, each its render over its text,
+       the buttons on one line; one under the other below 820px. The renders'
+       background is --ink-2, so the picture runs to the card's edges. */
+    .print-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;max-width:1120px;margin:0 auto}
+    @media (max-width:819px){ .print-grid{grid-template-columns:minmax(0,1fr);max-width:600px} }
+    .print-card{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+    .print-card img{width:100%;height:auto;background:var(--ink-2);border-bottom:1px solid var(--line)}
+    .print-text{display:flex;flex-direction:column;gap:10px;flex:1;padding:20px 22px 22px}
+    .print-text h3{margin:0;font-size:19px}
+    .print-text p{margin:0 0 6px;color:var(--mist-dim);font-size:16px;line-height:1.55}
+    .print-text .btn{margin-top:auto;width:fit-content}
+    .print-licence{max-width:1120px;margin:20px auto 0;text-align:center;color:var(--mist-dim);font-size:15.5px}
+
     /* Screenshots */
     .shot-group{margin-bottom:40px}
     .shot-group:last-child{margin-bottom:0}
@@ -532,6 +545,40 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             <div class="shot wide"><img src="/img/web-6-450.webp?v=1" srcset="/img/web-6-450.webp?v=1 450w, /img/web-6-900.webp?v=1 900w" sizes="(max-width: 781px) calc(100vw - 48px), (max-width: 1155px) calc(50vw - 31px), (max-width: 1359px) calc(33.3vw - 25px), 428px" width="450" height="290" data-full="/img/web-6.jpg" alt="{{t "site.landing.shots.web_social_alt"}}" loading="lazy" decoding="async"></div>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- The cases to print (hardware/ in the repository). Their pictures are
+         OpenSCAD renders on the page's --ink-2 (the source's own camera, the
+         Tomorrow Night colour scheme with its background swapped by ffmpeg's
+         colorkey, cropped to 4:3 around the case, then cwebp -q 80 -m 6 -sharp_yuv at
+         600 and 1200 wide). -->
+    <section id="printable">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">{{t "site.landing.printable.eyebrow"}}</span>
+          <h2>{{t "site.landing.printable.title"}}</h2>
+          <p>{{t "site.landing.printable.lead"}}</p>
+        </div>
+        <div class="print-grid">
+          <article class="print-card">
+            <img src="/img/case-cloud-600.webp?v=1" srcset="/img/case-cloud-600.webp?v=1 600w, /img/case-cloud-1200.webp?v=1 1200w" sizes="(max-width: 819px) min(calc(100vw - 48px), 600px), (max-width: 1167px) calc(50vw - 34px), 550px" width="600" height="450" alt="{{t "site.landing.printable.cloud.alt"}}" loading="lazy" decoding="async">
+            <div class="print-text">
+              <h3 id="print-cloud">{{t "site.landing.printable.cloud.title"}}</h3>
+              <p>{{t "site.landing.printable.cloud.text"}}</p>
+              <a class="btn secondary" href="https://github.com/alonsovidales/otc/tree/main/hardware/cloud-case" aria-describedby="print-cloud">{{t "site.landing.printable.files"}}</a>
+            </div>
+          </article>
+          <article class="print-card">
+            <img src="/img/case-screen-600.webp?v=1" srcset="/img/case-screen-600.webp?v=1 600w, /img/case-screen-1200.webp?v=1 1200w" sizes="(max-width: 819px) min(calc(100vw - 48px), 600px), (max-width: 1167px) calc(50vw - 34px), 550px" width="600" height="450" alt="{{t "site.landing.printable.screen.alt"}}" loading="lazy" decoding="async">
+            <div class="print-text">
+              <h3 id="print-screen">{{t "site.landing.printable.screen.title"}}</h3>
+              <p>{{t "site.landing.printable.screen.text"}}</p>
+              <a class="btn secondary" href="https://github.com/alonsovidales/otc/tree/main/hardware/screen-case" aria-describedby="print-screen">{{t "site.landing.printable.files"}}</a>
+            </div>
+          </article>
+        </div>
+        <p class="print-licence">{{template "spans" (rich "site.landing.printable.licence")}}</p>
       </div>
     </section>
 

@@ -10,9 +10,10 @@ Off The Cloud
 @a.href=/#download
 @a.href=/#what
 @a.href=/#screenshots
+@a.href=/#printable
 @a.href=/#faq
 @a.href=https://github.com/alonsovidales/otc
-Get started Download What it is Gallery FAQ GitHub
+Get started Download What it is Gallery Printable FAQ GitHub
 @a.href=/account
 @a.href=/account?signup=1
 Sign in Create an account
@@ -21,10 +22,11 @@ Menu
 @a.href=/#download
 @a.href=/#what
 @a.href=/#screenshots
+@a.href=/#printable
 @a.href=/#faq
 @a.href=https://github.com/alonsovidales/otc
 @a.href=/account?signup=1
-Get started Download What it is Gallery FAQ GitHub Create an account
+Get started Download What it is Gallery Printable FAQ GitHub Create an account
 A private social network for your family, on a device you own
 Off The Cloud is free, open-source software that gives your family a social network of its own. You post photos and videos, comment and like, and only the friends you accept see them. Each family keeps its posts on its own small device at home, a Raspberry Pi 5, and friends' devices share them with each other, so no company holds your photos, shows you ads or decides what you see. The same device backs up your phones and keeps your files.
 @a.href=https://demo.off-the.cloud/

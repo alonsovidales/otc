@@ -10,9 +10,10 @@ Off The Cloud
 @a.href=/#download
 @a.href=/#what
 @a.href=/#screenshots
+@a.href=/#printable
 @a.href=/#faq
 @a.href=https://github.com/alonsovidales/otc
-Get started Download What it is Gallery FAQ GitHub
+Get started Download What it is Gallery Printable FAQ GitHub
 @a.href=/account
 @a.href=/account?signup=1
 Sign in Create an account
@@ -21,10 +22,11 @@ Menu
 @a.href=/#download
 @a.href=/#what
 @a.href=/#screenshots
+@a.href=/#printable
 @a.href=/#faq
 @a.href=https://github.com/alonsovidales/otc
 @a.href=/account?signup=1
-Get started Download What it is Gallery FAQ GitHub Create an account
+Get started Download What it is Gallery Printable FAQ GitHub Create an account
 Client proofing for photographers, from your own device
 Share a shoot with your client as a gallery link. They open it on any phone or computer, give stars to the photos they like and leave a note wherever they'd like a change. You get an alert, open the collection and see their picks, best first. The photos stay on your own Off The Cloud device, and the link expires by itself.
 @a.href=/#install

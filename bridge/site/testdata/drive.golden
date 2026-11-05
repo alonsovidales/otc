@@ -10,9 +10,10 @@ Off The Cloud
 @a.href=/#download
 @a.href=/#what
 @a.href=/#screenshots
+@a.href=/#printable
 @a.href=/#faq
 @a.href=https://github.com/alonsovidales/otc
-Get started Download What it is Gallery FAQ GitHub
+Get started Download What it is Gallery Printable FAQ GitHub
 @a.href=/account
 @a.href=/account?signup=1
 Sign in Create an account
@@ -21,10 +22,11 @@ Menu
 @a.href=/#download
 @a.href=/#what
 @a.href=/#screenshots
+@a.href=/#printable
 @a.href=/#faq
 @a.href=https://github.com/alonsovidales/otc
 @a.href=/account?signup=1
-Get started Download What it is Gallery FAQ GitHub Create an account
+Get started Download What it is Gallery Printable FAQ GitHub Create an account
 A home NAS instead of Google Drive or Dropbox
 Off The Cloud is free, open-source software that turns a Raspberry Pi 5 with two USB drives into your family's own file storage: a NAS that keeps folders on your computers in sync, backs up your phones and shares files with a link, with no storage plan to pay for every month. The same device is your family's private social network and photo library.
 @a.href=https://demo.off-the.cloud/

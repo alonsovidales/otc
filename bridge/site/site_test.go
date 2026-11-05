@@ -832,7 +832,7 @@ func TestHeaderMenu(t *testing.T) {
 		}
 		bar, _ := links("navlinks")
 		menu, label := links("nav-menu")
-		if len(bar) != 6 || !slices.Equal(menu, append(slices.Clone(bar), AccountPath(l.Code)+"?signup=1")) {
+		if len(bar) != 7 ||!slices.Equal(menu, append(slices.Clone(bar), AccountPath(l.Code)+"?signup=1")) {
 			t.Errorf("%s: the bar links %v, the Menu %v", l.Code, bar, menu)
 		}
 		if label != i18n.T(l.Code, "site.landing.nav.menu", nil) {
