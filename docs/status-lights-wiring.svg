@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -8 344 456" width="440" role="img" aria-labelledby="t d">
+  <!-- The status-light wiring, as the website's FAQ draws it
+       (bridge/site/pages/landing.html, #faq-lights), in English and with its
+       own background so it reads on a light or a dark page. The pins are
+       raid_watch.py's CONFIG["leds"]. -->
+  <title id="t">Wiring the two status lights to the Raspberry Pi 5</title>
+  <desc id="d">Pins 1 to 16 of the Raspberry Pi 5's 40-pin header, with pin 1 (3.3 volts, square) at the top and pins 17 to 40 continuing towards the USB ports. Light 1: pin 11 (GPIO17) through a 330 ohm resistor to the long leg of the red LED, and pin 13 (GPIO27) through a 330 ohm resistor to the long leg of the green LED; both short legs go to pin 9 (ground). Light 2: pin 15 (GPIO22) through a 330 ohm resistor to the red LED, and pin 16 (GPIO23) through a 330 ohm resistor to the green LED; both short legs go to pin 14 (ground).</desc>
+  <style>
+    text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+    .bg{fill:#0b1815}
+    .hdr{fill:#eaf2ef;fill-opacity:.04;stroke:#b9c9c4;stroke-opacity:.4}
+    .more{fill:none;stroke:#b9c9c4;stroke-opacity:.4;stroke-dasharray:4 4}
+    .pin{fill:none;stroke:#b9c9c4;stroke-opacity:.55;stroke-width:1.5}
+    .pin-n{fill:#b9c9c4;font-size:10px;font-weight:700;text-anchor:middle}
+    .pin.r{fill:#ff6b4a;stroke:none}
+    .pin.g{fill:#5fd39a;stroke:none}
+    .pin.k{fill:#b9c9c4;stroke:none;stroke-opacity:1}
+    .pin-n.on{fill:#10231f}
+    .w{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+    .wr{stroke:#ff6b4a}
+    .wg{stroke:#5fd39a}
+    .wk{stroke:#b9c9c4}
+    .res{fill:#10231f;stroke:#eaf2ef;stroke-width:1.5}
+    .led-r{fill:#ff6b4a}
+    .led-g{fill:#5fd39a}
+    .tri{fill:#10231f}
+    .lbl{fill:#eaf2ef;font-size:12px}
+    .lbl.dim{fill:#b9c9c4}
+    .lbl.end{text-anchor:end}
+    .lbl.mid{text-anchor:middle}
+    .ttl{fill:#eaf2ef;font-size:12.5px;font-weight:700}
+    .pm{fill:#eaf2ef;font-size:12px;font-weight:700;text-anchor:middle}
+  </style>
+  <rect class="bg" x="-12" y="-8" width="344" height="456" rx="12"/>
+  <text class="ttl" x="180" y="22" text-anchor="middle">Raspberry Pi 5 pin header</text>
+  <rect class="hdr" x="150" y="34" width="60" height="228" rx="6"/>
+  <rect class="more" x="150" y="268" width="60" height="20" rx="6"/>
+  <text class="lbl dim mid" x="180" y="308">Pins 17–40 continue</text>
+  <text class="lbl dim mid" x="180" y="323">towards the USB ports</text>
+  <!-- Header pins: odd numbers on the left, pin 1 square. -->
+  <rect class="pin" x="156" y="40" width="20" height="20" rx="2"/><text class="pin-n" x="166" y="53.5">1</text>
+  <circle class="pin" cx="194" cy="50" r="10"/><text class="pin-n" x="194" y="53.5">2</text>
+  <circle class="pin" cx="166" cy="78" r="10"/><text class="pin-n" x="166" y="81.5">3</text>
+  <circle class="pin" cx="194" cy="78" r="10"/><text class="pin-n" x="194" y="81.5">4</text>
+  <circle class="pin" cx="166" cy="106" r="10"/><text class="pin-n" x="166" y="109.5">5</text>
+  <circle class="pin" cx="194" cy="106" r="10"/><text class="pin-n" x="194" y="109.5">6</text>
+  <circle class="pin" cx="166" cy="134" r="10"/><text class="pin-n" x="166" y="137.5">7</text>
+  <circle class="pin" cx="194" cy="134" r="10"/><text class="pin-n" x="194" y="137.5">8</text>
+  <circle class="pin k" cx="166" cy="162" r="10"/><text class="pin-n on" x="166" y="165.5">9</text>
+  <circle class="pin" cx="194" cy="162" r="10"/><text class="pin-n" x="194" y="165.5">10</text>
+  <circle class="pin r" cx="166" cy="190" r="10"/><text class="pin-n on" x="166" y="193.5">11</text>
+  <circle class="pin" cx="194" cy="190" r="10"/><text class="pin-n" x="194" y="193.5">12</text>
+  <circle class="pin g" cx="166" cy="218" r="10"/><text class="pin-n on" x="166" y="221.5">13</text>
+  <circle class="pin k" cx="194" cy="218" r="10"/><text class="pin-n on" x="194" y="221.5">14</text>
+  <circle class="pin r" cx="166" cy="246" r="10"/><text class="pin-n on" x="166" y="249.5">15</text>
+  <circle class="pin g" cx="194" cy="246" r="10"/><text class="pin-n on" x="194" y="249.5">16</text>
+  <!-- Pin names. -->
+  <text class="lbl dim end" x="146" y="54">3V3 · pin 1</text>
+  <text class="lbl dim" x="214" y="54">5V</text>
+  <text class="lbl end" x="146" y="157">GND</text>
+  <text class="lbl end" x="146" y="185">GPIO17</text>
+  <text class="lbl end" x="146" y="213">GPIO27</text>
+  <text class="lbl end" x="146" y="241">GPIO22</text>
+  <text class="lbl" x="214" y="213">GND</text>
+  <text class="lbl" x="214" y="241">GPIO23</text>
+  <!-- Light 1: pins 9, 11 and 13. -->
+  <text class="ttl" x="14" y="140">Light 1</text>
+  <path class="w wk" d="M156 162 H14 V218"/>
+  <path class="w wr" d="M156 190 H98 M72 190 H54"/>
+  <rect class="res" x="72" y="185" width="26" height="10" rx="2"/>
+  <circle class="led-r" cx="46" cy="190" r="8"/>
+  <polygon class="tri" points="41,190 50,185.5 50,194.5"/><rect class="tri" x="39.4" y="185.5" width="1.8" height="9"/>
+  <path class="w wk" d="M38 190 H14"/>
+  <path class="w wg" d="M156 218 H98 M72 218 H54"/>
+  <rect class="res" x="72" y="213" width="26" height="10" rx="2"/>
+  <circle class="led-g" cx="46" cy="218" r="8"/>
+  <polygon class="tri" points="41,218 50,213.5 50,222.5"/><rect class="tri" x="39.4" y="213.5" width="1.8" height="9"/>
+  <path class="w wk" d="M38 218 H14"/>
+  <circle class="pin k" cx="14" cy="190" r="3"/>
+  <text class="pm" x="63" y="184">+</text><text class="pm" x="26" y="184">−</text>
+  <text class="pm" x="63" y="212">+</text><text class="pm" x="26" y="212">−</text>
+  <!-- Light 2: pins 14, 15 and 16. -->
+  <text class="ttl" x="180" y="358" text-anchor="middle">Light 2</text>
+  <path class="w wr" d="M156 246 H96 V300 M96 328 V346"/>
+  <rect class="res" x="91" y="300" width="10" height="28" rx="2"/>
+  <circle class="led-r" cx="96" cy="354" r="8"/>
+  <polygon class="tri" points="96,359 91.5,350 100.5,350"/><rect class="tri" x="91.5" y="359.4" width="9" height="1.8"/>
+  <path class="w wg" d="M204 246 H262 V300 M262 328 V346"/>
+  <rect class="res" x="257" y="300" width="10" height="28" rx="2"/>
+  <circle class="led-g" cx="262" cy="354" r="8"/>
+  <polygon class="tri" points="262,359 257.5,350 266.5,350"/><rect class="tri" x="257.5" y="359.4" width="9" height="1.8"/>
+  <path class="w wk" d="M96 362 V392 H300 V218 H204 M262 362 V392"/>
+  <circle class="pin k" cx="262" cy="392" r="3"/>
+  <text class="pm" x="110" y="343">+</text><text class="pm" x="110" y="373">−</text>
+  <text class="pm" x="276" y="343">+</text><text class="pm" x="276" y="373">−</text>
+  <!-- Legend. -->
+  <text class="lbl dim mid" x="160" y="414">Each small box is a 330 Ω resistor</text>
+  <text class="lbl dim mid" x="160" y="430">+ long leg of the LED · − short leg</text>
+</svg>

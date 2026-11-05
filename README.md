@@ -14,7 +14,7 @@ Off The Cloud (OTC) is hosted in your home using your network connection and ine
 
 **The "device"**
 
-This is the Raspberry Pi 5 that stores all your data, on two USB drives mirrored as RAID 1 (in the photo, two microSD cards in USB card readers), with two optional status LEDs that show the mirror's health
+This is the Raspberry Pi 5 that stores all your data, on two USB drives mirrored as RAID 1 (in the photo, two microSD cards in USB card readers), with two optional status LEDs that show the mirror's health ([how to wire them](#status-lights-wiring))
 
 <img height="300" alt="The Off The Cloud device: a Raspberry Pi 5 whose mirrored drives are two microSD cards in USB card readers, with a card being swapped and the status lights red and green" src="https://github.com/user-attachments/assets/25f5ccfb-b1fe-4440-830c-f4d34e9c3881" />
 
@@ -227,7 +227,7 @@ and mirrored when you confirm it with `OTC_RAID_CONFIRM_WIPE=yes`; without that,
 to mirror, the script stops at the storage step, before touching any disk, and says what to do. `OTC_SKIP_RAID=1`
 installs on a single disk instead (the storage is then a plain directory on the system disk). The
 script also installs the RAID status-LED watcher (`raid-watch.service`): on a Raspberry Pi it
-drives the two LEDs wired as in step 4 of Option 3, and elsewhere it runs without lights. For
+drives the two LEDs wired as in [Wiring the status lights](#status-lights-wiring), and elsewhere it runs without lights. For
 example, for two blank disks:
 
 ```
@@ -299,8 +299,8 @@ friends, the owner password - and the device presents its old name and bridge id
 is no Name step and no new password. The wizard then checks the device is really back on the
 bridge; only if it isn't (the old name was released, say) does it ask for a name and register the
 recovered device under it.
-6. Wiring the RAID status LEDs to the GPIO pins is still a manual, physical step - see step 4 under
-   the manual instructions below for the pinout.
+6. Wiring the RAID status LEDs to the GPIO pins is still a manual, physical step - see
+   [Wiring the status lights](#status-lights-wiring) for the diagram and the pins.
 
 **System updates.** Besides Off The Cloud's own updates (Settings > Device version), the device
 installs its operating system's security updates by itself every day: Debian's, and the
@@ -335,7 +335,7 @@ and the few things listed here:
   loads. Plug the disks back in (or reassemble the mirror from the console): the device mounts
   them and starts normally by itself, with no restart, and Alerts then says how long they were
   missing. The two status LEDs show it too: red in turn, a second each.
-- **The status LEDs**: both green - the mirror is healthy; one red - that disk stopped working
+- <a id="status-lights-meaning"></a>**The status LEDs**: both green - the mirror is healthy; one red - that disk stopped working
   (plug in a replacement at least as large); one blinking green and the other blinking red - a disk is
   being copied onto the other; both red in turn, a second each - the device can't reach its
   storage at all (above).
@@ -426,7 +426,7 @@ $ make -f Makefile.pi status   # service / DB / RAID / release / healthcheck sta
 $ make -f Makefile.pi logs     # tail the service logs
 ```
 
-Run `make -f Makefile.pi help` for the full list of targets. Wiring the RAID status LEDs to the GPIO pins is still a manual, physical step - see step 4 below for the pinout.
+Run `make -f Makefile.pi help` for the full list of targets. Wiring the RAID status LEDs to the GPIO pins is still a manual, physical step - see [Wiring the status lights](#status-lights-wiring) for the diagram and the pins.
 
 **Option 3: Manual installation (step by step)**
 -------------------------------------------------
@@ -484,9 +484,28 @@ $ sudo chmod +x /usr/local/bin/raid_watch.py
 $ sudo systemctl daemon-reload
 $ sudo systemctl enable --now raid-watch.service
 ```
-For the status leds to work, you have to connect them to the GPIO ports as in: https://github.com/alonsovidales/otc/blob/1dec544957b5e41a49b99933cb6b5ba55ebf5ce5/scripts/raid_watch.py#L47-L52
+<a id="status-lights-wiring"></a>
+**Wiring the status lights.** The lights are optional: one per storage disk, green when it's fine
+and red when it needs you. Each light is a red LED and a green LED side by side (or one two-colour
+LED with three legs), and each colour connects to one pin of the Raspberry Pi through a 330 Ω
+resistor. Wire them with the Pi switched off; `raid_watch.py` lights them by itself (the pins are
+its `CONFIG["leds"]`, BCM numbering).
 
-You can use 3mm Red & Green LED Diode Light like: https://www.amazon.nl/-/en/dp/B01CFZMSNO
+<img width="440" alt="Wiring the two status lights to pins 9, 11, 13, 14, 15 and 16 of the Raspberry Pi 5's header, each LED through a 330 ohm resistor" src="docs/status-lights-wiring.svg" />
+
+- **Light 1, red:** pin 11 (GPIO17), through a 330 Ω resistor, to the long leg of the red LED.
+- **Light 1, green:** pin 13 (GPIO27), through a 330 Ω resistor, to the long leg of the green LED.
+- **Light 1, both short legs:** pin 9 (GND).
+- **Light 2, red:** pin 15 (GPIO22), through a 330 Ω resistor, to the long leg of the red LED.
+- **Light 2, green:** pin 16 (GPIO23), through a 330 Ω resistor, to the long leg of the green LED.
+- **Light 2, both short legs:** pin 14 (GND).
+
+Pin 1 is the square one, at the end of the header farthest from the USB ports. With a two-colour
+LED, the shared leg (usually the middle one) goes to GND; it must be the kind with a shared
+negative leg, called common cathode. You can use 3mm red and green LEDs like these:
+https://www.amazon.nl/-/en/dp/B01CFZMSNO. What the lights mean is under
+[The status LEDs](#status-lights-meaning) in Option 1. Each light follows one of the two disks of the mirror,
+not a USB port, so check the alert in the app to know which disk to pull.
 
 4. Install MariaDB and set the datadir to use the RAID:
 ```
