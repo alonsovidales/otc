@@ -163,32 +163,98 @@ internal fun Throwable.shownText(): UiText? = when (this) {
     else -> message?.let { UiText.Raw(it) }
 }
 
+/** The profile as Settings' fields hold it. */
+class ProfileFields(val name: String = "", val bio: String = "", val image: ByteArray? = null) {
+    override fun equals(other: Any?) = other is ProfileFields && name == other.name && bio == other.bio && sameImage(image, other.image)
+    override fun hashCode() = 31 * (31 * name.hashCode() + bio.hashCode()) + (image?.contentHashCode() ?: 0)
+
+    companion object {
+        private fun sameImage(a: ByteArray?, b: ByteArray?) = if (a == null || b == null) a == b else a.contentEquals(b)
+
+        /**
+         * The device's profile ([device]) read over the fields ([current]): a
+         * field still showing what was last read or saved ([shown]; null:
+         * every field) takes the device's, and one changed here and not saved
+         * keeps its change. Settings reads the profile again each time it is
+         * shown (a rotation too), and reading every field again put the
+         * device's old photo back over one picked and not yet saved. As
+         * iOS's ProfileFields.merge.
+         */
+        fun merge(current: ProfileFields, shown: ProfileFields?, device: ProfileFields): ProfileFields {
+            if (shown == null) return device
+            return ProfileFields(
+                name = if (current.name == shown.name) device.name else current.name,
+                bio = if (current.bio == shown.bio) device.bio else current.bio,
+                image = if (sameImage(current.image, shown.image)) device.image else current.image,
+            )
+        }
+    }
+}
+
 class ProfileEditorViewModel : ViewModel() {
     data class State(val name: String = "", val bio: String = "", val imageData: ByteArray? = null, val saving: Boolean = false, val toast: UiText? = null)
     val state = MutableStateFlow(State())
+    /** What the fields last showed of the device's profile: read from it, or saved to it (ProfileFields.merge). */
+    private var shown: ProfileFields? = null
+    /** Bumped by each save that worked: a read asked before it answers with what the device held before, and is dropped. */
+    private var saves = 0
+
+    private fun State.fields() = ProfileFields(name, bio, imageData)
 
     fun setName(v: String) = state.update { it.copy(name = v) }
     fun setBio(v: String) = state.update { it.copy(bio = v) }
-    fun setImage(v: ByteArray?) = state.update { it.copy(imageData = v) }
 
     suspend fun load() {
+        val asked = saves
         try {
             val resp = OTCConnection.request { it.setReqGetProfile(GetProfile.getDefaultInstance()) }
-            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_PROFILE) {
+            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_PROFILE && asked == saves) {
                 val p = resp.respProfile
-                state.update { it.copy(name = p.name, bio = p.text, imageData = if (p.hasImage()) p.image.toByteArray() else null) }
+                val device = ProfileFields(p.name, p.text, if (p.hasImage()) p.image.toByteArray() else null)
+                state.update {
+                    val merged = ProfileFields.merge(it.fields(), shown, device)
+                    it.copy(name = merged.name, bio = merged.bio, imageData = merged.image)
+                }
+                shown = device
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {}
     }
 
-    suspend fun save() {
+    /** Save, in the view model's scope: leaving Settings doesn't stop it. */
+    fun saveNow() { viewModelScope.launch { save() } }
+
+    /**
+     * The crop's "Use photo": the photo is saved at once, with the name and
+     * text as they are. It used to wait for Save, and leaving Settings lost
+     * it (2026-11-05: "change the photo, go to another section, back to
+     * settings and the photo is not there"). Only once the device's profile
+     * has been read, so an unread name and text are never sent as empty;
+     * else it waits in the field for Save.
+     */
+    fun usePhoto(data: ByteArray) {
+        viewModelScope.launch {
+            if (shown == null) load()
+            state.update { it.copy(imageData = data) }
+            if (shown != null) save()
+        }
+    }
+
+    private suspend fun save() {
         state.update { it.copy(saving = true) }
         try {
-            val s = state.value
-            val p = Profile.newBuilder().setName(s.name).setText(s.bio)
-            s.imageData?.let { p.image = ByteString.copyFrom(it) }
+            val sent = state.value.fields()
+            val p = Profile.newBuilder().setName(sent.name).setText(sent.bio)
+            sent.image?.let { p.image = ByteString.copyFrom(it) }
             val resp = OTCConnection.request { it.setReqSetProfile(p) }
+            if (resp.ackOk()) {
+                shown = sent
+                saves++
+            }
             toast(if (resp.ackOk()) S.appSettingsProfileSaved() else resp.ackError(S.appSettingsProfileSaveFailed()))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) { toast(S.appSettingsProfileSaveError()) }
         finally { state.update { it.copy(saving = false) } }
     }

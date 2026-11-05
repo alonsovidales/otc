@@ -5152,6 +5152,17 @@ least, the store starts over as for a restored file, the master key made again i
 (`saveCredentials`; options `persistOptions`), since every reconnect dials the stored values. iOS
 unit tests: `OffTheCloudTests` (Swift Testing), on a simulator with `-only-testing:OffTheCloudTests`.
 
+**The profile in Settings** (iOS `ProfileEditor.swift` <-> Android `ProfileEditorViewModel` in
+`ui/settings/SettingsViewModels.kt`; tests `ProfileEditorTests.swift` <-> `ProfileEditorTest.kt`, cases
+P1-P5): the crop's "Use photo" saves at once (`usePhoto`: SetProfile with the name and text as they are,
+only once the profile has been read - else the photo waits for Save), and a read again (iOS runs the
+section's `.task` each time it comes back on screen after a scroll - not when the crop's full-screen
+cover closes, checked on the simulator; Android each time Settings is shown) changes only the fields
+still showing what was last read or saved (`ProfileFields.merge`), a read asked before a save that
+worked being dropped. Until 2026-11-05 a photo picked waited for Save, and leaving Settings and coming
+back read the old one again. Android saves in the view model's scope, so leaving Settings doesn't stop
+it.
+
 **Drag to select** (issue #200, iOS `DragSelect.swift` <-> Android `ui/common/DragSelect.kt`):
 Images, People and Files (list and grid) select by long press, and a drag on without lifting
 adds every item from the pressed one to the one under the finger, in display order (shrinking

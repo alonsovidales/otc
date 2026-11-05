@@ -998,8 +998,9 @@ private fun ProfileEditorSection() {
     cropSource?.let { bmp ->
         ProfilePhotoCropDialog(bmp, onCancel = { cropSource = null }) { side, zoom, pan ->
             scope.launch {
-                vm.setImage(withContext(Dispatchers.Default) { renderProfilePhoto(bmp, side, zoom, pan) })
+                val photo = withContext(Dispatchers.Default) { renderProfilePhoto(bmp, side, zoom, pan) }
                 cropSource = null
+                vm.usePhoto(photo)
             }
         }
     }
@@ -1021,7 +1022,7 @@ private fun ProfileEditorSection() {
         OTCTextField(value = st.name, onValueChange = vm::setName, placeholder = { Text(S.appSettingsProfileName().resolve()) }, singleLine = true, modifier = Modifier.fillMaxWidth())
         OTCTextField(value = st.bio, onValueChange = vm::setBio, placeholder = { Text(S.androidSettingsProfileDescription().resolve()) }, minLines = 3, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            RowButton(S.appSettingsProfileSave().resolve(), enabled = !st.saving) { scope.launch { vm.save() } }
+            RowButton(S.appSettingsProfileSave().resolve(), enabled = !st.saving) { vm.saveNow() }
             if (st.saving) CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp)
         }
         st.toast?.let { Caption(it.resolve()) }

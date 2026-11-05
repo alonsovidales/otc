@@ -15,6 +15,27 @@
 import SwiftUI
 import PhotosUI
 
+/// The profile as the section's fields hold it.
+struct ProfileFields: Equatable {
+    var name = ""
+    var bio = ""
+    var image: Data?
+
+    /// The device's profile (`device`) read over the fields (`current`): a
+    /// field still showing what was last read or saved (`shown`; nothing
+    /// yet: every field) takes the device's, and one changed here and not
+    /// saved keeps its change. Settings' Form runs the section's .task again
+    /// whenever the section comes back on screen (a scroll), and reading
+    /// every field again put the device's old photo back over one picked
+    /// and not yet saved. As Android's ProfileFields.merge.
+    static func merge(current: ProfileFields, shown: ProfileFields?, device: ProfileFields) -> ProfileFields {
+        guard let shown else { return device }
+        return ProfileFields(name: current.name == shown.name ? device.name : current.name,
+                             bio: current.bio == shown.bio ? device.bio : current.bio,
+                             image: current.image == shown.image ? device.image : current.image)
+    }
+}
+
 @MainActor
 final class ProfileEditorViewModel: ObservableObject {
     private let ws = OTCConnection.shared
@@ -24,14 +45,26 @@ final class ProfileEditorViewModel: ObservableObject {
     @Published var imageData: Data?
     @Published var saving = false
     @Published var toast: SettingsText?
+    /// What the fields last showed of the device's profile: read from it,
+    /// or saved to it (ProfileFields.merge).
+    private var shown: ProfileFields?
+    /// Bumped by each save that worked: a read asked before it answers with
+    /// what the device held before, and is dropped.
+    private var saves = 0
+
+    private var fields: ProfileFields { ProfileFields(name: name, bio: bio, image: imageData) }
 
     func load() async {
+        let asked = saves
         do {
             let resp = try await ws.request { $0.payload = .reqGetProfile(Msg_GetProfile()) }
-            if case .respProfile(let p) = resp.payload {
-                name = p.name
-                bio = p.text
-                imageData = p.hasImage ? p.image : nil
+            if case .respProfile(let p) = resp.payload, asked == saves {
+                let device = ProfileFields(name: p.name, bio: p.text, image: p.hasImage ? p.image : nil)
+                let merged = ProfileFields.merge(current: fields, shown: shown, device: device)
+                name = merged.name
+                bio = merged.bio
+                imageData = merged.image
+                shown = device
             }
         } catch {
             // keep whatever was loaded before; the Save button still allows retry
@@ -41,13 +74,18 @@ final class ProfileEditorViewModel: ObservableObject {
     func save() async {
         saving = true
         defer { saving = false }
+        let sent = fields
         var p = Msg_Profile()
-        p.name = name
-        p.text = bio
-        if let imageData { p.image = imageData }
+        p.name = sent.name
+        p.text = sent.bio
+        if let image = sent.image { p.image = image }
         do {
             let resp = try await ws.request { $0.payload = .reqSetProfile(p) }
             if case .respAck(let ack) = resp.payload {
+                if ack.ok {
+                    shown = sent
+                    saves += 1
+                }
                 showToast(ack.ok ? .say { S.appSettingsProfileSaved } : .asIs(ack.errorMsg, or: { S.appSettingsProfileSaveFailed }))
             } else {
                 showToast(.say { S.iosSettingsProfileUnexpected })
@@ -55,6 +93,19 @@ final class ProfileEditorViewModel: ObservableObject {
         } catch {
             showToast(.say { S.appSettingsProfileSaveError })
         }
+    }
+
+    /// The crop's "Use photo": the photo is saved at once, with the name and
+    /// text as they are. It used to wait for Save, and leaving Settings lost
+    /// it (2026-11-05: "When I change the profile photo in the iPhone it
+    /// doesn't save it"). Only once the device's profile has been read, so
+    /// an unread name and text are never sent as empty; else it waits in the
+    /// field for Save.
+    func usePhoto(_ data: Data) async {
+        if shown == nil { await load() }
+        imageData = data
+        guard shown != nil else { return }
+        await save()
     }
 
     private func showToast(_ m: SettingsText) {
@@ -151,8 +202,8 @@ struct ProfileEditorSection: View {
             ProfilePhotoCropView(image: item.image,
                                  onCancel: { cropItem = nil },
                                  onUse: { data in
-                                     vm.imageData = data
                                      cropItem = nil
+                                     Task { await vm.usePhoto(data) }
                                  })
         }
     }
