@@ -506,7 +506,11 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   completeUntilFirstUserAuthentication). Full-size photos (2026-10-24, `FullPhotoCache` on both,
   in `Caches/full-photos` / `cacheDir/full-photos`): the viewer keeps GetFile's bytes (a HEIC comes
   as JPEG) by the answer's `File.hash`, looked up by the item's, so reopening a photo decodes it
-  from the phone, nothing asked. A tenth of the Thumbnail cache size picked (the thumbnails get the
+  from the phone, nothing asked. Those bytes are the original's, so a JPEG carries its EXIF
+  orientation and the app turns it when decoding: Android's `decodeBitmap` (`ui/common/Util.kt`)
+  uses ImageDecoder, never BitmapFactory, which ignored it and showed the Fold's photos on their
+  side under upright thumbnails (2026-11-05); iOS's `decodeForDisplay` (CGImageSource with the
+  transform) and the web's `<img>` turn them too. A tenth of the Thumbnail cache size picked (the thumbnails get the
   other 90%, Settings' usage line adds both), least recently used out, one photo at most a quarter;
   session only - emptied at launch, by Clear and at Log Out. The open photo is fetched alone; once
   it shows and the viewer stays on it 250 ms, the next then the previous (one at a time, a

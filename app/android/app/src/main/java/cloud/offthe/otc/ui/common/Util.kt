@@ -3,6 +3,7 @@ package cloud.offthe.otc.ui.common
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
@@ -17,24 +18,48 @@ import cloud.offthe.otc.i18n.appShellTimeDaysAgo
 import cloud.offthe.otc.i18n.appShellTimeHoursAgo
 import cloud.offthe.otc.i18n.appShellTimeJustNow
 import cloud.offthe.otc.i18n.appShellTimeMinutesAgo
+import java.nio.ByteBuffer
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 
 /**
- * Decodes an image, scaled down by a power of two until its longest side is
- * at most [maxSide] px. A full-size original decoded as-is can pass what a
- * Canvas will draw (about 100 MB): a 45-megapixel photo opened in the viewer
- * took the app down with "trying to draw too large bitmap". 4096 px is still
- * sharper than any phone screen, and at most 64 MB.
+ * Decodes an image upright, scaled down by a power of two until its longest
+ * side is at most [maxSide] px. A full-size original decoded as-is can pass
+ * what a Canvas will draw (about 100 MB): a 45-megapixel photo opened in the
+ * viewer took the app down with "trying to draw too large bitmap". 4096 px
+ * is still sharper than any phone screen, and at most 64 MB.
+ *
+ * Upright: ImageDecoder turns the picture as its EXIF orientation says.
+ * GetFile sends a JPEG as it was taken, and a phone's camera keeps the
+ * sensor's pixels and only tags the turn - BitmapFactory ignores the tag,
+ * so the viewer showed the Fold's photos on their side while their
+ * thumbnails, which the device turns itself, were upright (iOS's
+ * CGImageSource and the web's <img> turn them). BitmapFactory still reads
+ * what ImageDecoder refuses (a file cut short), as before.
  */
 fun decodeBitmap(bytes: ByteArray, maxSide: Int = 4096): Bitmap? = try {
+    ImageDecoder.decodeBitmap(ImageDecoder.createSource(ByteBuffer.wrap(bytes))) { dec, info, _ ->
+        dec.setTargetSampleSize(sampleWithin(info.size.width, info.size.height, maxSide))
+        // Software, as BitmapFactory's: Share compresses it and a Canvas draws it.
+        dec.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+    }
+} catch (e: OutOfMemoryError) { null } catch (e: Exception) { decodeAsStored(bytes, maxSide) }
+
+/** decodeBitmap by BitmapFactory: the pixels as stored, not turned. */
+private fun decodeAsStored(bytes: ByteArray, maxSide: Int): Bitmap? = try {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-    var sample = 1
-    while (maxOf(bounds.outWidth, bounds.outHeight) / sample > maxSide) sample *= 2
+    val sample = sampleWithin(bounds.outWidth, bounds.outHeight, maxSide)
     BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
 } catch (e: Exception) { null } catch (e: OutOfMemoryError) { null }
+
+/** The power of two that brings a [width] x [height] picture's longest side within [maxSide]. */
+private fun sampleWithin(width: Int, height: Int, maxSide: Int): Int {
+    var sample = 1
+    while (maxOf(width, height) / sample > maxSide) sample *= 2
+    return sample
+}
 
 /**
  * Decodes a thumbnail for a square tile [minSidePx] wide: scaled down by
