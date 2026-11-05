@@ -195,8 +195,11 @@ struct PopoverView: View {
                 // App Store review: a menu bar app (LSUIElement - no Dock
                 // icon, no app menu) must still offer a way to quit, and
                 // this popover is its only UI. ⌘Q works while it is open,
-                // as in any app. Same as the tray's "Quit" in otc-sync.
+                // as in any app. Same as the tray's "Quit" in otc-sync. The
+                // helper is told, so it doesn't open the app again (only this
+                // Quit: an update or a logout quits the app too).
                 Button {
+                    HelperSignal.quitByOwner()
                     NSApplication.shared.terminate(nil)
                 } label: {
                     Label(S.macosPopoverQuit, systemImage: "power")

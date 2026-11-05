@@ -13,6 +13,15 @@ import SwiftUI
 // once a device is connected (LoginItemOffer) or with Settings' "Start at
 // login" checkbox. otc-sync does the same (internal/autostart, the tray's
 // question after the first connection, `otc-sync autostart on|off|status`).
+//
+// Since 2.6 what starts at login is the helper (OffTheCloudHelper, a launchd
+// agent), not the app itself: an App Store update quits the app and opens it
+// again only if it had a window on screen, which a menu bar app never has, so
+// after every update the app stayed closed and nothing synced until its owner
+// noticed (2.4 and 2.5). The helper opens it at login and again whenever it
+// finds it gone without the owner's Quit (HelperSignal). 2.5's registration of
+// the app itself is moved to the helper at the next launch, and stays the way
+// in should the helper not register.
 
 /// SMAppService's status, reduced to what the app acts on.
 enum LoginItemState: Equatable {
@@ -25,31 +34,89 @@ enum LoginItemState: Equatable {
     case notRegistered
 }
 
-/// The registration itself: SMAppService.mainApp in the app, a fake in the
-/// tests (which must never touch the owner's real login item).
+/// The registration itself: the helper's launchd agent in the app, a fake in
+/// the tests (which must never touch the owner's real login item).
 protocol LoginItemService {
     var state: LoginItemState { get }
     func register() throws
     func unregister() throws
+    /// What starts at login is the app itself (2.5's registration): move it to
+    /// the helper. Nothing otherwise.
+    func moveToHelper()
     /// System Settings > General > Login Items.
     func openSystemSettings()
 }
 
-/// SMAppService is macOS 13+'s way for an app to start itself at login -
-/// no helper bundle, and the user can see and change it under System
-/// Settings > General > Login Items.
-struct MainAppLoginItem: LoginItemService {
-    var state: LoginItemState {
-        switch SMAppService.mainApp.status {
+/// Start at login through the helper: SMAppService.agent registers its
+/// launchd agent (Contents/Library/LaunchAgents/
+/// cloud.off-the.OffTheCloud.Helper.plist), which the user sees and can switch
+/// off under System Settings > General > Login Items > Allow in the
+/// Background. Its state is the helper's once registered; until then the
+/// app's own (SMAppService.mainApp: 2.5's, or what register falls back to when
+/// the helper can't be registered).
+struct HelperLoginItem: LoginItemService {
+    static let plist = "cloud.off-the.OffTheCloud.Helper.plist"
+    private var helper: SMAppService { SMAppService.agent(plistName: Self.plist) }
+    private var app: SMAppService { SMAppService.mainApp }
+
+    static func reduced(_ status: SMAppService.Status) -> LoginItemState {
+        switch status {
         case .enabled: return .enabled
         case .requiresApproval: return .requiresApproval
         default: return .notRegistered // .notRegistered, .notFound
         }
     }
 
-    func register() throws { try SMAppService.mainApp.register() }
-    func unregister() throws { try SMAppService.mainApp.unregister() }
+    var state: LoginItemState {
+        let own = Self.reduced(helper.status)
+        return own != .notRegistered ? own : Self.reduced(app.status)
+    }
+
+    func register() throws {
+        do {
+            try helper.register()
+        } catch {
+            // Starting at login the way 2.5 did is better than not at all.
+            print("Login item: the helper couldn't be registered:", error)
+            if Self.reduced(app.status) == .notRegistered { try app.register() }
+            return
+        }
+        // The helper opens the app at login now: not twice.
+        if Self.reduced(app.status) != .notRegistered { try? app.unregister() }
+    }
+
+    func unregister() throws {
+        var failure: Error?
+        for service in [helper, app] where Self.reduced(service.status) != .notRegistered {
+            do { try service.unregister() } catch { failure = error }
+        }
+        if let failure { throw failure }
+    }
+
+    func moveToHelper() {
+        // Only an app registered and allowed, and the helper not yet: one the
+        // owner switched off in System Settings stays off.
+        guard Self.reduced(helper.status) == .notRegistered, Self.reduced(app.status) == .enabled else { return }
+        do { try register() } catch { print("Login item:", error) }
+    }
+
     func openSystemSettings() { SMAppService.openSystemSettingsLoginItems() }
+}
+
+/// What the app tells its helper (OffTheCloudHelper/main.swift), as
+/// distributed notifications under the app's bundle id: the owner quit it
+/// with Quit, so it stays closed until they open it or log in again; it
+/// launched, so it is watched again. Nothing listens unless the owner chose
+/// Start at Login.
+enum HelperSignal {
+    static func quitByOwner() { post("quitByOwner") }
+    static func launched() { post("launched") }
+
+    private static func post(_ what: String) {
+        guard let id = Bundle.main.bundleIdentifier else { return }
+        DistributedNotificationCenter.default().postNotificationName(
+            .init("\(id).\(what)"), object: nil, userInfo: nil, deliverImmediately: true)
+    }
 }
 
 /// The owner's choice and the login item's real state.
@@ -63,7 +130,7 @@ struct MainAppLoginItem: LoginItemService {
 ///   the owner unticking the box - an explicit no, kept as one.
 @MainActor
 final class LoginItemSettings: ObservableObject {
-    static let shared = LoginItemSettings(defaults: .standard, service: MainAppLoginItem())
+    static let shared = LoginItemSettings(defaults: .standard, service: HelperLoginItem())
 
     static let choiceKey = "startAtLoginChoice"
     static let legacyKey = "startAtLogin"
@@ -98,11 +165,16 @@ final class LoginItemSettings: ObservableObject {
     /// At launch, once: carries 1.0's self-registration over, then puts
     /// back a registration the system dropped (an app moved on disk, say) -
     /// only for an owner who said yes, and never one they switched off in
-    /// System Settings (`requiresApproval` is left alone).
+    /// System Settings (`requiresApproval` is left alone) - and moves 2.5's
+    /// registration of the app itself to the helper.
     func launch() {
         migrateLegacy()
-        if choice == true, service.state == .notRegistered {
-            do { try service.register() } catch { print("Login item:", error) }
+        if choice == true {
+            if service.state == .notRegistered {
+                do { try service.register() } catch { print("Login item:", error) }
+            } else {
+                service.moveToHelper()
+            }
         }
         refresh()
     }

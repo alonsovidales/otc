@@ -23,6 +23,7 @@ final class LoginItemTests {
         var registers = 0
         var unregisters = 0
         var opened = 0
+        var moves = 0
         var failUnregister = false
 
         init(_ state: LoginItemState) { self.state = state }
@@ -37,6 +38,8 @@ final class LoginItemTests {
             if failUnregister { throw CocoaError(.featureUnsupported) }
             state = .notRegistered
         }
+
+        func moveToHelper() { moves += 1 }
 
         func openSystemSettings() { opened += 1 }
     }
@@ -171,6 +174,28 @@ final class LoginItemTests {
         #expect(item.unregisters == 0)
         #expect(login.isOn)
         #expect(d.object(forKey: LoginItemSettings.legacyKey) == nil)
+    }
+
+    @Test func consentMovesAnOlderRegistrationToTheHelper() {
+        // 2.5 registered the app itself; 2.6's helper takes it over at the
+        // next launch (the service moves only one that is allowed).
+        let d = defaults(), item = FakeLoginItem(.enabled)
+        d.set(true, forKey: LoginItemSettings.choiceKey)
+        let login = LoginItemSettings(defaults: d, service: item)
+        login.launch()
+        #expect(item.moves == 1)
+        #expect(item.registers == 0)
+        #expect(item.unregisters == 0)
+        #expect(login.isOn)
+    }
+
+    @Test func noConsentMovesNothing() {
+        for choice in [false, nil] as [Bool?] {
+            let d = defaults(), item = FakeLoginItem(.enabled)
+            if let choice { d.set(choice, forKey: LoginItemSettings.choiceKey) }
+            LoginItemSettings(defaults: d, service: item).launch()
+            #expect(item.moves == 0)
+        }
     }
 
     @Test func untickingUnregisters() {

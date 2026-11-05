@@ -7,12 +7,21 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C476C4062B8BE69A3F78D33C /* OffTheCloudHelper.app in Embed Login Items */ = {isa = PBXBuildFile; fileRef = FF0D86672D5ACD96E473C3C8 /* OffTheCloudHelper.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		9229D2553FF3637413BE827F /* cloud.off-the.OffTheCloud.Helper.plist in Embed Launch Agents */ = {isa = PBXBuildFile; fileRef = D7EF6C36142D81FF4DBA5F2E /* cloud.off-the.OffTheCloud.Helper.plist */; };
 		841E4CA22E8B3F2200B7AC4D /* SwiftProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = 841E4CA12E8B3F2200B7AC4D /* SwiftProtobuf */; };
 		841E4CA42E8B3F2200B7AC4D /* SwiftProtobufPluginLibrary in Frameworks */ = {isa = PBXBuildFile; productRef = 841E4CA32E8B3F2200B7AC4D /* SwiftProtobufPluginLibrary */; };
 		841E4CA82E8B3F2200B7AC4D /* protoc-gen-swift in Frameworks */ = {isa = PBXBuildFile; productRef = 841E4CA72E8B3F2200B7AC4D /* protoc-gen-swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		C777F6C5BC6F0380EDACE347 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 841E4C5F2E8B3CBA00B7AC4D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B88C0490B597D337E414243E;
+			remoteInfo = OffTheCloudHelper;
+		};
 		841E4C752E8B3CBB00B7AC4D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 841E4C5F2E8B3CBA00B7AC4D /* Project object */;
@@ -29,13 +38,45 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		7BE7E3529296F4CC70E37C93 /* Embed Launch Agents */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Contents/Library/LaunchAgents;
+			dstSubfolderSpec = 1;
+			files = (
+				9229D2553FF3637413BE827F /* cloud.off-the.OffTheCloud.Helper.plist in Embed Launch Agents */,
+			);
+			name = "Embed Launch Agents";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3F8318DF2DE006710742EC8D /* Embed Login Items */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Contents/Library/LoginItems;
+			dstSubfolderSpec = 1;
+			files = (
+				C476C4062B8BE69A3F78D33C /* OffTheCloudHelper.app in Embed Login Items */,
+			);
+			name = "Embed Login Items";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		FF0D86672D5ACD96E473C3C8 /* OffTheCloudHelper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OffTheCloudHelper.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D7EF6C36142D81FF4DBA5F2E /* cloud.off-the.OffTheCloud.Helper.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = cloud.off-the.OffTheCloud.Helper.plist; sourceTree = "<group>"; };
 		841E4C672E8B3CBA00B7AC4D /* OffTheCloud.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OffTheCloud.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		841E4C742E8B3CBB00B7AC4D /* OffTheCloudTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OffTheCloudTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		841E4C7E2E8B3CBB00B7AC4D /* OffTheCloudUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OffTheCloudUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		219FD85A1645478CD8545D00 /* OffTheCloudHelper */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = OffTheCloudHelper;
+			sourceTree = "<group>";
+		};
 		841E4C692E8B3CBA00B7AC4D /* OffTheCloud */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = OffTheCloud;
@@ -54,6 +95,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		AD34F6292542DD4124323913 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		841E4C642E8B3CBA00B7AC4D /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -81,10 +129,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		66FDD127898154D4E2B81C84 /* LaunchAgents */ = {
+			isa = PBXGroup;
+			children = (
+				D7EF6C36142D81FF4DBA5F2E /* cloud.off-the.OffTheCloud.Helper.plist */,
+			);
+			path = LaunchAgents;
+			sourceTree = "<group>";
+		};
 		841E4C5E2E8B3CBA00B7AC4D = {
 			isa = PBXGroup;
 			children = (
 				841E4C692E8B3CBA00B7AC4D /* OffTheCloud */,
+				219FD85A1645478CD8545D00 /* OffTheCloudHelper */,
+				66FDD127898154D4E2B81C84 /* LaunchAgents */,
 				841E4C772E8B3CBB00B7AC4D /* OffTheCloudTests */,
 				841E4C812E8B3CBB00B7AC4D /* OffTheCloudUITests */,
 				841E4C9F2E8B3EA300B7AC4D /* Frameworks */,
@@ -96,6 +154,7 @@
 			isa = PBXGroup;
 			children = (
 				841E4C672E8B3CBA00B7AC4D /* OffTheCloud.app */,
+				FF0D86672D5ACD96E473C3C8 /* OffTheCloudHelper.app */,
 				841E4C742E8B3CBB00B7AC4D /* OffTheCloudTests.xctest */,
 				841E4C7E2E8B3CBB00B7AC4D /* OffTheCloudUITests.xctest */,
 			);
@@ -112,6 +171,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		B88C0490B597D337E414243E /* OffTheCloudHelper */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E17F92A368BFA989ACFD6D92 /* Build configuration list for PBXNativeTarget "OffTheCloudHelper" */;
+			buildPhases = (
+				19377C8E37E844563BCF2A8A /* Sources */,
+				AD34F6292542DD4124323913 /* Frameworks */,
+				7E4776A0163B042358F9BCC3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				219FD85A1645478CD8545D00 /* OffTheCloudHelper */,
+			);
+			name = OffTheCloudHelper;
+			packageProductDependencies = (
+			);
+			productName = OffTheCloudHelper;
+			productReference = FF0D86672D5ACD96E473C3C8 /* OffTheCloudHelper.app */;
+			productType = "com.apple.product-type.application";
+		};
 		841E4C662E8B3CBA00B7AC4D /* OffTheCloud */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 841E4C882E8B3CBC00B7AC4D /* Build configuration list for PBXNativeTarget "OffTheCloud" */;
@@ -119,10 +200,13 @@
 				841E4C632E8B3CBA00B7AC4D /* Sources */,
 				841E4C642E8B3CBA00B7AC4D /* Frameworks */,
 				841E4C652E8B3CBA00B7AC4D /* Resources */,
+				3F8318DF2DE006710742EC8D /* Embed Login Items */,
+				7BE7E3529296F4CC70E37C93 /* Embed Launch Agents */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				3A25D4ECD5AF89805BFDA629 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				841E4C692E8B3CBA00B7AC4D /* OffTheCloud */,
@@ -193,6 +277,9 @@
 				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
+					B88C0490B597D337E414243E = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
 					841E4C662E8B3CBA00B7AC4D = {
 						CreatedOnToolsVersion = 26.0.1;
 						LastSwiftMigration = 2600;
@@ -233,11 +320,19 @@
 				841E4C662E8B3CBA00B7AC4D /* OffTheCloud */,
 				841E4C732E8B3CBB00B7AC4D /* OffTheCloudTests */,
 				841E4C7D2E8B3CBB00B7AC4D /* OffTheCloudUITests */,
+				B88C0490B597D337E414243E /* OffTheCloudHelper */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		7E4776A0163B042358F9BCC3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		841E4C652E8B3CBA00B7AC4D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -262,6 +357,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		19377C8E37E844563BCF2A8A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		841E4C632E8B3CBA00B7AC4D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -286,6 +388,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		3A25D4ECD5AF89805BFDA629 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B88C0490B597D337E414243E /* OffTheCloudHelper */;
+			targetProxy = C777F6C5BC6F0380EDACE347 /* PBXContainerItemProxy */;
+		};
 		841E4C762E8B3CBB00B7AC4D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 841E4C662E8B3CBA00B7AC4D /* OffTheCloud */;
@@ -299,6 +406,65 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		594FB9EB78807854068D2DE0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 24;
+				DEVELOPMENT_TEAM = S7JR3LN436;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSBackgroundOnly = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 2.5;
+				PRODUCT_BUNDLE_IDENTIFIER = "cloud.off-the.OffTheCloud.Helper";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		2079E703ACDA9A50C60C63DC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 24;
+				DEVELOPMENT_TEAM = S7JR3LN436;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSBackgroundOnly = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 2.5;
+				PRODUCT_BUNDLE_IDENTIFIER = "cloud.off-the.OffTheCloud.Helper";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		841E4C862E8B3CBC00B7AC4D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -601,6 +767,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		E17F92A368BFA989ACFD6D92 /* Build configuration list for PBXNativeTarget "OffTheCloudHelper" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				594FB9EB78807854068D2DE0 /* Debug */,
+				2079E703ACDA9A50C60C63DC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		841E4C622E8B3CBA00B7AC4D /* Build configuration list for PBXProject "OffTheCloud" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

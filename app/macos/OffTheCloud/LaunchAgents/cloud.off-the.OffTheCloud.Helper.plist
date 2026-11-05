@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The helper that opens Off The Cloud again after the Mac App Store updates
+  it (OffTheCloudHelper/main.swift). Registered with SMAppService.agent by
+  LoginItem.swift, only once the owner chose Start at Login. launchd starts
+  it when the owner logs in and keeps it running: the helper exits after it
+  opens the app, so the one started next is the bundle's current version.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>cloud.off-the.OffTheCloud.Helper</string>
+	<key>BundleProgram</key>
+	<string>Contents/Library/LoginItems/OffTheCloudHelper.app/Contents/MacOS/OffTheCloudHelper</string>
+	<key>AssociatedBundleIdentifiers</key>
+	<array>
+		<string>cloud.off-the.OffTheCloud</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>LimitLoadToSessionType</key>
+	<string>Aqua</string>
+</dict>
+</plist>

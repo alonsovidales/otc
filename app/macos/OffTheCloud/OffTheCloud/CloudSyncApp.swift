@@ -17,6 +17,8 @@ struct CloudSyncApp: App {
             // Start at login only with the owner's consent: carries 1.0's
             // self-registration over and re-asserts a consented one.
             LoginItemSettings.shared.launch()
+            // Open again: the helper watches it again (a Quit forgotten).
+            HelperSignal.launched()
             SyncModel.shared.bind(settings: SettingsStore.shared)
         }
     }

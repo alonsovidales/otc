@@ -3907,14 +3907,38 @@ whose certificate a browser can't pin.
 **Start at login, only with consent.** The Mac App Store rejected macOS 2.0 (17) under guideline
 2.4.5(iii): 1.0 registered itself as a login item the first time it ran and re-registered at every
 launch. Now neither client registers anything until the user says yes. The Mac's
-`LoginItemSettings` (`LoginItem.swift`, `SMAppService.mainApp` behind `LoginItemService`, faked in
+`LoginItemSettings` (`LoginItem.swift`, the helper below behind `LoginItemService`, faked in
 `LoginItemTests`) records the answer as `startAtLoginChoice` (absent = never asked). Only a true
 lets `launch()` re-register an item the system dropped, and never one the user switched off in
 System Settings (`requiresApproval`: left alone, the checkbox shows it off, Settings says so with
 "Open Login Items…", ticking the box opens Login Items instead of registering). 1.0's
 `startAtLogin` key was written by the app itself, so it isn't consent: true means unregister
 whatever is there (the key stays until that works) and ask; false was the user unticking it, kept
-as a no. The question is asked once, inline (never an `.alert`, which closes the popover):
+as a no. What a yes registers on the Mac, since 2.6, is the helper (`OffTheCloudHelper/main.swift`, its
+own sandboxed target embedded in `Contents/Library/LoginItems`, bundle id
+`cloud.off-the.OffTheCloud.Helper`): a launchd agent (`LaunchAgents/
+cloud.off-the.OffTheCloud.Helper.plist`, `SMAppService.agent`; RunAtLoad, KeepAlive) that starts
+the app at login and opens it again whenever it finds it gone without the owner's Quit. An App
+Store update quits the app and reopens only an app that had a window on screen, so the menu bar
+app stayed closed after every update until its owner noticed ("Skipping relaunch — app was not
+visible before termination", 2.4 and 2.5); the update leaves a helper inside the bundle running
+(Apple DTS, forums thread 763268). The helper looks every 10 s and opens the app (from its own
+path's bundle, never by bundle id - a Debug build elsewhere shares it) once it is gone at two looks
+in a row, at most 5 times an hour, backing off a failed open; then it exits, so the helper launchd
+starts next is the bundle's current version. The app tells it by distributed notification
+(`HelperSignal`): `<bundle id>.quitByOwner` from the popover's Quit (and its ⌘Q) only - an update
+or a logout quits the app too - and `<bundle id>.launched` at every launch; launchd's SIGTERM at
+logout (or the agent unregistered) forgets a Quit, so the next login opens the app.
+`HelperLoginItem` is the real `LoginItemService`: its state is the helper's once registered, else
+the app's own (`SMAppService.mainApp`, 2.5's registration, or the fallback when the helper won't
+register); `launch()` moves an allowed 2.5 registration to the helper (`moveToHelper`), and
+unregistering removes both. Tested on 2026-11-05 with a throwaway copy (bundle id
+`cloud.off-the.relaunchtest`, signed with the development certificate, in `~/Applications`, then
+unregistered and deleted): killed, it was opened again in 20 s; quit as the owner, it stayed
+closed; its bundle swapped for another version while killed (as an update does), the new version
+was opened in 16 s and the helper restarted from it; a SIGTERM to the helper after a Quit opened it
+again. otc-sync relaunches itself after its own update (`selfupdate`), so it needs no helper; it
+isn't opened again after a crash unless it runs as the systemd service. The question is asked once, inline (never an `.alert`, which closes the popover):
 `LoginItemOffer`, "Start Off The Cloud when you log in?" / "Start at Login" / "Not Now", shown
 below the folder list and above Add Folder/Quit once a device has connected this launch
 (`SyncModel`'s onConnect calls `deviceConnected()`), hidden while Settings is open, and also on
