@@ -148,9 +148,10 @@ func (c *Config) FolderOverlap(local, remote string, devicePath func(string) str
 // fc00::/7) or link-local addresses, nor a .local, .lan, .home.arpa or
 // .internal name, nor a single-label one ("nas"): the home network. The
 // tray and the command line ask before using one; the Mac the same
-// (SyncPaths.isUnencryptedRemote).
+// (SyncPaths.isUnencryptedRemote). An http:// address is one too: it is
+// dialled as ws:// (NormalizeAddress).
 func Unencrypted(domain string) bool {
-	d := strings.TrimSpace(domain)
+	d := NormalizeAddress(domain)
 	if !strings.HasPrefix(strings.ToLower(d), "ws://") {
 		return false
 	}
@@ -158,21 +159,32 @@ func Unencrypted(domain string) bool {
 	if err != nil || u.Hostname() == "" {
 		return false
 	}
-	h := strings.ToLower(u.Hostname())
-	if h == "localhost" || strings.HasSuffix(h, ".localhost") {
+
+	return !homeHost(u.Hostname())
+}
+
+// homeHost: host (no port or brackets) is on the home network - loopback,
+// private or link-local, a .local, .lan, .home.arpa or .internal name, or a
+// single-label one.
+func homeHost(host string) bool {
+	h := strings.ToLower(host)
+	if h == "" {
 		return false
+	}
+	if h == "localhost" || strings.HasSuffix(h, ".localhost") {
+		return true
 	}
 	if ip := net.ParseIP(h); ip != nil {
-		return !(ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast())
+		return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()
 	}
 	if !strings.Contains(h, ".") {
-		return false
+		return true
 	}
 	for _, suffix := range []string{".local", ".lan", ".home.arpa", ".internal"} {
 		if strings.HasSuffix(h, suffix) {
-			return false
+			return true
 		}
 	}
 
-	return true
+	return false
 }

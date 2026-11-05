@@ -23,6 +23,7 @@
   "desk.main.connect_connected": {"text": "Conectado al dispositivo {device}."},
   "desk.main.connect_menu": {"text": "Conectar a un dispositivo…"},
   "desk.main.connect_still_trying": {"text": "La conexión con el dispositivo {device} aún está en curso. otc-sync sigue intentándolo; el menú indicará cuándo esté conectado."},
+  "desk.main.connect_still_trying_address": {"text": "La conexión con el dispositivo {device} aún está en curso. otc-sync sigue intentándolo; el menú indicará cuándo esté conectado. Si el dispositivo está en tu red doméstica, escribe su dirección y su puerto, por ejemplo 192.168.1.10:8080."},
   "desk.main.connect_unreachable": {"text": "El dispositivo {device} no está accesible ahora mismo. otc-sync sigue intentándolo y empezará a sincronizar en cuanto el dispositivo responda."},
   "desk.main.connect_wrong_password": {"text": "El dispositivo {device} ha rechazado la contraseña."},
   "desk.main.connected_home": {"text": "Conectado a través de tu red doméstica"},

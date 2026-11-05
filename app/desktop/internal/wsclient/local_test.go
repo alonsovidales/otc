@@ -622,3 +622,19 @@ func TestConfirmPinAsksAgain(t *testing.T) {
 		t.Fatalf("session pin %x %v, learnt %+v", pin, ok, learnt.Load())
 	}
 }
+
+// An address typed as a Docker device's user typed it (2026-11-05) reaches
+// the device's plain port: its socket at /ws, its web app at "/".
+func TestATypedAddressReachesTheDevicesSocket(t *testing.T) {
+	device := newFakeDevice(t)
+	device.local = errorAnswer("local_unavailable") // no home endpoint to learn
+	mux := http.NewServeMux()
+	mux.Handle("/ws", device)
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("<!doctype html>")) })
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	hostPort := strings.TrimPrefix(srv.URL, "http://")
+	for _, typed := range []string{srv.URL, srv.URL + "/", hostPort, "ws://" + hostPort} {
+		connected(t, New(), typed, nil)
+	}
+}

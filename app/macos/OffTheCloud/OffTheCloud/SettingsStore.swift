@@ -58,7 +58,7 @@ final class SettingsStore: ObservableObject {
     /// or password typed into it never reaches the browser; nil when there
     /// is no address. Mirrors otc-sync's config.WebURL.
     static func webAppURL(fromDomain domain: String) -> URL? {
-        let d = domain.trimmingCharacters(in: .whitespacesAndNewlines)
+        let d = SyncPaths.normalizedAddress(domain)
         // A bare host as WSClient.configure reads it.
         guard !d.isEmpty, var web = URLComponents(string: d.contains("://") ? d : "wss://\(d)/ws"),
               web.host?.isEmpty == false else { return nil }

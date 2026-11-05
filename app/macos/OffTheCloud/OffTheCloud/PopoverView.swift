@@ -1101,7 +1101,7 @@ struct SettingsInlineView: View {
     /// device is connected - they would start syncing with it, or deleting
     /// on it. As otc-sync's tray.
     private var switchConfirmation: some View {
-        let target = Self.trimmed(domain)
+        let target = SyncPaths.normalizedAddress(domain)
         let count = sync.folders.count + sync.remoteFolders.count
         return VStack(alignment: .leading, spacing: 8) {
             Label(S.deskMainSwitchDeviceTitle(device: Self.label(target)), systemImage: "exclamationmark.triangle.fill")
@@ -1138,7 +1138,7 @@ struct SettingsInlineView: View {
             Label(S.deskMainUnencryptedTitle, systemImage: "exclamationmark.triangle.fill")
                 .font(.callout.bold())
                 .foregroundStyle(.orange)
-            Text(S.macosSettingsUnencryptedMessage(address: Self.trimmed(domain)))
+            Text(S.macosSettingsUnencryptedMessage(address: SyncPaths.normalizedAddress(domain)))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1155,8 +1155,6 @@ struct SettingsInlineView: View {
             .controlSize(.small)
         }
     }
-
-    private static func trimmed(_ d: String) -> String { d.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     private static func label(_ domain: String) -> String {
         SettingsStore.bridgeName(fromDomain: domain).map { "\($0).\(SettingsStore.bridgeDomain)" } ?? domain
@@ -1186,7 +1184,9 @@ struct SettingsInlineView: View {
     private var canConnect: Bool { !domain.isEmpty && !password.isEmpty }
 
     private func connect(unencryptedConfirmed: Bool = false) {
-        let target = Self.trimmed(domain)
+        // A typed address as it is dialled: "http://mint:8080" connects as
+        // ws://mint:8080/ws (SyncPaths.normalizedAddress).
+        let target = SyncPaths.normalizedAddress(domain)
         let same = SyncPaths.sameDevice(target, settings.domain)
         if !unencryptedConfirmed, !same, SyncPaths.isUnencryptedRemote(target) {
             confirmUnencrypted = true

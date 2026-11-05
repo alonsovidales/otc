@@ -23,6 +23,7 @@
   "desk.main.connect_connected": {"text": "Ligado ao dispositivo {device}."},
   "desk.main.connect_menu": {"text": "Ligar a um dispositivo…"},
   "desk.main.connect_still_trying": {"text": "Ainda a ligar ao dispositivo {device}. O otc-sync continua a tentar; o menu mostra quando estiver ligado."},
+  "desk.main.connect_still_trying_address": {"text": "Ainda a ligar ao dispositivo {device}. O otc-sync continua a tentar; o menu mostra quando estiver ligado. Para um dispositivo na tua rede doméstica, escreve o endereço e a porta, por exemplo 192.168.1.10:8080."},
   "desk.main.connect_unreachable": {"text": "O dispositivo {device} está inacessível neste momento. O otc-sync continua a tentar e começa a sincronizar assim que o dispositivo responder."},
   "desk.main.connect_wrong_password": {"text": "O dispositivo {device} recusou a palavra-passe."},
   "desk.main.connected_home": {"text": "Ligado através da tua rede doméstica"},

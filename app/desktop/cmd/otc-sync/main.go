@@ -1000,7 +1000,7 @@ func cmdSettings(args []string) error {
 		domain = config.BridgeDomainForName(*name)
 	}
 	if *address != "" {
-		domain = strings.TrimSpace(*address)
+		domain = config.NormalizeAddress(*address)
 	}
 	if err := checkNewDevice(current, domain, *insecure); err != nil {
 		return err

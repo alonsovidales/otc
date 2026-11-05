@@ -99,6 +99,10 @@
     "text": "Connessione al dispositivo {device} ancora in corso. otc-sync continua a provare; il menu mostra quando è connesso.",
     "en": "Still connecting to {device}. otc-sync keeps trying; the menu shows when it is connected."
   },
+  "desk.main.connect_still_trying_address": {
+    "text": "Connessione al dispositivo {device} ancora in corso. otc-sync continua a provare; il menu mostra quando è connesso. Per un dispositivo della tua rete domestica, scrivi il suo indirizzo e la porta, ad esempio 192.168.1.10:8080.",
+    "en": "Still connecting to {device}. otc-sync keeps trying; the menu shows when it is connected. For a device on your home network, type its address and port, for example 192.168.1.10:8080."
+  },
   "desk.main.connect_unreachable": {
     "text": "Il dispositivo {device} non è raggiungibile in questo momento. otc-sync continua a provare e inizierà a sincronizzare appena il dispositivo risponderà.",
     "en": "{device} can't be reached right now. otc-sync keeps trying and starts syncing once it answers."

@@ -999,7 +999,9 @@ final class SyncModel: ObservableObject {
                     if !atLaunch { LanguageSettings.shared.forgetDevice() }
                     if settings.ready {
                         self.overallStatus = .connecting
-                        self.ws.configure(domain: domain, key: key)
+                        // An address saved before the Mac put typed ones
+                        // right (http://, no /ws) is dialled as it is now.
+                        self.ws.configure(domain: SyncPaths.normalizedAddress(domain), key: key)
                         self.ws.connect()
                         self.startSync()
                     } else {
@@ -1025,7 +1027,7 @@ final class SyncModel: ObservableObject {
         guard let settings, settings.ready else { return }
         authRetryTask?.cancel()
         overallStatus = .connecting
-        ws.configure(domain: settings.domain, key: settings.password)
+        ws.configure(domain: SyncPaths.normalizedAddress(settings.domain), key: settings.password)
         ws.connect()
         startSync()
     }

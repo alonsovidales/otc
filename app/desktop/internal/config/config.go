@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -834,6 +835,61 @@ func BridgeDomainForName(name string) string {
 	return strings.ToLower(strings.TrimSpace(name)) + "." + BridgeDomain
 }
 
+// NormalizeAddress is a typed device address put right where it could never
+// connect as typed, as the phones' apps do (SecretsStore.normalizedEndpoint):
+// http:// and https:// become ws:// and wss://; a missing or bare "/" path
+// becomes /ws, the device's socket ("/" is its web app); and a host on the
+// home network typed with a port but no scheme ("10.2.1.171:8080",
+// "mint:8080") is the device's plain port, ws:// - a TLS port (443, or the
+// home route's 8443, which is pinned and never typed: issue #190) stays
+// wss://. A user of the Docker device typed http://mint:8080, then
+// 10.2.1.171:8080, and neither connected (2026-11-05). Whatever could
+// connect before is kept as it is - a host without a scheme or a port
+// ("cala.off-the.cloud", "nas.lan" behind a certificate of its own), which
+// wsclient.Configure dials as wss://<host>/ws, a public host with a port, a
+// ws:// or wss:// URL with its path - so a saved address, and the sync
+// records made with it, never change. Mirrors SyncPaths.normalizedAddress.
+func NormalizeAddress(domain string) string {
+	typed := strings.TrimSpace(domain)
+	d := typed
+	if d == "" {
+		return ""
+	}
+	if !strings.Contains(d, "://") {
+		hostPort := d
+		if i := strings.IndexAny(hostPort, "/?#"); i >= 0 {
+			hostPort = hostPort[:i]
+		}
+		host, port, err := net.SplitHostPort(hostPort)
+		if err != nil || port == "" || port == "443" || port == "8443" || !homeHost(host) {
+			return typed
+		}
+		d = "ws://" + d
+	}
+	u, err := url.Parse(d)
+	if err != nil || u.Host == "" {
+		return typed
+	}
+	fixed := d != typed
+	switch strings.ToLower(u.Scheme) {
+	case "http":
+		u.Scheme, fixed = "ws", true
+	case "https":
+		u.Scheme, fixed = "wss", true
+	case "ws", "wss":
+	default:
+		return typed
+	}
+	if u.Path == "" || u.Path == "/" {
+		u.Path, u.RawPath, fixed = "/ws", "", true
+	}
+	if !fixed {
+		return typed
+	}
+
+	return u.String()
+}
+
 // BridgeName is the device name when domain is a plain bridge host, else
 // "" - which is how the settings form knows it is looking at a custom
 // address. Mirrors SettingsStore.bridgeName(fromDomain:).
@@ -862,7 +918,7 @@ func BridgeName(domain string) string {
 // user or password typed into it never reaches the browser; "" when there
 // is no address. Mirrors SettingsStore.webAppURL(fromDomain:).
 func WebURL(domain string) string {
-	d := strings.TrimSpace(domain)
+	d := NormalizeAddress(domain)
 	if d == "" {
 		return ""
 	}

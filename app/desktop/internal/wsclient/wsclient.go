@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	"github.com/alonsovidales/otc/app/desktop/internal/oslang"
 	"github.com/alonsovidales/otc/i18n"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -142,6 +143,10 @@ type Client struct {
 	local     *LocalEndpoint
 	skipLocal bool
 	route     Route
+	// dialFailed is why the configured address last didn't connect, as
+	// logged (logDialFailure): a new reason is logged, the same one at
+	// every retry isn't.
+	dialFailed string
 	// sessionPin is the device's certificate pin as this sign-in confirmed
 	// it (SessionPin): the home route's handshake checked it, or the
 	// device itself answered it (GetLocalEndpoint). pinKnown says whether
@@ -195,7 +200,9 @@ func (c *Client) SetLang(code string) {
 
 // Configure takes a bare host (bridge) or a full ws:// / wss:// URL, and the
 // credentials Auth sends (SettingsStore's domain/password, plus this
-// install's id).
+// install's id). An address saved before otc-sync put typed ones right
+// (http://, no /ws, a home host with no scheme) is dialled as
+// config.NormalizeAddress makes it.
 func (c *Client) Configure(domain, clientID, password string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -204,7 +211,7 @@ func (c *Client) Configure(domain, clientID, password string) {
 		c.skipLocal = false
 	}
 	c.domain = domain
-	d := strings.TrimSpace(domain)
+	d := config.NormalizeAddress(domain)
 	if strings.Contains(d, "://") {
 		c.url = d
 	} else {
@@ -310,6 +317,7 @@ func (c *Client) dial(gen int64) {
 	}
 	parsed, err := url.Parse(u)
 	if err != nil {
+		c.logDialFailure(u, err)
 		if c.OnDisconnect != nil && c.current(gen, nil) {
 			c.OnDisconnect(fmt.Errorf("bad address %q: %w", u, err)) // i18n-ignore: the tray shows Disconnected; the command line prints it
 		}
@@ -319,6 +327,7 @@ func (c *Client) dial(gen int64) {
 	dialer := websocket.Dialer{HandshakeTimeout: handshakeTO}
 	conn, _, err := dialer.Dial(parsed.String(), nil)
 	if err != nil {
+		c.logDialFailure(parsed.Redacted(), err)
 		if c.OnDisconnect != nil && c.current(gen, nil) {
 			c.OnDisconnect(err)
 		}
@@ -326,7 +335,25 @@ func (c *Client) dial(gen int64) {
 
 		return
 	}
+	c.mu.Lock()
+	c.dialFailed = ""
+	c.mu.Unlock()
 	c.run(gen, conn, RouteRemote, nil)
+}
+
+// logDialFailure logs why the configured address didn't connect - each new
+// reason once, not at every retry - so Show Log says what was wrong: a TLS
+// handshake on a port that has none, a page where the device's socket isn't
+// (2026-11-05: otc-sync said only "Disconnected", and the log nothing).
+func (c *Client) logDialFailure(addr string, err error) {
+	why := err.Error()
+	c.mu.Lock()
+	same := why == c.dialFailed
+	c.dialFailed = why
+	c.mu.Unlock()
+	if !same {
+		log.Printf("could not connect to %s: %v", addr, err)
+	}
 }
 
 // run signs in on a fresh socket and, once it is in, announces it. pin is

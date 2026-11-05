@@ -861,9 +861,12 @@ func (u *ui) settingsDialog() {
 	if entered == "" {
 		return
 	}
+	// A bare word is a name on the bridge; anything with a scheme, a dot
+	// or a port an address, put right where it could never connect
+	// ("http://mint:8080", "10.2.1.171:8080").
 	domain := config.BridgeDomainForName(entered)
-	if strings.Contains(entered, "://") || strings.Contains(entered, ".") {
-		domain = entered
+	if strings.ContainsAny(entered, ".:") {
+		domain = config.NormalizeAddress(entered)
 	}
 	// An unencrypted address for a device that isn't on this network.
 	if !engine.SameDevice(cfg.Domain, domain) && config.Unencrypted(domain) {
@@ -1026,7 +1029,13 @@ func (u *ui) waitForConnection(domain string) {
 			return
 		}
 	}
-	_ = dlgInfo(i18n.DeskMainConnectStillTrying(label).Render(lang()), dlgTitle("Off The Cloud"))
+	// A typed address that never answered may be one the device isn't at:
+	// the example's form, which Windows' one-line prompt has no room for.
+	still := i18n.DeskMainConnectStillTrying(label)
+	if config.BridgeName(domain) == "" {
+		still = i18n.DeskMainConnectStillTryingAddress(label)
+	}
+	_ = dlgInfo(still.Render(lang()), dlgTitle("Off The Cloud"))
 }
 
 // statusClicked: the status line pressed - the password again after

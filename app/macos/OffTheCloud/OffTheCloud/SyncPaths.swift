@@ -168,10 +168,12 @@ enum SyncPaths {
 
     /// A configured address as records compare it: a bridge name in any
     /// spelling ("Cala.off-the.cloud", "wss://cala.off-the.cloud/ws") is
-    /// its bare host; anything else the trimmed address in lower case. As
-    /// otc-sync's deviceDomainKey (and SettingsStore.bridgeName).
+    /// its bare host; anything else the address as it is dialled
+    /// (normalizedAddress: "http://mint:8080" is "ws://mint:8080/ws") in
+    /// lower case. As otc-sync's deviceDomainKey (and
+    /// SettingsStore.bridgeName).
     static func deviceDomainKey(_ domain: String) -> String {
-        var d = domain.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        var d = normalizedAddress(domain).lowercased()
         let bridge = "off-the.cloud"
         var bare = d
         if bare.hasPrefix("wss://") {
@@ -1271,36 +1273,102 @@ enum SyncPaths {
         return nil
     }
 
+    // MARK: Typed addresses
+
+    /// A typed device address put right where it could never connect as
+    /// typed, as the phones' apps do (SecretsStore.normalizedEndpoint):
+    /// http:// and https:// become ws:// and wss://; a missing or bare "/"
+    /// path becomes /ws, the device's socket ("/" is its web app); and a host
+    /// on the home network typed with a port but no scheme
+    /// ("10.2.1.171:8080", "mint:8080") is the device's plain port, ws:// - a
+    /// TLS port (443, or the home route's 8443, pinned and never typed)
+    /// stays wss://. A user of the Docker device typed http://mint:8080, then
+    /// 10.2.1.171:8080, and neither connected (2026-11-05). Whatever could
+    /// connect before is kept as it is - a host without a scheme or a port,
+    /// which WSClient.configure dials as wss://<host>/ws, a public host with a
+    /// port, a ws:// or wss:// URL with its path - so a saved address, and
+    /// the sync records made with it, never change. As otc-sync's
+    /// config.NormalizeAddress, case for case.
+    static func normalizedAddress(_ domain: String) -> String {
+        let typed = domain.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typed.isEmpty else { return "" }
+        var d = typed
+        if !d.contains("://") {
+            let hostPort = d.prefix { !"/?#".contains($0) }
+            guard let (host, port) = splitHostPort(String(hostPort)), port != "443", port != "8443",
+                  isHomeHost(host) else { return typed }
+            d = "ws://" + d
+        }
+        guard var parts = URLComponents(string: d), parts.host?.isEmpty == false else { return typed }
+        var fixed = d != typed
+        switch parts.scheme?.lowercased() {
+        case "http": parts.scheme = "ws"; fixed = true
+        case "https": parts.scheme = "wss"; fixed = true
+        case "ws", "wss": parts.scheme = parts.scheme?.lowercased()
+        default: return typed
+        }
+        if parts.path.isEmpty || parts.path == "/" {
+            parts.path = "/ws"
+            fixed = true
+        }
+        guard fixed else { return typed }
+        return parts.string ?? typed
+    }
+
+    /// "host:port" or "[v6]:port" split as Go's net.SplitHostPort does, with
+    /// a port that isn't empty; nil for anything else (no port, a bare IPv6
+    /// address).
+    private static func splitHostPort(_ s: String) -> (String, String)? {
+        if s.hasPrefix("[") {
+            guard let close = s.firstIndex(of: "]") else { return nil }
+            let rest = s[s.index(after: close)...]
+            guard rest.hasPrefix(":"), rest.count > 1 else { return nil }
+            return (String(s[s.index(after: s.startIndex)..<close]), String(rest.dropFirst()))
+        }
+        let pieces = s.split(separator: ":", omittingEmptySubsequences: false)
+        guard pieces.count == 2, !pieces[1].isEmpty else { return nil }
+        return (String(pieces[0]), String(pieces[1]))
+    }
+
     // MARK: Unencrypted addresses
 
     /// `domain` is a ws:// address (not encrypted) for a device that isn't on
     /// this network: the Settings form warns before using it. Not for
     /// loopback, private (10/8, 172.16/12, 192.168/16, fc00::/7) or
     /// link-local addresses, a .local, .lan, .home.arpa or .internal name,
-    /// or a single-label one ("nas"). As otc-sync's config.Unencrypted.
+    /// or a single-label one ("nas"). An http:// address is one too: it is
+    /// dialled as ws:// (normalizedAddress). As otc-sync's
+    /// config.Unencrypted.
     static func isUnencryptedRemote(_ domain: String) -> Bool {
-        let d = domain.trimmingCharacters(in: .whitespacesAndNewlines)
+        let d = normalizedAddress(domain)
         guard d.lowercased().hasPrefix("ws://"), let host = URLComponents(string: d)?.host?.lowercased(), !host.isEmpty else {
             return false
         }
-        var h = host
+        return !isHomeHost(host)
+    }
+
+    /// `host` (no port; brackets taken off) is on the home network:
+    /// loopback, private or link-local, a .local, .lan, .home.arpa or
+    /// .internal name, or a single-label one. As otc-sync's homeHost.
+    static func isHomeHost(_ host: String) -> Bool {
+        var h = host.lowercased()
         if h.hasPrefix("[") && h.hasSuffix("]") { h = String(h.dropFirst().dropLast()) }
-        if h == "localhost" || h.hasSuffix(".localhost") { return false }
+        if h.isEmpty { return false }
+        if h == "localhost" || h.hasSuffix(".localhost") { return true }
         if let b = ipv4(h) {
-            let local = b[0] == 127 || b[0] == 10 || (b[0] == 172 && b[1] & 0xf0 == 16) || (b[0] == 192 && b[1] == 168)
+            return b[0] == 127 || b[0] == 10 || (b[0] == 172 && b[1] & 0xf0 == 16) || (b[0] == 192 && b[1] == 168)
                 || (b[0] == 169 && b[1] == 254)
-            return !local
         }
         if h.contains(":") {
             // IPv6: loopback, unique local (fc00::/7), link-local (fe80::/10).
-            if h == "::1" { return false }
+            if h == "::1" { return true }
             let first = h.split(separator: ":", omittingEmptySubsequences: false).first.map(String.init) ?? ""
-            if let v = UInt16(first, radix: 16), v & 0xfe00 == 0xfc00 || v & 0xffc0 == 0xfe80 { return false }
-            return true
+            if let v = UInt16(first, radix: 16), v & 0xfe00 == 0xfc00 || v & 0xffc0 == 0xfe80 { return true }
+            return false
         }
-        if !h.contains(".") { return false }
-        for suffix in [".local", ".lan", ".home.arpa", ".internal"] where h.hasSuffix(suffix) { return false }
-        return true
+        if !h.contains(".") { return true }
+        for suffix in [".local", ".lan", ".home.arpa", ".internal"] where h.hasSuffix(suffix) { return true }
+        return false
     }
 
     private static func ipv4(_ s: String) -> [UInt8]? {

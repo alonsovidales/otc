@@ -124,6 +124,11 @@ func DeskMainConnectStillTrying(device string) Msg {
 	return Msg{Key: "desk.main.connect_still_trying", Args: map[string]any{"device": device}}
 }
 
+// DeskMainConnectStillTryingAddress is desk.main.connect_still_trying_address: "Still connecting to {device}. otc-sync keeps trying; the menu shows when it is c…".
+func DeskMainConnectStillTryingAddress(device string) Msg {
+	return Msg{Key: "desk.main.connect_still_trying_address", Args: map[string]any{"device": device}}
+}
+
 // DeskMainConnectUnreachable is desk.main.connect_unreachable: "{device} can't be reached right now. otc-sync keeps trying and starts syncing on…".
 func DeskMainConnectUnreachable(device string) Msg {
 	return Msg{Key: "desk.main.connect_unreachable", Args: map[string]any{"device": device}}

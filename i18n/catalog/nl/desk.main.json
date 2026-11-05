@@ -23,6 +23,7 @@
   "desk.main.connect_connected": {"text": "Verbonden met het apparaat {device}."},
   "desk.main.connect_menu": {"text": "Verbinden met een apparaat…"},
   "desk.main.connect_still_trying": {"text": "Er wordt nog verbinding gemaakt met het apparaat {device}. otc-sync blijft het proberen; het menu laat zien wanneer de verbinding er is."},
+  "desk.main.connect_still_trying_address": {"text": "Er wordt nog verbinding gemaakt met het apparaat {device}. otc-sync blijft het proberen; het menu laat zien wanneer de verbinding er is. Voor een apparaat in je thuisnetwerk typ je het adres en de poort, bijvoorbeeld 192.168.1.10:8080."},
   "desk.main.connect_unreachable": {"text": "Het apparaat {device} is nu niet bereikbaar. otc-sync blijft het proberen en begint met synchroniseren zodra het apparaat antwoordt."},
   "desk.main.connect_wrong_password": {"text": "Het apparaat {device} heeft het wachtwoord geweigerd."},
   "desk.main.connected_home": {"text": "Verbonden via je thuisnetwerk"},

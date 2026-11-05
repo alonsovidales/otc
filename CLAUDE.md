@@ -3889,7 +3889,17 @@ words as a footnote under the status row. Tests: `wsclient`/`engine` `storage_te
 `WSClientStorageTests` (a scratch SwiftPM package, as `WSClientLangTests`). A ws:// address for a device not on the home
 network (`config.Unencrypted` / `SyncPaths.isUnencryptedRemote`: not loopback, private,
 link-local, `.local`/`.lan`/`.home.arpa`/`.internal` or single-label) asks before it is used; the
-CLI wants `--allow-unencrypted`. Removing a folder asks first ("its files stay"). A folder is
+CLI wants `--allow-unencrypted`. A typed address is put right first (`config.NormalizeAddress` /
+`SyncPaths.normalizedAddress`, one table of cases in both tests; 2026-11-05, a Docker device's user
+typed `http://mint:8080` and `10.2.1.171:8080` and neither connected): `http(s)://` becomes
+`ws(s)://`, a missing or bare `/` path `/ws`, and a home-network host with a port other than
+443/8443 and no scheme `ws://`; anything that could connect before stays byte for byte (a host
+with no scheme or port, a public host with a port, a ws/wss URL with its path), so saved
+addresses and sync records don't change. Saving, `Configure` / `ws.configure`, `deviceDomainKey`,
+`Unencrypted` and the web app's address all go through it. In the tray a typed address that
+hasn't connected after 30 s gets `desk.main.connect_still_trying_address` (with the example the
+Windows prompt has no room for), and each new reason a dial failed is logged once
+(`logDialFailure`). Removing a folder asks first ("its files stay"). A folder is
 synced once: one equal to, inside or holding a synced folder, here or on the device (ignoring case
 on macOS and Windows), is refused with why (`config.FolderOverlap` / `SyncModel.admit`); on the
 Mac, a folder waiting for its disk picked again is linked to it again, not added twice. "Set Up a New Device…" is a small

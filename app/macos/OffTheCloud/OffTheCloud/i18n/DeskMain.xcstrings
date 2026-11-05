@@ -1129,6 +1129,53 @@
         }
       }
     },
+    "desk.main.connect_still_trying_address" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Verbindung mit dem Gerät %1$@ wird noch hergestellt. otc-sync versucht es weiter; das Menü zeigt an, sobald die Verbindung steht. Für ein Gerät in deinem Heimnetz gib seine Adresse und seinen Port ein, zum Beispiel 192.168.1.10:8080."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Still connecting to %1$@. otc-sync keeps trying; the menu shows when it is connected. For a device on your home network, type its address and port, for example 192.168.1.10:8080."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La conexión con el dispositivo %1$@ aún está en curso. otc-sync sigue intentándolo; el menú indicará cuándo esté conectado. Si el dispositivo está en tu red doméstica, escribe su dirección y su puerto, por ejemplo 192.168.1.10:8080."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connexion à l’appareil %1$@ toujours en cours. otc-sync continue d’essayer ; le menu indique quand la connexion est établie. Pour un appareil de votre réseau domestique, saisissez son adresse et son port, par exemple 192.168.1.10:8080."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connessione al dispositivo %1$@ ancora in corso. otc-sync continua a provare; il menu mostra quando è connesso. Per un dispositivo della tua rete domestica, scrivi il suo indirizzo e la porta, ad esempio 192.168.1.10:8080."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Er wordt nog verbinding gemaakt met het apparaat %1$@. otc-sync blijft het proberen; het menu laat zien wanneer de verbinding er is. Voor een apparaat in je thuisnetwerk typ je het adres en de poort, bijvoorbeeld 192.168.1.10:8080."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda a ligar ao dispositivo %1$@. O otc-sync continua a tentar; o menu mostra quando estiver ligado. Para um dispositivo na tua rede doméstica, escreve o endereço e a porta, por exemplo 192.168.1.10:8080."
+          }
+        }
+      }
+    },
     "desk.main.connect_unreachable" : {
       "extractionState" : "manual",
       "localizations" : {

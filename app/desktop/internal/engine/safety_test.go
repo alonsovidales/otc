@@ -241,6 +241,10 @@ func TestRecordDeviceMatches(t *testing.T) {
 		{"cala.off-the.cloud", "Cala.off-the.cloud"},
 		{"cala.off-the.cloud", "wss://cala.off-the.cloud/ws"},
 		{"ws://192.168.1.2:8080/ws", "WS://192.168.1.2:8080/ws/"},
+		// An address typed before otc-sync put them right, and as it saves it now.
+		{"http://mint:8080", "ws://mint:8080/ws"},
+		{"10.2.1.171:8080", "ws://10.2.1.171:8080/ws"},
+		{"https://otc.example.com", "wss://otc.example.com/ws"},
 	} {
 		if !SameDevice(same[0], same[1]) {
 			t.Errorf("%q and %q are the same device", same[0], same[1])

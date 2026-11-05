@@ -13,6 +13,9 @@ func TestUnencrypted(t *testing.T) {
 		"ws://otc.lan/ws": false, "ws://otc.home.arpa/ws": false, "ws://localhost:8080/ws": false,
 		"ws://203.0.113.7:8080/ws": true, "ws://otc.example.com/ws": true, "WS://[2001:db8::1]/ws": true,
 		"wss://otc.example.com/ws": false, "cala.off-the.cloud": false,
+		// Dialled as ws:// (NormalizeAddress).
+		"http://203.0.113.7:8080": true, "http://mint:8080": false, "10.2.1.171:8080": false,
+		"https://otc.example.com": false,
 	} {
 		if got := Unencrypted(domain); got != want {
 			t.Errorf("Unencrypted(%q) = %v, want %v", domain, got, want)

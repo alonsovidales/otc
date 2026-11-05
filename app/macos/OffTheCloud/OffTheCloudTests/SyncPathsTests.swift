@@ -169,6 +169,10 @@ struct SyncPathsTests {
         #expect(SyncPaths.sameDevice("cala.off-the.cloud", "wss://cala.off-the.cloud/ws"))
         #expect(SyncPaths.sameDevice("ws://192.168.1.2:8080/ws", "WS://192.168.1.2:8080/ws/"))
         #expect(!SyncPaths.sameDevice("cala.off-the.cloud", "pit.off-the.cloud"))
+        // An address typed before the Mac put them right, and as it saves it now.
+        #expect(SyncPaths.sameDevice("http://mint:8080", "ws://mint:8080/ws"))
+        #expect(SyncPaths.sameDevice("10.2.1.171:8080", "ws://10.2.1.171:8080/ws"))
+        #expect(SyncPaths.sameDevice("https://otc.example.com", "wss://otc.example.com/ws"))
     }
 
     @Test func recordFiles() throws {
@@ -764,6 +768,60 @@ struct SyncPathsTests {
         }
         for remote in ["ws://203.0.113.7:8080/ws", "ws://otc.example.com/ws", "WS://[2001:db8::1]/ws"] {
             #expect(SyncPaths.isUnencryptedRemote(remote), "\(remote)")
+        }
+        // Dialled as ws:// (normalizedAddress).
+        #expect(SyncPaths.isUnencryptedRemote("http://203.0.113.7:8080"))
+        for local in ["http://mint:8080", "10.2.1.171:8080", "https://otc.example.com"] {
+            #expect(!SyncPaths.isUnencryptedRemote(local), "\(local)")
+        }
+    }
+
+    // MARK: Typed addresses
+
+    /// An address typed as people type it is put right where it could never
+    /// connect as typed (a Docker device's user, 2026-11-05), and anything
+    /// that could is kept as it is. otc-sync's TestNormalizeAddress, case
+    /// for case.
+    @Test func typedAddresses() {
+        let cases: [(String, String)] = [
+            // Put right.
+            ("http://mint:8080", "ws://mint:8080/ws"),
+            ("http://10.2.1.171:8080", "ws://10.2.1.171:8080/ws"),
+            ("HTTP://10.2.1.171:8080/", "ws://10.2.1.171:8080/ws"),
+            ("https://otc.example.com", "wss://otc.example.com/ws"),
+            ("https://otc.example.com:8443/otc/ws", "wss://otc.example.com:8443/otc/ws"),
+            ("ws://10.2.1.171:8080", "ws://10.2.1.171:8080/ws"),
+            ("wss://otc.example.com/", "wss://otc.example.com/ws"),
+            ("10.2.1.171:8080", "ws://10.2.1.171:8080/ws"),
+            ("mint:8080", "ws://mint:8080/ws"),
+            ("nas.local:8080", "ws://nas.local:8080/ws"),
+            ("nas.lan:8080/ws", "ws://nas.lan:8080/ws"),
+            ("localhost:8080", "ws://localhost:8080/ws"),
+            ("[fd00::5]:8080", "ws://[fd00::5]:8080/ws"),
+            // Kept as typed (trimmed).
+            ("cala.off-the.cloud", "cala.off-the.cloud"),
+            (" Cala.off-the.cloud ", "Cala.off-the.cloud"),
+            ("wss://cala.off-the.cloud/ws", "wss://cala.off-the.cloud/ws"),
+            ("ws://192.168.1.10:8080/ws", "ws://192.168.1.10:8080/ws"),
+            ("WS://192.168.1.2:8080/ws/", "WS://192.168.1.2:8080/ws/"),
+            ("otc.example.com", "otc.example.com"),
+            ("otc.example.com:8443", "otc.example.com:8443"),
+            ("203.0.113.7:8080", "203.0.113.7:8080"),
+            ("192.168.1.10", "192.168.1.10"),
+            ("nas.lan", "nas.lan"),
+            ("dev", "dev"),
+            ("10.2.1.171:443", "10.2.1.171:443"),
+            ("10.2.1.171:8443", "10.2.1.171:8443"),
+            ("fd00::5", "fd00::5"),
+            ("mint:", "mint:"),
+            ("ftp://cala.off-the.cloud/", "ftp://cala.off-the.cloud/"),
+            ("wss:///ws", "wss:///ws"),
+            ("not a host", "not a host"),
+            ("", ""),
+            ("   ", ""),
+        ]
+        for (typed, want) in cases {
+            #expect(SyncPaths.normalizedAddress(typed) == want, "\(typed)")
         }
     }
 }

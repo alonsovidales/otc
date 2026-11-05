@@ -23,6 +23,7 @@
   "desk.main.connect_connected": {"text": "Mit dem Gerät {device} verbunden."},
   "desk.main.connect_menu": {"text": "Mit einem Gerät verbinden…"},
   "desk.main.connect_still_trying": {"text": "Die Verbindung mit dem Gerät {device} wird noch hergestellt. otc-sync versucht es weiter; das Menü zeigt an, sobald die Verbindung steht."},
+  "desk.main.connect_still_trying_address": {"text": "Die Verbindung mit dem Gerät {device} wird noch hergestellt. otc-sync versucht es weiter; das Menü zeigt an, sobald die Verbindung steht. Für ein Gerät in deinem Heimnetz gib seine Adresse und seinen Port ein, zum Beispiel 192.168.1.10:8080."},
   "desk.main.connect_unreachable": {"text": "Das Gerät {device} ist gerade nicht erreichbar. otc-sync versucht es weiter und beginnt mit der Synchronisierung, sobald das Gerät antwortet."},
   "desk.main.connect_wrong_password": {"text": "Das Gerät {device} hat das Passwort abgelehnt."},
   "desk.main.connected_home": {"text": "Über dein Heimnetz verbunden"},

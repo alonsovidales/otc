@@ -141,7 +141,9 @@ Right after setup the device works on your home network only, like a Raspberry P
 - **Browser:** `http://<server-ip>:8080`.
 - **Phone and Mac apps:** turn on **Custom address** where you enter the device's name, and type
   `ws://<server-ip>:8080/ws`.
-- **otc-sync:** `otc-sync settings --address ws://<server-ip>:8080/ws --password-prompt`.
+- **otc-sync:** in its menu, **Connect to a Device…** and type `<server-ip>:8080`; or
+  `otc-sync settings --address ws://<server-ip>:8080/ws --password-prompt`. The Mac app and
+  otc-sync also take `<server-ip>:8080` and `http://<server-ip>:8080` as that address.
 
 Give the server a fixed address in your router, so that address keeps working.
 

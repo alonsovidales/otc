@@ -75,9 +75,10 @@ func (r recordDevice) matches(d recordDevice) bool {
 // deviceDomainKey is a configured address as records compare it: a bridge
 // name in any of its spellings ("Cala.off-the.cloud",
 // "wss://cala.off-the.cloud/ws") is its bare host; anything else is the
-// trimmed address in lower case.
+// address as it is dialled (config.NormalizeAddress: "http://mint:8080" is
+// "ws://mint:8080/ws") in lower case.
 func deviceDomainKey(domain string) string {
-	d := strings.TrimSpace(domain)
+	d := config.NormalizeAddress(domain)
 	if name := config.BridgeName(d); name != "" {
 		return config.BridgeDomainForName(name)
 	}
