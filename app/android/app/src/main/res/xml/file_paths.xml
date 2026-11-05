@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Only the temporary copies handed to another app (TempFiles: Share's
-     picture and logs, Files' opened files, under cacheDir/tmp/): nothing of
+     picture and logs, Files' opened files, under cacheDir/tmp/ - and the
+     setup page's picture made a JPEG, read by the app's own web view): nothing of
      filesDir (the wallpaper's copies, the sync's records) nor the rest of
      the cache (the thumbnails) can be granted. -->
 <paths>

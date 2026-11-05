@@ -972,6 +972,10 @@
     "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: label of the profile picture picker (a file button and a round crop preview).",
     "max": 30
   },
+  "wiz.profile.picture_unsupported": {
+    "text": "This picture can't be opened here - try a JPEG or PNG.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: shown in place of the drag hint when the browser can't open the picked picture (a HEIF/HEIC photo in Android's web view). JPEG and PNG are image formats: keep them. The same sentence as web.images.crop.unsupported."
+  },
   "wiz.profile.title": {
     "text": "Your profile",
     "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: its heading. Followed by \"(optional)\" in grey.",

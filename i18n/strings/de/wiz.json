@@ -828,6 +828,10 @@
     "text": "Profilbild",
     "en": "Profile picture"
   },
+  "wiz.profile.picture_unsupported": {
+    "text": "Dieses Bild kann hier nicht geöffnet werden – versuche es mit einem JPEG oder PNG.",
+    "en": "This picture can't be opened here - try a JPEG or PNG."
+  },
   "wiz.profile.title": {
     "text": "Dein Profil",
     "en": "Your profile"

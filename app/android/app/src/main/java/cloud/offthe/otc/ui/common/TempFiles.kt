@@ -7,14 +7,14 @@ import java.util.UUID
 /**
  * The app's temporary copies, in folders of their own under the cache
  * (cacheDir/tmp/<kind>/), as iOS's TempFiles.swift: the viewer's whole-file
- * video, Files' opened files, Share's picture, the composer's trims and the
- * feed's fallback videos. Each is deleted when done with; what a process
+ * video, Files' opened files, Share's picture, the composer's trims, the
+ * feed's fallback videos and the setup page's picture made a JPEG (SetupPicture). Each is deleted when done with; what a process
  * ended before that left is removed at the next start ([sweepAtStart]).
  * They used to sit at the cache's top level for good - a 2 GB video played
  * three times without a stream URL left 6 GB.
  */
 object TempFiles {
-    enum class Kind(val dir: String) { VIEWER("viewer"), PREVIEW("preview"), SHARE("share"), TRIM("trim"), FEED("feed") }
+    enum class Kind(val dir: String) { VIEWER("viewer"), PREVIEW("preview"), SHARE("share"), TRIM("trim"), FEED("feed"), SETUP("setup") }
 
     private const val ROOT = "tmp"
     private const val OLD = "tmp-old-"

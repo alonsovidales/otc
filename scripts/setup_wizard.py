@@ -372,6 +372,7 @@ I18N = {
         "wiz.profile.optional": "(optional)",
         "wiz.profile.optional_hint": "All das ist optional – du kannst es später in den Einstellungen festlegen.",
         "wiz.profile.picture_label": "Profilbild",
+        "wiz.profile.picture_unsupported": "Dieses Bild kann hier nicht geöffnet werden – versuche es mit einem JPEG oder PNG.",
         "wiz.profile.title": "Dein Profil",
         "wiz.profile.zoom": "Zoom",
         "wiz.ready.back": "Dein Gerät ist zurück, mit allem, was es hatte.",
@@ -651,6 +652,7 @@ I18N = {
         "wiz.profile.optional": "(optional)",
         "wiz.profile.optional_hint": "All of this is optional - you can set it later in Settings.",
         "wiz.profile.picture_label": "Profile picture",
+        "wiz.profile.picture_unsupported": "This picture can't be opened here - try a JPEG or PNG.",
         "wiz.profile.title": "Your profile",
         "wiz.profile.zoom": "Zoom",
         "wiz.ready.back": "Your device is back, with everything it had.",
@@ -930,6 +932,7 @@ I18N = {
         "wiz.profile.optional": "(opcional)",
         "wiz.profile.optional_hint": "Todo esto es opcional: puedes configurarlo más adelante en Ajustes.",
         "wiz.profile.picture_label": "Foto de perfil",
+        "wiz.profile.picture_unsupported": "Esta imagen no se puede abrir aquí: prueba con un JPEG o un PNG.",
         "wiz.profile.title": "Tu perfil",
         "wiz.profile.zoom": "Zoom",
         "wiz.ready.back": "Tu dispositivo ha vuelto, con todo lo que tenía.",
@@ -1209,6 +1212,7 @@ I18N = {
         "wiz.profile.optional": "(facultatif)",
         "wiz.profile.optional_hint": "Tout ceci est facultatif : vous pourrez le définir plus tard dans les Paramètres.",
         "wiz.profile.picture_label": "Photo de profil",
+        "wiz.profile.picture_unsupported": "Impossible d’ouvrir cette image ici. Essayez un fichier JPEG ou PNG.",
         "wiz.profile.title": "Votre profil",
         "wiz.profile.zoom": "Zoom",
         "wiz.ready.back": "Votre appareil est de retour, avec tout ce qu’il contenait.",
@@ -1488,6 +1492,7 @@ I18N = {
         "wiz.profile.optional": "(facoltativo)",
         "wiz.profile.optional_hint": "È tutto facoltativo: puoi impostarlo in seguito in Impostazioni.",
         "wiz.profile.picture_label": "Foto del profilo",
+        "wiz.profile.picture_unsupported": "Questa immagine non si può aprire qui: prova con un JPEG o un PNG.",
         "wiz.profile.title": "Il tuo profilo",
         "wiz.profile.zoom": "Zoom",
         "wiz.ready.back": "Il tuo dispositivo è tornato, con tutto ciò che aveva.",
@@ -1767,6 +1772,7 @@ I18N = {
         "wiz.profile.optional": "(optioneel)",
         "wiz.profile.optional_hint": "Dit is allemaal optioneel – je kunt het later instellen in Instellingen.",
         "wiz.profile.picture_label": "Profielfoto",
+        "wiz.profile.picture_unsupported": "Deze foto kan hier niet worden geopend: probeer een JPEG of PNG.",
         "wiz.profile.title": "Je profiel",
         "wiz.profile.zoom": "Zoomen",
         "wiz.ready.back": "Je apparaat is terug, met alles wat het had.",
@@ -2046,6 +2052,7 @@ I18N = {
         "wiz.profile.optional": "(opcional)",
         "wiz.profile.optional_hint": "Tudo isto é opcional: podes defini-lo mais tarde em Definições.",
         "wiz.profile.picture_label": "Foto de perfil",
+        "wiz.profile.picture_unsupported": "Não é possível abrir esta foto aqui: experimenta um JPEG ou PNG.",
         "wiz.profile.title": "O teu perfil",
         "wiz.profile.zoom": "Zoom",
         "wiz.ready.back": "O teu dispositivo voltou, com tudo o que tinha.",
@@ -3530,7 +3537,7 @@ let prof={name:'',text:'',image:'',faces:false};const crop={img:null,x:0,y:0,z:1
 function profileFields(){return h('section',{class:'prof'},h('h3',{},t('wiz.profile.title'),' ',h('span',{class:'detail'},t('wiz.profile.optional'))),
  h('label',{},t('wiz.profile.name_label')),h('input',{type:'text',id:'pn',maxlength:'100',value:prof.name,placeholder:t('wiz.profile.name_placeholder')}),
  h('label',{},t('wiz.profile.about_label')),h('input',{type:'text',id:'pt',maxlength:'500',value:prof.text,placeholder:t('wiz.profile.about_placeholder')}),
- h('label',{},t('wiz.profile.picture_label')),h('div',{class:'crop'},h('canvas',{id:'pc',width:CROP,height:CROP}),h('div',{class:'side'},h('input',{type:'file',id:'pf',accept:'image/*'}),h('label',{},t('wiz.profile.zoom')),h('input',{type:'range',id:'pz',min:'1',max:'4',step:'0.01',value:crop.z,disabled:!crop.img}),h('p',{class:'hint'},t('wiz.profile.drag_hint')))),
+ h('label',{},t('wiz.profile.picture_label')),h('div',{class:'crop'},h('canvas',{id:'pc',width:CROP,height:CROP}),h('div',{class:'side'},h('input',{type:'file',id:'pf',accept:'image/*'}),h('label',{},t('wiz.profile.zoom')),h('input',{type:'range',id:'pz',min:'1',max:'4',step:'0.01',value:crop.z,disabled:!crop.img}),h('p',{class:'hint',id:'ph'},t('wiz.profile.drag_hint')))),
  h('label',{class:'check'},h('input',{type:'checkbox',id:'pfc',checked:prof.faces}),' ',t('wiz.profile.faces_label')),
  h('p',{class:'hint'},t('wiz.profile.faces_hint')),
  h('p',{class:'hint'},t('wiz.profile.optional_hint')))}
@@ -3544,7 +3551,10 @@ function cropSave(){if(!crop.img)return;const o=document.createElement('canvas')
 function wireProfile(){if(!$('#pn'))return;
  $('#pn').oninput=e=>{prof.name=e.target.value};$('#pt').oninput=e=>{prof.text=e.target.value};$('#pfc').onchange=e=>{prof.faces=e.target.checked};
  const c=$('#pc'),z=$('#pz');cropDraw();
- $('#pf').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const im=new Image();im.onload=()=>{crop.img=im;crop.z=1;crop.x=0;crop.y=0;z.disabled=false;z.value=1;cropDraw();cropSave()};const r=new FileReader();r.onload=()=>{im.src=r.result};r.readAsDataURL(f)};
+ // A picture the browser can't open (a HEIF/HEIC photo in Android's web
+ // view, which can't decode them) says so where the hint is, and keeps the
+ // picture before it: it used to leave the crop empty without a word.
+ $('#pf').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const ph=$('#ph'),hint=bad=>{ph.textContent=t(bad?'wiz.profile.picture_unsupported':'wiz.profile.drag_hint');ph.className=bad?'hint bad':'hint';ph.style.color=bad?'var(--bad)':''};const im=new Image();im.onload=()=>{hint(false);crop.img=im;crop.z=1;crop.x=0;crop.y=0;z.disabled=false;z.value=1;cropDraw();cropSave()};im.onerror=()=>hint(true);const r=new FileReader();r.onload=()=>{im.src=r.result};r.onerror=()=>hint(true);r.readAsDataURL(f)};
  z.oninput=()=>{if(!crop.img)return;crop.z=+z.value;cropClamp();cropDraw();cropSave()};
  let drag=null;const k=()=>CROP/c.getBoundingClientRect().width;
  c.onpointerdown=e=>{if(!crop.img)return;drag={x:e.clientX,y:e.clientY,ox:crop.x,oy:crop.y};c.setPointerCapture(e.pointerId)};

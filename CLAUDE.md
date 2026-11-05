@@ -271,7 +271,14 @@ recognition checkbox, unticked. The wizard writes them to a root-only tmpfs JSON
 (`OTC_SETUP_PROFILE_FILE`), and `install.sh` feeds it to `otc <env> init-profile` (`bin/otc.go`)
 before the owner password - empty fields keep the defaults, and all of it can be changed later in
 Settings. On Android the setup WebView needs its `WebChromeClient.onShowFileChooser` for the
-picture field; WKWebView handles file inputs itself on iOS, but on macOS only through a
+picture field, and Android's web view can't decode HEIF/HEIC (what most phone cameras save): a
+picture of that kind goes to the page as a JPEG copy of at most 2048 px a side (`ui/SetupPicture.kt`:
+ImageDecoder, else MediaMetadataRetriever's primary image - the emulator's ImageDecoder refused a
+tiled HEIC; in `cacheDir/tmp/setup/`, removed as the screen goes; debug-only
+`SetupPicturePreviewActivity` runs a picture through it), and the page says
+`wiz.profile.picture_unsupported` in place of its drag hint for any picture its browser can't open
+(it said nothing and left the crop empty, 2026-11-05); WKWebView handles file inputs itself on iOS
+and opens HEIC, but on macOS only through a
 `WKUIDelegate` (`runOpenPanelWith`, an `NSOpenPanel` for images - without it "Choose File" does nothing). Several devices can be set up at once from several phones: each advertises
 `OTC <id>` (`device_id()`: the last 4 hex digits of the Pi serial), the setup page shows that ID
 with a "Blink its light" link (`/api/identify` flashes the ACT LED for 15 s), and the apps list

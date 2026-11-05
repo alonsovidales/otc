@@ -77,6 +77,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.ui.common.TempFiles
 import cloud.offthe.otc.i18n.LanguageSettings
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
@@ -238,12 +239,22 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
     // loses nothing: the device installing and the link up.
     LaunchedEffect(waitingLang, installStarted, phase is BLESetupTransport.Phase.Ready) { page.reloadWhenSafe() }
     // The page's profile-picture field (issue #178): a WebView opens no
-    // file picker on its own, so the chooser request comes here.
+    // file picker on its own, so the chooser request comes here. A HEIF goes
+    // to the page as a JPEG copy, which its canvas can open (SetupPicture).
     val pendingFile = remember { arrayOfNulls<ValueCallback<Array<Uri>>>(1) }
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        pendingFile[0]?.onReceiveValue(if (uri != null) arrayOf(uri) else null)
+        val callback = pendingFile[0] ?: return@rememberLauncherForActivityResult
         pendingFile[0] = null
+        if (uri == null) {
+            callback.onReceiveValue(null)
+        } else {
+            scope.launch {
+                val shown = withContext(Dispatchers.IO) { SetupPicture.forPage(context, uri) }
+                callback.onReceiveValue(arrayOf(shown))
+            }
+        }
     }
+    DisposableEffect(Unit) { onDispose { TempFiles.clear(context.cacheDir, TempFiles.Kind.SETUP) } }
 
     // Leaving while the device installs asks first: the install goes on,
     // and this screen is where it is followed (as iOS).

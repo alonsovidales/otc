@@ -59,5 +59,12 @@
             android:exported="true"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.OffTheCloud" />
+        <!-- The setup page's profile picture through SetupPicture, as the
+             Bluetooth setup hands it over (adb shell am start -n
+             cloud.offthe.otc/.SetupPicturePreviewActivity [- -es path <file>] [- -ez raw true]). -->
+        <activity
+            android:name=".SetupPicturePreviewActivity"
+            android:exported="true"
+            android:theme="@style/Theme.OffTheCloud" />
     </application>
 </manifest>
