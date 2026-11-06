@@ -2159,11 +2159,13 @@ start takes its file.
   - Root watcher `otc-screen-watch.py` (Python stdlib, `/usr/local/bin/otc-screen-watch`,
     `otc-screen.service`, enabled): every 3 s reads `/sys/class/drm/card*-{HDMI-A,DSI}-*/status`.
     A screen `connected`: installs the browser the first time (`apt-get install
-    --no-install-recommends cage chromium kbd fonts-dejavu-core fonts-noto-color-emoji`, then
+    --no-install-recommends cage chromium kbd wlr-randr fonts-dejavu-core fonts-noto-color-emoji`, then
     `apt-get clean`; not while `otc-update.service` runs, at least 1.5 GB free, a failure tried again
     after 30 min, said on tty1), makes the `otc-screen` system user (home `/var/lib/otc-screen`,
     groups video/render/input where they exist), writes `/run/otc-screen/browser.env`
-    (`OTC_SCREEN_URL=http://127.0.0.1:<[otc-api] port of /etc/otc_dev.ini>/?screen=1`) and the
+    (`OTC_SCREEN_URL=http://127.0.0.1:<[otc-api] port of /etc/otc_dev.ini>/?screen=1` and
+    `OTC_SCREEN_SCALE`: `screen_scale(edid)`, the first detailed timing's width over its mm, at 132
+    CSS px per inch in quarters from 1 to 3 - 2 on a 9.7-inch 2048 x 1536, 1 without a size) and the
     managed policy `/etc/chromium/policies/managed/otc-screen.json` (`policy()`: URLBlocklist `*`
     with only the device's origin allowed - navigations only, the map's tiles still load - no
     downloads, no file chooser, no password manager/autofill/translate/sign-in/devtools/printing),
@@ -2179,8 +2181,11 @@ start takes its file.
     cage gets the DRM device and the touch screen (checked in a systemd container: `loginctl` shows
     the session on seat0, class user, tty7). `ExecStartPre=+... --wait` (root) waits for any HTTP
     answer from the web app with the console still on screen, then `chvt 7`; `ExecStart` is
-    `otc-screen-browser.sh`: clears Chromium's crash flags, `exec cage -d -s -- chromium --kiosk
-    --ozone-platform=wayland ...` (no swipe back, no pinch zoom, touch events on). Restart=always;
+    `otc-screen-browser.sh`: clears Chromium's crash flags, `exec cage -d -s -- <itself> --app`, which
+    sets the scale on every output (`wlr-randr --output X --scale S`) and `exec chromium --kiosk
+    --ozone-platform=wayland ...` (no swipe back, no pinch zoom, touch events on). Never
+    `--force-device-scale-factor`: on Wayland it shrank the window to a quarter of the screen with the
+    page unscaled (tried in the container; the output scale gave a full-screen page at 2x). Restart=always;
     `ExecStopPost` `chvt 1`. The launcher refuses any OTC_SCREEN_URL but
     `http://127.0.0.1:<port>/?screen=1` (`TestScreenBrowserTakesOnlyTheDevicesAddress`). Ctrl+Alt+F1
     is the console. On Raspberry Pi OS trixie both come from the Raspberry Pi archive's main component

@@ -57,13 +57,18 @@ GROUPS = ("video", "render", "input")
 # chromium and cage from the distribution (Raspberry Pi OS's own chromium
 # build, kept current by the daily security updates: install.sh's
 # Origins-Pattern takes the Raspberry Pi archive's main component); chvt
-# from kbd; the fonts the web app falls back to, emoji included.
-PACKAGES = ("cage", "chromium", "kbd", "fonts-dejavu-core", "fonts-noto-color-emoji")
+# from kbd; wlr-randr sets a sharp screen's scale (screen_scale); the fonts
+# the web app falls back to, emoji included.
+PACKAGES = ("cage", "chromium", "kbd", "wlr-randr", "fonts-dejavu-core", "fonts-noto-color-emoji")
 BROWSER_UNIT = "otc-screen-browser.service"
 DEFAULT_PORT = 8080
 # card1-HDMI-A-1, card1-HDMI-A-2, card2-DSI-1 - not Writeback, not Composite.
 OUTPUT_RE = re.compile(r"card[0-9]+-(HDMI-A|DSI)-[0-9]+")
 RUNNING = ("active", "activating", "reloading", "deactivating")
+# The page's zoom on a small sharp screen: about an iPad's 132 CSS pixels
+# per inch, in quarters, from 1 to 3.
+CSS_PPI = 132.0
+EDID_HEADER = b"\x00\xff\xff\xff\xff\xff\xff\x00"
 
 SUBPROCESS_ENV = {
     "LC_ALL": "C.UTF-8",
@@ -87,6 +92,7 @@ class Paths:
         self.console = root + "/dev/tty1"
         self.cage = root + "/usr/bin/cage"
         self.chromium = root + "/usr/bin/chromium"
+        self.wlr_randr = root + "/usr/bin/wlr-randr"
         self.home = root + HOME
 
 
@@ -173,6 +179,36 @@ def probe(paths, outs):
                 f.write("detect")
         except OSError:
             pass
+
+
+def screen_scale(edid):
+    """The page's zoom for a screen, from its EDID: its native width (the
+    first detailed timing) over its width in mm. A 9.7-inch 2048 x 1536
+    screen is 264 pixels per inch: shown at 1, the web app would be a
+    quarter of its size, so it is shown at 2 (1024 x 768 CSS pixels, as an
+    iPad). 1 for any screen at a normal density, and when the EDID says
+    nothing usable (a TV or a projector often gives no size)."""
+    if len(edid) < 128 or edid[:8] != EDID_HEADER:
+        return 1.0
+    d = edid[54:72]
+    if d[0] == 0 and d[1] == 0:
+        return 1.0
+    width = d[2] | ((d[4] & 0xF0) << 4)
+    mm = d[12] | ((d[14] & 0xF0) << 4)
+    if not mm:
+        mm = edid[21] * 10
+    if width <= 0 or mm < 50:
+        return 1.0
+    scale = round(width / (mm / 25.4) / CSS_PPI * 4) / 4
+    return max(1.0, min(3.0, scale))
+
+
+def read_edid(paths, name):
+    try:
+        with open(os.path.join(paths.drm, name, "edid"), "rb") as f:
+            return f.read(256)
+    except OSError:
+        return b""
 
 
 def is_pi(paths):
@@ -287,10 +323,6 @@ def unit_running(ctx, unit):
     return out.strip() in RUNNING
 
 
-def installed(ctx):
-    return os.path.exists(ctx.paths.cage) and os.path.exists(ctx.paths.chromium) and ctx.user_exists(USER)
-
-
 OK, LATER, FAILED = "ok", "later", "failed"
 
 
@@ -298,7 +330,8 @@ def install(ctx):
     """Installs the browser and makes its user, if not there yet: OK, LATER
     (an update runs: its own apt comes first) or FAILED."""
     p = ctx.paths
-    if not (os.path.exists(p.cage) and os.path.exists(p.chromium)):
+    programs = (p.cage, p.chromium, p.wlr_randr)
+    if not all(os.path.exists(f) for f in programs):
         if unit_running(ctx, "otc-update.service"):
             return LATER
         if ctx.free_mb(p.root) < MIN_FREE_MB:
@@ -310,7 +343,7 @@ def install(ctx):
         tell(p, "Off The Cloud: setting up this screen - installing the browser, a few minutes...")
         ctx.run(APT + ["update"], 900)
         rc, _, err = ctx.run(APT + ["install", "--no-install-recommends"] + list(PACKAGES), 3600)
-        if rc != 0 or not (os.path.exists(p.cage) and os.path.exists(p.chromium)):
+        if rc != 0 or not all(os.path.exists(f) for f in programs):
             log("could not install the browser (apt-get %d): %s" % (rc, err.strip()[-300:]))
             tell(p, "Off The Cloud: the browser for this screen could not be installed."
                  " It is tried again in 30 minutes.")
@@ -374,10 +407,13 @@ class Watcher:
                 if got == OK:
                     self.retry_at = None
                     port = http_port(p)
-                    write_if_changed(p.env, ("OTC_SCREEN_URL=%s\n" % url(port)).encode(), 0o644)
+                    shown = [n for n, s in outs if s == "connected"]
+                    scale = screen_scale(read_edid(p, shown[0]))
+                    write_if_changed(p.env, ("OTC_SCREEN_URL=%s\nOTC_SCREEN_SCALE=%s\n" % (url(port), scale)).encode(),
+                                     0o644)
                     write_if_changed(p.policy, (json.dumps(policy(port), indent=2, sort_keys=True) + "\n").encode(),
                                      0o644)
-                    log("a screen: showing the device on it (%s)" % ", ".join(n for n, s in outs if s == "connected"))
+                    log("a screen: showing the device on it (%s, zoom %s)" % (", ".join(shown), scale))
                     ctx.run(["systemctl", "start", "--no-block", BROWSER_UNIT], 30)
                 elif got == FAILED:
                     self.retry_at = now + INSTALL_RETRY
@@ -453,8 +489,8 @@ def selftest():
                     self.active.discard(argv[3])
                 elif argv[0] == "apt-get" and "install" in argv:
                     if self.apt_rc == 0:
-                        put("usr/bin/cage", "")
-                        put("usr/bin/chromium", "")
+                        for prog in ("cage", "chromium", "wlr-randr"):
+                            put("usr/bin/" + prog, "")
                     return self.apt_rc, "", "E: no network" if self.apt_rc else ""
                 elif argv[0] == "useradd":
                     self.users.add(argv[-1])
@@ -518,7 +554,8 @@ def selftest():
         add = sysd.named("useradd")
         expect(len(add) == 1 and add[0][-1] == USER and "video,render" in add[0] and "input" not in " ".join(add[0]),
                "user made with the groups there are")
-        expect(get("run/otc-screen/browser.env") == "OTC_SCREEN_URL=http://127.0.0.1:8080/?screen=1\n", "env written")
+        expect(get("run/otc-screen/browser.env") == "OTC_SCREEN_URL=http://127.0.0.1:8080/?screen=1\nOTC_SCREEN_SCALE=1.0\n",
+               "env written (no EDID: zoom 1)")
         expect(json.loads(get("etc/chromium/policies/managed/otc-screen.json")) == policy(8080), "policy written")
         expect(BROWSER_UNIT in sysd.active, "browser started")
         expect(get("sys/class/drm/card1-HDMI-A-1/status") == "disconnected\n", "no probing with a screen there")
@@ -606,6 +643,33 @@ def selftest():
         os.unlink(paths.model)
         expect(Watcher(ctx).eligible() == "not a Raspberry Pi", "no device tree (a PC, a VPS) isn't")
         expect(main(ctx) == 0, "main returns at once where it can't show anything")
+
+        # The zoom from the EDID: width in pixels over width in mm.
+        def edid(width, mm, cm=0):
+            e = bytearray(128)
+            e[:8] = EDID_HEADER
+            e[21] = cm
+            e[54], e[55] = 0x3A, 0x02
+            e[56], e[58] = width & 0xFF, (width >> 8) << 4
+            e[66], e[68] = mm & 0xFF, (mm >> 8) << 4
+            return bytes(e)
+        for e, want in [(edid(2048, 197), 2.0), (edid(1024, 197), 1.0), (edid(1920, 344), 1.0),
+                        (edid(1920, 293), 1.25), (edid(3840, 293), 2.5), (edid(3840, 0, 0), 1.0),
+                        (edid(2048, 0, 20), 2.0), (edid(3840, 100), 3.0), (edid(1280, 20), 1.0),
+                        (b"", 1.0), (b"\x00" * 128, 1.0)]:
+            expect(screen_scale(e) == want, "zoom %r, want %s" % (screen_scale(e), want))
+        put("sys/class/drm/card1-HDMI-A-2/edid", "")
+        with open(os.path.join(tmp, "sys/class/drm/card1-HDMI-A-2/edid"), "wb") as f:
+            f.write(edid(2048, 197))
+        os.unlink(paths.env)
+        sysd.active = set()
+        put("proc/meminfo", "MemTotal:        8245328 kB\n")
+        put("proc/device-tree/model", "Raspberry Pi 5 Model B Rev 1.0\x00")
+        status(2, "connected")
+        w3 = Watcher(ctx)
+        clock[0] += 3
+        w3.step()
+        expect(get("run/otc-screen/browser.env").endswith("OTC_SCREEN_SCALE=2.0\n"), "a 2048-pixel 9.7-inch screen: zoom 2")
 
         # write_if_changed: rewritten only when different.
         f = os.path.join(tmp, "run", "x")
