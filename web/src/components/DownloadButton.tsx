@@ -9,6 +9,7 @@ import { savingLabel, savingPercent, failedText, dismissFailed } from "./mediaDo
 import type { Saving, FailedDownload } from "./mediaDownload";
 import { useT } from "../i18n";
 import { percentText } from "./uiText";
+import { screenMode } from "./screenMode";
 import "./PhotoGallery.css";
 
 const DownloadGlyph = () => (
@@ -45,6 +46,8 @@ export function DownloadButton({ save, onClick, what, cls = "pg-modal-dl", class
   announce?: boolean;
 }) {
   const t = useT();
+  // The device's own screen saves no files (screenMode.ts).
+  if (screenMode()) return null;
   const text = savingLabel(t, save);
   const pct = savingPercent(save);
   return (

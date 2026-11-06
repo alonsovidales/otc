@@ -9,6 +9,7 @@ import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { I18nProvider } from './i18n'
 import { useWS } from './net/useWS'
 import { pageEndpoint } from './net/endpoint'
+import { ScreenPart } from './components/screenPart.tsx'
 
 const cfg = window.__OTC_CONFIG;
 const page = pageEndpoint(window.location, import.meta.env.MODE === "development", import.meta.env.VITE_DEVICE, !!cfg);
@@ -20,5 +21,6 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary where="shared">
       <SharedGalleryView />
     </ErrorBoundary>
+    <ScreenPart />
   </I18nProvider>
 )

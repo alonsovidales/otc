@@ -876,6 +876,18 @@ export type MessageKey =
   | "web.shell.error.title"
   | "web.shell.file_icon.generic"
   | "web.shell.file_icon.label"
+  | "web.shell.keyboard.accents"
+  | "web.shell.keyboard.backspace"
+  | "web.shell.keyboard.caps_lock"
+  | "web.shell.keyboard.enter"
+  | "web.shell.keyboard.go"
+  | "web.shell.keyboard.hide"
+  | "web.shell.keyboard.label"
+  | "web.shell.keyboard.letters"
+  | "web.shell.keyboard.more_symbols"
+  | "web.shell.keyboard.shift"
+  | "web.shell.keyboard.space"
+  | "web.shell.keyboard.symbols"
   | "web.shell.link.cancelled"
   | "web.shell.link.done"
   | "web.shell.link.empty"
@@ -903,6 +915,9 @@ export type MessageKey =
   | "web.shell.menu.terms"
   | "web.shell.menu.unread"
   | "web.shell.person.unnamed"
+  | "web.shell.screen.download"
+  | "web.shell.screen.elsewhere"
+  | "web.shell.screen.upload"
   | "web.shell.scrubber.label"
   | "web.shell.scrubber.month"
   | "web.shell.scrubber.no_date"
@@ -2077,6 +2092,18 @@ export interface MessageArgs {
   "web.shell.error.title": undefined;
   "web.shell.file_icon.generic": undefined;
   "web.shell.file_icon.label": { type: string };
+  "web.shell.keyboard.accents": undefined;
+  "web.shell.keyboard.backspace": undefined;
+  "web.shell.keyboard.caps_lock": undefined;
+  "web.shell.keyboard.enter": undefined;
+  "web.shell.keyboard.go": undefined;
+  "web.shell.keyboard.hide": undefined;
+  "web.shell.keyboard.label": undefined;
+  "web.shell.keyboard.letters": undefined;
+  "web.shell.keyboard.more_symbols": undefined;
+  "web.shell.keyboard.shift": undefined;
+  "web.shell.keyboard.space": undefined;
+  "web.shell.keyboard.symbols": undefined;
   "web.shell.link.cancelled": undefined;
   "web.shell.link.done": undefined;
   "web.shell.link.empty": undefined;
@@ -2104,6 +2131,9 @@ export interface MessageArgs {
   "web.shell.menu.terms": undefined;
   "web.shell.menu.unread": { label: string; count: number };
   "web.shell.person.unnamed": undefined;
+  "web.shell.screen.download": undefined;
+  "web.shell.screen.elsewhere": undefined;
+  "web.shell.screen.upload": undefined;
   "web.shell.scrubber.label": undefined;
   "web.shell.scrubber.month": { month: string; year: string };
   "web.shell.scrubber.no_date": undefined;

@@ -157,6 +157,54 @@
     "text": "Fichier {type}",
     "en": "{type} file"
   },
+  "web.shell.keyboard.accents": {
+    "text": "Lettres accentuées",
+    "en": "Accented letters"
+  },
+  "web.shell.keyboard.backspace": {
+    "text": "Retour arrière",
+    "en": "Backspace"
+  },
+  "web.shell.keyboard.caps_lock": {
+    "text": "Verrouillage des majuscules",
+    "en": "Caps lock"
+  },
+  "web.shell.keyboard.enter": {
+    "text": "Entrée",
+    "en": "Enter"
+  },
+  "web.shell.keyboard.go": {
+    "text": "Aller",
+    "en": "Go"
+  },
+  "web.shell.keyboard.hide": {
+    "text": "Masquer le clavier",
+    "en": "Hide keyboard"
+  },
+  "web.shell.keyboard.label": {
+    "text": "Clavier",
+    "en": "Keyboard"
+  },
+  "web.shell.keyboard.letters": {
+    "text": "Lettres",
+    "en": "Letters"
+  },
+  "web.shell.keyboard.more_symbols": {
+    "text": "Plus de symboles",
+    "en": "More symbols"
+  },
+  "web.shell.keyboard.shift": {
+    "text": "Majuscule",
+    "en": "Shift"
+  },
+  "web.shell.keyboard.space": {
+    "text": "Espace",
+    "en": "Space"
+  },
+  "web.shell.keyboard.symbols": {
+    "text": "Chiffres et symboles",
+    "en": "Numbers and symbols"
+  },
   "web.shell.link.cancelled": {
     "text": "Téléchargement annulé. Vous pouvez fermer cet onglet.",
     "en": "Download cancelled. You can close this tab."
@@ -272,6 +320,18 @@
   "web.shell.person.unnamed": {
     "text": "Sans nom",
     "en": "Unnamed"
+  },
+  "web.shell.screen.download": {
+    "text": "Téléchargez ceci sur votre téléphone ou votre ordinateur.",
+    "en": "Download this on your phone or computer."
+  },
+  "web.shell.screen.elsewhere": {
+    "text": "Ouvrez ceci sur votre téléphone ou votre ordinateur.",
+    "en": "Open this on your phone or computer."
+  },
+  "web.shell.screen.upload": {
+    "text": "Ajoutez des fichiers depuis votre téléphone ou votre ordinateur.",
+    "en": "Add files from your phone or computer."
   },
   "web.shell.scrubber.label": {
     "text": "Aller à une date",

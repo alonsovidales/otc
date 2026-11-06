@@ -1,0 +1,201 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* The on-screen keyboard of screen mode (ScreenKeyboard.tsx), sized for a
+   touch screen of about 10 inches at 1024 x 768 or 1280 x 720: keys about
+   a fingertip wide, the rows a third of the screen at most. Over every
+   dialog (they reach 2200) and under the tooltips (TipLayer, 10000). */
+
+.osk {
+  --osk-key-h: clamp(46px, 8.4vh, 68px);
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5000;
+  box-sizing: border-box;
+  padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink-2);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+  color: var(--mist);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  animation: osk-up 140ms ease-out;
+}
+@keyframes osk-up {
+  from { transform: translateY(24px); opacity: 0.4; }
+  to { transform: none; opacity: 1; }
+}
+
+.osk-rows {
+  display: grid;
+  gap: 8px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+/* The number pad: four keys a row, not stretched across the screen. */
+.osk.is-digits .osk-rows { max-width: 560px; }
+
+.osk-row {
+  display: flex;
+  gap: 7px;
+}
+.osk-gap { flex: 0 1 0; }
+
+.osk-key {
+  flex: 1 1 0;
+  min-width: 0;
+  height: var(--osk-key-h);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: #3b3b3b;
+  color: var(--mist);
+  font: inherit;
+  font-size: clamp(21px, 3.4vh, 27px);
+  font-weight: 400;
+  line-height: 1;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  transition: background-color 60ms linear;
+}
+/* index.css brightens every button under the pointer: a touch leaves it
+   there, so a key would stay lit after its tap. */
+.osk-key:hover,
+.osk-alt:hover { filter: none; }
+.osk-key.is-fn {
+  background: var(--ink-3);
+  color: var(--mist);
+  font-size: clamp(16px, 2.5vh, 19px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.osk-key.is-down { background: #5a5a5a; }
+.osk-key.is-fn.is-down { background: #474747; }
+
+.osk-shift.is-on,
+.osk-shift.is-locked {
+  background: var(--mist);
+  color: var(--ink);
+}
+/* Locked: a bar under the arrow, as a phone shows it. */
+.osk-shift.is-locked { box-shadow: inset 0 -4px 0 var(--ember); }
+
+.osk-enter {
+  background: var(--ember);
+  color: var(--ember-ink);
+}
+.osk-enter.is-down { background: #ff8a6e; }
+
+.osk-space-name {
+  font-size: clamp(13px, 2vh, 15px);
+  color: var(--mist-dim);
+  letter-spacing: 0.04em;
+}
+
+/* A long press's accents, over the key, in a row. */
+.osk-alts {
+  position: fixed;
+  z-index: 5001;
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  transform: translateY(calc(-100% - 10px));
+  background: var(--ink-3);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.osk-alt {
+  min-width: 56px;
+  height: 60px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--mist);
+  font: inherit;
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+}
+.osk-alt.is-lit {
+  background: var(--ember);
+  color: var(--ember-ink);
+}
+
+/* The page's room for the keyboard: it can scroll its foot above it. */
+body.osk-open { padding-bottom: var(--osk-h, 0px); }
+
+/* What a press can't do on this screen (ScreenLayer.tsx), for a few
+   seconds under the top bar. */
+.scr-notice {
+  position: fixed;
+  top: calc(var(--topbar-h) + 14px);
+  left: 50%;
+  z-index: 5100;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 12px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--ink-3);
+  color: var(--mist);
+  font-size: 17px;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  animation: scr-notice-in 160ms ease-out;
+}
+@keyframes scr-notice-in {
+  from { opacity: 0; transform: translate(-50%, -6px); }
+  to { opacity: 1; transform: translateX(-50%); }
+}
+.scr-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Back, on a page of the device's other than the app (a shared gallery's):
+   the kiosk's browser has no button of its own. */
+.scr-back {
+  position: fixed;
+  left: 16px;
+  bottom: calc(16px + var(--osk-h, 0px));
+  z-index: 4900;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 20px 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--ink-3);
+  color: var(--mist);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+.scr-back:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .osk, .scr-notice { animation: none; }
+  .osk-key { transition: none; }
+}

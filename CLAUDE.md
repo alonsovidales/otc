@@ -3429,6 +3429,52 @@ full text (Files' rows and tiles, pickers, names), a button that is `disabled` w
 matters (Files' Delete over an upload-only pick: some browsers give a disabled button no mouse
 events), and the map iframe's name.
 
+Screen mode (the web app on a touch screen plugged into the device: the device's kiosk browser,
+cage + Chromium, opens `http://127.0.0.1:<port>/?screen=1`): `components/screenMode.ts`.
+`?screen=1` turns it on and `?screen=0` off, kept for the tab in sessionStorage `otc_screen` (a
+reload, a section's own address). `screenMode()` is read once at load. `screenPart.tsx`, in both
+entries, installs the guards at import and lazy-loads `ScreenLayer.tsx` (its own chunk; a chunk
+that doesn't come leaves the page as it is): the keyboard, the note and Back. In the kiosk a new
+window covers the page for good and another site has no way back, so the guards (a capturing
+click listener and `window.open`) let nothing open a window or leave:
+- another origin (a mailto included) gets the note `web.shell.screen.elsewhere`;
+- an `<a download>`, a blob/data URL or a device file outside the app's pages (`/`, `/shared`)
+  gets `.download`;
+- a file field's click gets `.upload`, and no chooser opens;
+- `window.open` always returns null (every caller already handles a blocked popup); an app page
+  opens in the same tab.
+
+`screenNavigation` decides, tested in `web/scripts/screen-keyboard-test.mjs`. `DownloadButton`
+isn't rendered and BridgePanel's provider sign-in gives the note. Back (`common.back`) shows on a
+page other than `/` with history. The kiosk's own policies block downloads and file choosers too.
+
+The on-screen keyboard (`ScreenKeyboard.tsx`, layouts and rules in `screenKeyboardLayout.ts`,
+typing in `screenKeyboardTyping.ts`):
+- It shows while the focus is in a text field (`fieldFrom`: text/search/email/url/password/
+  number/tel inputs, textarea, contenteditable; not read-only, disabled or inputmode=none),
+  polled every 400 ms because a removed field sends no focusout. Its own key hides it (blur).
+- Keys never take focus: pointerdown, mousedown and a native non-passive touchstart are
+  cancelled. Keys act on release; Backspace acts on press and repeats.
+- Typing is `execCommand('insertText'/'delete')`, so React's onChange, undo and selections work.
+  Where that is refused, the prototype's value setter plus an InputEvent. Backspace and Enter
+  dispatch their keydown/keyup first. Enter is then a new line in a multiline field, else
+  `form.requestSubmit(submitter)`.
+- Letters follow `t.lang`: QWERTY (en, nl, it; es + ñ, pt + ç), AZERTY (fr), QWERTZ + ü ö ä
+  (de, 11 units). Long press (450 ms) gives the accents, the language's own first: slide to one,
+  or let go and tap. Shift is one-shot; a double tap within 350 ms locks it.
+- The 123 and =\< layers. Email and url get @ or / on the letters; number, tel and
+  inputmode numeric/decimal get a number pad. The space bar shows the language's name, and
+  Enter's icon and name follow enterkeyhint.
+- Auto-capitals start a sentence only in multiline fields, or one-line fields that say
+  autocapitalize sentences/words/on: most one-line fields here are names, codes and ports.
+- Room: `body.osk-open` pads by `--osk-h`. A covered field is scrolled to the centre; in a fixed
+  box (a dialog), that box gets `style.translate` up by the overlap (the `translate` property,
+  so its own `transform` stays) until the keyboard goes.
+- z-index 5000, over the dialogs (up to 2200) and under TipLayer.
+
+Strings are `web.shell.keyboard.*` and `web.shell.screen.*`. Checked in muted headless Chrome
+with CDP touch events, on a harness page and on the app at `?screen=1`.
+
 Drag to select on the web (issue #200): Images, People and Files (list and grid) share
 `components/useDragSelect.ts` (the gesture) and `dragSelect.ts` (the pure rules, tested by
 `node web/scripts/drag-select-test.mjs`, the same rules as the phones' `DragSelect`). A mouse press

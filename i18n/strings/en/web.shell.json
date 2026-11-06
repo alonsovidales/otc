@@ -185,6 +185,66 @@
     "args": [["type", "text"]],
     "note": "Screen-reader name of a document icon in the Files grid. {type} is what the icon shows: a type such as PDF, DOC or ZIP, a file extension in capitals, or web.shell.file_icon.generic."
   },
+  "web.shell.keyboard.accents": {
+    "text": "Accented letters",
+    "note": "Screen-reader name of the row of accented letters (é, è, ê...) that comes up over a letter of the on-screen keyboard when it is held down. The on-screen keyboard is the web app's own, shown on a touch screen plugged into the device itself.",
+    "max": 32
+  },
+  "web.shell.keyboard.backspace": {
+    "text": "Backspace",
+    "note": "Screen-reader name of the on-screen keyboard's key that removes the character before the cursor (a phone keyboard's delete key). The on-screen keyboard is the web app's own, shown on a touch screen plugged into the device itself.",
+    "max": 24
+  },
+  "web.shell.keyboard.caps_lock": {
+    "text": "Caps lock",
+    "note": "Screen-reader name of the on-screen keyboard's Shift key once it is locked on (tapped twice): every letter in capitals until it is tapped again.",
+    "max": 32
+  },
+  "web.shell.keyboard.enter": {
+    "text": "Enter",
+    "note": "Screen-reader name of the on-screen keyboard's Enter key: a new line in a text box, or sends what was typed.",
+    "max": 24
+  },
+  "web.shell.keyboard.go": {
+    "text": "Go",
+    "note": "Screen-reader name of the on-screen keyboard's Enter key in a field that goes on when it is pressed, such as the password field that signs in (as a phone keyboard's Go key).",
+    "max": 24
+  },
+  "web.shell.keyboard.hide": {
+    "text": "Hide keyboard",
+    "note": "Screen-reader name of the on-screen keyboard's key that puts the keyboard away.",
+    "max": 32
+  },
+  "web.shell.keyboard.label": {
+    "text": "Keyboard",
+    "note": "Screen-reader name of the on-screen keyboard at the bottom of the page, which comes up when a text field is tapped on a touch screen plugged into the device itself.",
+    "max": 24
+  },
+  "web.shell.keyboard.letters": {
+    "text": "Letters",
+    "note": "Screen-reader name of the on-screen keyboard's key (shown as ABC) that goes back from the numbers and symbols to the letters.",
+    "max": 32
+  },
+  "web.shell.keyboard.more_symbols": {
+    "text": "More symbols",
+    "note": "Screen-reader name of the on-screen keyboard's key (shown as =\\<) that shows a second page of symbols.",
+    "max": 32
+  },
+  "web.shell.keyboard.shift": {
+    "text": "Shift",
+    "note": "Screen-reader name of the on-screen keyboard's Shift key: the next letter in capitals.",
+    "max": 24
+  },
+  "web.shell.keyboard.space": {
+    "text": "Space",
+    "note": "Screen-reader name of the on-screen keyboard's space bar.",
+    "max": 24
+  },
+  "web.shell.keyboard.symbols": {
+    "text": "Numbers and symbols",
+    "note": "Screen-reader name of the on-screen keyboard's key (shown as 123) that shows the digits and symbols instead of the letters.",
+    "max": 32
+  },
   "web.shell.link.cancelled": {
     "text": "Download cancelled. You can close this tab.",
     "note": "The page of a shared ZIP link after Cancel was pressed on the question about its size (web.shell.big_file.save)."
@@ -316,6 +376,21 @@
     "text": "Unnamed",
     "note": "Shown for a person found by face recognition who hasn't been given a name yet (search suggestions, Images, People).",
     "max": 24
+  },
+  "web.shell.screen.download": {
+    "text": "Download this on your phone or computer.",
+    "note": "Note shown for a few seconds on a touch screen plugged into the device itself, when something there would download a file: that screen's browser can't save files.",
+    "max": 72
+  },
+  "web.shell.screen.elsewhere": {
+    "text": "Open this on your phone or computer.",
+    "note": "Note shown for a few seconds on a touch screen plugged into the device itself, when a link there leads to another website (help, the privacy policy, a sign-in page): that screen's browser shows only the device's own pages.",
+    "max": 72
+  },
+  "web.shell.screen.upload": {
+    "text": "Add files from your phone or computer.",
+    "note": "Note shown for a few seconds on a touch screen plugged into the device itself, when something there would choose files to add: that screen's browser has no files to choose from.",
+    "max": 72
   },
   "web.shell.scrubber.label": {
     "text": "Jump to a date",

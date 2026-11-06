@@ -157,6 +157,54 @@
     "text": "File {type}",
     "en": "{type} file"
   },
+  "web.shell.keyboard.accents": {
+    "text": "Lettere accentate",
+    "en": "Accented letters"
+  },
+  "web.shell.keyboard.backspace": {
+    "text": "Cancella",
+    "en": "Backspace"
+  },
+  "web.shell.keyboard.caps_lock": {
+    "text": "Blocco maiuscole",
+    "en": "Caps lock"
+  },
+  "web.shell.keyboard.enter": {
+    "text": "Invio",
+    "en": "Enter"
+  },
+  "web.shell.keyboard.go": {
+    "text": "Vai",
+    "en": "Go"
+  },
+  "web.shell.keyboard.hide": {
+    "text": "Nascondi tastiera",
+    "en": "Hide keyboard"
+  },
+  "web.shell.keyboard.label": {
+    "text": "Tastiera",
+    "en": "Keyboard"
+  },
+  "web.shell.keyboard.letters": {
+    "text": "Lettere",
+    "en": "Letters"
+  },
+  "web.shell.keyboard.more_symbols": {
+    "text": "Altri simboli",
+    "en": "More symbols"
+  },
+  "web.shell.keyboard.shift": {
+    "text": "Maiuscole",
+    "en": "Shift"
+  },
+  "web.shell.keyboard.space": {
+    "text": "Spazio",
+    "en": "Space"
+  },
+  "web.shell.keyboard.symbols": {
+    "text": "Numeri e simboli",
+    "en": "Numbers and symbols"
+  },
   "web.shell.link.cancelled": {
     "text": "Download annullato. Ora puoi chiudere questa scheda.",
     "en": "Download cancelled. You can close this tab."
@@ -272,6 +320,18 @@
   "web.shell.person.unnamed": {
     "text": "Senza nome",
     "en": "Unnamed"
+  },
+  "web.shell.screen.download": {
+    "text": "Scaricalo sul telefono o sul computer.",
+    "en": "Download this on your phone or computer."
+  },
+  "web.shell.screen.elsewhere": {
+    "text": "Aprilo sul telefono o sul computer.",
+    "en": "Open this on your phone or computer."
+  },
+  "web.shell.screen.upload": {
+    "text": "Aggiungi file dal telefono o dal computer.",
+    "en": "Add files from your phone or computer."
   },
   "web.shell.scrubber.label": {
     "text": "Vai a una data",

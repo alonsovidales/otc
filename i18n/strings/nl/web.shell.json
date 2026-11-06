@@ -157,6 +157,54 @@
     "text": "{type}-bestand",
     "en": "{type} file"
   },
+  "web.shell.keyboard.accents": {
+    "text": "Letters met accent",
+    "en": "Accented letters"
+  },
+  "web.shell.keyboard.backspace": {
+    "text": "Backspace",
+    "en": "Backspace"
+  },
+  "web.shell.keyboard.caps_lock": {
+    "text": "Caps Lock",
+    "en": "Caps lock"
+  },
+  "web.shell.keyboard.enter": {
+    "text": "Enter",
+    "en": "Enter"
+  },
+  "web.shell.keyboard.go": {
+    "text": "Ga",
+    "en": "Go"
+  },
+  "web.shell.keyboard.hide": {
+    "text": "Toetsenbord verbergen",
+    "en": "Hide keyboard"
+  },
+  "web.shell.keyboard.label": {
+    "text": "Toetsenbord",
+    "en": "Keyboard"
+  },
+  "web.shell.keyboard.letters": {
+    "text": "Letters",
+    "en": "Letters"
+  },
+  "web.shell.keyboard.more_symbols": {
+    "text": "Meer symbolen",
+    "en": "More symbols"
+  },
+  "web.shell.keyboard.shift": {
+    "text": "Shift",
+    "en": "Shift"
+  },
+  "web.shell.keyboard.space": {
+    "text": "Spatie",
+    "en": "Space"
+  },
+  "web.shell.keyboard.symbols": {
+    "text": "Cijfers en symbolen",
+    "en": "Numbers and symbols"
+  },
   "web.shell.link.cancelled": {
     "text": "Download geannuleerd. Je kunt dit tabblad nu sluiten.",
     "en": "Download cancelled. You can close this tab."
@@ -272,6 +320,18 @@
   "web.shell.person.unnamed": {
     "text": "Zonder naam",
     "en": "Unnamed"
+  },
+  "web.shell.screen.download": {
+    "text": "Download dit op je telefoon of computer.",
+    "en": "Download this on your phone or computer."
+  },
+  "web.shell.screen.elsewhere": {
+    "text": "Open dit op je telefoon of computer.",
+    "en": "Open this on your phone or computer."
+  },
+  "web.shell.screen.upload": {
+    "text": "Voeg bestanden toe vanaf je telefoon of computer.",
+    "en": "Add files from your phone or computer."
   },
   "web.shell.scrubber.label": {
     "text": "Naar een datum springen",

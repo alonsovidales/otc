@@ -157,6 +157,54 @@
     "text": "Ficheiro {type}",
     "en": "{type} file"
   },
+  "web.shell.keyboard.accents": {
+    "text": "Letras acentuadas",
+    "en": "Accented letters"
+  },
+  "web.shell.keyboard.backspace": {
+    "text": "Retrocesso",
+    "en": "Backspace"
+  },
+  "web.shell.keyboard.caps_lock": {
+    "text": "Bloqueio de maiúsculas",
+    "en": "Caps lock"
+  },
+  "web.shell.keyboard.enter": {
+    "text": "Enter",
+    "en": "Enter"
+  },
+  "web.shell.keyboard.go": {
+    "text": "Ir",
+    "en": "Go"
+  },
+  "web.shell.keyboard.hide": {
+    "text": "Ocultar teclado",
+    "en": "Hide keyboard"
+  },
+  "web.shell.keyboard.label": {
+    "text": "Teclado",
+    "en": "Keyboard"
+  },
+  "web.shell.keyboard.letters": {
+    "text": "Letras",
+    "en": "Letters"
+  },
+  "web.shell.keyboard.more_symbols": {
+    "text": "Mais símbolos",
+    "en": "More symbols"
+  },
+  "web.shell.keyboard.shift": {
+    "text": "Maiúsculas",
+    "en": "Shift"
+  },
+  "web.shell.keyboard.space": {
+    "text": "Espaço",
+    "en": "Space"
+  },
+  "web.shell.keyboard.symbols": {
+    "text": "Números e símbolos",
+    "en": "Numbers and symbols"
+  },
   "web.shell.link.cancelled": {
     "text": "Transferência cancelada. Já podes fechar este separador.",
     "en": "Download cancelled. You can close this tab."
@@ -272,6 +320,18 @@
   "web.shell.person.unnamed": {
     "text": "Sem nome",
     "en": "Unnamed"
+  },
+  "web.shell.screen.download": {
+    "text": "Transfere isto no teu telemóvel ou computador.",
+    "en": "Download this on your phone or computer."
+  },
+  "web.shell.screen.elsewhere": {
+    "text": "Abre isto no teu telemóvel ou computador.",
+    "en": "Open this on your phone or computer."
+  },
+  "web.shell.screen.upload": {
+    "text": "Adiciona ficheiros a partir do teu telemóvel ou computador.",
+    "en": "Add files from your phone or computer."
   },
   "web.shell.scrubber.label": {
     "text": "Saltar para uma data",

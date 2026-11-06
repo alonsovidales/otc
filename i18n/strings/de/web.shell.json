@@ -157,6 +157,54 @@
     "text": "{type}-Datei",
     "en": "{type} file"
   },
+  "web.shell.keyboard.accents": {
+    "text": "Buchstaben mit Akzent",
+    "en": "Accented letters"
+  },
+  "web.shell.keyboard.backspace": {
+    "text": "Rücktaste",
+    "en": "Backspace"
+  },
+  "web.shell.keyboard.caps_lock": {
+    "text": "Feststelltaste",
+    "en": "Caps lock"
+  },
+  "web.shell.keyboard.enter": {
+    "text": "Eingabetaste",
+    "en": "Enter"
+  },
+  "web.shell.keyboard.go": {
+    "text": "Los",
+    "en": "Go"
+  },
+  "web.shell.keyboard.hide": {
+    "text": "Tastatur ausblenden",
+    "en": "Hide keyboard"
+  },
+  "web.shell.keyboard.label": {
+    "text": "Tastatur",
+    "en": "Keyboard"
+  },
+  "web.shell.keyboard.letters": {
+    "text": "Buchstaben",
+    "en": "Letters"
+  },
+  "web.shell.keyboard.more_symbols": {
+    "text": "Weitere Symbole",
+    "en": "More symbols"
+  },
+  "web.shell.keyboard.shift": {
+    "text": "Umschalttaste",
+    "en": "Shift"
+  },
+  "web.shell.keyboard.space": {
+    "text": "Leertaste",
+    "en": "Space"
+  },
+  "web.shell.keyboard.symbols": {
+    "text": "Zahlen und Symbole",
+    "en": "Numbers and symbols"
+  },
   "web.shell.link.cancelled": {
     "text": "Download abgebrochen. Du kannst diesen Tab jetzt schließen.",
     "en": "Download cancelled. You can close this tab."
@@ -272,6 +320,18 @@
   "web.shell.person.unnamed": {
     "text": "Ohne Namen",
     "en": "Unnamed"
+  },
+  "web.shell.screen.download": {
+    "text": "Lade das auf deinem Handy oder Computer herunter.",
+    "en": "Download this on your phone or computer."
+  },
+  "web.shell.screen.elsewhere": {
+    "text": "Öffne das auf deinem Handy oder Computer.",
+    "en": "Open this on your phone or computer."
+  },
+  "web.shell.screen.upload": {
+    "text": "Füge Dateien von deinem Handy oder Computer hinzu.",
+    "en": "Add files from your phone or computer."
   },
   "web.shell.scrubber.label": {
     "text": "Zu einem Datum springen",

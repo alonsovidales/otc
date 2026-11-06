@@ -25,6 +25,7 @@ import "./BridgePanel.css";
 import { refuseOnDemo } from "../net/demo";
 import { isBridgeAnswer, isStorageUnavailable } from "../net/deviceStatus";
 import { useDeviceBack } from "./useDeviceBack";
+import { screenMode, screenNotice } from "./screenMode";
 
 type Access = {
   enabled: boolean;
@@ -210,6 +211,9 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
 
     if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     if (!access) return;
+    // The provider's sign-in is another site's page, with no way back and
+    // no on-screen keyboard on the device's own screen (screenMode.ts).
+    if (screenMode()) { screenNotice("elsewhere"); return; }
     const back = `${window.location.origin}${window.location.pathname}?bridge_signin=1`;
     window.location.href =
       `https://${access.bridge}/account/auth/${provider}/start?return=${encodeURIComponent(back)}`;

@@ -8,6 +8,7 @@ import App from './App.tsx'
 import TipLayer from './components/TipLayer.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { I18nProvider } from './i18n'
+import { ScreenPart } from './components/screenPart.tsx'
 
 // Each section has its own boundary (ErrorBoundary.tsx): this one is for
 // the rest, the top bar and the menu included.
@@ -17,5 +18,6 @@ createRoot(document.getElementById('root')!).render(
       <App />
     </ErrorBoundary>
     <TipLayer />
+    <ScreenPart />
   </I18nProvider>
 )
