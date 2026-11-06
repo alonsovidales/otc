@@ -542,6 +542,21 @@ export type MessageKey =
   | "web.images.share.zip_hint"
   | "web.images.share.zip_ready"
   | "web.images.share.zip_tab"
+  | "web.images.slideshow.close"
+  | "web.images.slideshow.empty"
+  | "web.images.slideshow.failed"
+  | "web.images.slideshow.label_collection"
+  | "web.images.slideshow.label_library"
+  | "web.images.slideshow.loading"
+  | "web.images.slideshow.next"
+  | "web.images.slideshow.pause"
+  | "web.images.slideshow.photo"
+  | "web.images.slideshow.play"
+  | "web.images.slideshow.position"
+  | "web.images.slideshow.position_unknown"
+  | "web.images.slideshow.previous"
+  | "web.images.slideshow.start"
+  | "web.images.slideshow.waiting"
   | "web.images.smart_search.failed"
   | "web.images.smart_search.reading"
   | "web.images.sort_by"
@@ -1745,6 +1760,21 @@ export interface MessageArgs {
   "web.images.share.zip_hint": undefined;
   "web.images.share.zip_ready": undefined;
   "web.images.share.zip_tab": undefined;
+  "web.images.slideshow.close": undefined;
+  "web.images.slideshow.empty": undefined;
+  "web.images.slideshow.failed": undefined;
+  "web.images.slideshow.label_collection": { name: string };
+  "web.images.slideshow.label_library": undefined;
+  "web.images.slideshow.loading": undefined;
+  "web.images.slideshow.next": undefined;
+  "web.images.slideshow.pause": undefined;
+  "web.images.slideshow.photo": { index: number; count: number };
+  "web.images.slideshow.play": undefined;
+  "web.images.slideshow.position": { index: number; count: number };
+  "web.images.slideshow.position_unknown": { index: number };
+  "web.images.slideshow.previous": undefined;
+  "web.images.slideshow.start": undefined;
+  "web.images.slideshow.waiting": undefined;
   "web.images.smart_search.failed": undefined;
   "web.images.smart_search.reading": undefined;
   "web.images.sort_by": undefined;

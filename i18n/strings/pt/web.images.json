@@ -1372,6 +1372,66 @@
     "text": "A preparar o ZIP… A transferência começa aqui quando estiver pronto.",
     "en": "Preparing the ZIP… It downloads from here once it's ready."
   },
+  "web.images.slideshow.close": {
+    "text": "Fechar apresentação",
+    "en": "Close slideshow"
+  },
+  "web.images.slideshow.empty": {
+    "text": "Não há fotos para mostrar aqui.",
+    "en": "No photos to show here."
+  },
+  "web.images.slideshow.failed": {
+    "text": "Não foi possível carregar as fotos.",
+    "en": "The photos couldn't load."
+  },
+  "web.images.slideshow.label_collection": {
+    "text": "Apresentação de «{name}»",
+    "en": "Slideshow of “{name}”"
+  },
+  "web.images.slideshow.label_library": {
+    "text": "Apresentação das tuas fotos",
+    "en": "Slideshow of your photos"
+  },
+  "web.images.slideshow.loading": {
+    "text": "A preparar as fotos…",
+    "en": "Getting the photos ready…"
+  },
+  "web.images.slideshow.next": {
+    "text": "Foto seguinte",
+    "en": "Next photo"
+  },
+  "web.images.slideshow.pause": {
+    "text": "Pausar",
+    "en": "Pause"
+  },
+  "web.images.slideshow.photo": {
+    "text": "Foto {index} de {count}",
+    "en": "Photo {index} of {count}"
+  },
+  "web.images.slideshow.play": {
+    "text": "Reproduzir",
+    "en": "Play"
+  },
+  "web.images.slideshow.position": {
+    "text": "{index} / {count}",
+    "en": "{index} / {count}"
+  },
+  "web.images.slideshow.position_unknown": {
+    "text": "Foto {index}",
+    "en": "Photo {index}"
+  },
+  "web.images.slideshow.previous": {
+    "text": "Foto anterior",
+    "en": "Previous photo"
+  },
+  "web.images.slideshow.start": {
+    "text": "Apresentação",
+    "en": "Slideshow"
+  },
+  "web.images.slideshow.waiting": {
+    "text": "À espera do teu dispositivo…",
+    "en": "Waiting for your device…"
+  },
   "web.images.smart_search.failed": {
     "text": "A Pesquisa inteligente não está disponível de momento.",
     "en": "Smart search isn't available right now."

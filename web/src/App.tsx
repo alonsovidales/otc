@@ -14,7 +14,8 @@ import type { TabKey } from "./components/nav";
 import Sidebar from "./components/Sidebar";
 import TopSearch from "./components/TopSearch";
 import CollectionsView from "./components/CollectionsView";
-import { leaveArea, showAll } from "./components/photoFilter";
+import { isFiltered, leaveArea, showAll, usePhotoFilter } from "./components/photoFilter";
+import { closeSlideshow, openSlideshow, useSlideshow } from "./components/slideshowState";
 import { useFaceRecognition, watchFaceRecognition } from "./components/faceRecognition";
 import { usePlacesOn, watchPlaces } from "./components/places";
 import { watchMemories } from "./components/memories";
@@ -57,6 +58,8 @@ const PeopleView = lazyPart(() => import("./components/PeopleView"));
 const PlacesView = lazyPart(() => import("./components/PlacesView"));
 // The first-run tour and its drawings, only when it opens.
 const Tour = lazyPart(() => import("./components/Tour"));
+// A slideshow (a collection's, or Images'), only when one starts.
+const Slideshow = lazyPart(() => import("./components/Slideshow"));
 // main.tsx gives /shared its own entry (sharedEntry.tsx): this one is never
 // needed by the app's.
 const SharedGalleryView = lazyPart(() => import("./components/SharedGalleryView"));
@@ -100,6 +103,9 @@ function checkDeviceSetup(): Promise<DeviceSetupInfo | null> {
 
 function App() {
   const t = useT();
+  // What Images shows: its top bar's Slideshow is the whole library's,
+  // there only while nothing narrows it (a collection has its own).
+  const photoFilter = usePhotoFilter();
   const cfg = window.__OTC_CONFIG!;
   // Anonymous visitors have no tab switcher at all (TopTabs only renders
   // once authenticated, below), so their landing tab has to be one that
@@ -208,7 +214,11 @@ function App() {
   // switched-off account or a device without its storage, a few seconds on
   // for one the bridge couldn't reach (coverAfterMs) - which is often back
   // by then.
-  const cover = useCover(deviceStatus);
+  // A slideshow goes on through a moment the device is away (Slideshow.tsx:
+  // it shows what it has and carries on), so the bridge's "unreachable"
+  // doesn't cover it; a switched-off account or the storage missing do.
+  const slideshow = useSlideshow();
+  const cover = useCover(slideshow && deviceStatus?.code === "device_unreachable" ? null : deviceStatus);
 
   // The menu goes with the rest of the app when the session ends; a drawer
   // left open would come back open over the page. The device not answering
@@ -583,6 +593,19 @@ function App() {
           : !signInFieldOut && <div className="tb-fill" />}
         {/* The page's own action: a new post, on the feed. Below 700px
             only its "+" shows (index.css), named by a tooltip. */}
+        {authenticated && tab === "PhotoGallery" && !isFiltered(photoFilter) && (
+          <button
+            className="tb-action"
+            onClick={() => openSlideshow({ groupId: "", name: "" })}
+            aria-label={t("web.images.slideshow.start")}
+            data-tip={actionIconOnly && canHover ? t("web.images.slideshow.start") : undefined}
+          >
+            <span aria-hidden="true" className="tb-action-glyph">
+              <svg viewBox="0 0 24 24" width="16" height="16" focusable="false"><path d="M7 4.5v15l12.5-7.5Z" fill="currentColor" /></svg>
+            </span>
+            <span className="tb-action-label">{t("web.images.slideshow.start")}</span>
+          </button>
+        )}
         {authenticated && tab === "Social" && openComposer && (
           <button
             className="tb-action"
@@ -709,6 +732,11 @@ function App() {
       {tour && authenticated && !inSetup && !cover && (
         <Part kind="layer" onClose={() => closeTour(false)}>
           <Tour step={tour.step} faces={faces} onStep={moveTour} onSection={tourShow} onClose={closeTour} />
+        </Part>
+      )}
+      {slideshow && authenticated && (
+        <Part kind="layer" onClose={closeSlideshow}>
+          <Slideshow key={`${slideshow.groupId}|${slideshow.name}`} show={slideshow} onClose={closeSlideshow} />
         </Part>
       )}
       {cover && <DeviceUnreachable status={cover} />}

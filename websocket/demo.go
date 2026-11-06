@@ -131,6 +131,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqGetFolderUsage{}):     demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqSearchFiles{}):        demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqSearchPhotos{}):       demoAllow,
+	demoReq(&pb.ReqEnvelope_ReqRandomPhotos{}):       demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqGetTags{}):            demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqGetThumbnails{}):      demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqPhotoDateBuckets{}):   demoAllow,

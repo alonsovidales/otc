@@ -97,6 +97,8 @@
 }
 .tb-action:hover { background: rgba(255, 107, 74, .12); }
 .tb-action span { font-size: 18px; line-height: 1; }
+/* An icon in place of the "+" (Images' Slideshow). */
+.tb-action .tb-action-glyph { display: inline-flex; }
 
 /* A page waiting for its session (a reload restoring it): the spinner in
    the middle of the page, not a line in its corner. */

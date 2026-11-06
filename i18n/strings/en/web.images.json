@@ -1486,6 +1486,85 @@
     "text": "Preparing the ZIP… It downloads from here once it's ready.",
     "note": "The only text of the new browser tab opened for a ZIP download while the device makes the ZIP; the download starts in that tab."
   },
+  "web.images.slideshow.close": {
+    "text": "Close slideshow",
+    "note": "Screen-reader name of the slideshow's × button, which ends it and goes back to the photos.",
+    "max": 32
+  },
+  "web.images.slideshow.empty": {
+    "text": "No photos to show here.",
+    "note": "In the middle of the black slideshow screen when the collection (or the library) has no photos: videos are left out of a slideshow.",
+    "max": 50
+  },
+  "web.images.slideshow.failed": {
+    "text": "The photos couldn't load.",
+    "note": "In the middle of the black slideshow screen when the device answered with an error before the first photo; a Try again button follows.",
+    "max": 50
+  },
+  "web.images.slideshow.label_collection": {
+    "text": "Slideshow of “{name}”",
+    "args": [["name", "user"]],
+    "note": "Screen-reader name of the full-screen slideshow of a collection. {name} is the collection's name. Use this language's quotation marks. The slideshow plays a collection's photos, or the whole library's, full screen, one every 5 seconds in a random order.",
+    "max": 60
+  },
+  "web.images.slideshow.label_library": {
+    "text": "Slideshow of your photos",
+    "note": "Screen-reader name of the full-screen slideshow of every photo in the library, started from Images. The slideshow plays a collection's photos, or the whole library's, full screen, one every 5 seconds in a random order.",
+    "max": 60
+  },
+  "web.images.slideshow.loading": {
+    "text": "Getting the photos ready…",
+    "note": "In the middle of the black slideshow screen, with a spinner, while its first photo loads.",
+    "max": 50
+  },
+  "web.images.slideshow.next": {
+    "text": "Next photo",
+    "note": "Screen-reader name of the slideshow's › button, which shows the next photo at once.",
+    "max": 32
+  },
+  "web.images.slideshow.pause": {
+    "text": "Pause",
+    "note": "Screen-reader name of the slideshow's button that stops it on the photo shown.",
+    "max": 24
+  },
+  "web.images.slideshow.photo": {
+    "text": "Photo {index} of {count}",
+    "args": [["index", "int"], ["count", "int"]],
+    "note": "Screen-reader name of the photo on screen in the slideshow. {index} counts from 1, {count} is how many photos this round of the slideshow has.",
+    "max": 30
+  },
+  "web.images.slideshow.play": {
+    "text": "Play",
+    "note": "Screen-reader name of the slideshow's button that starts it again after Pause.",
+    "max": 24
+  },
+  "web.images.slideshow.position": {
+    "text": "{index} / {count}",
+    "args": [["index", "int"], ["count", "int"]],
+    "note": "At the top left of the slideshow: the photo's place in this round of the slideshow. {index} counts from 1, {count} is how many photos the round has. Every photo shows once a round, then a new round starts in another random order.",
+    "max": 20
+  },
+  "web.images.slideshow.position_unknown": {
+    "text": "Photo {index}",
+    "args": [["index", "int"]],
+    "note": "At the top left of the slideshow, in place of web.images.slideshow.position while the device hasn't said how many photos there are. {index} counts from 1.",
+    "max": 20
+  },
+  "web.images.slideshow.previous": {
+    "text": "Previous photo",
+    "note": "Screen-reader name of the slideshow's ‹ button, which goes back to the photo shown before.",
+    "max": 32
+  },
+  "web.images.slideshow.start": {
+    "text": "Slideshow",
+    "note": "Button in an open collection's header and in the top bar of Images that starts a full-screen slideshow of its photos. The slideshow plays a collection's photos, or the whole library's, full screen, one every 5 seconds in a random order.",
+    "max": 20
+  },
+  "web.images.slideshow.waiting": {
+    "text": "Waiting for your device…",
+    "note": "In the middle of the black slideshow screen, with a spinner, when the device doesn't answer before the first photo could load; it carries on by itself once the device is back.",
+    "max": 50
+  },
   "web.images.smart_search.failed": {
     "text": "Smart search isn't available right now.",
     "note": "Title over Images when a search by description (Smart search) couldn't run and the device gave no reason.",

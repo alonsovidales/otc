@@ -1372,6 +1372,66 @@
     "text": "De ZIP wordt voorbereid… De download begint hier zodra die klaar is.",
     "en": "Preparing the ZIP… It downloads from here once it's ready."
   },
+  "web.images.slideshow.close": {
+    "text": "Diavoorstelling sluiten",
+    "en": "Close slideshow"
+  },
+  "web.images.slideshow.empty": {
+    "text": "Hier zijn geen foto’s om te tonen.",
+    "en": "No photos to show here."
+  },
+  "web.images.slideshow.failed": {
+    "text": "De foto’s konden niet worden geladen.",
+    "en": "The photos couldn't load."
+  },
+  "web.images.slideshow.label_collection": {
+    "text": "Diavoorstelling van “{name}”",
+    "en": "Slideshow of “{name}”"
+  },
+  "web.images.slideshow.label_library": {
+    "text": "Diavoorstelling van je foto’s",
+    "en": "Slideshow of your photos"
+  },
+  "web.images.slideshow.loading": {
+    "text": "Foto’s worden klaargezet…",
+    "en": "Getting the photos ready…"
+  },
+  "web.images.slideshow.next": {
+    "text": "Volgende foto",
+    "en": "Next photo"
+  },
+  "web.images.slideshow.pause": {
+    "text": "Pauzeren",
+    "en": "Pause"
+  },
+  "web.images.slideshow.photo": {
+    "text": "Foto {index} van {count}",
+    "en": "Photo {index} of {count}"
+  },
+  "web.images.slideshow.play": {
+    "text": "Afspelen",
+    "en": "Play"
+  },
+  "web.images.slideshow.position": {
+    "text": "{index} / {count}",
+    "en": "{index} / {count}"
+  },
+  "web.images.slideshow.position_unknown": {
+    "text": "Foto {index}",
+    "en": "Photo {index}"
+  },
+  "web.images.slideshow.previous": {
+    "text": "Vorige foto",
+    "en": "Previous photo"
+  },
+  "web.images.slideshow.start": {
+    "text": "Diavoorstelling",
+    "en": "Slideshow"
+  },
+  "web.images.slideshow.waiting": {
+    "text": "Wachten op je apparaat…",
+    "en": "Waiting for your device…"
+  },
   "web.images.smart_search.failed": {
     "text": "Slim zoeken is nu niet beschikbaar.",
     "en": "Smart search isn't available right now."

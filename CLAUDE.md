@@ -1067,6 +1067,21 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     `TestPhotoEmbeddingsMySQL` and `TestPhotoEmbeddingsWithoutTheirTablesMySQL`, modelserver's
     `embedder_test.go` ("embed-fetch", an older primary, a child from release 151),
     `images_embedder`'s tests (`OTC_EMBEDDER_DIR`, `OTC_ORT_LIB` off Linux).
+- A slideshow's order (2026-11-06; owner: "the order should be random"; `dao/random_media.go`,
+  `files_manager/random_photos.go`): `RandomPhotos` (req 161: `group_id` - a collection, "" the whole
+  library -, `seed`, `after`, `limit` 1-50 with 20 for 0, `small_thumbnails`) answers `ListOfFiles`:
+  the page, `token` the next page's `after` ("" once the round is over), and on a round's first page
+  `random_total` (8), the photos it holds. The order is `md5(seed + hash)` with the hash after it
+  (`k`): a new shuffle for each seed, the same for every page of one, nothing kept between pages - a
+  page is `k > after order by k limit n` over the round's contents (`randomRows`: the library's image
+  rows outside the folders kept out, distinct by hash; or a collection's members with such a row, one
+  look-up by hash each), then their rows through `SearchMediaOf` (each at its oldest copy, as Images),
+  images only, in the round's order, and only processed ones (#147, `gridThumbnailState`, or the small
+  thumbnail read for `small_thumbnails`): a page can come short or empty before the round ends. An
+  `after` that is no page's key ends the round. A content added mid-round shows if its place is still
+  ahead; one deleted doesn't. 50,000 photos: 65-77 ms a page in the Lima VM (a scan of `files` each,
+  every 20 photos, i.e. 100 s of show). The demo allows it. Tests: dao's `TestRandomMediaRoundsMySQL`
+  (and `...LargeMySQL`, `OTC_TEST_RANDOM_LARGE=1`), files_manager's `TestRandomPhotosPagesMySQL`.
 - Background work (release 152; `files_manager/background.go`): `Status.background_tasks` (20,
   `BackgroundTask{kind, text, done, total}`) is what the instance is working through on its own
   library, one entry a kind, in a fixed order (`backgroundOrder`), `text` the device's words in the
@@ -3048,7 +3063,40 @@ the badges, the viewer's stars and box (`RateSharedGalleryItem`, no from-link no
 by over its items (`arrangeItems`; its viewer steps through the order it opened with). Alerts show a
 `NotificationRating` row (a gold star, the device's title, its details under it, the time) that opens its
 collection in Images (`libraryStore.findGroup`, listed again first; gone: `web.social.alerts.collection_gone`
-under the row). What Images shows is `photoFilter.ts` (tags, people, open
+under the row). **Slideshow on the web** (2026-11-06; owner: "go to a collection and set it in show
+mode ... an image after another waiting 5 seconds per image, the transition in between images should be
+nice", then "the order should be random" and the same for the whole library; `Slideshow.tsx` + `.css`, a
+lazy part App mounts from `slideshowState.ts`; rules in `slideshowRules.ts`, `node
+web/scripts/slideshow-test.mjs`; loading in `slideshowLoad.ts`; texts `web.images.slideshow.*`): an open
+collection's header has Slideshow (a play triangle, before Rating, while `fileCount` > 0) and Images'
+top bar has it while nothing narrows Images (`isFiltered`: the whole library). The order is the device's
+`RandomPhotos` (device notes): `createRounds` takes its pages (20, small thumbnails) a seed a round
+(16 hex digits), every photo once a round, then a new seed; a new round never starts with the photo just
+shown (second, or held back until its round has another). Each photo: 5 s (`cPhotoMs`), the next fading
+in over it in 1.2 s (`cFadeMs`, the layer's `ss-fade`; what it covered goes at `animationend`), a Ken Burns
+move over 7.4 s (`kenBurnsOf`: six moves in turn, zoom 1-1.08, pans of 1-1.5%, in and out; CSS custom
+properties in `ss-kb`), shown whole (`object-fit: contain`) over a 96 px cover-fit copy blurred and darkened
+by the canvas (`ctx.filter`, checked by drawing; else CSS `filter`) from the page's small thumbnail.
+Reduced motion: the fade only. The photo is the viewer's full size (GetFile through `fullSizeCache`, an
+unsafe type left out), else the big thumbnail (GetThumbnails), decoded with `createImageBitmap` (EXIF
+turned) and redrawn as a JPEG at the screen's size times 1.08 (`fitSize`: never larger than it is),
+then `img.decode()`d with its backdrop before its turn; the next is loaded as one goes on screen, and
+when its 5 s are up before it is ready the photo stays until it is. One with neither is skipped
+(`SlideGone`); no answer or the bridge's is `SlideAway`: asked again after 2 s doubling to 30 s, at once
+when the device answers or the browser is back online - the show stays on what it has, and App keeps the
+`device_unreachable` cover off while it is open (a switched-off account or no storage still cover it).
+Slides are kept for the photo before, the one on screen and the next (blob URLs revoked). The overlay
+(z-index 3000) asks for full screen (`requestFullscreen`, a refusal ignored; leaving it closes the show)
+and a screen wake lock (asked again when the tab shows); Back closes it (`useBackLayer`), and the focus
+goes back. Controls (`.ss-chrome`: "3 / 24" from the round's `random_total`, Close, Previous, Play/Pause,
+Next; 64-76 px) hide while it plays and come back 3 s for a tap, a click or a mouse move, staying while
+paused; Space, the arrows and Esc are taken in the capture phase; a swipe (`swipeOf`: 60 px, mostly
+sideways, under 0.9 s) steps. Checked in muted headless Chrome (2x, 1024 x 768, CDP mouse, keys and
+touch) against a Docker test device built from this tree with the demo library and its Favourites: a
+change every 5000-5003 ms, two layers half a second into a change, the portrait photo's fill, pause (the
+move stops too), Next/Previous/arrows/swipes, past the last photo into round 2 and 3 ("12 / 12" then
+"1 / 12"), Esc back to the collection as it was, reduced motion, the library's ("1 / 116"), and the
+container paused 20 s (the show on what it had, no cover) and back. What Images shows is `photoFilter.ts` (tags, people, open
 collection, a place's area from Places; a store the search, People, Collections and Places pages and the grid share); the people, collection
 and tag lists are `libraryStore.ts` (cover URLs made when a list arrives, never in a render). Images
 (`PhotoGallery.tsx`) groups date-ordered photos into month sections, Google Photos-style selection (hover

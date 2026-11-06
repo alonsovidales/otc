@@ -52,6 +52,7 @@ import {
 import { claimRatingHint, createRatings, isRatingRanked, listedRating, ratingSearch, type RatingRefusal, type RatingView } from "./rating";
 import { ratingDescription, ratingRefusalText } from "./ratingText";
 import { RatingBadge, RatingTools, StarGlyph } from "./RatingPanel";
+import { openSlideshow } from "./slideshowState";
 import { dropPlaces } from "./places";
 import { refreshSmartSearch, setSmartSearchOn } from "./smartSearch";
 import MemoriesStrip from "./MemoriesStrip";
@@ -1952,6 +1953,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
             leaveGroup();
             onShowCollections();
           }}
+          onSlideshow={() => openSlideshow({ groupId: group.id, name: collectionName(group.name) })}
           onShare={() => { if (!refuseOnDemo()) setSharing({ groupId: group.id }); }}
           onDelete={() => { if (!refuseOnDemo()) setDialog({ kind: "deleteCollection" }); }}
           onError={toastError}
@@ -2185,13 +2187,22 @@ const MonthTitle = memo(function MonthTitle({ month, oneTile }: { month: string 
 
 // ---- headers ---------------------------------------------------------------------
 
-function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onError, onRating, ratingBusy, ratingView, onRatingView }: {
+// Slideshow's play triangle, drawn as the header's other icons are.
+const SlideshowGlyph = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+    <path d="M7.5 5.5v13l10.5-6.5Z" fill="currentColor" />
+  </svg>
+);
+
+function CollectionHeader({ group, span, compact, onBack, onSlideshow, onShare, onDelete, onError, onRating, ratingBusy, ratingView, onRatingView }: {
   group: OpenGroup;
   // The months its photos span, when known.
   span: string;
   // Below 900px the actions are icons.
   compact: boolean;
   onBack: () => void;
+  // Its photos full screen, one after another (Slideshow.tsx).
+  onSlideshow: () => void;
   onShare: () => void;
   onDelete: () => void;
   onError: (text: UiText) => void;
@@ -2301,6 +2312,20 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
           <p className="pg-sub">{itemsLabel(t, group.fileCount)}{span && <> · {span}</>}</p>
         </div>
         <div className="pg-head-actions">
+          {/* Its photos as a slideshow, when it has any (videos are left
+              out: one of only videos shows that it has none). */}
+          {group.fileCount > 0 && (
+            <button
+              type="button"
+              className={compact ? "pg-icon-btn" : "pg-btn outline"}
+              onClick={onSlideshow}
+              aria-label={t("web.images.slideshow.start")}
+              data-tip={compact ? t("web.images.slideshow.start") : undefined}
+            >
+              <SlideshowGlyph />
+              {!compact && <span>{t("web.images.slideshow.start")}</span>}
+            </button>
+          )}
           {/* Rating: a star, filled while it is on. Named by its state for
               a screen reader ("Rating on"), which its visible word starts. */}
           <button

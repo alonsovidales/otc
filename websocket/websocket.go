@@ -3157,6 +3157,21 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			}
 		}
 
+	case *pb.ReqEnvelope_ReqRandomPhotos:
+		// A slideshow's photos in a random order (the web app's
+		// Slideshow): a collection's or the library's, a page of a round.
+		r := p.ReqRandomPhotos
+		files, token, total, err := ch.mg.filesManager.RandomPhotos(ses, r.GroupId, r.Seed, r.After, r.Limit, r.SmallThumbnails)
+		if err != nil {
+			log.Error("error trying to list a slideshow's photos:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespListOfFiles{
+				RespListOfFiles: &pb.ListOfFiles{Files: files, Token: token, RandomTotal: total},
+			}
+		}
+
 	case *pb.ReqEnvelope_ReqPhotoDateBuckets:
 		buckets, err := ch.mg.filesManager.PhotoDateBucketsWithin(ch.placesArea(p.ReqPhotoDateBuckets.Area), p.ReqPhotoDateBuckets.Tags, p.ReqPhotoDateBuckets.PersonIds, p.ReqPhotoDateBuckets.GroupId, p.ReqPhotoDateBuckets.IncludeVideos)
 		if err != nil {

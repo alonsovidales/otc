@@ -1372,6 +1372,66 @@
     "text": "Preparando el ZIP… Se descargará desde aquí cuando esté listo.",
     "en": "Preparing the ZIP… It downloads from here once it's ready."
   },
+  "web.images.slideshow.close": {
+    "text": "Cerrar presentación",
+    "en": "Close slideshow"
+  },
+  "web.images.slideshow.empty": {
+    "text": "No hay fotos que mostrar aquí.",
+    "en": "No photos to show here."
+  },
+  "web.images.slideshow.failed": {
+    "text": "No se han podido cargar las fotos.",
+    "en": "The photos couldn't load."
+  },
+  "web.images.slideshow.label_collection": {
+    "text": "Presentación de “{name}”",
+    "en": "Slideshow of “{name}”"
+  },
+  "web.images.slideshow.label_library": {
+    "text": "Presentación de tus fotos",
+    "en": "Slideshow of your photos"
+  },
+  "web.images.slideshow.loading": {
+    "text": "Preparando las fotos…",
+    "en": "Getting the photos ready…"
+  },
+  "web.images.slideshow.next": {
+    "text": "Foto siguiente",
+    "en": "Next photo"
+  },
+  "web.images.slideshow.pause": {
+    "text": "Pausar",
+    "en": "Pause"
+  },
+  "web.images.slideshow.photo": {
+    "text": "Foto {index} de {count}",
+    "en": "Photo {index} of {count}"
+  },
+  "web.images.slideshow.play": {
+    "text": "Reproducir",
+    "en": "Play"
+  },
+  "web.images.slideshow.position": {
+    "text": "{index} / {count}",
+    "en": "{index} / {count}"
+  },
+  "web.images.slideshow.position_unknown": {
+    "text": "Foto {index}",
+    "en": "Photo {index}"
+  },
+  "web.images.slideshow.previous": {
+    "text": "Foto anterior",
+    "en": "Previous photo"
+  },
+  "web.images.slideshow.start": {
+    "text": "Presentación",
+    "en": "Slideshow"
+  },
+  "web.images.slideshow.waiting": {
+    "text": "Esperando a tu dispositivo…",
+    "en": "Waiting for your device…"
+  },
   "web.images.smart_search.failed": {
     "text": "La Búsqueda inteligente no está disponible ahora mismo.",
     "en": "Smart search isn't available right now."

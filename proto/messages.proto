@@ -711,6 +711,35 @@ message SearchPhotos {
   bool by_rating = 15;
 }
 
+// A slideshow's photos in a random order (the web app's Slideshow, in a
+// collection or in Images): a collection's photos, or the whole library's,
+// each once per round, a page at a time. The order is the seed's - the
+// same seed gives the same order, so a round pages through it with after,
+// and a new seed is a new round, shuffled again. Photos only (no videos),
+// each content once, at the copy Images shows (SearchPhotos' rules: the
+// oldest copy, outside the folders kept out of Images), and only once
+// processed (its thumbnail exists, issue #147). Answered with
+// resp_list_of_files: the page's Files and, in token, the after of the
+// next page - "" once the round has given every photo (and, on its first
+// page, random_total: how many it holds). A page may hold
+// fewer than limit, or none, before its round ends (photos not processed
+// yet are passed over): go on while the token isn't "". Devices before it
+// answer error_code "unknown_payload".
+message RandomPhotos {
+  // A collection (ImageGroup.id), or "" for the whole library.
+  string group_id = 1;
+  // The round's order: any text (the web app sends 16 random hex digits).
+  string seed = 2;
+  // Where the page starts: the previous page's token; "" for the first.
+  string after = 3;
+  // The most photos the page holds: 1 to 50; 0 is 20.
+  int32 limit = 4;
+  // Each File's content is its small thumbnail (as SearchPhotos'
+  // small_thumbnails, thumbnail_small saying which came); without it the
+  // Files come without content.
+  bool small_thumbnails = 5;
+}
+
 // Which photos of a rated collection SearchPhotos keeps. All unset: every
 // photo.
 message RatingFilter {
@@ -749,6 +778,11 @@ message ListOfFiles {
   // still describing photos it held before (just turned on, just updated):
   // some may be missing until it is done - ask again later.
   bool smart_search_reading = 7;
+  // RandomPhotos, on a round's first page (after ""): how many photos the
+  // round holds - those not processed yet included, which its pages pass
+  // over, so a round may end a little short of it. 0 on every other page
+  // and answer.
+  int32 random_total = 8;
 }
 
 // Issue #77: per-month photo counts, used to size/position the gallery's
@@ -3149,6 +3183,9 @@ message ReqEnvelope {
     RateSharedGalleryItem req_rate_shared_gallery_item = 159;
     // Settings > Shut down device (issue #202): the generic Ack.
     ShutDownDevice req_shut_down_device = 160;
+    // A slideshow's photos in a random order: resp_list_of_files. Devices
+    // before it answer "unknown_payload".
+    RandomPhotos req_random_photos = 161;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

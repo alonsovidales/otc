@@ -1030,6 +1030,39 @@ export interface SearchPhotos {
 }
 
 /**
+ * A slideshow's photos in a random order (the web app's Slideshow, in a
+ * collection or in Images): a collection's photos, or the whole library's,
+ * each once per round, a page at a time. The order is the seed's - the
+ * same seed gives the same order, so a round pages through it with after,
+ * and a new seed is a new round, shuffled again. Photos only (no videos),
+ * each content once, at the copy Images shows (SearchPhotos' rules: the
+ * oldest copy, outside the folders kept out of Images), and only once
+ * processed (its thumbnail exists, issue #147). Answered with
+ * resp_list_of_files: the page's Files and, in token, the after of the
+ * next page - "" once the round has given every photo (and, on its first
+ * page, random_total: how many it holds). A page may hold
+ * fewer than limit, or none, before its round ends (photos not processed
+ * yet are passed over): go on while the token isn't "". Devices before it
+ * answer error_code "unknown_payload".
+ */
+export interface RandomPhotos {
+  /** A collection (ImageGroup.id), or "" for the whole library. */
+  groupId: string;
+  /** The round's order: any text (the web app sends 16 random hex digits). */
+  seed: string;
+  /** Where the page starts: the previous page's token; "" for the first. */
+  after: string;
+  /** The most photos the page holds: 1 to 50; 0 is 20. */
+  limit: number;
+  /**
+   * Each File's content is its small thumbnail (as SearchPhotos'
+   * small_thumbnails, thumbnail_small saying which came); without it the
+   * Files come without content.
+   */
+  smallThumbnails: boolean;
+}
+
+/**
  * Which photos of a rated collection SearchPhotos keeps. All unset: every
  * photo.
  */
@@ -1080,6 +1113,13 @@ export interface ListOfFiles {
    * some may be missing until it is done - ask again later.
    */
   smartSearchReading: boolean;
+  /**
+   * RandomPhotos, on a round's first page (after ""): how many photos the
+   * round holds - those not processed yet included, which its pages pass
+   * over, so a round may end a little short of it. 0 on every other page
+   * and answer.
+   */
+  randomTotal: number;
 }
 
 /**
@@ -3950,6 +3990,12 @@ export interface ReqEnvelope {
     | //
     /** Settings > Shut down device (issue #202): the generic Ack. */
     { $case: "reqShutDownDevice"; reqShutDownDevice: ShutDownDevice }
+    | //
+    /**
+     * A slideshow's photos in a random order: resp_list_of_files. Devices
+     * before it answer "unknown_payload".
+     */
+    { $case: "reqRandomPhotos"; reqRandomPhotos: RandomPhotos }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -7335,6 +7381,100 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
   },
 };
 
+function createBaseRandomPhotos(): RandomPhotos {
+  return { groupId: "", seed: "", after: "", limit: 0, smallThumbnails: false };
+}
+
+export const RandomPhotos: MessageFns<RandomPhotos> = {
+  encode(message: RandomPhotos, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.groupId !== "") {
+      writer.uint32(10).string(message.groupId);
+    }
+    if (message.seed !== "") {
+      writer.uint32(18).string(message.seed);
+    }
+    if (message.after !== "") {
+      writer.uint32(26).string(message.after);
+    }
+    if (message.limit !== 0) {
+      writer.uint32(32).int32(message.limit);
+    }
+    if (message.smallThumbnails !== false) {
+      writer.uint32(40).bool(message.smallThumbnails);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RandomPhotos {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRandomPhotos();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.groupId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.seed = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.after = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.limit = reader.int32();
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.smallThumbnails = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<RandomPhotos>, I>>(base?: I): RandomPhotos {
+    return RandomPhotos.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RandomPhotos>, I>>(object: I): RandomPhotos {
+    const message = createBaseRandomPhotos();
+    message.groupId = object.groupId ?? "";
+    message.seed = object.seed ?? "";
+    message.after = object.after ?? "";
+    message.limit = object.limit ?? 0;
+    message.smallThumbnails = object.smallThumbnails ?? false;
+    return message;
+  },
+};
+
 function createBaseRatingFilter(): RatingFilter {
   return { minStars: 0, unrated: false, withComment: false };
 }
@@ -7414,6 +7554,7 @@ function createBaseListOfFiles(): ListOfFiles {
     askAgainFrom: 0,
     oldestFirst: false,
     smartSearchReading: false,
+    randomTotal: 0,
   };
 }
 
@@ -7439,6 +7580,9 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     }
     if (message.smartSearchReading !== false) {
       writer.uint32(56).bool(message.smartSearchReading);
+    }
+    if (message.randomTotal !== 0) {
+      writer.uint32(64).int32(message.randomTotal);
     }
     return writer;
   },
@@ -7506,6 +7650,14 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
           message.smartSearchReading = reader.bool();
           continue;
         }
+        case 8: {
+          if (tag !== 64) {
+            break;
+          }
+
+          message.randomTotal = reader.int32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -7527,6 +7679,7 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     message.askAgainFrom = object.askAgainFrom ?? 0;
     message.oldestFirst = object.oldestFirst ?? false;
     message.smartSearchReading = object.smartSearchReading ?? false;
+    message.randomTotal = object.randomTotal ?? 0;
     return message;
   },
 };
@@ -21461,6 +21614,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqShutDownDevice":
         ShutDownDevice.encode(message.payload.reqShutDownDevice, writer.uint32(1282).fork()).join();
         break;
+      case "reqRandomPhotos":
+        RandomPhotos.encode(message.payload.reqRandomPhotos, writer.uint32(1290).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -22919,6 +23075,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 161: {
+          if (tag !== 1290) {
+            break;
+          }
+
+          message.payload = { $case: "reqRandomPhotos", reqRandomPhotos: RandomPhotos.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -24263,6 +24427,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqShutDownDevice",
             reqShutDownDevice: ShutDownDevice.fromPartial(object.payload.reqShutDownDevice),
+          };
+        }
+        break;
+      }
+      case "reqRandomPhotos": {
+        if (object.payload?.reqRandomPhotos !== undefined && object.payload?.reqRandomPhotos !== null) {
+          message.payload = {
+            $case: "reqRandomPhotos",
+            reqRandomPhotos: RandomPhotos.fromPartial(object.payload.reqRandomPhotos),
           };
         }
         break;
