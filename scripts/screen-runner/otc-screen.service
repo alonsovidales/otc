@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Off The Cloud on a connected screen: watches the Raspberry Pi's display
+# outputs and shows the web app on a screen plugged in - see
+# otc-screen-watch.py. Root: it installs the browser the first time, makes
+# its user and starts and stops otc-screen-browser.service. It exits at once
+# where it can't show anything (not a Raspberry Pi, under 4 GB of memory).
+[Unit]
+Description=Off The Cloud screen watcher
+After=systemd-user-sessions.service
+# No start limit: it is what shows the device on a screen.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/otc-screen-watch
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

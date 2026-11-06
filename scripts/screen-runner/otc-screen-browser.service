@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Off The Cloud on a connected screen: Chromium in cage as the otc-screen
+# user on tty7 - see otc-screen-browser.sh. Started and stopped only by
+# otc-screen.service (otc-screen-watch.py), which writes its address, so it
+# has no [Install].
+[Unit]
+Description=Off The Cloud on a connected screen
+After=systemd-user-sessions.service getty@tty7.service
+Conflicts=getty@tty7.service
+# No start limit: it starts again whenever the browser closes (a crash,
+# Ctrl+W), and the watcher stops it once the screen is gone.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=otc-screen
+# A login session on tty7 (pam_systemd), of a user on seat0: logind hands
+# cage the screen and the touch screen, as a desktop login would.
+PAMName=login
+Environment=XDG_SESSION_TYPE=wayland XDG_SESSION_CLASS=user
+TTYPath=/dev/tty7
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty7
+UtmpMode=user
+EnvironmentFile=/run/otc-screen/browser.env
+# As root: waits for the web app, then shows tty7.
+ExecStartPre=+/usr/local/bin/otc-screen-browser --wait
+ExecStart=/usr/local/bin/otc-screen-browser
+# The console back on the screen.
+ExecStopPost=-+/usr/bin/chvt 1
+TimeoutStartSec=infinity
+Restart=always
+RestartSec=3

@@ -308,8 +308,22 @@ Raspberry Pi's kernel and firmware. When one needs a restart (a new kernel), it 
 offline for about a minute. On a machine of your own installed with the script, set
 `OTC_SECURITY_REBOOT=0` before installing to leave the restarts to you.
 
+<a id="a-screen-on-the-device"></a>**A screen on the device.** Plug a screen into the Raspberry Pi's HDMI port (a portable touch
+screen, a TV, the [screen case](hardware/screen-case/)'s screen on the wall) and, a few seconds
+later, the device shows its web app on it, full-screen, with an on-screen keyboard for a touch
+screen: sign in as on any browser and use it as you would there. The first time it installs the
+browser for it (Chromium, about 600 MB on the microSD card) - a few minutes; a device that never
+has a screen never installs it. It needs a Raspberry Pi with 4 GB of memory or more (the browser
+takes about 500 MB), and only the device's own pages open on it: no other site, no downloads.
+Unplug the screen (or switch it off) and the browser stops within 15 seconds. A touch screen also
+needs a USB cable from the Pi to the screen's touch/USB-C port (the touch goes over USB; no
+driver to install), and a portable screen should have its own power supply: the Pi's USB ports
+share 1.6 A with the storage disks. Turn a screen on before the Pi if you can - the device looks
+again every 10 seconds for one it missed.
+
 **Console access.** The image doesn't enable SSH. If you ever need a shell on the device itself,
-plug in a keyboard and monitor and log in as:
+plug in a keyboard and monitor and log in as (on a device already set up, the monitor shows the
+web app instead: press **Ctrl+Alt+F1** for the console and **Ctrl+Alt+F7** to go back):
 
 | user | password |
 |---|---|

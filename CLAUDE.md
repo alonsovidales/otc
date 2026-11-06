@@ -2154,6 +2154,42 @@ start takes its file.
   older primary's "unknown request" is `ErrNoAesthetic`). `imagestagger.InitRuntime` initializes
   ONNX Runtime once for both models. `TestQualityModelPinIsTheSameEverywhere` checks the pin in
   install.sh, update.sh and the entrypoint.
+- **A screen on the device** (release 171, `scripts/screen-runner/`; the web half is the web app's
+  screen mode, `?screen=1`): a screen on the Pi's HDMI (or a DSI panel) shows the web app full-screen.
+  - Root watcher `otc-screen-watch.py` (Python stdlib, `/usr/local/bin/otc-screen-watch`,
+    `otc-screen.service`, enabled): every 3 s reads `/sys/class/drm/card*-{HDMI-A,DSI}-*/status`.
+    A screen `connected`: installs the browser the first time (`apt-get install
+    --no-install-recommends cage chromium kbd fonts-dejavu-core fonts-noto-color-emoji`, then
+    `apt-get clean`; not while `otc-update.service` runs, at least 1.5 GB free, a failure tried again
+    after 30 min, said on tty1), makes the `otc-screen` system user (home `/var/lib/otc-screen`,
+    groups video/render/input where they exist), writes `/run/otc-screen/browser.env`
+    (`OTC_SCREEN_URL=http://127.0.0.1:<[otc-api] port of /etc/otc_dev.ini>/?screen=1`) and the
+    managed policy `/etc/chromium/policies/managed/otc-screen.json` (`policy()`: URLBlocklist `*`
+    with only the device's origin allowed - navigations only, the map's tiles still load - no
+    downloads, no file chooser, no password manager/autofill/translate/sign-in/devtools/printing),
+    then `systemctl start --no-block otc-screen-browser.service`. No screen for 15 s (or a running
+    `display-manager.service`, checked every 60 s): stops it. While nothing is connected it writes
+    `detect` to the disconnected HDMI outputs every 10 s - the Pi probes once at boot and missed a
+    portable screen still waking up (no picture until a restart); never to a connected one (it would
+    clear a `video=...D` force). It exits at once off a Raspberry Pi (`/proc/device-tree/model`) or
+    under 3000 MB of MemTotal (the 2 GB tier). `--selftest` runs on the Mac
+    (`TestScreenWatcherSelftest`).
+  - Browser `otc-screen-browser.service` (no `[Install]`): `User=otc-screen`, `PAMName=login` on
+    `TTYPath=/dev/tty7` with `XDG_SESSION_CLASS=user` - logind makes it an active seat0 session, so
+    cage gets the DRM device and the touch screen (checked in a systemd container: `loginctl` shows
+    the session on seat0, class user, tty7). `ExecStartPre=+... --wait` (root) waits for any HTTP
+    answer from the web app with the console still on screen, then `chvt 7`; `ExecStart` is
+    `otc-screen-browser.sh`: clears Chromium's crash flags, `exec cage -d -s -- chromium --kiosk
+    --ozone-platform=wayland ...` (no swipe back, no pinch zoom, touch events on). Restart=always;
+    `ExecStopPost` `chvt 1`. The launcher refuses any OTC_SCREEN_URL but
+    `http://127.0.0.1:<port>/?screen=1` (`TestScreenBrowserTakesOnlyTheDevicesAddress`). Ctrl+Alt+F1
+    is the console. On Raspberry Pi OS trixie both come from the Raspberry Pi archive's main component
+    (chromium 156, cage 0.3.1 on 2026-11-06), which the daily security updates take; ~600 MB on disk,
+    ~475 MB PSS.
+  - Installed by install.sh and by every update.sh from 171 on (its own update.sh the first time):
+    the same four files, `TestScreenRunnerInstalledTheSameEverywhere`. A cage/chromium headless run
+    (WLR_BACKENDS=headless, pixman) in an arm64 trixie container with the Raspberry Pi archive showed
+    the kiosk and the policy's "This page is blocked" for another site.
 - **Low-memory profile** (`files_manager/lowmem.go`): MemTotal under 6 GB (a 4 GB Pi 5 reports
   ~3.7 GB) or `[otc] low-memory = on` (`auto` default, `off`; the primary passes a configured
   choice to its supervised instances as `OTC_LOW_MEMORY`). Logged once at start ("low-memory mode:

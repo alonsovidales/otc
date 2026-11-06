@@ -1959,6 +1959,17 @@ log "Wi-Fi change trigger (otc-wifi-join.path)"
 install -m 0755 "$SRC_DIR/scripts/device-runner/otc-wifi-join-runner.py" /usr/local/bin/otc-wifi-join-runner
 install -m 0644 "$SRC_DIR/scripts/device-runner/otc-wifi-join.service" /etc/systemd/system/otc-wifi-join.service
 install -m 0644 "$SRC_DIR/scripts/device-runner/otc-wifi-join.path" /etc/systemd/system/otc-wifi-join.path
+# A screen plugged into the device shows its web app, full-screen (a
+# touch screen gets an on-screen keyboard) - see
+# scripts/screen-runner/otc-screen-watch.py. The browser itself is installed
+# the first time a screen is seen, so a device that never has one never
+# gets it; off a Raspberry Pi (a PC, a VPS) and under 4 GB of memory the
+# watcher exits at once.
+log "A connected screen (otc-screen.service)"
+install -m 0755 "$SRC_DIR/scripts/screen-runner/otc-screen-watch.py" /usr/local/bin/otc-screen-watch
+install -m 0755 "$SRC_DIR/scripts/screen-runner/otc-screen-browser.sh" /usr/local/bin/otc-screen-browser
+install -m 0644 "$SRC_DIR/scripts/screen-runner/otc-screen.service" /etc/systemd/system/otc-screen.service
+install -m 0644 "$SRC_DIR/scripts/screen-runner/otc-screen-browser.service" /etc/systemd/system/otc-screen-browser.service
 
 # Issue #178: what the setup wizard asked about the owner - the profile's
 # name, description and picture, and whether face recognition is on (off
@@ -1997,6 +2008,8 @@ systemctl enable --now otc-poweroff.path
 systemctl enable --now otc-wifi-restart.path
 rm -f /run/otc/wifi-join.request
 systemctl enable --now otc-wifi-join.path
+systemctl enable otc-screen.service
+systemctl restart otc-screen.service
 systemctl restart otc.service
 
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')

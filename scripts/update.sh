@@ -717,6 +717,20 @@ if [ -f "$SRC_DIR/scripts/device-runner/otc-wifi-join-runner.py" ]; then
     rm -f /run/otc/wifi-join.request
     systemctl enable --now otc-wifi-join.path >/dev/null 2>&1 || echo "WARNING: could not enable otc-wifi-join.path"
 fi
+# A screen plugged into the device shows its web app (release 171: this,
+# the release's own update.sh, installs it the first time) - see
+# scripts/screen-runner/otc-screen-watch.py. The watcher restarts with the
+# new script; a browser already on a screen stays up, and the next start
+# uses the new launcher and unit.
+if [ -f "$SRC_DIR/scripts/screen-runner/otc-screen-watch.py" ]; then
+    install_atomic 0755 "$SRC_DIR/scripts/screen-runner/otc-screen-watch.py" /usr/local/bin/otc-screen-watch
+    install_atomic 0755 "$SRC_DIR/scripts/screen-runner/otc-screen-browser.sh" /usr/local/bin/otc-screen-browser
+    install_atomic 0644 "$SRC_DIR/scripts/screen-runner/otc-screen.service" /etc/systemd/system/otc-screen.service
+    install_atomic 0644 "$SRC_DIR/scripts/screen-runner/otc-screen-browser.service" /etc/systemd/system/otc-screen-browser.service
+    systemctl daemon-reload
+    systemctl enable otc-screen.service >/dev/null 2>&1 || echo "WARNING: could not enable otc-screen.service"
+    systemctl restart otc-screen.service >/dev/null 2>&1 || echo "WARNING: could not start otc-screen.service"
+fi
 
 # The web app: the new directory switched in with one rename of the
 # /var/www symlink. The one it replaces is kept to go back to; the very

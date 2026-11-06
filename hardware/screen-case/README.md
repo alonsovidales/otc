@@ -110,6 +110,24 @@ alignment lip.
    at the same height (a spirit level), their heads ~3 mm out of the wall. The centre of
    the screen ends up about 62 mm below the screws, midway between them.
 
+## On the wall
+
+Once hung and plugged in, the screen shows the device's web app, full-screen, with an
+on-screen keyboard if it's a touch screen ([A screen on the device](../../README.md#a-screen-on-the-device) in the
+main README: a Raspberry Pi with 4 GB of memory or more; the browser is installed the first
+time, a few minutes). For the touch, a second cable: USB-A from one of the Pi's black USB 2
+ports (the blue ones are the disks') to the screen's touch/USB-C port - a data cable, not a
+charge-only one. Power the screen from its own 5 V / 3 A supply rather than the Pi: the Pi's
+USB ports share 1.6 A with the disks.
+
+**"No signal" from the screen:** the Pi looks for a screen once as it starts, and a portable
+screen still waking up then can be missed. The device asks again every 10 seconds, so turning
+the screen off and on usually brings the picture; if not, restart the Pi with the screen
+already on. A screen that is never found at all can be forced on: add
+` video=HDMI-A-1:1280x720@60D` to the end of the single line in `cmdline.txt` on the microSD
+card's `bootfs` (`HDMI-A-1` is the port next to the power input; `HDMI-A-2` the other one).
+The device then shows itself whether or not a screen is there.
+
 ## Printing
 
 As the cloud case: PETG, 0.2 mm layers, 4 perimeters, 20 % gyroid, **no supports** (the
