@@ -66,5 +66,13 @@
             android:name=".SetupPicturePreviewActivity"
             android:exported="true"
             android:theme="@style/Theme.OffTheCloud" />
+        <!-- The photo editor (rotate and crop) and Revert to Original over the
+             viewer, on sample data (adb shell am start -n
+             cloud.offthe.otc/.PhotoEditPreviewActivity [- -ez editor true]
+             [- -ei photo 1] [- -es device demo|old]). -->
+        <activity
+            android:name=".PhotoEditPreviewActivity"
+            android:exported="true"
+            android:theme="@style/Theme.OffTheCloud" />
     </application>
 </manifest>

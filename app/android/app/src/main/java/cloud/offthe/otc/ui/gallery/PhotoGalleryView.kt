@@ -57,6 +57,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Crop
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
@@ -240,6 +242,15 @@ import cloud.offthe.otc.i18n.appPhotosCopiesOnlyThese
 import cloud.offthe.otc.i18n.appPhotosCopiesOnlyThis
 import cloud.offthe.otc.i18n.appPhotosCopiesSeveralText
 import cloud.offthe.otc.i18n.appPhotosCopiesSingleText
+import cloud.offthe.otc.i18n.appPhotosEditButton
+import cloud.offthe.otc.i18n.appPhotosEditCopiesOnlyThis
+import cloud.offthe.otc.i18n.appPhotosEditRevert
+import cloud.offthe.otc.i18n.appPhotosEditRevertAll
+import cloud.offthe.otc.i18n.appPhotosEditRevertButton
+import cloud.offthe.otc.i18n.appPhotosEditRevertCopiesText
+import cloud.offthe.otc.i18n.appPhotosEditRevertText
+import cloud.offthe.otc.i18n.appPhotosEditRevertTitle
+import cloud.offthe.otc.i18n.appPhotosEditReverting
 import cloud.offthe.otc.i18n.appPhotosGridCollectionItemsSpan
 import cloud.offthe.otc.i18n.appPhotosGridEmptyCollectionText
 import cloud.offthe.otc.i18n.appPhotosGridEmptyCollectionTitle
@@ -354,6 +365,19 @@ enum class GalleryPage { PHOTOS, PEOPLE, COLLECTIONS, PLACES }
 private fun rememberThumb(key: String?): Bitmap? {
     val bytes = rememberOffMain(key, { key?.let(ThumbStore::peek) }) { key?.let { ThumbStore.load(it) } }
     return remember(bytes) { bytes?.let { decodeBitmap(it) } }
+}
+
+/**
+ * The best picture of [item] the viewer has: its full size; where the
+ * thumbnail stays (the full size failed or can't be decoded, a video that
+ * can't be fetched or played), the big one, asked for then; until the full
+ * size comes, the grid's small tile. What its page shows, and the editor.
+ */
+@Composable
+internal fun viewerImage(st: PhotoGalleryViewModel.State, item: PhotoGalleryViewModel.Item): Bitmap? {
+    val bigBytes = st.bigThumbs[item.path]
+    val big = rememberOffMain(bigBytes, { null }) { bigBytes?.let { b -> withContext(Dispatchers.Default) { decodeBitmap(b) } } }
+    return st.hiResImages[item.path] ?: big ?: item.preview ?: rememberThumb(st.thumbKeyOf(item))
 }
 
 /**
@@ -2049,7 +2073,26 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
     var pickPerson by remember { mutableStateOf(false) }
     // Info's People: the face whose × was tapped, asked about first.
     var confirmFace by remember { mutableStateOf<PhotoFace?>(null) }
+    // Revert to Original: how many paths hold the edit, asked of the device
+    // first (asking meanwhile), then its question - for that photo only.
+    var revertAsk by remember { mutableStateOf<RevertAsk?>(null) }
+    var revertAsking by remember { mutableStateOf(false) }
     val idx = st.openIndex ?: return
+    val openItem = st.items.getOrNull(idx)
+    // Photo edit: Edit for a photo the device can edit, Revert to Original
+    // for one that is an edit - beside Info, on top or in the side column.
+    val editButtons: @Composable () -> Unit = {
+        ViewerEditButtons(
+            openItem, st.editBusy, onEdit = vm::openEditor,
+            onRevert = {
+                val path = openItem?.path
+                if (path != null && !revertAsking) {
+                    revertAsking = true
+                    scope.launch { try { revertAsk = RevertAsk(path, vm.openCopies()) } finally { revertAsking = false } }
+                }
+            },
+        )
+    }
     // Among one person's photos (Images only: the Files viewer has none),
     // while face recognition is on: the menu with Not this person and
     // Someone else… for the photo open.
@@ -2118,6 +2161,7 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                 Column(Modifier.fillMaxSize()) {
                     if (!landscape) Row(Modifier.fillMaxWidth().padding(8.dp)) {
                         ViewerInfoButton(vm)
+                        editButtons()
                         Spacer(Modifier.weight(1f))
                         personMenu?.invoke()
                         ViewerCloseButton(vm)
@@ -2126,6 +2170,7 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                         // Leading column: info at the top.
                         if (landscape) Column(Modifier.width(VIEWER_SIDE_COLUMN).fillMaxHeight().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             ViewerInfoButton(vm)
+                            editButtons()
                             personMenu?.invoke()
                             if (rates) ViewerRatingButton(openRating) { ratingSheet = true }
                         }
@@ -2159,8 +2204,11 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                         )
                     }
                 }
-                // A heart's or a rating's change the device didn't take: why, for a few seconds.
-                Toast((st.favouriteNote ?: st.ratingNote)?.resolve(), Modifier.align(Alignment.TopCenter).padding(top = 56.dp, start = 16.dp, end = 16.dp))
+                // A heart's or a rating's change the device didn't take: why,
+                // for a few seconds - and a copy saved, by its name, or the
+                // original being put back.
+                val reverting = if (st.editBusy == EditBusy.REVERTING) S.appPhotosEditReverting() else null
+                Toast((reverting ?: st.editNote ?: st.favouriteNote ?: st.ratingNote)?.resolve(), Modifier.align(Alignment.TopCenter).padding(top = 56.dp, start = 16.dp, end = 16.dp))
             }
         }
     }
@@ -2183,6 +2231,25 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
         )
     }
     st.favouriteNote?.let { note -> LaunchedEffect(note) { delay(FAVOURITE_NOTE_MS); vm.favouriteNoteShown() } }
+    st.editNote?.let { note -> LaunchedEffect(note) { delay(FAVOURITE_NOTE_MS); vm.editNoteShown() } }
+    // Photo edit (PhotoEditor.kt): the editor over the viewer.
+    if (st.editing && openItem != null && PhotoEdit.editable(openItem)) PhotoEditor(vm, st, openItem)
+    // Revert to Original's question: with the edit at several paths, all of
+    // them or only here.
+    revertAsk?.takeIf { it.path == openItem?.path }?.let { ask ->
+        val title = S.appPhotosEditRevertTitle().resolve()
+        if (ask.copies > 1) ChoiceDialog(
+            title, S.appPhotosEditRevertCopiesText(ask.copies).resolve(),
+            listOf(
+                S.appPhotosEditRevertAll(ask.copies).resolve() to { revertAsk = null; vm.revertOpen(everyCopy = true) },
+                S.appPhotosEditCopiesOnlyThis().resolve() to { revertAsk = null; vm.revertOpen() },
+            ),
+            onDismiss = { revertAsk = null }, danger = true,
+        ) else ConfirmDialog(
+            title, S.appPhotosEditRevertText().resolve(), S.appPhotosEditRevertButton().resolve(),
+            onConfirm = { revertAsk = null; vm.revertOpen() }, onDismiss = { revertAsk = null },
+        )
+    }
     st.ratingNote?.let { note -> LaunchedEffect(note) { delay(FAVOURITE_NOTE_MS); vm.ratingNoteShown() } }
     // The stars and the comment box: what was written is saved as it closes.
     if (ratingSheet && rates) RatingSheet(
@@ -2208,7 +2275,6 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
     // a video, nor once face recognition is off. A face opens that
     // person's photos in Images (PersonNav), the viewer closing; its × asks
     // Not this person's question first.
-    val openItem = st.items.getOrNull(idx)
     val infoFaces = st.infoFaces?.takeIf { f -> faces != false && f.path == openItem?.path && asksPhotoFaces(openItem) }
     // Fully open, and scrollable (FileInfoView): half-open, the location
     // map - the last thing in the sheet - sat below the visible part, so
@@ -2282,6 +2348,29 @@ private fun controlsBeside(width: Dp, height: Dp, rates: Boolean = false): Boole
 @Composable
 private fun ViewerInfoButton(vm: PhotoGalleryViewModel) {
     IconButton(onClick = { vm.openInfo() }) { Icon(Icons.Default.Info, S.appPhotosViewerMoreInfo().resolve(), tint = Color.White) }
+}
+
+/** Revert to Original's question, for the photo at [path]: how many paths hold its edit ([copies], 1 when the device can't say). */
+private data class RevertAsk(val path: String, val copies: Int)
+
+/**
+ * Photo edit: Edit, for a photo the device can edit (PhotoEdit.editable),
+ * and Revert to Original for one that is an edit (File.original_hash) - a
+ * spinner named Reverting… while the original is put back ([busy]). Both
+ * wait while the device works on either.
+ */
+@Composable
+private fun ViewerEditButtons(item: PhotoGalleryViewModel.Item?, busy: EditBusy?, onEdit: () -> Unit, onRevert: () -> Unit) {
+    if (item == null) return
+    val tint = if (busy == null) Color.White else Color.White.copy(alpha = 0.4f)
+    if (PhotoEdit.editable(item)) IconButton(onClick = onEdit, enabled = busy == null) { Icon(Icons.Default.Crop, S.appPhotosEditButton().resolve(), tint = tint) }
+    if (!PhotoEdit.revertable(item)) return
+    if (busy == EditBusy.REVERTING) {
+        val label = S.appPhotosEditReverting().resolve()
+        IconButton(onClick = {}, enabled = false, modifier = Modifier.semantics { contentDescription = label }) {
+            CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
+        }
+    } else IconButton(onClick = onRevert, enabled = busy == null) { Icon(Icons.Default.Restore, S.appPhotosEditRevert().resolve(), tint = tint) }
 }
 
 /**
@@ -2428,12 +2517,7 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
             return@Box
         }
         val hiRes = st.hiResImages[path]
-        // Where the thumbnail stays (the full size failed or can't be
-        // decoded, a video that can't be fetched or played): the big one,
-        // asked for then. Until the full size comes, the grid's small tile.
-        val bigBytes = st.bigThumbs[path]
-        val big = rememberOffMain(bigBytes, { null }) { bigBytes?.let { b -> withContext(Dispatchers.Default) { decodeBitmap(b) } } }
-        val image = hiRes ?: big ?: item.preview ?: rememberThumb(st.thumbKeyOf(item))
+        val image = viewerImage(st, item)
         val unplayable = isCurrent && path in st.unplayable
         if (image == null) {
             if (unplayable) VideoUnplayable(Modifier.align(Alignment.BottomCenter)) { vm.retryVideo() }

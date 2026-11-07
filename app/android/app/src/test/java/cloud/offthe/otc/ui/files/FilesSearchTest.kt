@@ -5,6 +5,7 @@ import cloud.offthe.otc.proto.File as PbFile
 import cloud.offthe.otc.proto.Person
 import cloud.offthe.otc.ui.gallery.ABOVE_ROWS
 import cloud.offthe.otc.ui.gallery.FoundFiles
+import cloud.offthe.otc.ui.gallery.PhotoEdit
 import cloud.offthe.otc.ui.gallery.SearchOption
 import cloud.offthe.otc.ui.gallery.TopSearchViewModel
 import cloud.offthe.otc.ui.gallery.fileSearchOptions
@@ -41,6 +42,18 @@ class FilesSearchTest {
         assertEquals("docs", o.best)
         // Nothing typed (the field trims it): no panel.
         assertTrue(fileSearchOptions("", found, noFileSearch = false).options.isEmpty())
+    }
+
+    @Test fun aFoundPhotoOpensWithWhatItIsAnEditOf() {
+        // SearchFiles sets original_hash as ListFiles does: an edit opened
+        // from the results offers Revert to Original, a photo that is none doesn't.
+        val edit = PbFile.newBuilder().setPath("/Camera/IMG_1.JPG").setHash("e1").setMime("image/jpeg").setOriginalHash("o1").build()
+        val item = foundViewerItem(edit, null)
+        assertEquals("/Camera/IMG_1.JPG", item.path)
+        assertEquals("e1", item.hash)
+        assertEquals("o1", item.originalHash)
+        assertTrue(PhotoEdit.revertable(item))
+        assertFalse(PhotoEdit.revertable(foundViewerItem(edit.toBuilder().clearOriginalHash().build(), null)))
     }
 
     @Test fun searchKeyListsEveryMatchUnlessARowWasPicked() {

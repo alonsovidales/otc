@@ -32,6 +32,7 @@ import cloud.offthe.otc.proto.DelFile
 import cloud.offthe.otc.proto.DeleteImageGroup
 import cloud.offthe.otc.proto.FileExifInfo
 import cloud.offthe.otc.proto.GetFavourites
+import cloud.offthe.otc.proto.GetEditState
 import cloud.offthe.otc.proto.GetFile
 import cloud.offthe.otc.proto.GetFileInfo
 import cloud.offthe.otc.proto.GetPhotoFaces
@@ -94,6 +95,9 @@ import java.util.UUID
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.appPhotosCollectionsRemoveNeedsUpdate
+import cloud.offthe.otc.i18n.appPhotosEditFailed
+import cloud.offthe.otc.i18n.appPhotosEditRevertFailed
+import cloud.offthe.otc.i18n.appPhotosEditSavedCopy
 import cloud.offthe.otc.i18n.appPhotosNoticeAddFailed
 import cloud.offthe.otc.i18n.appPhotosNoticeAdded
 import cloud.offthe.otc.i18n.appPhotosNoticeCreateFailed
@@ -266,10 +270,12 @@ class PhotoGalleryViewModel(
     // many paths on the device hold it (File.copies), null when the device
     // didn't say - then deleting never offers "every copy". up (issue
     // #194): the upward search above a jump brought it, not the downward one.
+    // originalHash (photo edit): the photo it is an edit of (File.original_hash),
+    // empty when it is none - the viewer offers Revert to Original only then.
     data class Item(
         val id: String, val path: String, val mime: String, val size: Long, val thumbKey: String?,
         val preview: Bitmap? = null, val month: String? = null, val created: Long? = null, val hash: String = "",
-        val copies: Int? = null, val up: Boolean = false,
+        val copies: Int? = null, val up: Boolean = false, val originalHash: String = "",
     )
     data class DateBucket(val month: String, val count: Int, val start: Int, val end: Int)
 
@@ -406,6 +412,15 @@ class PhotoGalleryViewModel(
         // A viewer over a fixed list (Files, the map, a memory's photos): no
         // collection's rating there.
         val fixed: Boolean = false,
+        // Photo edit (PhotoEditor.kt): the editor is open over the viewer,
+        // for the open photo; what is on its way to the device (Saving…,
+        // Reverting…); why the editor's Save didn't go through, shown in the
+        // editor (the device's words, else edit.failed); and the viewer's
+        // short note once a copy is saved.
+        val editing: Boolean = false,
+        val editBusy: EditBusy? = null,
+        val editError: UiText? = null,
+        val editNote: UiText? = null,
     ) {
         /** The open collection has Rating on: its tiles show their stars, its viewer rates. */
         val rates: Boolean get() = RatingRules.rates(activeGroup)
@@ -508,7 +523,7 @@ class PhotoGalleryViewModel(
     // after a failure, too - the grid goes to its month's title (jumpsLanded).
     private var jumpLanding = false
     // Files viewer: a fixed list (no search, no paging), and what to do
-    // after a delete there (refresh the folder listing).
+    // after a delete or an edit there (refresh the folder listing).
     private var fixedList = false
     private var onDeleted: (() -> Unit)? = null
 
@@ -1786,7 +1801,7 @@ class PhotoGalleryViewModel(
         val created = if (f.hasCreated()) f.created.seconds * 1000 + f.created.nanos / 1_000_000 else null
         return Item(
             "${f.path}#${f.hash}#${f.byteSize}", f.path, f.mime, f.byteSize, thumbKey, month = month, created = created, hash = f.hash,
-            copies = if (f.hasCopies()) f.copies else null, up = up,
+            copies = if (f.hasCopies()) f.copies else null, up = up, originalHash = f.originalHash,
         )
     }
 
@@ -2055,7 +2070,10 @@ class PhotoGalleryViewModel(
         }
     }
 
-    // Viewer. hiResOrder: the cached full-size images, least recently used first.
+    // Viewer. hiResOrder: the cached full-size images, least recently used
+    // first. inFlightHiRes: the items (by id) whose full size is on its way -
+    // by id, not path, so a photo an edit replaced at the same path fetches
+    // its own while the old content's is still coming.
     private val hiResOrder = mutableListOf<String>()
     private val inFlightHiRes = mutableSetOf<String>()
     private val hiResCacheSize = 8
@@ -2126,7 +2144,10 @@ class PhotoGalleryViewModel(
         favouriteSends.values.removeAll { !it.isActive }
         dropVideoCopy()
         _state.update {
-            it.copy(openIndex = null, hiResImages = emptyMap(), videoUrl = null, bigThumbs = emptyMap(), unplayable = emptySet(), favourites = emptyMap(), favouriteNote = null, ratingNote = null)
+            it.copy(
+                openIndex = null, hiResImages = emptyMap(), videoUrl = null, bigThumbs = emptyMap(), unplayable = emptySet(), favourites = emptyMap(), favouriteNote = null, ratingNote = null,
+                editing = false, editError = null, editNote = null,
+            )
         }
         if (heartsChanged) heartsLanded(listAgain = !dropped)
         // Rating: sorted or filtered by the stars, the grid is asked for
@@ -2568,16 +2589,20 @@ class PhotoGalleryViewModel(
         if (it.path in _state.value.hiResImages) { touchHiRes(it.path); readyNeighbours(it.path); return }
         // On its way (a neighbour readied, now opened): it readies the
         // neighbours itself when it lands, if it is still the open one.
-        if (it.path in inFlightHiRes) return
-        inFlightHiRes += it.path
+        if (it.id in inFlightHiRes) return
+        inFlightHiRes += it.id
         _state.update { s -> s.copy(hiResLoading = s.hiResLoading + it.path) }
         var got = false
+        // Photo edit: replaced meanwhile (an edit saved, a revert), this is
+        // no longer the content at its path - never drawn in the new one's place.
+        fun replaced() = _state.value.items.none { x -> x.id == it.id }
         try {
             // Seen this session (FullPhotoCache): decoded from the phone's
             // copy, nothing asked of the device. One that doesn't decode is
             // forgotten and asked for as if it had never been kept.
             val kept = if (it.hash.isEmpty()) null else fullPhotos.loadFullPhoto(it.hash)
             if (kept != null) {
+                if (replaced()) return
                 got = showHiRes(it.path, kept)
                 if (!got) fullPhotos.forgetFullPhoto(it.hash)
             }
@@ -2585,6 +2610,7 @@ class PhotoGalleryViewModel(
                 val asked = fullPhotos.fullPhotoScope()
                 val resp = call { e -> e.setReqGetFile(GetFile.newBuilder().setPath(it.path)) }
                 if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE) {
+                    if (replaced()) return
                     val bytes = resp.respFile.content.toByteArray()
                     got = showHiRes(it.path, bytes)
                     // Kept for the next time, as the device sent it (a HEIC
@@ -2599,8 +2625,11 @@ class PhotoGalleryViewModel(
             throw e
         } catch (_: Exception) {
         } finally {
-            inFlightHiRes -= it.path
-            _state.update { s -> s.copy(hiResLoading = s.hiResLoading - it.path) }
+            inFlightHiRes -= it.id
+            // Still loading for the item that replaced it, at the same path.
+            if (inFlightHiRes.none { id -> _state.value.items.any { x -> x.id == id && x.path == it.path } }) {
+                _state.update { s -> s.copy(hiResLoading = s.hiResLoading - it.path) }
+            }
         }
         // Failed, or a format the phone can't decode: the thumbnail stays,
         // the big one if it is the open photo (a neighbour's full size is
@@ -2870,6 +2899,195 @@ class PhotoGalleryViewModel(
         refillIfEmptied()
         reloadDateBuckets()
         if (_state.value.activeGroup != null) scope.launch { loadGroups() }
+    }
+
+    // ---- Photo edit: the editor (PhotoEditor.kt) and Revert to Original ----
+
+    /** The viewer's Edit: the editor opens over the open photo - one the device can edit (PhotoEdit.editable). */
+    fun openEditor() {
+        val st = _state.value
+        val item = st.openIndex?.let { st.items.getOrNull(it) } ?: return
+        if (!PhotoEdit.editable(item) || st.editBusy != null) return
+        _state.update { it.copy(editing = true, editError = null) }
+    }
+
+    /** The editor's Cancel (or Discard): it closes, the photo as it was - never while its Save is on its way. */
+    fun closeEditor() {
+        if (_state.value.editBusy == EditBusy.SAVING) return
+        _state.update { it.copy(editing = false, editError = null) }
+    }
+
+    /** The editor's error was read: Save can be tried again. */
+    fun editErrorShown() = _state.update { it.copy(editError = null) }
+
+    /** The viewer's note about a saved copy has had its few seconds. */
+    fun editNoteShown() = _state.update { it.copy(editNote = null) }
+
+    /**
+     * How many paths on the device hold the open photo (GetEditState): what
+     * Replace Photo and Revert to Original ask about first. 1 when the
+     * device can't say - no answer, an error, a device before photo edits -
+     * and then nobody is asked about copies.
+     */
+    suspend fun openCopies(): Int {
+        val path = openPath() ?: return 1
+        return try {
+            PhotoEdit.copies(ask("edit", OTCConnection.LIST_TIMEOUT_MS) { it.setReqGetEditState(GetEditState.newBuilder().setPath(path)) })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) { 1 }
+    }
+
+    /**
+     * The editor's Save: EditImage for the open photo as it was shown (its
+     * hash) - [turns] quarter turns clockwise, then [crop] of the turned
+     * photo; [asCopy]: a new photo next to it, else the photo replaced
+     * ([everyCopy]: at every path holding it). Saving… meanwhile, the editor
+     * waiting; the view model's own work, so nothing cuts it short. Done,
+     * the editor closes: a replaced photo is shown as the device has it now
+     * (showEdited), a copy is named in the viewer's note and joins the
+     * photos behind (copySaved). Refused, the device's words (else
+     * edit.failed) in the editor, which stays open to try again - except
+     * "changed": the path holds other content than was shown, so, as after
+     * a delete refused for it, the viewer closes saying so and the photos
+     * are asked for again.
+     */
+    fun saveEdit(turns: Int, crop: CropRect, asCopy: Boolean, everyCopy: Boolean = false): Job? {
+        val st = _state.value
+        if (st.editBusy != null) return null
+        val item = st.openIndex?.let { st.items.getOrNull(it) } ?: return null
+        _state.update { it.copy(editBusy = EditBusy.SAVING, editError = null) }
+        return scope.launch {
+            try {
+                when (val answer = editAnswer(S.appPhotosEditFailed()) { it.setReqEditImage(PhotoEdit.request(item.path, item.hash, turns, crop, asCopy, everyCopy)) }) {
+                    is EditAnswer.Done -> if (asCopy) {
+                        _state.update { it.copy(editing = false) }
+                        copySaved(item, answer.file)
+                    } else {
+                        // Until its full size comes: the picture the editor
+                        // showed, turned and cut as the device did it.
+                        val shown = imageOf(item)?.let { src -> withContext(Dispatchers.Default) { editedPicture(src, turns, crop) } }
+                        _state.update { it.copy(editing = false) }
+                        showEdited(item, answer.file, shown)
+                    }
+                    is EditAnswer.Refused -> if (answer.code == DELETE_CHANGED) {
+                        _state.update { it.copy(editing = false) }
+                        alert(answer.text)
+                        contentChanged()
+                    } else _state.update { it.copy(editError = answer.text) }
+                }
+            } finally {
+                _state.update { it.copy(editBusy = null) }
+            }
+        }
+    }
+
+    /**
+     * The viewer's Revert to Original: RevertImage for the open photo as it
+     * was shown ([everyCopy]: at every path holding the edit), Reverting…
+     * meanwhile. Done, the original is shown in the edit's place
+     * (showEdited); refused, the device's words (else edit.revert_failed) in
+     * the viewer's alert, as a delete's - "changed" closing the viewer and
+     * asking for the photos again, as for a delete.
+     */
+    fun revertOpen(everyCopy: Boolean = false): Job? {
+        val st = _state.value
+        if (st.editBusy != null) return null
+        val item = st.openIndex?.let { st.items.getOrNull(it) } ?: return null
+        if (!PhotoEdit.revertable(item)) return null
+        _state.update { it.copy(editBusy = EditBusy.REVERTING) }
+        return scope.launch {
+            try {
+                when (val answer = editAnswer(S.appPhotosEditRevertFailed()) { it.setReqRevertImage(PhotoEdit.revertRequest(item.path, item.hash, everyCopy)) }) {
+                    is EditAnswer.Done -> showEdited(item, answer.file)
+                    is EditAnswer.Refused -> {
+                        alert(answer.text)
+                        if (answer.code == DELETE_CHANGED) contentChanged()
+                    }
+                }
+            } finally {
+                _state.update { it.copy(editBusy = null) }
+            }
+        }
+    }
+
+    // An EditImage or a RevertImage, and what its answer means: [failed]
+    // when none came (the connection dropped, no word why).
+    private suspend fun editAnswer(failed: UiText, build: (ReqEnvelope.Builder) -> Unit): EditAnswer = try {
+        PhotoEdit.answer(call(build), failed)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) { EditAnswer.Refused("", failed) }
+
+    /**
+     * [old] is [f] on the device now - an edit replaced it, or Revert put
+     * the original back - and the viewer shows that in its place, by the
+     * answer: its new hash brings its own full size and thumbnail ([shown]
+     * meanwhile, the picture as edited, else the spinner), and its path may
+     * be another (a HEIC become a JPEG, and back). What the viewer held of
+     * the old content at either path goes, and the hearts and Info are
+     * asked for again. Images' tile behind follows it (its thumbnail asked
+     * for as it shows); a fixed list's screen lists again what is behind
+     * (the folder, a memory's photos, the map) and Images, another screen,
+     * asks for its photos again, as Files does when a folder leaves Images.
+     */
+    private fun showEdited(old: Item, f: PbFile, shown: Bitmap? = null) {
+        val at = _state.value.items.indexOfFirst { it.id == old.id }
+        val gone = setOf(old.path, f.path)
+        hiResOrder.removeAll(gone)
+        if (bigThumbFor in gone) stopBigThumb()
+        if (at >= 0) {
+            val made = itemOf(f, null, ZoneId.systemDefault(), old.up)
+            // What the answer leaves out stays as the photo had it.
+            val fresh = made.copy(month = made.month ?: old.month, created = made.created ?: old.created, preview = shown)
+            _state.update { s ->
+                s.copy(
+                    items = s.items.toMutableList().also { it[at] = fresh },
+                    hiResImages = s.hiResImages - gone, bigThumbs = s.bigThumbs - gone, thumbKeys = s.thumbKeys - gone,
+                    favourites = s.favourites - gone, unplayable = s.unplayable - gone,
+                    selected = if (old.path in s.selected) s.selected - old.path + f.path else s.selected,
+                )
+            }
+            if (_state.value.openIndex == at) open(at)
+        }
+        if (fixedList) {
+            onDeleted?.invoke()
+            ImagesChanged.bump()
+        } else {
+            // The map's photos and the collections' covers hold the old content.
+            places.libraryChanged()
+            if (_state.value.activeGroup != null || _state.value.groupsLoaded) scope.launch { loadGroups() }
+        }
+    }
+
+    /**
+     * Save as Copy went through: [f] is the copy, next to [old] in its
+     * folder with its date. The viewer stays on the photo and names the
+     * copy for a few seconds. Images lists it next to the photo, at its
+     * date, where it shows everything (a filter's search wouldn't bring it
+     * yet: it has no tags, faces, place nor collection of its own until the
+     * device has looked at it), and the months' counts follow; a fixed
+     * list's screen lists again what is behind, and Images asks for its
+     * photos again.
+     */
+    private fun copySaved(old: Item, f: PbFile) {
+        _state.update { it.copy(editNote = S.appPhotosEditSavedCopy(PhotoEdit.fileName(f.path))) }
+        if (fixedList) {
+            onDeleted?.invoke()
+            ImagesChanged.bump()
+            return
+        }
+        val st = _state.value
+        val everything = st.dateOrdered && st.selectedPeople.isEmpty() && st.activeGroup == null && st.activeArea == null
+        if (everything && st.items.none { it.path == f.path }) {
+            val made = itemOf(f, null, ZoneId.systemDefault(), old.up)
+            val copy = made.copy(month = made.month ?: old.month, created = made.created ?: old.created)
+            _state.update { s ->
+                val at = s.items.indexOfFirst { it.id == old.id }
+                if (at < 0) s else s.copy(items = s.items.toMutableList().also { it.add(at + 1, copy) })
+            }
+        }
+        countsChanged()
     }
 
     fun toggleSelect(path: String) {

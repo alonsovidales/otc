@@ -2,6 +2,7 @@
 package cloud.offthe.otc.ui.files
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import android.util.LruCache
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -307,6 +308,14 @@ private fun normPath(p: String): String {
 private fun leafName(full: String) = full.split('/').lastOrNull { it.isNotEmpty() } ?: full
 // A file as SearchFiles or the Images search found it (its path is whole).
 private fun isMediaFile(f: PbFile) = !isDir(f) && (isImg(f) || isVideo(f) || f.path.endsWith(".heic", ignoreCase = true))
+/**
+ * A photo or video SearchFiles or the Images search found, as the viewer
+ * takes it: [preview] (its result's thumbnail) until the full size comes,
+ * and its original_hash - SearchFiles sets it as ListFiles does - so an
+ * edit opened from the results offers Revert to Original.
+ */
+internal fun foundViewerItem(f: PbFile, preview: Bitmap?): PhotoGalleryViewModel.Item =
+    PhotoGalleryViewModel.Item("${f.path}#${f.hash}#${f.byteSize}", f.path, f.mime, f.byteSize, null, preview, hash = f.hash, originalHash = f.originalHash)
 /** A folder's listing as rows: ".." first below the root, each with its marks (issues #132, #192). */
 internal fun listingRows(lof: ListOfFiles, path: String): List<FileRow> {
     val files = lof.filesList.toMutableList()
@@ -1462,7 +1471,10 @@ fun FilesExplorerView(initialPath: String) {
         // The grid's thumbnail is the placeholder until the full size arrives.
         val items = media.map { r ->
             val full = vm.fullPath(r)
-            PhotoGalleryViewModel.Item("$full#${r.raw.hash}#${r.size}", full, r.raw.mime, r.size, null, st.thumbs[vm.thumbKey(r)]?.asAndroidBitmap(), hash = r.raw.hash)
+            PhotoGalleryViewModel.Item(
+                "$full#${r.raw.hash}#${r.size}", full, r.raw.mime, r.size, null, st.thumbs[vm.thumbKey(r)]?.asAndroidBitmap(), hash = r.raw.hash,
+                originalHash = r.raw.originalHash,
+            )
         }
         viewer.showFiles(items, media.indexOf(row)) { vm.launchLoad() }
     }
@@ -1508,7 +1520,7 @@ fun FilesExplorerView(initialPath: String) {
         val row = media.firstOrNull { vm.fullPath(it) == file.path }
         // Not in the listing (the file went): the file alone.
         if (row != null) openRow(row)
-        else viewer.showFiles(listOf(PhotoGalleryViewModel.Item("${file.path}#${file.hash}#${file.byteSize}", file.path, file.mime, file.byteSize, null, hash = file.hash)), 0) { vm.launchLoad() }
+        else viewer.showFiles(listOf(foundViewerItem(file, null)), 0) { vm.launchLoad() }
     }
     // The system back leaves the results for the folder; over the folder
     // it clears the selection, as the pill's × does (filesBack). Here,
@@ -1536,9 +1548,7 @@ fun FilesExplorerView(initialPath: String) {
         }
         if (isMediaFile(f)) {
             val media = results.files.filter { isMediaFile(it) }
-            val items = media.map { x ->
-                PhotoGalleryViewModel.Item("${x.path}#${x.hash}#${x.byteSize}", x.path, x.mime, x.byteSize, null, st.thumbs[vm.resultThumbKey(x)]?.asAndroidBitmap(), hash = x.hash)
-            }
+            val items = media.map { x -> foundViewerItem(x, st.thumbs[vm.resultThumbKey(x)]?.asAndroidBitmap()) }
             viewer.showFiles(items, maxOf(0, media.indexOf(f))) { vm.startSearch(results.text) }
             return
         }

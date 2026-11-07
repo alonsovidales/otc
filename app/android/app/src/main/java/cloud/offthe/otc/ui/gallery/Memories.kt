@@ -153,7 +153,7 @@ private fun memoryLine(m: Memory): String = listOfNotNull(
 /** A file as the viewer takes it (Images' Item), its tile the strip's. */
 private fun itemOf(f: PbFile, thumbKey: String?) = PhotoGalleryViewModel.Item(
     "${f.path}#${f.hash}#${f.byteSize}", f.path, f.mime, f.byteSize, thumbKey?.ifEmpty { null },
-    created = if (f.hasCreated()) f.created.seconds * 1000 else null, hash = f.hash,
+    created = if (f.hasCreated()) f.created.seconds * 1000 else null, hash = f.hash, originalHash = f.originalHash,
 )
 
 /**
