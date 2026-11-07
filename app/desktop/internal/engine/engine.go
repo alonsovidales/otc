@@ -1338,9 +1338,10 @@ func (e *Engine) reconcile(f config.Folder) {
 			if prev, dup := remoteMap[key]; dup && prev.path == remotePrefix+key {
 				continue // the NFC spelling, when the device has both
 			}
-			remoteMap[key] = remoteEntry{path: rf.Path, hash: rf.Hash}
+			remoteMap[key] = remoteEntry{path: rf.Path, hash: rf.Hash, original: rf.OriginalHash}
 		}
 	}
+	edited := editedStems(remoteMap)
 
 	// An unreadable subdirectory only means fewer uploads here: a backup
 	// never deletes on the device.
@@ -1387,7 +1388,17 @@ func (e *Engine) reconcile(f config.Folder) {
 			rp = known.path
 			var err error
 			h, err = e.cachedHashInfo(f.ID, p, fi)
-			if err != nil || known.hash == h {
+			// Edited on the device: its original is this file, backed up.
+			if err != nil || known.hash == h || known.original == h {
+				continue
+			}
+		} else if original, ok := edited[strings.TrimSuffix(key, filepath.Ext(key))]; ok {
+			// The device's edit renamed it: this is that edit's original
+			// when the content is - hashed for it, the only new file that
+			// is before its upload.
+			var err error
+			h, err = e.cachedHashInfo(f.ID, p, fi)
+			if err != nil || h == original {
 				continue
 			}
 		}
@@ -1473,6 +1484,27 @@ func (e *Engine) reconcile(f config.Folder) {
 // (the device's own bytes) and its hash.
 type remoteEntry struct {
 	path, hash string
+	// original is File.original_hash: the device's edit of the photo this
+	// file was (its viewers turn and crop photos), whose original the
+	// device keeps - a backup holding that original holds this file.
+	original string
+}
+
+// editedStems is, of a backup's device listing, each edit's key without
+// its extension, with the photo it was made from: an edit that renamed
+// the photo (a HEIC become IMG_1.JPG) is what the local IMG_1.HEIC holds.
+func editedStems(remote map[string]remoteEntry) map[string]string {
+	var stems map[string]string
+	for key, r := range remote {
+		if r.original == "" {
+			continue
+		}
+		if stems == nil {
+			stems = map[string]string{}
+		}
+		stems[strings.TrimSuffix(key, filepath.Ext(key))] = r.original
+	}
+	return stems
 }
 
 // backupKey is file p's key in the backup of root (pathKey of its path

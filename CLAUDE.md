@@ -640,6 +640,11 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     when the edit renamed it (an iPhone relinking by cloud id). Nothing is stored twice, and the
     store apps, which know nothing of edits, are covered without a change. Linked anywhere else,
     the original is an ordinary photo again (`heldOriginal` gives LinkFile its MIME and size).
+    The computers' backups (otc-sync's `engine.reconcile`, the Mac's `SyncModel.reconcile`) also
+    count a local file backed up when the device's file at its path is its edit
+    (`File.original_hash` = its hash), or when an edit that renamed it holds its stem
+    (`editedStems`, hashed only then). Without this, each pass would send it again, for the
+    guard above to answer.
   - **The pixels:** decoded at full size under `holdDecode` (`decodeFull`; HEIC through
     `decodeHeic`, with its irot/imir or EXIF orientation). The photo's own orientation and the
     turn go in one `applyOrientation` pass (`thenTurned`: the orientations' matrices composed).

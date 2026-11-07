@@ -1641,9 +1641,10 @@ final class SyncModel: ObservableObject {
                     guard let relative = SyncPaths.safeRelative(file.path, under: remotePrefix) else { continue }
                     let key = SyncPaths.key(relative)
                     if let current = remoteMap[key], !SyncPaths.prefers(relative, over: current.relative, key: key) { continue }
-                    remoteMap[key] = RemoteEntryHash(path: file.path, relative: relative, hash: file.hash)
+                    remoteMap[key] = RemoteEntryHash(path: file.path, relative: relative, hash: file.hash, original: file.originalHash)
                 }
             }
+            let edited = Self.editedStems(remoteMap)
 
             // Upload only: what couldn't be read is simply not sent.
             let (scan, present) = await Task.detached(priority: .utility) { () -> (SyncPaths.FolderScan, Set<String>) in
@@ -1685,6 +1686,13 @@ final class SyncModel: ObservableObject {
                 let size = Int64(check.size ?? 0)
                 folderBytes += size
                 guard let known = remoteMap[key] else {
+                    // The device's edit renamed it: this is that edit's
+                    // original when the content is - hashed for it, the
+                    // only new file that is before its upload.
+                    if let original = edited[(key as NSString).deletingPathExtension],
+                       (try? await cachedHash(for: fileURL, folderId: folder.id)) == original {
+                        continue
+                    }
                     toUpload.append((fileURL, key, remotePrefix + key, nil, size))
                     continue
                 }
@@ -1701,7 +1709,8 @@ final class SyncModel: ObservableObject {
                     }
                     localHash = try? await cachedHash(for: fileURL, folderId: folder.id)
                 }
-                guard let localHash, known.hash != localHash else { continue }
+                // Edited on the device: its original is this file, backed up.
+                guard let localHash, known.hash != localHash, known.original != localHash else { continue }
                 toUpload.append((fileURL, key, known.path, localHash, size))
             }
 
@@ -1785,6 +1794,21 @@ final class SyncModel: ObservableObject {
         let path: String
         let relative: String
         let hash: String
+        /// File.original_hash: the device's edit of the photo this file
+        /// was (its viewers turn and crop photos), whose original the
+        /// device keeps - a backup holding that original holds this file.
+        var original = ""
+    }
+
+    /// Of a backup's device listing, each edit's key without its
+    /// extension, with the photo it was made from: an edit that renamed the
+    /// photo (a HEIC become IMG_1.JPG) is what the local IMG_1.HEIC holds.
+    private static func editedStems(_ remote: [String: RemoteEntryHash]) -> [String: String] {
+        var stems: [String: String] = [:]
+        for (key, entry) in remote where !entry.original.isEmpty {
+            stems[(key as NSString).deletingPathExtension] = entry.original
+        }
+        return stems
     }
 
     /// File `path`'s key in the backup of `root` (SyncPaths.key of its path

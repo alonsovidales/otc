@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
+	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
 // backupFixture: a backup folder of n files and an engine over it, linked
@@ -210,5 +211,42 @@ func TestBackupChangesUploadOneAtATime(t *testing.T) {
 			t.Fatalf("%d of %d files uploaded, worker idle: %v", got, n, idle)
 		}
 		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+// A photo the device's viewers edited (File.original_hash) is backed up
+// already: its original is the local file, under its name or the one the
+// edit renamed (a HEIC become a JPEG). A file changed here still goes.
+func TestBackupLeavesWhatTheDeviceEdited(t *testing.T) {
+	e, d, f := backupFixture(t, 0)
+	write := func(name, content string) []byte {
+		t.Helper()
+		b := []byte(content)
+		if err := os.WriteFile(filepath.Join(f.Path, name), b, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+	turned := write("turned.jpg", "the photo, as taken")
+	heic := write("IMG_1.HEIC", "a HEIC, as taken")
+	write("notes.txt", "changed here")
+	prefix := e.remotePathFor(f.Path) + "/"
+	d.list = []*pb.File{
+		{Path: prefix + "turned.jpg", Hash: sha([]byte("the edit")), OriginalHash: sha(turned)},
+		{Path: prefix + "IMG_1.JPG", Hash: sha([]byte("the HEIC's edit")), OriginalHash: sha(heic)},
+		{Path: prefix + "notes.txt", Hash: sha([]byte("as it was"))},
+	}
+
+	e.reconcile(f)
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if _, ok := d.files[prefix+"notes.txt"]; !ok {
+		t.Error("a file changed here wasn't backed up")
+	}
+	for _, name := range []string{"turned.jpg", "IMG_1.HEIC"} {
+		if _, ok := d.files[prefix+name]; ok {
+			t.Errorf("%s, edited on the device, was sent again", name)
+		}
 	}
 }
