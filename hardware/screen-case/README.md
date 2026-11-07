@@ -33,7 +33,7 @@ the wall.
 ## How it goes together
 
 From the wall: the **base** (its floor flat on the wall, with the two keyholes and
-**"Off The Cloud"** and **off-the.cloud** debossed in it), the Pi, the **lid** (its top towards the screen), the
+**"Off The Cloud"** and **https://off-the.cloud** debossed in it), the Pi, the **lid** (its top towards the screen), the
 **spacers**, the screen.
 
 The screen hangs landscape, and the case sits turned on its holes so that the part of
@@ -69,7 +69,7 @@ behind it.
   between the Ethernet jack and the blue USB stack, the upper one in the lid's end wall
   above the ports (the top blue port's), the lower one in the base's end wall below them,
   at the height of the space under the board (the bottom blue port's).
-* **The text**, "Off The Cloud" and off-the.cloud under it, is debossed 0.7 mm into the
+* **The text**, "Off The Cloud" and https://off-the.cloud under it, is debossed 0.7 mm into the
   floor, mirrored so it reads right from behind (`text_on`, `url_on`).
 
 Everything else is as in the cloud case: the front lid bosses (rounded blocks ending

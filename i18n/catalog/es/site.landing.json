@@ -270,7 +270,7 @@
   "site.landing.phone.ios_title": {"text": "iPhone y iPad"},
   "site.landing.phone.lead": {"text": "Publica para tus amigos y ve sus publicaciones, haz copia de seguridad de tus fotos y vídeos nada más hacerlos, explora todo lo que hay en tu dispositivo y configura un dispositivo nuevo por Bluetooth."},
   "site.landing.phone.title": {"text": "Tu feed y tus fotos, en tu teléfono"},
-  "site.landing.printable.cloud.alt": {"text": "La carcasa con forma de nube, con Off The Cloud y off-the.cloud en la tapa, sus puertos y sus dos luces de estado"},
+  "site.landing.printable.cloud.alt": {"text": "La carcasa con forma de nube, con Off The Cloud y https://off-the.cloud en la tapa, sus puertos y sus dos luces de estado"},
   "site.landing.printable.cloud.text": {"text": "Para una estantería o un escritorio: una nube con Off The Cloud en la tapa, una rejilla sobre el ventilador y las dos luces de estado junto a los puertos USB. La tarjeta microSD y todos los puertos quedan a mano."},
   "site.landing.printable.cloud.title": {"text": "Carcasa nube"},
   "site.landing.printable.eyebrow": {"text": "Imprimibles"},

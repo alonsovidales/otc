@@ -1339,7 +1339,7 @@
     "max": 50
   },
   "site.landing.printable.cloud.alt": {
-    "text": "The cloud-shaped case, with Off The Cloud and off-the.cloud on its lid, its ports and its two status lights",
+    "text": "The cloud-shaped case, with Off The Cloud and https://off-the.cloud on its lid, its ports and its two status lights",
     "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): description of the picture of the cloud case, for screen readers. Keep off-the.cloud as it is."
   },
   "site.landing.printable.cloud.text": {

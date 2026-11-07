@@ -7,7 +7,7 @@ without supports, and use the same hardware: M2.5x4 heat-set inserts and M2.5 sc
 
 | | |
 |---|---|
-| [**Cloud case**](cloud-case/) - for a shelf or a desk: a cloud-shaped case with "Off The Cloud" and off-the.cloud on top, the two USB drives plugged into the blue ports outside | [![cloud case](cloud-case/view-iso.png)](cloud-case/) |
+| [**Cloud case**](cloud-case/) - for a shelf or a desk: a cloud-shaped case with "Off The Cloud" and https://off-the.cloud on top, the two USB drives plugged into the blue ports outside | [![cloud case](cloud-case/view-iso.png)](cloud-case/) |
 | [**Screen case**](screen-case/) - for the wall: screws onto the back of a portable screen with 75 x 75 mm M2.5 holes and hangs it on the wall by two keyholes; the Pi's HDMI goes to the screen | [![screen case](screen-case/view-iso.png)](screen-case/) |
 
 Each folder has its source (`.scad`), the STLs in printing orientation, small test pieces to

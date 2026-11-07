@@ -132,11 +132,13 @@ text_font  = "Liberation Sans:style=Bold";
 text_size  = 7.0;
 text_depth = 0.7;
 text_y     = 30;
-// the web address, a smaller line under the name
+// the web address, https:// and all so it reads as one: a smaller line
+// under the name (centred with the p's tail, so 0.6 mm lower than a line
+// without one)
 url_on     = true;
-url_str    = "off-the.cloud";
+url_str    = "https://off-the.cloud";
 url_size   = 4.5;
-url_y      = 22.3;
+url_y      = 21.7;
 
 /* [Screws] */
 // One insert and one screw size everywhere: M2.5x4 heat-set inserts and M2.5

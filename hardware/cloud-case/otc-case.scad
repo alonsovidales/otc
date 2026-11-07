@@ -204,11 +204,13 @@ text_font  = "Liberation Sans:style=Bold";
 text_size  = 7.0;
 text_depth = 0.7;    // debossed into the top
 text_pos   = [44, 55.3];
-// the web address, a smaller line under the name (clear of the grilles)
+// the web address, https:// and all so it reads as one: a smaller line
+// under the name, clear of the grilles (centred with the p's tail, so 0.6 mm
+// lower than a line without one; the tail is over the fan grille, 1.9 mm off)
 url_on     = true;
-url_str    = "off-the.cloud";
+url_str    = "https://off-the.cloud";
 url_size   = 4.5;
-url_pos    = [44, 47.8];
+url_pos    = [44, 47.2];
 
 /* [Exploded / test] */
 explode     = 28;

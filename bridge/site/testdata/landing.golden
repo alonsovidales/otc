@@ -248,13 +248,13 @@ Web app
 Printable
 Cases to print for your device
 Two cases to print at home, for the Raspberry Pi 5 with a GeeekPi Armor Lite V5 cooler. Both print without supports and close with M2.5 heat-set inserts and screws, and you are free to print, change and share them.
-@img.src=/img/case-cloud-600.webp?v=1
-@img.alt=The cloud-shaped case, with Off The Cloud and off-the.cloud on its lid, its ports and its two status lights
+@img.src=/img/case-cloud-600.webp?v=2
+@img.alt=The cloud-shaped case, with Off The Cloud and https://off-the.cloud on its lid, its ports and its two status lights
 Cloud case
 For a shelf or a desk: a cloud with Off The Cloud on its lid, a grille over the fan and the two status lights beside the USB ports. The microSD card and every port stay within reach.
 @a.href=https://github.com/alonsovidales/otc/tree/main/hardware/cloud-case
 Files and instructions
-@img.src=/img/case-screen-600.webp?v=1
+@img.src=/img/case-screen-600.webp?v=2
 @img.alt=The screen case seen from the wall side: its two keyholes and Off The Cloud on its back
 Screen case
 For the wall: it screws onto the back of a portable screen with four M2.5 holes in a 75 x 75 mm square, and hangs both on two screws. A short cable takes the Pi's HDMI to the screen.

@@ -1359,7 +1359,7 @@ func SiteLandingPhoneTitle() Msg {
 	return Msg{Key: "site.landing.phone.title"}
 }
 
-// SiteLandingPrintableCloudAlt is site.landing.printable.cloud.alt: "The cloud-shaped case, with Off The Cloud and off-the.cloud on its lid, its port…".
+// SiteLandingPrintableCloudAlt is site.landing.printable.cloud.alt: "The cloud-shaped case, with Off The Cloud and https://off-the.cloud on its lid, …".
 func SiteLandingPrintableCloudAlt() Msg {
 	return Msg{Key: "site.landing.printable.cloud.alt"}
 }

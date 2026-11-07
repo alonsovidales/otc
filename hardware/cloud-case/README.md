@@ -45,7 +45,7 @@ plastic (base 17 cm³, lid 24.5 cm³), about 50 g of PETG.
   the USB-C/HDMI plugs. Every port cut-out in it is a U-slot open at the top, so the
   board (with the cooler already fitted) drops straight in.
 * **Lid** (printed upside down): top with the debossed **"Off The Cloud"** and, under it,
-  **off-the.cloud** (0.7 mm deep, `text_on`, `url_on`), a round honeycomb grille over the fan and a second patch over the
+  **https://off-the.cloud** (0.7 mm deep, `text_on`, `url_on`), a round honeycomb grille over the fan and a second patch over the
   heatsink's right fins, vertical vent slots in the walls, the upper half of the
   USB/Ethernet openings, the upper LED, an alignment lip and the screw bosses.
 * **Cooling.** The Armor Lite blows down into its fins, which run along the board, so the
