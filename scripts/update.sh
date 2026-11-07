@@ -727,6 +727,12 @@ if [ -f "$SRC_DIR/scripts/screen-runner/otc-screen-watch.py" ]; then
     install_atomic 0755 "$SRC_DIR/scripts/screen-runner/otc-screen-browser.sh" /usr/local/bin/otc-screen-browser
     install_atomic 0644 "$SRC_DIR/scripts/screen-runner/otc-screen.service" /etc/systemd/system/otc-screen.service
     install_atomic 0644 "$SRC_DIR/scripts/screen-runner/otc-screen-browser.service" /etc/systemd/system/otc-screen-browser.service
+    # Where the device keeps the screen's key, in memory (/run): the
+    # screen stays signed in through the service restarting (release 173).
+    if [ -f "$SRC_DIR/scripts/screen-runner/otc-screen.conf" ]; then
+        install_atomic 0644 "$SRC_DIR/scripts/screen-runner/otc-screen.conf" /etc/tmpfiles.d/otc-screen.conf
+        systemd-tmpfiles --create /etc/tmpfiles.d/otc-screen.conf >/dev/null 2>&1 || echo "WARNING: could not make /run/otc-screen-key"
+    fi
     systemctl daemon-reload
     systemctl enable otc-screen.service >/dev/null 2>&1 || echo "WARNING: could not enable otc-screen.service"
     systemctl restart otc-screen.service >/dev/null 2>&1 || echo "WARNING: could not start otc-screen.service"

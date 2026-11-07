@@ -28,8 +28,9 @@ func TestScreenWatcherSelftest(t *testing.T) {
 }
 
 // install.sh (new devices) and update.sh (every update from release 171 on,
-// the first included) put the same four files in the same places, and the
-// units run them from there.
+// the first included) put the same five files in the same places, and the
+// units run them from there. The screen's key directory is the otc
+// service's, in /run.
 func TestScreenRunnerInstalledTheSameEverywhere(t *testing.T) {
 	line := regexp.MustCompile(`(?m)^\s*install(?:_atomic)? (?:-m )?(0[0-7]{3}) "\$SRC_DIR/scripts/screen-runner/([a-z.-]+)" (\S+)$`)
 	installed := func(path string) []string {
@@ -42,6 +43,7 @@ func TestScreenRunnerInstalledTheSameEverywhere(t *testing.T) {
 	}
 	want := []string{
 		"0644 otc-screen-browser.service /etc/systemd/system/otc-screen-browser.service",
+		"0644 otc-screen.conf /etc/tmpfiles.d/otc-screen.conf",
 		"0644 otc-screen.service /etc/systemd/system/otc-screen.service",
 		"0755 otc-screen-browser.sh /usr/local/bin/otc-screen-browser",
 		"0755 otc-screen-watch.py /usr/local/bin/otc-screen-watch",
@@ -59,6 +61,9 @@ func TestScreenRunnerInstalledTheSameEverywhere(t *testing.T) {
 	watch := readFile(t, screenRunner+"otc-screen.service")
 	if !strings.Contains(watch, "\nExecStart=/usr/local/bin/otc-screen-watch\n") || !strings.Contains(watch, "\nUser=root\n") {
 		t.Error("otc-screen.service doesn't run the watcher as root")
+	}
+	if conf := readFile(t, screenRunner+"otc-screen.conf"); !strings.Contains(conf, "\nd /run/otc-screen-key 0700 otc otc -\n") {
+		t.Error("otc-screen.conf doesn't make /run/otc-screen-key the otc service's alone")
 	}
 	browser := readFile(t, screenRunner+"otc-screen-browser.service")
 	for _, l := range []string{

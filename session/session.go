@@ -53,6 +53,8 @@ type Session struct {
 	// files is the data key that seals file content (package segcrypt):
 	// the same key as cipher once New has returned.
 	files *segcrypt.Key
+	// dataKey is files' 32 bytes, what a screen key keeps (screenkey.go).
+	dataKey []byte
 }
 
 // deriveWrappingKey turns a password into the AES key that wraps the
@@ -194,6 +196,7 @@ func New(userUuid, key string, create bool, dao *dao.Dao) (ses *Session, err err
 		log.Error("error creating cipher", err)
 		return nil, err
 	}
+	ses.dataKey = keyHash[:]
 
 	// We replace the secret by the one in the DB
 	ses.cipher = ses.files.AEAD()

@@ -149,6 +149,14 @@ message Auth {
 // store, and its own doc comment for why every redemption mints a fresh
 // token rather than counting down from the original login.
 message ReqIssueSessionToken {
+  // A screen key in place of a session token, for the device's own screen
+  // (its kiosk browser, the web app at 127.0.0.1 in screen mode): it keeps
+  // that screen signed in until it signs out, the password changes or the
+  // device is switched off, through the service restarting (an update),
+  // and never expires (expires_at_unix_ms 0). Refused, with an error, on
+  // any other connection and by a device that keeps none. A device before
+  // it ignores the field and answers a session token, which has an expiry.
+  bool screen = 1;
 }
 
 message SessionToken {
@@ -167,6 +175,9 @@ message RespSessionToken {
 // one consumes it (see RedeemToken).
 message ReqAuthWithToken {
   string token = 1;
+  // token is a screen key (IssueSessionToken.screen): signing in with it
+  // doesn't use it up. Only the device's own screen may.
+  bool screen = 2;
 }
 
 // Issue #103: asked by a device before it provisions an additional user,

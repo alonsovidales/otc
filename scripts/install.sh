@@ -1970,6 +1970,10 @@ install -m 0755 "$SRC_DIR/scripts/screen-runner/otc-screen-watch.py" /usr/local/
 install -m 0755 "$SRC_DIR/scripts/screen-runner/otc-screen-browser.sh" /usr/local/bin/otc-screen-browser
 install -m 0644 "$SRC_DIR/scripts/screen-runner/otc-screen.service" /etc/systemd/system/otc-screen.service
 install -m 0644 "$SRC_DIR/scripts/screen-runner/otc-screen-browser.service" /etc/systemd/system/otc-screen-browser.service
+# Where the device keeps the screen's key, in memory (/run): the screen
+# stays signed in through the service restarting.
+install -m 0644 "$SRC_DIR/scripts/screen-runner/otc-screen.conf" /etc/tmpfiles.d/otc-screen.conf
+systemd-tmpfiles --create /etc/tmpfiles.d/otc-screen.conf || log "WARNING: could not make /run/otc-screen-key"
 
 # Issue #178: what the setup wizard asked about the owner - the profile's
 # name, description and picture, and whether face recognition is on (off

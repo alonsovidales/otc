@@ -342,6 +342,16 @@ export interface Auth {
  * token rather than counting down from the original login.
  */
 export interface ReqIssueSessionToken {
+  /**
+   * A screen key in place of a session token, for the device's own screen
+   * (its kiosk browser, the web app at 127.0.0.1 in screen mode): it keeps
+   * that screen signed in until it signs out, the password changes or the
+   * device is switched off, through the service restarting (an update),
+   * and never expires (expires_at_unix_ms 0). Refused, with an error, on
+   * any other connection and by a device that keeps none. A device before
+   * it ignores the field and answers a session token, which has an expiry.
+   */
+  screen: boolean;
 }
 
 export interface SessionToken {
@@ -362,6 +372,11 @@ export interface RespSessionToken {
  */
 export interface ReqAuthWithToken {
   token: string;
+  /**
+   * token is a screen key (IssueSessionToken.screen): signing in with it
+   * doesn't use it up. Only the device's own screen may.
+   */
+  screen: boolean;
 }
 
 /**
@@ -4844,11 +4859,14 @@ export const Auth: MessageFns<Auth> = {
 };
 
 function createBaseReqIssueSessionToken(): ReqIssueSessionToken {
-  return {};
+  return { screen: false };
 }
 
 export const ReqIssueSessionToken: MessageFns<ReqIssueSessionToken> = {
-  encode(_: ReqIssueSessionToken, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: ReqIssueSessionToken, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.screen !== false) {
+      writer.uint32(8).bool(message.screen);
+    }
     return writer;
   },
 
@@ -4859,6 +4877,14 @@ export const ReqIssueSessionToken: MessageFns<ReqIssueSessionToken> = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.screen = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -4871,8 +4897,9 @@ export const ReqIssueSessionToken: MessageFns<ReqIssueSessionToken> = {
   create<I extends Exact<DeepPartial<ReqIssueSessionToken>, I>>(base?: I): ReqIssueSessionToken {
     return ReqIssueSessionToken.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ReqIssueSessionToken>, I>>(_: I): ReqIssueSessionToken {
+  fromPartial<I extends Exact<DeepPartial<ReqIssueSessionToken>, I>>(object: I): ReqIssueSessionToken {
     const message = createBaseReqIssueSessionToken();
+    message.screen = object.screen ?? false;
     return message;
   },
 };
@@ -4987,13 +5014,16 @@ export const RespSessionToken: MessageFns<RespSessionToken> = {
 };
 
 function createBaseReqAuthWithToken(): ReqAuthWithToken {
-  return { token: "" };
+  return { token: "", screen: false };
 }
 
 export const ReqAuthWithToken: MessageFns<ReqAuthWithToken> = {
   encode(message: ReqAuthWithToken, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.token !== "") {
       writer.uint32(10).string(message.token);
+    }
+    if (message.screen !== false) {
+      writer.uint32(16).bool(message.screen);
     }
     return writer;
   },
@@ -5013,6 +5043,14 @@ export const ReqAuthWithToken: MessageFns<ReqAuthWithToken> = {
           message.token = reader.string();
           continue;
         }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.screen = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -5028,6 +5066,7 @@ export const ReqAuthWithToken: MessageFns<ReqAuthWithToken> = {
   fromPartial<I extends Exact<DeepPartial<ReqAuthWithToken>, I>>(object: I): ReqAuthWithToken {
     const message = createBaseReqAuthWithToken();
     message.token = object.token ?? "";
+    message.screen = object.screen ?? false;
     return message;
   },
 };

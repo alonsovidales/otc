@@ -93,7 +93,8 @@ func PasswordGeneration() uint64 {
 }
 
 // PasswordChanged starts a new password generation: every token is gone
-// (issued with the old password, whoever holds them), and none is issued
+// (issued with the old password, whoever holds them), the screen's key
+// with them, and none is issued
 // or redeemed for a sign-in from before. The connection that changed it
 // carries on in the generation returned; the caller ends the others.
 func PasswordChanged() uint64 {
@@ -103,6 +104,9 @@ func PasswordChanged() uint64 {
 	tokens = map[string]*tokenEntry{}
 	issued = nil
 	bySession = map[*Session][]string{}
+	// The screen's key too (screenkey.go): the screen signs in again,
+	// with the new password.
+	removeScreenKeyLocked()
 	return passwordGen
 }
 

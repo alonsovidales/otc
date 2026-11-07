@@ -2,7 +2,8 @@
 
 import { NoAnswer, wsClient } from "./ws";
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
-import { encryptWithPubKey, savePersistedToken, loadPersistedToken, clearPersistedToken } from "./pwCrypto";
+import { encryptWithPubKey, savePersistedToken, loadPersistedToken, clearPersistedToken, saveScreenKey, loadScreenKey, clearScreenKey } from "./pwCrypto";
+import { screenMode } from "../components/screenMode";
 import { isDeviceStatusCode, isStorageUnavailable } from "./deviceStatus";
 import { shutDownHeld } from "./shutDownHold";
 import { t } from "../i18n/runtime";
@@ -96,6 +97,12 @@ async function tokenAfter(spent: string, waitMs: number): Promise<string | null>
     if (stored !== spent || Date.now() >= until) return stored;
     await new Promise((r) => setTimeout(r, 100));
   }
+}
+
+/** What a reload or a reconnect signs in with: on the device's own screen
+ *  its screen key while it has one (pwCrypto.ts), else the session token. */
+export function loadStoredSignIn(): string | null {
+  return (screenMode() ? loadScreenKey() : null) ?? loadPersistedToken();
 }
 
 export function UseWS() {
@@ -232,7 +239,7 @@ export function UseWS() {
           // stored brings this one back. Without this a socket drop
           // (sleep, a WiFi change, a bridge redeploy) signed the tab out
           // and deleted a token that still worked.
-          const token = loadPersistedToken();
+          const token = loadStoredSignIn();
           if (token) {
             authWithToken(token).catch(() => {
               // No answer (see sendAuth's above): the token is kept and
@@ -268,6 +275,18 @@ export function UseWS() {
   // form), so it must never turn an otherwise successful sign-in into a
   // failed one.
   const refreshSessionToken = async () => {
+    // The device's own screen keeps its key, which neither expires nor is
+    // used up (pwCrypto.ts): asked for once, after a sign-in with the
+    // password. A device that gives none (the connection isn't its own
+    // screen to it, or it has no place for one) leaves the screen on
+    // session tokens, as any tab.
+    if (screenMode()) {
+      if (loadScreenKey()) {
+        tokenRefreshedAt = Date.now();
+        return;
+      }
+      if (await askScreenKey()) return;
+    }
     try {
       const resp: RespEnvelope = await rawRequest(e => {
         (e as any).payload = { $case: "reqIssueSessionToken", reqIssueSessionToken: {} };
@@ -281,6 +300,30 @@ export function UseWS() {
       }
     } catch (e) {
       console.error("Could not obtain a session token:", e);
+    }
+  };
+
+  // The screen's key, or false when the device gives none. A device from
+  // before screen keys ignores the question and answers a session token,
+  // kept as one.
+  const askScreenKey = async (): Promise<boolean> => {
+    try {
+      const resp: RespEnvelope = await rawRequest(e => {
+        e.payload = { $case: "reqIssueSessionToken", reqIssueSessionToken: { screen: true } };
+      });
+      const tok = resp.payload?.$case === "respSessionToken" ? resp.payload.respSessionToken.sessionToken : undefined;
+      if (!tok?.token) return false;
+      if (Number(tok.expiresAtUnixMs) > 0) {
+        savePersistedToken(tok.token, Number(tok.expiresAtUnixMs));
+      } else {
+        saveScreenKey(tok.token);
+        clearPersistedToken();
+      }
+      tokenRefreshedAt = Date.now();
+      return true;
+    } catch (e) {
+      console.error("Could not obtain the screen's key:", e);
+      return false;
     }
   };
 
@@ -418,6 +461,9 @@ export function UseWS() {
   // unauthenticated connection (see authPromise's own comment above).
   const authWithToken = (token: string): Promise<boolean> => {
     if (authPromise) return authPromise;
+    // The screen's key (pwCrypto.ts) isn't used up: nothing to rotate, and
+    // no other tab's successor to wait for.
+    const screen = screenMode() && token === loadScreenKey();
 
     authPromise = (async () => {
       authOwed = false;
@@ -429,7 +475,7 @@ export function UseWS() {
         let current = token;
         for (let attempt = 0; attempt < 2; attempt++) {
           const resp: RespEnvelope = await rawRequest(e => {
-            (e as any).payload = { $case: "reqAuthWithToken", reqAuthWithToken: { token: current } };
+            (e as any).payload = { $case: "reqAuthWithToken", reqAuthWithToken: { token: current, screen } };
           });
           if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
             noteLanguageSignIn();
@@ -453,6 +499,13 @@ export function UseWS() {
           // still works, so it stays for another try.
           const unanswered = bridgeAnswer(resp);
           if (unanswered) throw unanswered;
+
+          // The screen's key refused: the screen signed out, the password
+          // changed or the device was switched off. The password it is.
+          if (screen) {
+            clearScreenKey();
+            return false;
+          }
 
           // Expired, unknown, or already-redeemed — fall back to the normal
           // sign-in form rather than retrying it on every future reload.
@@ -530,6 +583,9 @@ export function UseWS() {
   // no password (#101) and keeps holding none.
   const passwordChanged = (newKey: string) => {
     if (lastAuthRef !== '') lastAuthRef = newKey;
+    // The device dropped the screen's key with the old password: the
+    // refresh that follows a change asks for another.
+    clearScreenKey();
   };
 
   // fn runs after each accepted sign-in, while that sign-in is still

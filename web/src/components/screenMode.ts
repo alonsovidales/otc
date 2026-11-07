@@ -37,7 +37,7 @@ function readMode(): boolean {
   } catch {
     // Storage refused: the address alone decides.
   }
-  const on = screenModeFrom(window.location.search, stored);
+  const on = screenModeFrom(window.location?.search ?? "", stored);
   try {
     if (on) window.sessionStorage.setItem(cStorageKey, "1");
     else window.sessionStorage.removeItem(cStorageKey);

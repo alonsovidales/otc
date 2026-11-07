@@ -1383,6 +1383,9 @@ type connHandler struct {
 	// which is the only way it can be set from the wire (fromBridge).
 	remoteAddr string
 	fromBridge bool
+	// screen: the device's own browser, which may hold a screen key
+	// (screen_key.go). Set at construction, never changed.
+	screen bool
 	// clientInfoSet: the bridge's BridgeClientInfo has been applied. It
 	// comes once, first; any later one would be a client trying to pick
 	// its own address for the password-attempt limit.
@@ -2252,7 +2255,28 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		// of these instead of the real password. RedeemToken hands back
 		// the exact *Session a real password login already built, so
 		// there's no vault/Argon2id work to redo here at all.
-		ses, gen, ok := session.RedeemToken(p.ReqAuthWithToken.Token)
+		var ses *session.Session
+		var gen uint64
+		var ok bool
+		if p.ReqAuthWithToken.Screen {
+			// The device's own screen's key (session/screenkey.go), from
+			// that screen only. A vault that can't be read is no verdict
+			// on the key: answered as the storage missing, which the web
+			// app waits out and keeps the key through.
+			var err error
+			if ch.screen {
+				ses, gen, ok, err = session.RedeemScreenKey(p.ReqAuthWithToken.Token, ch.mg.dao)
+			}
+			if err != nil {
+				log.Error("error reading the vault for the screen's key:", err)
+				resp.Error = true
+				resp.ErrorCode = CodeStorageUnavailable
+				resp.ErrorMessage = i18n.DevErrStorageUnavailable().Render(lang)
+				break
+			}
+		} else {
+			ses, gen, ok = session.RedeemToken(p.ReqAuthWithToken.Token)
+		}
 		if ok {
 			ok = ch.signIn(ses, gen)
 		}
@@ -2277,7 +2301,11 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			break
 		}
 		ch.mg.startBackfillOnce(ses)
-		log.Info("Authenticated session via token")
+		if p.ReqAuthWithToken.Screen {
+			log.Info("Authenticated session via the screen's key")
+		} else {
+			log.Info("Authenticated session via token")
+		}
 
 		resp.Payload = &pb.RespEnvelope_RespAck{
 			RespAck: &pb.Ack{
@@ -3486,6 +3514,31 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		// web app asks at once), and after redeeming a token, to keep
 		// rotating a fresh one into the client's storage. None for a
 		// connection signed in before a password change.
+		if p.ReqIssueSessionToken.Screen {
+			// The device's own screen's key (session/screenkey.go): no
+			// expiry, through restarts. Any other connection, or a device
+			// that keeps none, is refused - the web app then keeps a
+			// session token.
+			if !ch.screen {
+				resp.Error = true
+				resp.ErrorMessage = i18n.DevAuthTokenFailed().Render(lang)
+				break
+			}
+			key, err := session.IssueScreenKey(ses, ch.sessionGeneration())
+			if err != nil {
+				if !errors.Is(err, session.ErrNoScreenKeys) {
+					log.Error("error issuing the screen's key:", err)
+				}
+				resp.Error = true
+				resp.ErrorMessage = i18n.DevAuthTokenFailed().Render(lang)
+				break
+			}
+			log.Info("the screen on the device keeps itself signed in")
+			resp.Payload = &pb.RespEnvelope_RespSessionToken{
+				RespSessionToken: &pb.RespSessionToken{SessionToken: &pb.SessionToken{Token: key}},
+			}
+			break
+		}
 		token, expiresAt, err := session.IssueToken(ses, ch.sessionGeneration())
 		if err != nil {
 			log.Error("error issuing session token:", err)
@@ -3504,6 +3557,10 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 
 	case *pb.ReqEnvelope_ReqRevokeSessionToken:
 		session.RevokeAllTokensFor(ses)
+		// Signing out on the device's own screen ends its key too.
+		if ch.screen {
+			session.RevokeScreenKey()
+		}
 		resp.Payload = &pb.RespEnvelope_RespAck{
 			RespAck: &pb.Ack{
 				Ok: true,
@@ -5111,6 +5168,7 @@ func (mg *Manager) serve(conn *gorilla.Conn, r *http.Request, onFirst func(), an
 	}
 	if r != nil {
 		ch.remoteAddr = clientAddr(r)
+		ch.screen = localScreen(r)
 		if container.Enabled() {
 			ch.peer, ch.proxied = peerHost(r), indirect(r)
 		}

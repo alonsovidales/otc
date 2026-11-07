@@ -696,6 +696,15 @@ public nonisolated struct Msg_ReqIssueSessionToken: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// A screen key in place of a session token, for the device's own screen
+  /// (its kiosk browser, the web app at 127.0.0.1 in screen mode): it keeps
+  /// that screen signed in until it signs out, the password changes or the
+  /// device is switched off, through the service restarting (an update),
+  /// and never expires (expires_at_unix_ms 0). Refused, with an error, on
+  /// any other connection and by a device that keeps none. A device before
+  /// it ignores the field and answers a session token, which has an expiry.
+  public var screen: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -747,6 +756,10 @@ public nonisolated struct Msg_ReqAuthWithToken: Sendable {
   // methods supported on all messages.
 
   public var token: String = String()
+
+  /// token is a screen key (IssueSessionToken.screen): signing in with it
+  /// doesn't use it up. Only the device's own screen may.
+  public var screen: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -9134,18 +9147,29 @@ nonisolated extension Msg_Auth: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
 
 nonisolated extension Msg_ReqIssueSessionToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqIssueSessionToken"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}screen\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    // Load everything into unknown fields
-    while try decoder.nextFieldNumber() != nil {}
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.screen) }()
+      default: break
+      }
+    }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.screen != false {
+      try visitor.visitSingularBoolField(value: self.screen, fieldNumber: 1)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_ReqIssueSessionToken, rhs: Msg_ReqIssueSessionToken) -> Bool {
+    if lhs.screen != rhs.screen {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -9222,7 +9246,7 @@ nonisolated extension Msg_RespSessionToken: SwiftProtobuf.Message, SwiftProtobuf
 
 nonisolated extension Msg_ReqAuthWithToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqAuthWithToken"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}token\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}token\0\u{1}screen\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -9231,6 +9255,7 @@ nonisolated extension Msg_ReqAuthWithToken: SwiftProtobuf.Message, SwiftProtobuf
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.token) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.screen) }()
       default: break
       }
     }
@@ -9240,11 +9265,15 @@ nonisolated extension Msg_ReqAuthWithToken: SwiftProtobuf.Message, SwiftProtobuf
     if !self.token.isEmpty {
       try visitor.visitSingularStringField(value: self.token, fieldNumber: 1)
     }
+    if self.screen != false {
+      try visitor.visitSingularBoolField(value: self.screen, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_ReqAuthWithToken, rhs: Msg_ReqAuthWithToken) -> Bool {
     if lhs.token != rhs.token {return false}
+    if lhs.screen != rhs.screen {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import logo from './assets/off_the_cloud.png'
 import './App.css'
-import { StorageUnavailable, useWS } from "./net/useWS";
+import { StorageUnavailable, loadStoredSignIn, useWS } from "./net/useWS";
 import SignIn from "./views/SignIn";
 import Social from "./components/Social";
 import PhotoGallery from "./components/PhotoGallery";
@@ -24,7 +24,7 @@ import { watchUploads } from "./components/filesUploads";
 import { leaveFilesSearch } from "./components/filesNav";
 import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
-import { getDeviceSetupInfo, loadPersistedToken, type DeviceSetupInfo } from "./net/pwCrypto";
+import { getDeviceSetupInfo, type DeviceSetupInfo } from "./net/pwCrypto";
 import { reregisterPush } from "./net/webPush";
 import { useLanguage, useT } from "./i18n";
 import DeviceUnreachable from "./components/DeviceUnreachable";
@@ -192,7 +192,7 @@ function App() {
   // device had restarted and dropped every token, see issue #101) the
   // placeholder simply stayed there forever, with no way forward and no
   // explanation. Starts true only when there's actually a token to redeem.
-  const [restoringSession, setRestoringSession] = useState(() => !cfg && !!loadPersistedToken());
+  const [restoringSession, setRestoringSession] = useState(() => !cfg && !!loadStoredSignIn());
 
   // A new device's setup is up (the SignIn tab), from the device saying it
   // is new to setup's last step - the storage and WiFi steps come after its
@@ -471,16 +471,19 @@ function App() {
     // (net/sessionRestore.ts): at once when the browser is back online, the
     // tab is shown again or the device answers again (the unreachable
     // screen clearing). A device that can't reach its storage (#207) is
-    // asked every 30 s, not on the doubling clock.
+    // asked every 30 s, not on the doubling clock. On the device's own
+    // screen what's stored is its screen key (pwCrypto.ts): it outlives
+    // the device's restarts, so a photo frame isn't asked for the password
+    // after every update.
     useEffect(() => {
-      if (!loadPersistedToken()) {
+      if (!loadStoredSignIn()) {
         // Nothing to restore: whatever tab was last open, if it needs a
         // session we have no way to get one without the password.
         landIfSignedOut();
         return;
       }
       const restore = restoreSession({
-        token: loadPersistedToken,
+        token: loadStoredSignIn,
         redeem: (token) => useWS.authWithToken(token),
         wake: (now) => {
           const onOnline = () => now();

@@ -97,6 +97,40 @@ export function clearPersistedToken() {
   }
 }
 
+// The device's own screen (screen mode, components/screenMode.ts: a photo
+// frame on a wall, with nobody to type the password again) keeps a screen
+// key instead (session/screenkey.go). It never expires and isn't used up:
+// it lasts until the device refuses it - the screen signed out, the
+// password changed, or the device was switched off (the device keeps its
+// half in memory only). Only that screen is given one, and only it can
+// sign in with it.
+const cScreenKeyStorageKey = "otc_screen_key";
+
+export function saveScreenKey(key: string) {
+  try {
+    localStorage.setItem(cScreenKeyStorageKey, key);
+  } catch {
+    // The screen signs in again after a reload, as without one.
+  }
+}
+
+export function loadScreenKey(): string | null {
+  try {
+    const key = localStorage.getItem(cScreenKeyStorageKey);
+    return key ? key : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearScreenKey() {
+  try {
+    localStorage.removeItem(cScreenKeyStorageKey);
+  } catch {
+    // Nothing kept.
+  }
+}
+
 export interface DeviceSetupInfo {
   /** No owner secret set yet - show first-run setup, not a sign-in form. */
   isNewDevice: boolean;

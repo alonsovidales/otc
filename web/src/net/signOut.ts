@@ -6,7 +6,7 @@
 
 import type { ReqEnvelope } from "../proto/messages";
 import { useWS } from "./useWS";
-import { clearPersistedToken } from "./pwCrypto";
+import { clearPersistedToken, clearScreenKey } from "./pwCrypto";
 import { clearPrivateUiState } from "./uiState";
 import { unregisterPushOnSignOut } from "./webPush";
 import { languageChoice } from "../i18n/choice";
@@ -49,7 +49,10 @@ async function run(): Promise<void> {
   await bounded(useWS.request((e: Partial<ReqEnvelope>) => {
     e.payload = { $case: "reqRevokeSessionToken", reqRevokeSessionToken: {} };
   }), "revoke session tokens"); // i18n-ignore: a log line
+  // On the device's own screen the same request ends its key on the
+  // device too (session/screenkey.go).
   clearPersistedToken();
+  clearScreenKey();
   clearPrivateUiState();
   // The language stays (otc_language): the signed-out page and the next
   // sign-in keep it, as Log Out does in the apps. Only a change the device

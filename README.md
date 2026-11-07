@@ -315,7 +315,11 @@ screen: sign in as on any browser and use it as you would there. The first time 
 browser for it (Chromium, about 600 MB on the microSD card) - a few minutes; a device that never
 has a screen never installs it. It needs a Raspberry Pi with 4 GB of memory or more (the browser
 takes about 500 MB), and only the device's own pages open on it: no other site, no downloads.
-Unplug the screen (or switch it off) and the browser stops within 15 seconds. A touch screen also
+Signed in once on it, the screen stays signed in - through the device's updates and the screen
+going off and on - so it can stay on the wall as a photo frame (a collection's Slideshow): it
+signs out only when you sign out on it, change the password, or the device itself restarts or is
+switched off (a power cut, Restart device, a security update that needs one): it keeps that
+sign-in in its memory only, never on its disks, so after that it asks for the password once. Unplug the screen (or switch it off) and the browser stops within 15 seconds. A touch screen also
 needs a USB cable from the Pi to the screen's touch/USB-C port (the touch goes over USB; no
 driver to install), and a portable screen should have its own power supply: the Pi's USB ports
 share 1.6 A with the storage disks. Turn a screen on before the Pi if you can - the device looks

@@ -2207,9 +2207,35 @@ start takes its file.
     (chromium 156, cage 0.3.1 on 2026-11-06), which the daily security updates take; ~600 MB on disk,
     ~475 MB PSS.
   - Installed by install.sh and by every update.sh from 171 on (its own update.sh the first time):
-    the same four files, `TestScreenRunnerInstalledTheSameEverywhere`. A cage/chromium headless run
+    the same five files, `TestScreenRunnerInstalledTheSameEverywhere` - the fifth (release 173) is
+    `otc-screen.conf` in `/etc/tmpfiles.d/`, `d /run/otc-screen-key 0700 otc otc -`, made at once by
+    `systemd-tmpfiles --create` and at every boot. A cage/chromium headless run
     (WLR_BACKENDS=headless, pixman) in an arm64 trixie container with the Raspberry Pi archive showed
     the kiosk and the policy's "This page is blocked" for another site.
+  - The screen stays signed in (release 173; owner, 2026-11-07: "the login shouldn't expire, the
+    idea is to have a frame mode"): a **screen key** (`session/screenkey.go`,
+    `websocket/screen_key.go`). The 1-hour session tokens are memory only, so every update (a
+    service restart) and every browser restart more than an hour after the last refresh signed the
+    wall screen out. `ReqIssueSessionToken.screen` (1) asks for one and `ReqAuthWithToken.screen` (2)
+    signs in with it; both only on a connection `localScreen` takes for the device's own browser
+    (`connHandler.screen`, set at construction: not a container, not a user's instance, peer
+    loopback, no proxy headers - tailscaled comes from loopback with them -, Origin
+    `http://127.0.0.1:<port>`/localhost/`[::1]` equal to the Host), else an error / refused. The key
+    is 32 random bytes the browser keeps (`otc_screen_key` in localStorage, Chromium's profile on
+    the SD card); the device keeps the session's data key (`Session.dataKey`, the vault secret's
+    SHA-256 the files are sealed with), its uuid and the SHA-256 of the vault's sealed secret,
+    sealed with AES-256-GCM under that key, in `/run/otc-screen-key/key` (0600, temp + rename) -
+    in memory only (swap is zram), so a device switched off keeps nothing that opens anything and
+    issue #156's promise holds. One per device, the latest replacing the one before; not used up by
+    signing in, no expiry (`expires_at_unix_ms` 0). It ends with a sign-out on the screen
+    (`ReqRevokeSessionToken` from it, `RevokeScreenKey`), a password change (`PasswordChanged`
+    removes the file under `tokenMu`, and `IssueScreenKey` writes under it with the generation
+    checked), a vault that isn't the one it was issued with (a reset, a rewrap) or a reboot. A vault
+    that can't be read when it is redeemed is answered `storage_unavailable`, no verdict on the key.
+    No directory (a container, a device without the runner) is `ErrNoScreenKeys`: the screen keeps
+    session tokens. A device from before ignores the field and answers a session token, which the
+    web keeps as one. Tests: `session/screenkey_test.go`, `websocket/screen_key_test.go`,
+    `web/scripts/screen-key-test.mjs`.
 - **Low-memory profile** (`files_manager/lowmem.go`): MemTotal under 6 GB (a 4 GB Pi 5 reports
   ~3.7 GB) or `[otc] low-memory = on` (`auto` default, `off`; the primary passes a configured
   choice to its supervised instances as `OTC_LOW_MEMORY`). Logged once at start ("low-memory mode:
@@ -2424,7 +2450,8 @@ start takes its file.
   keep theirs in the Keychain, so after a password `ReqAuth` it holds a single-use, TTL'd opaque
   token (`ReqIssueSessionToken` / `ReqAuthWithToken` / `ReqRevokeSessionToken`) that redeems back
   into the same already-derived `*Session`. Process-local and deliberately not persisted — exactly
-  like the `*Session` objects it points at, tokens don't survive a restart. At most 32 a sign-in and
+  like the `*Session` objects it points at, tokens don't survive a restart (the device's own screen
+  has a key that does, in /run: "A screen on the device"). At most 32 a sign-in and
   10,000 in all (oldest out), swept every minute. A password change (`ChangeKey`, whose old
   password goes through `session.Attempts` as a sign-in's does: address, 1 s delay, lockout) starts
   a new password generation (`session.PasswordChanged`): every token goes, none is issued or
@@ -3495,6 +3522,17 @@ click listener and `window.open`) let nothing open a window or leave:
 `screenNavigation` decides, tested in `web/scripts/screen-keyboard-test.mjs`. `DownloadButton`
 isn't rendered and BridgePanel's provider sign-in gives the note. Back (`common.back`) shows on a
 page other than `/` with history. The kiosk's own policies block downloads and file choosers too.
+
+Signed in on the screen, it stays signed in (release 173, the screen key under "A screen on the
+device"): in screen mode `useWS.refreshSessionToken` asks once for a key (`askScreenKey`:
+`ReqIssueSessionToken.screen`) and keeps it with `pwCrypto.saveScreenKey` in place of the session
+token (none is kept beside it; a key already held is never asked again, so the 30-minute refresh
+does nothing); an answer with an expiry (a device from before) is kept as a session token, and an
+error leaves the screen on session tokens. `loadStoredSignIn()` (the key in screen mode, else the
+token) is what App's restore and a reconnect redeem; `authWithToken` sends `screen` for the key,
+rotates nothing after it, and a refusal clears it at once (no wait for another tab's successor).
+`passwordChanged` clears it, so the refresh after a change asks for another; Sign out clears it
+(and the device ends it). Tested by `web/scripts/screen-key-test.mjs`.
 
 The on-screen keyboard (`ScreenKeyboard.tsx`, layouts and rules in `screenKeyboardLayout.ts`,
 typing in `screenKeyboardTyping.ts`):
