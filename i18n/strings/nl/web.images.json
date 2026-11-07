@@ -316,6 +316,150 @@
       "other": "{count} items are in an upload-only folder and can't be deleted"
     }
   },
+  "web.images.edit.as_copy": {
+    "text": "Opslaan als kopie",
+    "en": "Save as copy"
+  },
+  "web.images.edit.aspect": {
+    "text": "Verhouding",
+    "en": "Aspect"
+  },
+  "web.images.edit.aspect_16_9": {
+    "text": "16:9",
+    "en": "16:9"
+  },
+  "web.images.edit.aspect_4_3": {
+    "text": "4:3",
+    "en": "4:3"
+  },
+  "web.images.edit.aspect_free": {
+    "text": "Vrij",
+    "en": "Free"
+  },
+  "web.images.edit.aspect_original": {
+    "text": "Origineel",
+    "en": "Original"
+  },
+  "web.images.edit.aspect_square": {
+    "text": "Vierkant",
+    "en": "Square"
+  },
+  "web.images.edit.button": {
+    "text": "Bewerken",
+    "en": "Edit"
+  },
+  "web.images.edit.copies_all": {
+    "text": {
+      "one": "Overal vervangen ({count})",
+      "other": "Overal vervangen ({count})"
+    },
+    "en": {
+      "one": "Replace all {count}",
+      "other": "Replace all {count}"
+    }
+  },
+  "web.images.edit.copies_only_this": {
+    "text": "Alleen hier",
+    "en": "Only here"
+  },
+  "web.images.edit.copies_text": {
+    "text": {
+      "one": "Deze foto staat op {count} plekken op je apparaat. Overal vervangen of alleen hier?",
+      "other": "Deze foto staat op {count} plekken op je apparaat. Overal vervangen of alleen hier?"
+    },
+    "en": {
+      "one": "This photo is in {count} places on your device. Replace it in all of them, or only here?",
+      "other": "This photo is in {count} places on your device. Replace it in all of them, or only here?"
+    }
+  },
+  "web.images.edit.discard": {
+    "text": "Weggooien",
+    "en": "Discard"
+  },
+  "web.images.edit.discard_title": {
+    "text": "Bewerking weggooien?",
+    "en": "Discard the edit?"
+  },
+  "web.images.edit.failed": {
+    "text": "De bewerking kon niet worden opgeslagen. Probeer het opnieuw.",
+    "en": "Couldn't save the edit. Try again."
+  },
+  "web.images.edit.replace": {
+    "text": "Foto vervangen",
+    "en": "Replace photo"
+  },
+  "web.images.edit.reset": {
+    "text": "Terugzetten",
+    "en": "Reset"
+  },
+  "web.images.edit.revert": {
+    "text": "Terug naar origineel",
+    "en": "Revert to original"
+  },
+  "web.images.edit.revert_all": {
+    "text": {
+      "one": "Overal ongedaan maken ({count})",
+      "other": "Overal ongedaan maken ({count})"
+    },
+    "en": {
+      "one": "Revert all {count}",
+      "other": "Revert all {count}"
+    }
+  },
+  "web.images.edit.revert_button": {
+    "text": "Herstellen",
+    "en": "Revert"
+  },
+  "web.images.edit.revert_copies_text": {
+    "text": {
+      "one": "Deze bewerking staat op {count} plekken op je apparaat. Overal ongedaan maken of alleen hier?",
+      "other": "Deze bewerking staat op {count} plekken op je apparaat. Overal ongedaan maken of alleen hier?"
+    },
+    "en": {
+      "one": "This edit is in {count} places on your device. Revert all of them, or only here?",
+      "other": "This edit is in {count} places on your device. Revert all of them, or only here?"
+    }
+  },
+  "web.images.edit.revert_failed": {
+    "text": "Het origineel kon niet worden teruggezet. Probeer het opnieuw.",
+    "en": "Couldn't put the original back. Try again."
+  },
+  "web.images.edit.revert_text": {
+    "text": "De bewerking wordt verwijderd en de foto is weer zoals vóór de bewerking.",
+    "en": "The edit is removed and the photo is as it was before it was edited."
+  },
+  "web.images.edit.revert_title": {
+    "text": "Terug naar het origineel?",
+    "en": "Revert to the original?"
+  },
+  "web.images.edit.reverting": {
+    "text": "Herstellen…",
+    "en": "Reverting…"
+  },
+  "web.images.edit.rotate_left": {
+    "text": "Linksom draaien",
+    "en": "Rotate left"
+  },
+  "web.images.edit.rotate_right": {
+    "text": "Rechtsom draaien",
+    "en": "Rotate right"
+  },
+  "web.images.edit.save_text": {
+    "text": "De foto vervangen door de bewerking, of de bewerking als nieuwe foto ernaast opslaan? Bij vervangen blijft het origineel bewaard, zodat je ernaar terug kunt.",
+    "en": "Replace the photo with the edit, or save the edit as a new photo next to it? A replaced photo's original is kept, so you can go back to it."
+  },
+  "web.images.edit.save_title": {
+    "text": "Bewerking opslaan",
+    "en": "Save the edit"
+  },
+  "web.images.edit.saved_copy": {
+    "text": "Opgeslagen als {name}",
+    "en": "Saved as {name}"
+  },
+  "web.images.edit.saving": {
+    "text": "Opslaan…",
+    "en": "Saving…"
+  },
   "web.images.error.unreachable": {
     "text": "Kan je apparaat niet bereiken. Probeer het opnieuw.",
     "en": "Couldn't reach your device. Try again."

@@ -599,6 +599,92 @@ export interface LinkFile {
   modified?: Date | undefined;
 }
 
+/**
+ * Photo edit: rotates and crops a photo on the device (the viewers' Edit).
+ * The device decodes the photo as it is shown (its own orientation turned
+ * in), turns it quarter_turns clockwise, keeps crop of it, and stores the
+ * result as new content with a hash of its own: a JPEG (camera details and
+ * colour profile kept, the orientation then upright), a PNG for a PNG. A
+ * JPEG only turned is turned losslessly instead: only its orientation tag
+ * changes. The original is kept - hidden, no path of its own - so the
+ * edit can be reverted (RevertImage), a phone's sync finds the photo it
+ * sends already there (HasFile, and LinkFile or an upload of it into the
+ * folder holding its edit answers with the edited file), and Free up space
+ * can still count it held (HasHashes).
+ *
+ * Replacing (as_copy false) gives this path - or, with every_copy, every
+ * path holding the same content (File.copies) - the edit in place: a name
+ * whose extension no longer fits (a HEIC become a JPEG) gets ".jpg", or
+ * the first free "<name> (n).jpg". Once no path holds the photo any more,
+ * its collections, favourite and ratings go with its edit, its faces too
+ * (moved with the crop). as_copy leaves the photo as it was and saves the
+ * edit next to it as "<name> (edited).jpg" (in the owner's language), with
+ * the photo's date.
+ *
+ * Answers with the edited file (resp_file; the copy for as_copy), or an
+ * error: error_code "changed" when hash is set and the path holds other
+ * content now (nothing edited), "not_editable" for content the device
+ * can't edit (videos, camera raws, animations, anything not a photo),
+ * "storage_full" when there is no room; the message says so in the
+ * owner's language. Devices before it answer "unknown_payload".
+ */
+export interface EditImage {
+  path: string;
+  /**
+   * The content the client showed for path (File.hash); empty checks
+   * nothing.
+   */
+  hash: string;
+  /** Clockwise, 0 to 3; anything else is taken modulo 4. */
+  quarterTurns: number;
+  /** The part kept of the turned photo; unset keeps it whole. */
+  crop?: EditCrop | undefined;
+  asCopy: boolean;
+  /** With as_copy false: every path holding this content, not only path. */
+  everyCopy: boolean;
+}
+
+/**
+ * The part of a photo an edit keeps: fractions (0 to 1) of the turned
+ * photo's width and height, from its top left corner. Rounded to whole
+ * pixels, at least one, and kept inside the photo.
+ */
+export interface EditCrop {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Photo edit: puts the original back (File.original_hash) at path - or,
+ * with every_copy, at every path holding the same edit - with its own name
+ * back when the edit changed it and that name is free. The edit itself is
+ * deleted once no path holds it, and its collections and ratings go back
+ * to the original. Answers with the file at path (resp_file); error_code
+ * "changed" as EditImage's, "not_edited" when path holds no edit.
+ */
+export interface RevertImage {
+  path: string;
+  hash: string;
+  everyCopy: boolean;
+}
+
+/**
+ * Photo edit: what the edit's Save asks before it is sent - how many paths
+ * hold the content at path (copies, at least 1: the "all N copies or only
+ * this one" question), and whether it is an edit (edited: Revert to
+ * original). Answers with EditState.
+ */
+export interface GetEditState {
+  path: string;
+}
+
+export interface EditState {
+  copies: number;
+  edited: boolean;
+}
+
 export interface DelFile {
   path: string;
   /**
@@ -1386,7 +1472,19 @@ export interface File {
    * Rating is on, the photo's stars and comment there - unset for a photo
    * with neither, and everywhere else.
    */
-  rating?: PhotoRating | undefined;
+  rating?:
+    | PhotoRating
+    | undefined;
+  /**
+   * Photo edit (EditImage): set when this content is a photo edited on the
+   * device, to the SHA-256 of the photo it was made from (the first one,
+   * through edits of edits). The device keeps that original, so the viewer
+   * offers RevertImage, and a phone's sync and Free up space find it by
+   * that hash. In ListFiles and SearchPhotos answers (and the files of an
+   * edit's own answer); empty everywhere else, for content that isn't an
+   * edit, and from devices before it.
+   */
+  originalHash: string;
 }
 
 export interface Ack {
@@ -4012,6 +4110,15 @@ export interface ReqEnvelope {
      */
     { $case: "reqRandomPhotos"; reqRandomPhotos: RandomPhotos }
     | //
+    /**
+     * Photo edit: EditImage and RevertImage answer with resp_file,
+     * GetEditState with resp_edit_state. Devices before them answer
+     * "unknown_payload".
+     */
+    { $case: "reqEditImage"; reqEditImage: EditImage }
+    | { $case: "reqRevertImage"; reqRevertImage: RevertImage }
+    | { $case: "reqGetEditState"; reqGetEditState: GetEditState }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -4178,6 +4285,9 @@ export interface RespEnvelope {
     | //
     /** The answer to SetPhotoRating. */
     { $case: "respPhotoRating"; respPhotoRating: PhotoRating }
+    | //
+    /** The answer to GetEditState. */
+    { $case: "respEditState"; respEditState: EditState }
     | undefined;
 }
 
@@ -6047,6 +6157,368 @@ export const LinkFile: MessageFns<LinkFile> = {
     message.created = object.created ?? undefined;
     message.cloudId = object.cloudId ?? "";
     message.modified = object.modified ?? undefined;
+    return message;
+  },
+};
+
+function createBaseEditImage(): EditImage {
+  return { path: "", hash: "", quarterTurns: 0, crop: undefined, asCopy: false, everyCopy: false };
+}
+
+export const EditImage: MessageFns<EditImage> = {
+  encode(message: EditImage, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.hash !== "") {
+      writer.uint32(18).string(message.hash);
+    }
+    if (message.quarterTurns !== 0) {
+      writer.uint32(24).int32(message.quarterTurns);
+    }
+    if (message.crop !== undefined) {
+      EditCrop.encode(message.crop, writer.uint32(34).fork()).join();
+    }
+    if (message.asCopy !== false) {
+      writer.uint32(40).bool(message.asCopy);
+    }
+    if (message.everyCopy !== false) {
+      writer.uint32(48).bool(message.everyCopy);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): EditImage {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseEditImage();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.quarterTurns = reader.int32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.crop = EditCrop.decode(reader, reader.uint32());
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.asCopy = reader.bool();
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.everyCopy = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<EditImage>, I>>(base?: I): EditImage {
+    return EditImage.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<EditImage>, I>>(object: I): EditImage {
+    const message = createBaseEditImage();
+    message.path = object.path ?? "";
+    message.hash = object.hash ?? "";
+    message.quarterTurns = object.quarterTurns ?? 0;
+    message.crop = (object.crop !== undefined && object.crop !== null) ? EditCrop.fromPartial(object.crop) : undefined;
+    message.asCopy = object.asCopy ?? false;
+    message.everyCopy = object.everyCopy ?? false;
+    return message;
+  },
+};
+
+function createBaseEditCrop(): EditCrop {
+  return { x: 0, y: 0, width: 0, height: 0 };
+}
+
+export const EditCrop: MessageFns<EditCrop> = {
+  encode(message: EditCrop, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.x !== 0) {
+      writer.uint32(9).double(message.x);
+    }
+    if (message.y !== 0) {
+      writer.uint32(17).double(message.y);
+    }
+    if (message.width !== 0) {
+      writer.uint32(25).double(message.width);
+    }
+    if (message.height !== 0) {
+      writer.uint32(33).double(message.height);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): EditCrop {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseEditCrop();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 9) {
+            break;
+          }
+
+          message.x = reader.double();
+          continue;
+        }
+        case 2: {
+          if (tag !== 17) {
+            break;
+          }
+
+          message.y = reader.double();
+          continue;
+        }
+        case 3: {
+          if (tag !== 25) {
+            break;
+          }
+
+          message.width = reader.double();
+          continue;
+        }
+        case 4: {
+          if (tag !== 33) {
+            break;
+          }
+
+          message.height = reader.double();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<EditCrop>, I>>(base?: I): EditCrop {
+    return EditCrop.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<EditCrop>, I>>(object: I): EditCrop {
+    const message = createBaseEditCrop();
+    message.x = object.x ?? 0;
+    message.y = object.y ?? 0;
+    message.width = object.width ?? 0;
+    message.height = object.height ?? 0;
+    return message;
+  },
+};
+
+function createBaseRevertImage(): RevertImage {
+  return { path: "", hash: "", everyCopy: false };
+}
+
+export const RevertImage: MessageFns<RevertImage> = {
+  encode(message: RevertImage, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.hash !== "") {
+      writer.uint32(18).string(message.hash);
+    }
+    if (message.everyCopy !== false) {
+      writer.uint32(24).bool(message.everyCopy);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RevertImage {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRevertImage();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.everyCopy = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<RevertImage>, I>>(base?: I): RevertImage {
+    return RevertImage.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RevertImage>, I>>(object: I): RevertImage {
+    const message = createBaseRevertImage();
+    message.path = object.path ?? "";
+    message.hash = object.hash ?? "";
+    message.everyCopy = object.everyCopy ?? false;
+    return message;
+  },
+};
+
+function createBaseGetEditState(): GetEditState {
+  return { path: "" };
+}
+
+export const GetEditState: MessageFns<GetEditState> = {
+  encode(message: GetEditState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetEditState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetEditState();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<GetEditState>, I>>(base?: I): GetEditState {
+    return GetEditState.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetEditState>, I>>(object: I): GetEditState {
+    const message = createBaseGetEditState();
+    message.path = object.path ?? "";
+    return message;
+  },
+};
+
+function createBaseEditState(): EditState {
+  return { copies: 0, edited: false };
+}
+
+export const EditState: MessageFns<EditState> = {
+  encode(message: EditState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.copies !== 0) {
+      writer.uint32(8).int32(message.copies);
+    }
+    if (message.edited !== false) {
+      writer.uint32(16).bool(message.edited);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): EditState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseEditState();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.copies = reader.int32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.edited = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<EditState>, I>>(base?: I): EditState {
+    return EditState.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<EditState>, I>>(object: I): EditState {
+    const message = createBaseEditState();
+    message.copies = object.copies ?? 0;
+    message.edited = object.edited ?? false;
     return message;
   },
 };
@@ -8409,6 +8881,7 @@ function createBaseFile(): File {
     thumbnailSmall: undefined,
     copies: undefined,
     rating: undefined,
+    originalHash: "",
   };
 }
 
@@ -8458,6 +8931,9 @@ export const File: MessageFns<File> = {
     }
     if (message.rating !== undefined) {
       PhotoRating.encode(message.rating, writer.uint32(122).fork()).join();
+    }
+    if (message.originalHash !== "") {
+      writer.uint32(130).string(message.originalHash);
     }
     return writer;
   },
@@ -8581,6 +9057,14 @@ export const File: MessageFns<File> = {
           message.rating = PhotoRating.decode(reader, reader.uint32());
           continue;
         }
+        case 16: {
+          if (tag !== 130) {
+            break;
+          }
+
+          message.originalHash = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -8611,6 +9095,7 @@ export const File: MessageFns<File> = {
     message.rating = (object.rating !== undefined && object.rating !== null)
       ? PhotoRating.fromPartial(object.rating)
       : undefined;
+    message.originalHash = object.originalHash ?? "";
     return message;
   },
 };
@@ -21656,6 +22141,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqRandomPhotos":
         RandomPhotos.encode(message.payload.reqRandomPhotos, writer.uint32(1290).fork()).join();
         break;
+      case "reqEditImage":
+        EditImage.encode(message.payload.reqEditImage, writer.uint32(1298).fork()).join();
+        break;
+      case "reqRevertImage":
+        RevertImage.encode(message.payload.reqRevertImage, writer.uint32(1306).fork()).join();
+        break;
+      case "reqGetEditState":
+        GetEditState.encode(message.payload.reqGetEditState, writer.uint32(1314).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -23122,6 +23616,30 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqRandomPhotos", reqRandomPhotos: RandomPhotos.decode(reader, reader.uint32()) };
           continue;
         }
+        case 162: {
+          if (tag !== 1298) {
+            break;
+          }
+
+          message.payload = { $case: "reqEditImage", reqEditImage: EditImage.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 163: {
+          if (tag !== 1306) {
+            break;
+          }
+
+          message.payload = { $case: "reqRevertImage", reqRevertImage: RevertImage.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 164: {
+          if (tag !== 1314) {
+            break;
+          }
+
+          message.payload = { $case: "reqGetEditState", reqGetEditState: GetEditState.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -24479,6 +24997,30 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqEditImage": {
+        if (object.payload?.reqEditImage !== undefined && object.payload?.reqEditImage !== null) {
+          message.payload = { $case: "reqEditImage", reqEditImage: EditImage.fromPartial(object.payload.reqEditImage) };
+        }
+        break;
+      }
+      case "reqRevertImage": {
+        if (object.payload?.reqRevertImage !== undefined && object.payload?.reqRevertImage !== null) {
+          message.payload = {
+            $case: "reqRevertImage",
+            reqRevertImage: RevertImage.fromPartial(object.payload.reqRevertImage),
+          };
+        }
+        break;
+      }
+      case "reqGetEditState": {
+        if (object.payload?.reqGetEditState !== undefined && object.payload?.reqGetEditState !== null) {
+          message.payload = {
+            $case: "reqGetEditState",
+            reqGetEditState: GetEditState.fromPartial(object.payload.reqGetEditState),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -24767,6 +25309,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respPhotoRating":
         PhotoRating.encode(message.payload.respPhotoRating, writer.uint32(610).fork()).join();
+        break;
+      case "respEditState":
+        EditState.encode(message.payload.respEditState, writer.uint32(618).fork()).join();
         break;
     }
     return writer;
@@ -25446,6 +25991,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respPhotoRating", respPhotoRating: PhotoRating.decode(reader, reader.uint32()) };
           continue;
         }
+        case 77: {
+          if (tag !== 618) {
+            break;
+          }
+
+          message.payload = { $case: "respEditState", respEditState: EditState.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -26037,6 +26590,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respPhotoRating",
             respPhotoRating: PhotoRating.fromPartial(object.payload.respPhotoRating),
+          };
+        }
+        break;
+      }
+      case "respEditState": {
+        if (object.payload?.respEditState !== undefined && object.payload?.respEditState !== null) {
+          message.payload = {
+            $case: "respEditState",
+            respEditState: EditState.fromPartial(object.payload.respEditState),
           };
         }
         break;

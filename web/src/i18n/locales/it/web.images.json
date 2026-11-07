@@ -103,6 +103,52 @@
     "other": "{count} elementi si trovano in una cartella in solo caricamento e non possono essere eliminati",
     "arg": "count"
   },
+  "web.images.edit.as_copy": "Salva come copia",
+  "web.images.edit.aspect": "Proporzioni",
+  "web.images.edit.aspect_16_9": "16:9",
+  "web.images.edit.aspect_4_3": "4:3",
+  "web.images.edit.aspect_free": "Libero",
+  "web.images.edit.aspect_original": "Originale",
+  "web.images.edit.aspect_square": "Quadrato",
+  "web.images.edit.button": "Modifica",
+  "web.images.edit.copies_all": {
+    "one": "Sostituisci ovunque ({count})",
+    "other": "Sostituisci ovunque ({count})",
+    "arg": "count"
+  },
+  "web.images.edit.copies_only_this": "Solo qui",
+  "web.images.edit.copies_text": {
+    "one": "Questa foto si trova in {count} posti sul tuo dispositivo. Sostituirla ovunque o solo qui?",
+    "other": "Questa foto si trova in {count} posti sul tuo dispositivo. Sostituirla ovunque o solo qui?",
+    "arg": "count"
+  },
+  "web.images.edit.discard": "Scarta",
+  "web.images.edit.discard_title": "Scartare la modifica?",
+  "web.images.edit.failed": "Non è stato possibile salvare la modifica. Riprova.",
+  "web.images.edit.replace": "Sostituisci foto",
+  "web.images.edit.reset": "Reimposta",
+  "web.images.edit.revert": "Torna all’originale",
+  "web.images.edit.revert_all": {
+    "one": "Annulla ovunque ({count})",
+    "other": "Annulla ovunque ({count})",
+    "arg": "count"
+  },
+  "web.images.edit.revert_button": "Ripristina",
+  "web.images.edit.revert_copies_text": {
+    "one": "Questa modifica si trova in {count} posti sul tuo dispositivo. Annullarla ovunque o solo qui?",
+    "other": "Questa modifica si trova in {count} posti sul tuo dispositivo. Annullarla ovunque o solo qui?",
+    "arg": "count"
+  },
+  "web.images.edit.revert_failed": "Non è stato possibile ripristinare l’originale. Riprova.",
+  "web.images.edit.revert_text": "La modifica viene rimossa e la foto torna com’era prima.",
+  "web.images.edit.revert_title": "Tornare all’originale?",
+  "web.images.edit.reverting": "Ripristino…",
+  "web.images.edit.rotate_left": "Ruota a sinistra",
+  "web.images.edit.rotate_right": "Ruota a destra",
+  "web.images.edit.save_text": "Sostituire la foto con la modifica o salvare la modifica come nuova foto accanto? Se la sostituisci, l’originale viene conservato e puoi tornarci.",
+  "web.images.edit.save_title": "Salva la modifica",
+  "web.images.edit.saved_copy": "Salvata come \u2068{name}\u2069",
+  "web.images.edit.saving": "Salvataggio…",
   "web.images.error.unreachable": "Impossibile raggiungere il tuo dispositivo. Riprova.",
   "web.images.grid.clear_search": "Cancella ricerca",
   "web.images.grid.date": "{day} {month} {year}",

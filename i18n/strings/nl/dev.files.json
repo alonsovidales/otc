@@ -61,6 +61,18 @@
     "text": "fout bij het downloaden van het bestand: {detail}",
     "en": "error trying to download file: {detail}"
   },
+  "dev.files.edit_failed": {
+    "text": "de bewerking kon niet worden opgeslagen: {reason}",
+    "en": "the edit could not be saved: {reason}"
+  },
+  "dev.files.edited_copy_name": {
+    "text": "{name} (bewerkt)",
+    "en": "{name} (edited)"
+  },
+  "dev.files.edits_unavailable": {
+    "text": "dit apparaat kan foto’s bewerken zodra de update klaar is: probeer het over een paar minuten opnieuw",
+    "en": "this device can edit photos once its update has finished: try again in a few minutes"
+  },
   "dev.files.exif_unsupported": {
     "text": "niet-ondersteund MIME-type voor EXIF: {mime}",
     "en": "unsupported mime type for EXIF: {mime}"
@@ -172,6 +184,14 @@
   "dev.files.no_such_path": {
     "text": "bestand of map bestaat niet: {path}",
     "en": "no such file or directory: {path}"
+  },
+  "dev.files.not_editable": {
+    "text": "dit bestand kan niet worden bewerkt: alleen foto’s kunnen worden gedraaid en bijgesneden, geen video’s, camera-RAW-bestanden of animaties",
+    "en": "this file can't be edited: only photos can be turned and cropped, not videos, camera raws or animations"
+  },
+  "dev.files.not_edited": {
+    "text": "deze foto heeft geen bewerking om ongedaan te maken",
+    "en": "this photo has no edit to undo"
   },
   "dev.files.not_on_device": {
     "text": "{path} staat niet op dit apparaat",

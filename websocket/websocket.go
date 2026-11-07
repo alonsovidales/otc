@@ -92,6 +92,13 @@ const (
 	// nothing was deleted, and the client refreshes before asking again.
 	cCodeContentChanged = "changed"
 
+	// Photo edits (EditImage, RevertImage): cCodeNotEditable is content the
+	// device doesn't edit (a video, a camera raw, an animation), or an
+	// update not finished; cCodeNotEdited a revert of content that is no
+	// edit. Nothing was changed; the message says why.
+	cCodeNotEditable = "not_editable"
+	cCodeNotEdited   = "not_edited"
+
 	// Bridge connection pool. A connection is consumed for as long as the
 	// bridge-side client that picked it up keeps its socket open — see
 	// bridge/websocket/websocket.go's default case, which pins one pool
@@ -2998,6 +3005,36 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 					Ok: true,
 				},
 			}
+		}
+
+	// Photo edits: turn and crop a photo, put its original back, and what
+	// the edit's Save asks first (files_manager/edit_image.go).
+	case *pb.ReqEnvelope_ReqEditImage:
+		log.Debug("Edit image:", p.ReqEditImage.Path, "turns:", p.ReqEditImage.QuarterTurns, "copy:", p.ReqEditImage.AsCopy, "every copy:", p.ReqEditImage.EveryCopy)
+		file, err := ch.mg.filesManager.EditImage(ses, p.ReqEditImage, lang)
+		if err != nil {
+			editError(resp, lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespFile{RespFile: file}
+		}
+
+	case *pb.ReqEnvelope_ReqRevertImage:
+		log.Debug("Revert image:", p.ReqRevertImage.Path, "every copy:", p.ReqRevertImage.EveryCopy)
+		file, err := ch.mg.filesManager.RevertImage(ses, p.ReqRevertImage.Path, p.ReqRevertImage.Hash, p.ReqRevertImage.EveryCopy)
+		if err != nil {
+			editError(resp, lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespFile{RespFile: file}
+		}
+
+	case *pb.ReqEnvelope_ReqGetEditState:
+		state, err := ch.mg.filesManager.EditState(p.ReqGetEditState.Path)
+		if err != nil {
+			log.Error("could not tell a photo's edit state:", err)
+			resp.Error = true
+			resp.ErrorMessage = devtext.Text(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespEditState{RespEditState: state}
 		}
 
 	// Issue #132: upload-only folders and the versions they keep.

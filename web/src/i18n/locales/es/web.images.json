@@ -103,6 +103,52 @@
     "other": "{count} elementos están en una carpeta de solo subida y no se pueden eliminar",
     "arg": "count"
   },
+  "web.images.edit.as_copy": "Guardar como copia",
+  "web.images.edit.aspect": "Proporción",
+  "web.images.edit.aspect_16_9": "16:9",
+  "web.images.edit.aspect_4_3": "4:3",
+  "web.images.edit.aspect_free": "Libre",
+  "web.images.edit.aspect_original": "Original",
+  "web.images.edit.aspect_square": "Cuadrado",
+  "web.images.edit.button": "Editar",
+  "web.images.edit.copies_all": {
+    "one": "Sustituir en los {count}",
+    "other": "Sustituir en los {count}",
+    "arg": "count"
+  },
+  "web.images.edit.copies_only_this": "Solo aquí",
+  "web.images.edit.copies_text": {
+    "one": "Esta foto está en {count} lugares de tu dispositivo. ¿Sustituirla en todos o solo aquí?",
+    "other": "Esta foto está en {count} lugares de tu dispositivo. ¿Sustituirla en todos o solo aquí?",
+    "arg": "count"
+  },
+  "web.images.edit.discard": "Descartar",
+  "web.images.edit.discard_title": "¿Descartar la edición?",
+  "web.images.edit.failed": "No se ha podido guardar la edición. Vuelve a intentarlo.",
+  "web.images.edit.replace": "Sustituir foto",
+  "web.images.edit.reset": "Restablecer",
+  "web.images.edit.revert": "Volver al original",
+  "web.images.edit.revert_all": {
+    "one": "Deshacer en los {count}",
+    "other": "Deshacer en los {count}",
+    "arg": "count"
+  },
+  "web.images.edit.revert_button": "Restaurar",
+  "web.images.edit.revert_copies_text": {
+    "one": "Esta edición está en {count} lugares de tu dispositivo. ¿Deshacerla en todos o solo aquí?",
+    "other": "Esta edición está en {count} lugares de tu dispositivo. ¿Deshacerla en todos o solo aquí?",
+    "arg": "count"
+  },
+  "web.images.edit.revert_failed": "No se ha podido recuperar el original. Vuelve a intentarlo.",
+  "web.images.edit.revert_text": "Se quita la edición y la foto vuelve a estar como antes de editarla.",
+  "web.images.edit.revert_title": "¿Volver al original?",
+  "web.images.edit.reverting": "Restaurando…",
+  "web.images.edit.rotate_left": "Girar a la izquierda",
+  "web.images.edit.rotate_right": "Girar a la derecha",
+  "web.images.edit.save_text": "¿Sustituir la foto por la edición o guardar la edición como una foto nueva junto a ella? Si la sustituyes, se guarda el original para que puedas volver a él.",
+  "web.images.edit.save_title": "Guardar la edición",
+  "web.images.edit.saved_copy": "Guardada como \u2068{name}\u2069",
+  "web.images.edit.saving": "Guardando…",
   "web.images.error.unreachable": "No se ha podido contactar con tu dispositivo. Vuelve a intentarlo.",
   "web.images.grid.clear_search": "Borrar búsqueda",
   "web.images.grid.date": "{day} de {month} de {year}",

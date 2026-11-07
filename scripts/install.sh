@@ -1582,6 +1582,11 @@ SQL
     UPDATE settings SET places_enabled = 1 WHERE (SELECT COLUMN_DEFAULT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'settings' AND COLUMN_NAME = 'places_enabled') = '0';
     ALTER TABLE settings ALTER COLUMN places_enabled SET DEFAULT 1;
 SQL
+    # Release 174 (updates/174.sh): photo edits and the originals they keep
+    # (see db.sql's edited_content).
+    mysql "$db" <<'SQL'
+    CREATE TABLE IF NOT EXISTS edited_content (`hash` VARCHAR(64) NOT NULL, `original_hash` VARCHAR(64) NOT NULL, `original_mime` VARCHAR(150) NOT NULL, `original_size` BIGINT NOT NULL, `original_ext` VARCHAR(16) NOT NULL DEFAULT '', `edited` DATETIME NOT NULL, PRIMARY KEY (`hash`), KEY (`original_hash`)) ENGINE=InnoDB;
+SQL
 }
 
 apply_schema_migrations otc

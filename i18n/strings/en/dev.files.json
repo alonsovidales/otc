@@ -74,6 +74,21 @@
     "args": [["detail", "text"]],
     "note": "Error reply on the page that downloads files someone shared with a link, when the download failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
   },
+  "dev.files.edit_failed": {
+    "text": "the edit could not be saved: {reason}",
+    "args": [["reason", "text"]],
+    "note": "Error when a turn or a crop of a photo couldn't be saved on the device. {reason} is why, in the device's words (a sentence of its own, in lower case). Nothing was changed."
+  },
+  "dev.files.edited_copy_name": {
+    "text": "{name} (edited)",
+    "args": [["name", "text"]],
+    "note": "The name of the copy a photo edit saves next to the photo when the owner chooses Save as copy, before its extension: {name} is the photo's own name without its extension (IMG_1234 (edited).jpg). Keep it short, in parentheses, as a file name. A second copy gets a number after it.",
+    "max": 24
+  },
+  "dev.files.edits_unavailable": {
+    "text": "this device can edit photos once its update has finished: try again in a few minutes",
+    "note": "Error when the owner saves a turn or a crop of a photo while the device's update hasn't finished preparing its database for edits. Nothing was changed; it works again after the update."
+  },
   "dev.files.exif_unsupported": {
     "text": "unsupported mime type for EXIF: {mime}",
     "args": [["mime", "text"]],
@@ -197,6 +212,14 @@
     "text": "no such file or directory: {path}",
     "args": [["path", "user"]],
     "note": "Error shown after \"error creating files share link: \" when a file or folder chosen for sharing no longer exists. {path} is its path on the device."
+  },
+  "dev.files.not_editable": {
+    "text": "this file can't be edited: only photos can be turned and cropped, not videos, camera raws or animations",
+    "note": "Error when the owner saves a turn or a crop (the photo viewer's Edit) of a file the device can't edit: a video, a camera raw (DNG, CR2, NEF...), an animated GIF or WebP, or anything that isn't a photo. Nothing was changed."
+  },
+  "dev.files.not_edited": {
+    "text": "this photo has no edit to undo",
+    "note": "Error when the owner chooses Revert to original for a photo that holds no edit any more (it was reverted, or replaced, from another phone or computer meanwhile). Nothing was changed."
   },
   "dev.files.not_on_device": {
     "text": "{path} is not on this device",

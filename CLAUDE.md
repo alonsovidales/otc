@@ -610,6 +610,73 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   content with no way back. Measured
   on 112k rows with 14k photos at several paths (Lima VM, MariaDB 11.8): browsing 291 ms of SQL as
   before (282), the buckets 154 ms (were 327), two people 1.8 ms (5.4), a page's copies 0.3-0.6 ms.
+- **Photo edits** (2026-11, `files_manager/edit_image.go`, `edit_exif.go`, `dao/edited.go`, table
+  `edited_content`, release 174's `174.sh` and install.sh's block): the viewers turn and crop a
+  photo on the device.
+  - **Requests:** `EditImage {path, hash, quarter_turns, crop, as_copy, every_copy}` (162),
+    `RevertImage {path, hash, every_copy}` (163), `GetEditState {path}` (164) ->
+    `EditState {copies, edited}` (resp 77). Older devices answer `unknown_payload`; the demo refuses
+    the two writes.
+  - **The edit is content of its own**, with a real SHA-256 of its bytes. The owner chose this
+    over keeping the photo's hash for "every copy": the sync app checks each download against the
+    hash (`engine.go`), and the apps cache thumbnails and full sizes by hash.
+  - **The original is kept, with no path.** `edited_content(hash, original_hash, original_mime,
+    original_size, original_ext)` holds one row per edit, naming the first original even through
+    edits of edits, so a revert is never to a middle edit. `HashReferenced` counts
+    `original_hash`, so the original's blob, thumbnails, tags and faces stay while an edit of it is
+    held. The tag deletes of `DelFileIfHash` and `OverrideFile` spare it (`editRefs`), and so does
+    `OrphanFaceHashes`.
+  - **Clean-up:** `removeBlobIfUnused` and `dropIfOrphaned` (now `removeUnusedBlob`/`dropOrphan`
+    plus `releaseEdit`, after the hash's lock, since the original's stripe may be the same) forget
+    a gone edit's row, then remove its original once nothing else holds it, its tags with it
+    (no file's delete took them).
+  - **No re-upload, and dedup:** `HasFile` and `HasHashes` count a held original whole
+    (`HeldOriginals`, with its size), so a phone never sends it again and Free up space can
+    delete its copy. `LinkFile` and `registerUpload` (uploads, FinishUpload) first ask
+    `editedAlready` (`dao.EditedFolderFile`): content sent into a folder that has a direct child
+    which is an edit of it, with no file there holding that content itself, is answered with that
+    edit (a phone's sync sending the photo it took, to its own name or an alt one, or the sync
+    app's backup putting it back). The same holds for the edit's own hash at the photo's old name
+    when the edit renamed it (an iPhone relinking by cloud id). Nothing is stored twice, and the
+    store apps, which know nothing of edits, are covered without a change. Linked anywhere else,
+    the original is an ordinary photo again (`heldOriginal` gives LinkFile its MIME and size).
+  - **The pixels:** decoded at full size under `holdDecode` (`decodeFull`; HEIC through
+    `decodeHeic`, with its irot/imir or EXIF orientation). The photo's own orientation and the
+    turn go in one `applyOrientation` pass (`thenTurned`: the orientations' matrices composed).
+    Then `editRect`'s crop (fractions of the turned photo, rounded, kept inside it).
+  - **What is written:** a JPEG at quality 92 (`cEditQuality`) with the camera's EXIF (a JPEG's
+    APP1, a HEIC's Exif item) carried over by `editedExif`: orientation 1, the Exif dimensions set
+    to the edit's, IFD1 (the old thumbnail) dropped. Its ICC profile comes too (APP2 segments, or
+    a HEIF's `colr` prof/rICC, believed only with "acsp"), so its date and place come back through
+    processing. A PNG is written as a PNG. A JPEG only turned is turned losslessly: only its
+    orientation tag changes (`losslessTurn`; one with no tag is written again).
+  - **Not editable** (`editKindOf`, by the bytes): camera raws, animated PNG/WebP, anything not a
+    JPEG, PNG, still HEIF (`isHeifStill`, by major brand: an MP4's ftyp isn't one) or WebP.
+    `error_code` `not_editable`, `dev.files.not_editable`; also before release 174's table exists
+    (`errEditsUnavailable`).
+  - **Replacing** (`dao.ApplyEdit`, one transaction): the asked path first, then with every_copy
+    each path holding the content. Each row is read `for update`, and one holding other content
+    meanwhile is left out; the asked one so is `ErrOtherContent` -> `changed`. A name whose
+    extension doesn't fit is renamed to `.jpg` (in upper case after an upper-case one:
+    `IMG_1.HEIC` -> `IMG_1.JPG`), or the first free `name (n).jpg`. When no file holds the photo
+    any more, its collections, Favourites and ratings move to the edit (`moveMembershipsIfGone`:
+    update ignore, then the leftovers deleted). "Only this one" leaves them with the photo.
+  - **As a copy** (`AddEditCopy`): `<name> (edited)` (`dev.files.edited_copy_name`, a `text` arg:
+    no isolates in a file name) next to it, with the photo's `created`.
+  - **Faces** go to the edit before its analysis (`dao.CopyFaces`, `editResult.moveFace`): moved
+    with the turn and crop, in the analysis picture's pixels (`workScale`: photos over
+    `cWorkPixels` are analysed shrunk), each to the same person. A face the crop cut more than half
+    off is dropped. `processFaces` then finds them and detects nothing; with none, it detects as
+    for any photo. Tags, quality and Smart search are worked out anew (`enqueueMedia`). People's
+    counts are of faces in photos a file holds (`ListPeople`), so a hidden original isn't counted.
+  - **Revert** puts the original back (its name too, `original_ext`, when free), and the edit
+    goes once no path holds it. Turning an edit back to the original's very bytes is a revert,
+    with no edit row.
+  - **Listings:** ListFiles, SearchFiles and SearchPhotos pages set `File.original_hash` (16)
+    (`setOriginals`, one query, a failure only logged) for the viewers' Revert to original.
+  - **Tests:** `edit_image_test.go` (the maths, EXIF, ICC, formats) and
+    `edit_image_mysql_test.go`, against a real MariaDB: `OTC_TEST_DEVICE_MYSQL_DSN=user:pass@tcp(host:port)/`,
+    a user that may create databases (it makes one from db.sql and drops it).
 - Dates taken (release 152's `updates/152.sh`; `files_manager/date_taken.go`, `exifinfo/taken.go`): for a
   photo or video, `files.created` is the date it was taken whenever its own metadata clearly says the row
   is a later copy - a library copied to a drive in 2018 and synced from there (the sync clients send a

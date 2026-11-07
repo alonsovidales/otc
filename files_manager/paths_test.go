@@ -146,7 +146,7 @@ func TestNameDifferingBySpacesIsRefused(t *testing.T) {
 	hash := hex.EncodeToString(sum[:])
 	referenced := func(n int) {
 		mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
-			WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(n))
+			WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(n))
 	}
 	samePath := func(asked string, stored ...string) {
 		rows := sqlmock.NewRows([]string{"path"})

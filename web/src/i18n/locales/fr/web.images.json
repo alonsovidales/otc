@@ -103,6 +103,52 @@
     "other": "{count} éléments se trouvent dans un dossier en envoi uniquement et ne peuvent pas être supprimés",
     "arg": "count"
   },
+  "web.images.edit.as_copy": "Enregistrer une copie",
+  "web.images.edit.aspect": "Format",
+  "web.images.edit.aspect_16_9": "16:9",
+  "web.images.edit.aspect_4_3": "4:3",
+  "web.images.edit.aspect_free": "Libre",
+  "web.images.edit.aspect_original": "Original",
+  "web.images.edit.aspect_square": "Carré",
+  "web.images.edit.button": "Modifier",
+  "web.images.edit.copies_all": {
+    "one": "Remplacer partout ({count})",
+    "other": "Remplacer partout ({count})",
+    "arg": "count"
+  },
+  "web.images.edit.copies_only_this": "Seulement ici",
+  "web.images.edit.copies_text": {
+    "one": "Cette photo se trouve à {count} endroits sur votre appareil. La remplacer partout, ou seulement ici ?",
+    "other": "Cette photo se trouve à {count} endroits sur votre appareil. La remplacer partout, ou seulement ici ?",
+    "arg": "count"
+  },
+  "web.images.edit.discard": "Abandonner",
+  "web.images.edit.discard_title": "Abandonner la modification ?",
+  "web.images.edit.failed": "La modification n’a pas pu être enregistrée. Réessayez.",
+  "web.images.edit.replace": "Remplacer la photo",
+  "web.images.edit.reset": "Réinitialiser",
+  "web.images.edit.revert": "Revenir à l’original",
+  "web.images.edit.revert_all": {
+    "one": "Annuler partout ({count})",
+    "other": "Annuler partout ({count})",
+    "arg": "count"
+  },
+  "web.images.edit.revert_button": "Rétablir",
+  "web.images.edit.revert_copies_text": {
+    "one": "Cette modification se trouve à {count} endroits sur votre appareil. L’annuler partout, ou seulement ici ?",
+    "other": "Cette modification se trouve à {count} endroits sur votre appareil. L’annuler partout, ou seulement ici ?",
+    "arg": "count"
+  },
+  "web.images.edit.revert_failed": "L’original n’a pas pu être rétabli. Réessayez.",
+  "web.images.edit.revert_text": "La modification est supprimée et la photo redevient telle qu’elle était avant.",
+  "web.images.edit.revert_title": "Revenir à l’original ?",
+  "web.images.edit.reverting": "Rétablissement…",
+  "web.images.edit.rotate_left": "Faire pivoter à gauche",
+  "web.images.edit.rotate_right": "Faire pivoter à droite",
+  "web.images.edit.save_text": "Remplacer la photo par la modification, ou enregistrer la modification comme nouvelle photo à côté ? Si vous la remplacez, l’original est conservé pour que vous puissiez y revenir.",
+  "web.images.edit.save_title": "Enregistrer la modification",
+  "web.images.edit.saved_copy": "Enregistrée sous \u2068{name}\u2069",
+  "web.images.edit.saving": "Enregistrement…",
   "web.images.error.unreachable": "Impossible de joindre votre appareil. Réessayez.",
   "web.images.grid.clear_search": "Effacer la recherche",
   "web.images.grid.date": "{day} {month} {year}",

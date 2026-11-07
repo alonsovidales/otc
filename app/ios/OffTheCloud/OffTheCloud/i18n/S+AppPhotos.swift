@@ -169,6 +169,170 @@ extension S {
     /// The video form of app.photos.delete_phone.photo: the one item just deleted from the device was a video that is also in this phone's photo library.
     static var appPhotosDeletePhoneVideo: String { L("app.photos.delete_phone.video", table: "AppPhotos") }
 
+    /// Save as Copy
+    ///
+    /// Button of the question app.photos.edit.save_title: the edit is saved as a new photo next to this one, which stays as it was. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditAsCopy: String { L("app.photos.edit.as_copy", table: "AppPhotos") }
+
+    /// Aspect
+    ///
+    /// Button in the photo editor that chooses the shape of the crop: free, the photo's own, square, 4:3 or 16:9. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditAspect: String { L("app.photos.edit.aspect", table: "AppPhotos") }
+
+    /// 16:9
+    ///
+    /// One choice of the crop's shape in the photo editor: sixteen to nine, a widescreen's (nine to sixteen for an upright photo). As written in your language's photo apps. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditAspect169: String { L("app.photos.edit.aspect_16_9", table: "AppPhotos") }
+
+    /// 4:3
+    ///
+    /// One choice of the crop's shape in the photo editor: four to three (three to four for an upright photo). As written in your language's photo apps. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditAspect43: String { L("app.photos.edit.aspect_4_3", table: "AppPhotos") }
+
+    /// Free
+    ///
+    /// One choice of the crop's shape in the photo editor: any shape, as the owner drags it. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditAspectFree: String { L("app.photos.edit.aspect_free", table: "AppPhotos") }
+
+    /// Original
+    ///
+    /// One choice of the crop's shape in the photo editor: the photo's own proportions. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditAspectOriginal: String { L("app.photos.edit.aspect_original", table: "AppPhotos") }
+
+    /// Square
+    ///
+    /// One choice of the crop's shape in the photo editor: as wide as it is high. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditAspectSquare: String { L("app.photos.edit.aspect_square", table: "AppPhotos") }
+
+    /// Edit
+    ///
+    /// The photo viewer's button that opens the editor: turn and crop the photo shown. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditButton: String { L("app.photos.edit.button", table: "AppPhotos") }
+
+    /// one: Replace All {count}
+    /// other: Replace All {count}
+    ///
+    /// Button of app.photos.edit.copies_text: every copy of the photo on the device becomes the edit. {count} is how many: always 2 or more, so both forms are the plural. In the phone apps' (iPhone, Android) photo editor.
+    static func appPhotosEditCopiesAll(count: Int) -> String {
+        L("app.photos.edit.copies_all", table: "AppPhotos", count)
+    }
+
+    /// Only Here
+    ///
+    /// Button of app.photos.edit.copies_text (and of revert_app.photos.edit.copies_text): only the copy opened changes; the other copies stay as they are. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditCopiesOnlyThis: String { L("app.photos.edit.copies_only_this", table: "AppPhotos") }
+
+    /// one: This photo is in {count} places on your device. Replace it in all of them, or only here?
+    /// other: This photo is in {count} places on your device. Replace it in all of them, or only here?
+    ///
+    /// Asked after Replace Photo when the device holds the same photo at more than one path (the copies of the Delete question: another folder, or downloaded to a phone or computer and synced back). {count} is how many, this one included: always 2 or more, so both forms are the plural. Buttons: copies_all, copies_only_this and Cancel. In the phone apps' (iPhone, Android) photo editor.
+    static func appPhotosEditCopiesText(count: Int) -> String {
+        L("app.photos.edit.copies_text", table: "AppPhotos", count)
+    }
+
+    /// Discard
+    ///
+    /// Button of discard_title: leaves the editor; the photo stays as it was. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditDiscard: String { L("app.photos.edit.discard", table: "AppPhotos") }
+
+    /// Discard the Edit?
+    ///
+    /// Asked when the owner leaves the photo editor with a turn or a crop not saved. Buttons: discard and Cancel. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditDiscardTitle: String { L("app.photos.edit.discard_title", table: "AppPhotos") }
+
+    /// Couldn't save the edit. Try again.
+    ///
+    /// Error when the edit couldn't be saved and the device said nothing about why (the connection dropped). When the device gives a reason, its own words are shown instead. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditFailed: String { L("app.photos.edit.failed", table: "AppPhotos") }
+
+    /// Replace Photo
+    ///
+    /// Button of the question app.photos.edit.save_title: the photo becomes the edit; its original is kept hidden on the device. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditReplace: String { L("app.photos.edit.replace", table: "AppPhotos") }
+
+    /// Reset
+    ///
+    /// Button in the photo editor: undoes the turns and the crop made so far, back to the photo as it opened. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditReset: String { L("app.photos.edit.reset", table: "AppPhotos") }
+
+    /// Revert to Original
+    ///
+    /// Item of the photo viewer (for a photo replaced by an edit on the device): puts the original back. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditRevert: String { L("app.photos.edit.revert", table: "AppPhotos") }
+
+    /// one: Revert All {count}
+    /// other: Revert All {count}
+    ///
+    /// Button of revert_app.photos.edit.copies_text: every copy of the edit goes back to the original. {count}: always 2 or more. In the phone apps' (iPhone, Android) photo editor.
+    static func appPhotosEditRevertAll(count: Int) -> String {
+        L("app.photos.edit.revert_all", table: "AppPhotos", count)
+    }
+
+    /// Revert
+    ///
+    /// Button of revert_title (revert_text): puts the original back. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditRevertButton: String { L("app.photos.edit.revert_button", table: "AppPhotos") }
+
+    /// one: This edit is in {count} places on your device. Revert all of them, or only here?
+    /// other: This edit is in {count} places on your device. Revert all of them, or only here?
+    ///
+    /// Text of revert_title instead of revert_text when the device holds the edited photo at more than one path (it was replaced in all its copies). {count} is how many: always 2 or more, so both forms are the plural. Buttons: revert_all, copies_only_this and Cancel. In the phone apps' (iPhone, Android) photo editor.
+    static func appPhotosEditRevertCopiesText(count: Int) -> String {
+        L("app.photos.edit.revert_copies_text", table: "AppPhotos", count)
+    }
+
+    /// Couldn't put the original back. Try again.
+    ///
+    /// Error when the original couldn't be put back and the device said nothing about why (the connection dropped). When the device gives a reason, its own words are shown instead. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditRevertFailed: String { L("app.photos.edit.revert_failed", table: "AppPhotos") }
+
+    /// The edit is removed and the photo is as it was before it was edited.
+    ///
+    /// Text of revert_title. Buttons: revert_button and Cancel. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditRevertText: String { L("app.photos.edit.revert_text", table: "AppPhotos") }
+
+    /// Revert to the Original?
+    ///
+    /// Title of the confirmation of revert. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditRevertTitle: String { L("app.photos.edit.revert_title", table: "AppPhotos") }
+
+    /// Reverting…
+    ///
+    /// Shown while the device puts a photo's original back. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditReverting: String { L("app.photos.edit.reverting", table: "AppPhotos") }
+
+    /// Rotate Left
+    ///
+    /// Button in the photo editor: turns the photo a quarter turn to the left (anticlockwise). In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditRotateLeft: String { L("app.photos.edit.rotate_left", table: "AppPhotos") }
+
+    /// Rotate Right
+    ///
+    /// Button in the photo editor: turns the photo a quarter turn to the right (clockwise). In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditRotateRight: String { L("app.photos.edit.rotate_right", table: "AppPhotos") }
+
+    /// Replace the photo with the edit, or save the edit as a new photo next to it? A replaced photo's original is kept, so you can go back to it.
+    ///
+    /// Text of the question app.photos.edit.save_title. Replace: the photo becomes the edit (in Images, collections, Favourites), and the device keeps the original hidden so Revert to original can bring it back. Copy: a new photo in the same folder, the photo left as it was. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditSaveText: String { L("app.photos.edit.save_text", table: "AppPhotos") }
+
+    /// Save the Edit
+    ///
+    /// Title of the question asked when the owner saves a turn or a crop in the photo editor: replace the photo, or save the edit as a new photo. In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditSaveTitle: String { L("app.photos.edit.save_title", table: "AppPhotos") }
+
+    /// Saved as {name}
+    ///
+    /// Shown once the edit is saved as a copy. {name} is the copy's file name (IMG_1234 (edited).jpg). In the phone apps' (iPhone, Android) photo editor.
+    static func appPhotosEditSavedCopy(name: String) -> String {
+        L("app.photos.edit.saved_copy", table: "AppPhotos", L10n.isolate(name))
+    }
+
+    /// Saving…
+    ///
+    /// Shown while the device saves the edit (it turns and crops the full-size photo: a few seconds). In the phone apps' (iPhone, Android) photo editor.
+    static var appPhotosEditSaving: String { L("app.photos.edit.saving", table: "AppPhotos") }
+
     /// one: {count} item · {span}
     /// other: {count} items · {span}
     ///

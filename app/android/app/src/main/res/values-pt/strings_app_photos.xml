@@ -58,6 +58,52 @@
     <string name="app_photos_delete_phone_title">Eliminar também deste telemóvel?</string>
     <string name="app_photos_delete_phone_title_several">Eliminá-los também deste telemóvel?</string>
     <string name="app_photos_delete_phone_video">Este vídeo também está neste telemóvel.</string>
+    <string name="app_photos_edit_as_copy">Guardar como cópia</string>
+    <string name="app_photos_edit_aspect">Proporção</string>
+    <string name="app_photos_edit_aspect_16_9">16:9</string>
+    <string name="app_photos_edit_aspect_4_3">4:3</string>
+    <string name="app_photos_edit_aspect_free">Livre</string>
+    <string name="app_photos_edit_aspect_original">Original</string>
+    <string name="app_photos_edit_aspect_square">Quadrado</string>
+    <string name="app_photos_edit_button">Editar</string>
+    <plurals name="app_photos_edit_copies_all">
+        <item quantity="one">Substituir em todos (%1$s)</item>
+        <item quantity="many">Substituir em todos (%1$s)</item>
+        <item quantity="other">Substituir em todos (%1$s)</item>
+    </plurals>
+    <string name="app_photos_edit_copies_only_this">Só aqui</string>
+    <plurals name="app_photos_edit_copies_text">
+        <item quantity="one">Esta foto está em %1$s sítios no teu dispositivo. Substituí-la em todos ou só aqui?</item>
+        <item quantity="many">Esta foto está em %1$s sítios no teu dispositivo. Substituí-la em todos ou só aqui?</item>
+        <item quantity="other">Esta foto está em %1$s sítios no teu dispositivo. Substituí-la em todos ou só aqui?</item>
+    </plurals>
+    <string name="app_photos_edit_discard">Descartar</string>
+    <string name="app_photos_edit_discard_title">Descartar a edição?</string>
+    <string name="app_photos_edit_failed">Não foi possível guardar a edição. Tenta novamente.</string>
+    <string name="app_photos_edit_replace">Substituir foto</string>
+    <string name="app_photos_edit_reset">Repor</string>
+    <string name="app_photos_edit_revert">Voltar ao original</string>
+    <plurals name="app_photos_edit_revert_all">
+        <item quantity="one">Anular em todos (%1$s)</item>
+        <item quantity="many">Anular em todos (%1$s)</item>
+        <item quantity="other">Anular em todos (%1$s)</item>
+    </plurals>
+    <string name="app_photos_edit_revert_button">Restaurar</string>
+    <plurals name="app_photos_edit_revert_copies_text">
+        <item quantity="one">Esta edição está em %1$s sítios no teu dispositivo. Anulá-la em todos ou só aqui?</item>
+        <item quantity="many">Esta edição está em %1$s sítios no teu dispositivo. Anulá-la em todos ou só aqui?</item>
+        <item quantity="other">Esta edição está em %1$s sítios no teu dispositivo. Anulá-la em todos ou só aqui?</item>
+    </plurals>
+    <string name="app_photos_edit_revert_failed">Não foi possível restaurar o original. Tenta novamente.</string>
+    <string name="app_photos_edit_revert_text">A edição é removida e a foto volta a estar como antes de ser editada.</string>
+    <string name="app_photos_edit_revert_title">Voltar ao original?</string>
+    <string name="app_photos_edit_reverting">A restaurar…</string>
+    <string name="app_photos_edit_rotate_left">Rodar para a esquerda</string>
+    <string name="app_photos_edit_rotate_right">Rodar para a direita</string>
+    <string name="app_photos_edit_save_text">Substituir a foto pela edição ou guardar a edição como uma foto nova ao lado? Se a substituíres, o original é guardado para poderes voltar a ele.</string>
+    <string name="app_photos_edit_save_title">Guardar a edição</string>
+    <string name="app_photos_edit_saved_copy">Guardada como \u2068%1$s\u2069</string>
+    <string name="app_photos_edit_saving">A guardar…</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s item · %2$s</item>
         <item quantity="many">%1$s itens · %2$s</item>

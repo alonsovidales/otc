@@ -51,6 +51,48 @@
     <string name="app_photos_delete_phone_title">Ook van deze telefoon verwijderen?</string>
     <string name="app_photos_delete_phone_title_several">Ze ook van deze telefoon verwijderen?</string>
     <string name="app_photos_delete_phone_video">Deze video staat ook op deze telefoon.</string>
+    <string name="app_photos_edit_as_copy">Opslaan als kopie</string>
+    <string name="app_photos_edit_aspect">Verhouding</string>
+    <string name="app_photos_edit_aspect_16_9">16:9</string>
+    <string name="app_photos_edit_aspect_4_3">4:3</string>
+    <string name="app_photos_edit_aspect_free">Vrij</string>
+    <string name="app_photos_edit_aspect_original">Origineel</string>
+    <string name="app_photos_edit_aspect_square">Vierkant</string>
+    <string name="app_photos_edit_button">Bewerken</string>
+    <plurals name="app_photos_edit_copies_all">
+        <item quantity="one">Overal vervangen (%1$s)</item>
+        <item quantity="other">Overal vervangen (%1$s)</item>
+    </plurals>
+    <string name="app_photos_edit_copies_only_this">Alleen hier</string>
+    <plurals name="app_photos_edit_copies_text">
+        <item quantity="one">Deze foto staat op %1$s plekken op je apparaat. Overal vervangen of alleen hier?</item>
+        <item quantity="other">Deze foto staat op %1$s plekken op je apparaat. Overal vervangen of alleen hier?</item>
+    </plurals>
+    <string name="app_photos_edit_discard">Weggooien</string>
+    <string name="app_photos_edit_discard_title">Bewerking weggooien?</string>
+    <string name="app_photos_edit_failed">De bewerking kon niet worden opgeslagen. Probeer het opnieuw.</string>
+    <string name="app_photos_edit_replace">Foto vervangen</string>
+    <string name="app_photos_edit_reset">Terugzetten</string>
+    <string name="app_photos_edit_revert">Terug naar origineel</string>
+    <plurals name="app_photos_edit_revert_all">
+        <item quantity="one">Overal ongedaan maken (%1$s)</item>
+        <item quantity="other">Overal ongedaan maken (%1$s)</item>
+    </plurals>
+    <string name="app_photos_edit_revert_button">Herstellen</string>
+    <plurals name="app_photos_edit_revert_copies_text">
+        <item quantity="one">Deze bewerking staat op %1$s plekken op je apparaat. Overal ongedaan maken of alleen hier?</item>
+        <item quantity="other">Deze bewerking staat op %1$s plekken op je apparaat. Overal ongedaan maken of alleen hier?</item>
+    </plurals>
+    <string name="app_photos_edit_revert_failed">Het origineel kon niet worden teruggezet. Probeer het opnieuw.</string>
+    <string name="app_photos_edit_revert_text">De bewerking wordt verwijderd en de foto is weer zoals vóór de bewerking.</string>
+    <string name="app_photos_edit_revert_title">Terug naar het origineel?</string>
+    <string name="app_photos_edit_reverting">Herstellen…</string>
+    <string name="app_photos_edit_rotate_left">Linksom draaien</string>
+    <string name="app_photos_edit_rotate_right">Rechtsom draaien</string>
+    <string name="app_photos_edit_save_text">De foto vervangen door de bewerking, of de bewerking als nieuwe foto ernaast opslaan? Bij vervangen blijft het origineel bewaard, zodat je ernaar terug kunt.</string>
+    <string name="app_photos_edit_save_title">Bewerking opslaan</string>
+    <string name="app_photos_edit_saved_copy">Opgeslagen als \u2068%1$s\u2069</string>
+    <string name="app_photos_edit_saving">Opslaan…</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s item · %2$s</item>
         <item quantity="other">%1$s items · %2$s</item>

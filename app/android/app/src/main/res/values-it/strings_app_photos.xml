@@ -58,6 +58,52 @@
     <string name="app_photos_delete_phone_title">Eliminare anche da questo telefono?</string>
     <string name="app_photos_delete_phone_title_several">Eliminarli anche da questo telefono?</string>
     <string name="app_photos_delete_phone_video">Questo video è anche su questo telefono.</string>
+    <string name="app_photos_edit_as_copy">Salva come copia</string>
+    <string name="app_photos_edit_aspect">Proporzioni</string>
+    <string name="app_photos_edit_aspect_16_9">16:9</string>
+    <string name="app_photos_edit_aspect_4_3">4:3</string>
+    <string name="app_photos_edit_aspect_free">Libero</string>
+    <string name="app_photos_edit_aspect_original">Originale</string>
+    <string name="app_photos_edit_aspect_square">Quadrato</string>
+    <string name="app_photos_edit_button">Modifica</string>
+    <plurals name="app_photos_edit_copies_all">
+        <item quantity="one">Sostituisci ovunque (%1$s)</item>
+        <item quantity="many">Sostituisci ovunque (%1$s)</item>
+        <item quantity="other">Sostituisci ovunque (%1$s)</item>
+    </plurals>
+    <string name="app_photos_edit_copies_only_this">Solo qui</string>
+    <plurals name="app_photos_edit_copies_text">
+        <item quantity="one">Questa foto si trova in %1$s posti sul tuo dispositivo. Sostituirla ovunque o solo qui?</item>
+        <item quantity="many">Questa foto si trova in %1$s posti sul tuo dispositivo. Sostituirla ovunque o solo qui?</item>
+        <item quantity="other">Questa foto si trova in %1$s posti sul tuo dispositivo. Sostituirla ovunque o solo qui?</item>
+    </plurals>
+    <string name="app_photos_edit_discard">Scarta</string>
+    <string name="app_photos_edit_discard_title">Scartare la modifica?</string>
+    <string name="app_photos_edit_failed">Non è stato possibile salvare la modifica. Riprova.</string>
+    <string name="app_photos_edit_replace">Sostituisci foto</string>
+    <string name="app_photos_edit_reset">Reimposta</string>
+    <string name="app_photos_edit_revert">Torna all’originale</string>
+    <plurals name="app_photos_edit_revert_all">
+        <item quantity="one">Annulla ovunque (%1$s)</item>
+        <item quantity="many">Annulla ovunque (%1$s)</item>
+        <item quantity="other">Annulla ovunque (%1$s)</item>
+    </plurals>
+    <string name="app_photos_edit_revert_button">Ripristina</string>
+    <plurals name="app_photos_edit_revert_copies_text">
+        <item quantity="one">Questa modifica si trova in %1$s posti sul tuo dispositivo. Annullarla ovunque o solo qui?</item>
+        <item quantity="many">Questa modifica si trova in %1$s posti sul tuo dispositivo. Annullarla ovunque o solo qui?</item>
+        <item quantity="other">Questa modifica si trova in %1$s posti sul tuo dispositivo. Annullarla ovunque o solo qui?</item>
+    </plurals>
+    <string name="app_photos_edit_revert_failed">Non è stato possibile ripristinare l’originale. Riprova.</string>
+    <string name="app_photos_edit_revert_text">La modifica viene rimossa e la foto torna com’era prima.</string>
+    <string name="app_photos_edit_revert_title">Tornare all’originale?</string>
+    <string name="app_photos_edit_reverting">Ripristino…</string>
+    <string name="app_photos_edit_rotate_left">Ruota a sinistra</string>
+    <string name="app_photos_edit_rotate_right">Ruota a destra</string>
+    <string name="app_photos_edit_save_text">Sostituire la foto con la modifica o salvare la modifica come nuova foto accanto? Se la sostituisci, l’originale viene conservato e puoi tornarci.</string>
+    <string name="app_photos_edit_save_title">Salva la modifica</string>
+    <string name="app_photos_edit_saved_copy">Salvata come \u2068%1$s\u2069</string>
+    <string name="app_photos_edit_saving">Salvataggio…</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s elemento · %2$s</item>
         <item quantity="many">%1$s elementi · %2$s</item>

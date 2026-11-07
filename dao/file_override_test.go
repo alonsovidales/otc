@@ -30,6 +30,8 @@ func TestOverrideFileReplacesTheRowInPlace(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 	mock.ExpectQuery("select count\\(\\*\\) from `file_versions` where `hash` = \\?").WithArgs("old").
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+	mock.ExpectQuery("select count\\(\\*\\) from `edited_content` where `original_hash` = \\?").WithArgs("old").
+		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec("delete from `file_tags` where `hash` = \\?").WithArgs("old").
 		WillReturnResult(sqlmock.NewResult(0, 2))
 	mock.ExpectExec("update `files` set `hash` = \\?, `mime` = \\?, `size` = \\?, `created` = \\?, `modified` = \\?, `cloud_id` = \\? where `path` = \\? and length\\(`path`\\) = length\\(\\?\\)").

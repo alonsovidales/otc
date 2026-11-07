@@ -237,7 +237,7 @@ func TestBothThumbnailsGoWithTheContent(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			mock.ExpectQuery(reReferenced).WithArgs(h, h).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+			mock.ExpectQuery(reReferenced).WithArgs(h, h, h).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 			remove(mg, h)
 			for _, p := range []string{blobPath(h), thumbnailPath(h), smallThumbnailPath(h), blobPath(h) + cNoThumbnailSuffix} {
 				if _, err := os.Stat(p); !os.IsNotExist(err) {

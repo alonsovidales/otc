@@ -57,7 +57,7 @@ func TestTakenPathIsErrDuplicatedFile(t *testing.T) {
 		defer db.Close()
 		mg := keptOut(&Manager{dao: dao.NewWithDB(db)})
 		mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
-			WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+			WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 		expectPathTaken(mock, "/docs/a.txt")
 
 		f, err := mg.UploadFile(ses, "/docs/a.txt", content, false, nil, nil, "")
@@ -88,11 +88,11 @@ func TestTakenPathIsErrDuplicatedFile(t *testing.T) {
 			t.Fatal(err)
 		}
 		mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
-			WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+			WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 		expectPathTaken(mock, "/docs/b.txt")
 		// The committed content is still used elsewhere: it stays.
 		mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
-			WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+			WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 
 		f, err := mg.FinishUpload(ses, id, hash, nil)
 		if f != nil {

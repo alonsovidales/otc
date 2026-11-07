@@ -79,6 +79,21 @@ func DevFilesDownloadFailed(detail string) Msg {
 	return Msg{Key: "dev.files.download_failed", Args: map[string]any{"detail": detail}}
 }
 
+// DevFilesEditFailed is dev.files.edit_failed: "the edit could not be saved: {reason}".
+func DevFilesEditFailed(reason string) Msg {
+	return Msg{Key: "dev.files.edit_failed", Args: map[string]any{"reason": reason}}
+}
+
+// DevFilesEditedCopyName is dev.files.edited_copy_name: "{name} (edited)".
+func DevFilesEditedCopyName(name string) Msg {
+	return Msg{Key: "dev.files.edited_copy_name", Args: map[string]any{"name": name}}
+}
+
+// DevFilesEditsUnavailable is dev.files.edits_unavailable: "this device can edit photos once its update has finished: try again in a few min…".
+func DevFilesEditsUnavailable() Msg {
+	return Msg{Key: "dev.files.edits_unavailable"}
+}
+
 // DevFilesExifUnsupported is dev.files.exif_unsupported: "unsupported mime type for EXIF: {mime}".
 func DevFilesExifUnsupported(mime string) Msg {
 	return Msg{Key: "dev.files.exif_unsupported", Args: map[string]any{"mime": mime}}
@@ -217,6 +232,16 @@ func DevFilesNoSuchLink() Msg {
 // DevFilesNoSuchPath is dev.files.no_such_path: "no such file or directory: {path}".
 func DevFilesNoSuchPath(path string) Msg {
 	return Msg{Key: "dev.files.no_such_path", Args: map[string]any{"path": path}}
+}
+
+// DevFilesNotEditable is dev.files.not_editable: "this file can't be edited: only photos can be turned and cropped, not videos, ca…".
+func DevFilesNotEditable() Msg {
+	return Msg{Key: "dev.files.not_editable"}
+}
+
+// DevFilesNotEdited is dev.files.not_edited: "this photo has no edit to undo".
+func DevFilesNotEdited() Msg {
+	return Msg{Key: "dev.files.not_edited"}
 }
 
 // DevFilesNotOnDevice is dev.files.not_on_device: "{path} is not on this device".

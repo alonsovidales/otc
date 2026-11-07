@@ -318,6 +318,36 @@ export type MessageKey =
   | "web.images.delete.text_collection"
   | "web.images.delete.title"
   | "web.images.delete.upload_only"
+  | "web.images.edit.as_copy"
+  | "web.images.edit.aspect"
+  | "web.images.edit.aspect_16_9"
+  | "web.images.edit.aspect_4_3"
+  | "web.images.edit.aspect_free"
+  | "web.images.edit.aspect_original"
+  | "web.images.edit.aspect_square"
+  | "web.images.edit.button"
+  | "web.images.edit.copies_all"
+  | "web.images.edit.copies_only_this"
+  | "web.images.edit.copies_text"
+  | "web.images.edit.discard"
+  | "web.images.edit.discard_title"
+  | "web.images.edit.failed"
+  | "web.images.edit.replace"
+  | "web.images.edit.reset"
+  | "web.images.edit.revert"
+  | "web.images.edit.revert_all"
+  | "web.images.edit.revert_button"
+  | "web.images.edit.revert_copies_text"
+  | "web.images.edit.revert_failed"
+  | "web.images.edit.revert_text"
+  | "web.images.edit.revert_title"
+  | "web.images.edit.reverting"
+  | "web.images.edit.rotate_left"
+  | "web.images.edit.rotate_right"
+  | "web.images.edit.save_text"
+  | "web.images.edit.save_title"
+  | "web.images.edit.saved_copy"
+  | "web.images.edit.saving"
   | "web.images.error.unreachable"
   | "web.images.grid.clear_search"
   | "web.images.grid.date"
@@ -1533,6 +1563,36 @@ export interface MessageArgs {
   "web.images.delete.text_collection": undefined;
   "web.images.delete.title": { what: string };
   "web.images.delete.upload_only": { count: number };
+  "web.images.edit.as_copy": undefined;
+  "web.images.edit.aspect": undefined;
+  "web.images.edit.aspect_16_9": undefined;
+  "web.images.edit.aspect_4_3": undefined;
+  "web.images.edit.aspect_free": undefined;
+  "web.images.edit.aspect_original": undefined;
+  "web.images.edit.aspect_square": undefined;
+  "web.images.edit.button": undefined;
+  "web.images.edit.copies_all": { count: number };
+  "web.images.edit.copies_only_this": undefined;
+  "web.images.edit.copies_text": { count: number };
+  "web.images.edit.discard": undefined;
+  "web.images.edit.discard_title": undefined;
+  "web.images.edit.failed": undefined;
+  "web.images.edit.replace": undefined;
+  "web.images.edit.reset": undefined;
+  "web.images.edit.revert": undefined;
+  "web.images.edit.revert_all": { count: number };
+  "web.images.edit.revert_button": undefined;
+  "web.images.edit.revert_copies_text": { count: number };
+  "web.images.edit.revert_failed": undefined;
+  "web.images.edit.revert_text": undefined;
+  "web.images.edit.revert_title": undefined;
+  "web.images.edit.reverting": undefined;
+  "web.images.edit.rotate_left": undefined;
+  "web.images.edit.rotate_right": undefined;
+  "web.images.edit.save_text": undefined;
+  "web.images.edit.save_title": undefined;
+  "web.images.edit.saved_copy": { name: string };
+  "web.images.edit.saving": undefined;
   "web.images.error.unreachable": undefined;
   "web.images.grid.clear_search": undefined;
   "web.images.grid.date": { day: string; month: string; year: string };

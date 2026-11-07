@@ -41,6 +41,23 @@ func (mg *Manager) HasHashes(hashes []string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	// An edit's original is held whole too, with no path (edit_image.go).
+	var pathless []string
+	for _, h := range asked {
+		if _, ok := sizes[h]; !ok {
+			pathless = append(pathless, h)
+		}
+	}
+	if len(pathless) > 0 {
+		held, err := mg.dao.HeldOriginals(pathless)
+		if err != nil {
+			// They count as not held: the phone keeps its copies.
+			log.Error("could not look for the originals of edits:", err)
+		}
+		for h, o := range held {
+			sizes[h] = o.Size
+		}
+	}
 	found := []string{}
 	for _, h := range asked {
 		size, ok := sizes[h]

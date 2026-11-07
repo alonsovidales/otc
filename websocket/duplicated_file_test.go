@@ -47,7 +47,7 @@ func TestTakenPathAnswersDuplicatedFile(t *testing.T) {
 	now := time.Now()
 	referenced := func(hash string, n int) {
 		mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
-			WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(n))
+			WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(n))
 	}
 	pathTaken := func(path string) {
 		mock.ExpectExec("insert into `files`").WillReturnError(&mysql.MySQLError{Number: 1062})

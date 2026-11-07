@@ -373,9 +373,9 @@ func TestKeptOutContentGetsAThumbnailButNoAnalysis(t *testing.T) {
 	mg.faceRecognizer = det
 
 	mock.ExpectQuery(reVisible).WillReturnRows(hashRows()) // only /Private/ holds it
-	mock.ExpectQuery(reReferenced).WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+	mock.ExpectQuery(reReferenced).WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 	mock.ExpectExec("insert ignore into `skipped_analysis`").WithArgs(hash, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectQuery(reReferenced).WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1)) // dropIfOrphaned
+	mock.ExpectQuery(reReferenced).WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1)) // dropIfOrphaned
 	mock.ExpectExec("delete from `pending_analysis`").WithArgs(hash).WillReturnResult(sqlmock.NewResult(0, 1))
 	expectSentinel(mock)
 
@@ -399,7 +399,7 @@ func TestKeptOutContentGetsAThumbnailButNoAnalysis(t *testing.T) {
 	mg, mock, _ = recordingMock(t)
 	keptOut(mg, "/Private/")
 	mock.ExpectQuery(reVisible).WillReturnRows(hashRows())
-	mock.ExpectQuery(reReferenced).WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+	mock.ExpectQuery(reReferenced).WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 	mock.ExpectExec("insert ignore into `skipped_analysis`").WillReturnResult(sqlmock.NewResult(0, 0))
 	expectSentinel(mock)
 	if !mg.processStoredStages(ses, &pb.File{Hash: hash, Mime: "image/jpeg", Path: "/Private/a.jpg"}, "/nonexistent", stageAnalysis) {
@@ -570,7 +570,7 @@ func expectDelFile(mock sqlmock.Sqlmock, path, hash string, others int) {
 	mock.ExpectExec("delete from `files` where `path` = \\?").WithArgs(path, path).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	mock.ExpectQuery("select `hash` from `file_versions` where `path` = \\?").WithArgs(path, path).WillReturnRows(hashRows())
-	mock.ExpectQuery(reReferenced).WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(others))
+	mock.ExpectQuery(reReferenced).WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(others))
 }
 
 // A move out of a folder kept out (a link at the new path, then a delete
@@ -654,7 +654,7 @@ func TestKnownContentUploadedToShownPathIsAnalysed(t *testing.T) {
 	onDisk(t, h, true)
 
 	expect := func(mock sqlmock.Sqlmock) {
-		mock.ExpectQuery(reReferenced).WithArgs(h, h).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1)) // contentKnown
+		mock.ExpectQuery(reReferenced).WithArgs(h, h, h).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1)) // contentKnown
 		mock.ExpectExec("insert into `files`").WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectQuery(reVisible).WillReturnRows(hashRows(h))
 		mock.ExpectQuery(reUnder).WillReturnRows(hashRows(h))
@@ -716,7 +716,7 @@ func TestOverrideLeavingContentKeptOut(t *testing.T) {
 	mock.ExpectQuery("select count\\(\\*\\) from `file_versions` where `hash` = \\?").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec("update `files` set").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
-	mock.ExpectQuery(reReferenced).WithArgs(oldHash, oldHash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1)) // /Private/a.jpg
+	mock.ExpectQuery(reReferenced).WithArgs(oldHash, oldHash, oldHash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1)) // /Private/a.jpg
 	mock.ExpectQuery(reVisible).WillReturnRows(hashRows(newHash))
 	mock.ExpectQuery(reUnder).WillReturnRows(hashRows(oldHash))
 	expectDropped(mock, oldHash)
@@ -783,7 +783,7 @@ func TestFlagDuringAnalysisDropsWhatItWrote(t *testing.T) {
 	mock.ExpectQuery(reVisible).WillReturnRows(hashRows())
 	mock.ExpectQuery(reUnder).WillReturnRows(hashRows(h))
 	expectDropped(mock, h)
-	mock.ExpectQuery(reReferenced).WithArgs(h, h).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1)) // dropIfOrphaned
+	mock.ExpectQuery(reReferenced).WithArgs(h, h, h).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1)) // dropIfOrphaned
 	expectSentinel(mock)
 
 	file := &pb.File{Hash: h, Mime: "image/jpeg", Path: "/Private/p.jpg"}
@@ -808,7 +808,7 @@ func TestShowDuringSkipDecisionIsNotLost(t *testing.T) {
 	// The guard waits for whoever holds the decision.
 	mg.outOfImagesMu.Lock()
 	mock.ExpectQuery(reVisible).WillReturnRows(hashRows())
-	mock.ExpectQuery(reReferenced).WithArgs(h, h).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+	mock.ExpectQuery(reReferenced).WithArgs(h, h, h).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 	mock.ExpectExec("insert ignore into `skipped_analysis`").WithArgs(h, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
 	// Then the unflag finds what the guard recorded.
 	mock.ExpectExec("delete from `out_of_images_folders` where `path` = \\?").WithArgs("/Private/").WillReturnResult(sqlmock.NewResult(0, 1))

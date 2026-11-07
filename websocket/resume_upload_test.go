@@ -180,7 +180,7 @@ func TestUploadResumesOnAnotherConnection(t *testing.T) {
 	sent("C's part", chunk(c, id, second, len(content)), len(content))
 
 	mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
-		WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+		WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec("insert into `files`").WillReturnResult(sqlmock.NewResult(1, 1))
 	resp := call(c, &pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqFinishUpload{ReqFinishUpload: &pb.FinishUpload{UploadId: id, Sha256: hash}}})
 	if resp.Error || resp.GetRespFile().GetHash() != hash {

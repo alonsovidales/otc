@@ -118,6 +118,126 @@ fun S.appPhotosDeletePhoneTitleSeveral(): UiText =
 fun S.appPhotosDeletePhoneVideo(): UiText =
     UiText.Res(R.string.app_photos_delete_phone_video)
 
+/** "Save as Copy": Button of the question app.photos.edit.save_title: the edit is saved as a new photo next to this one, which stays as it was. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditAsCopy(): UiText =
+    UiText.Res(R.string.app_photos_edit_as_copy)
+
+/** "Aspect": Button in the photo editor that chooses the shape of the crop: free, the photo's own, square, 4:3 or 16:9. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditAspect(): UiText =
+    UiText.Res(R.string.app_photos_edit_aspect)
+
+/** "16:9": One choice of the crop's shape in the photo editor: sixteen to nine, a widescreen's (nine to sixteen for an upright photo). As written in your language's photo apps. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditAspect169(): UiText =
+    UiText.Res(R.string.app_photos_edit_aspect_16_9)
+
+/** "4:3": One choice of the crop's shape in the photo editor: four to three (three to four for an upright photo). As written in your language's photo apps. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditAspect43(): UiText =
+    UiText.Res(R.string.app_photos_edit_aspect_4_3)
+
+/** "Free": One choice of the crop's shape in the photo editor: any shape, as the owner drags it. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditAspectFree(): UiText =
+    UiText.Res(R.string.app_photos_edit_aspect_free)
+
+/** "Original": One choice of the crop's shape in the photo editor: the photo's own proportions. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditAspectOriginal(): UiText =
+    UiText.Res(R.string.app_photos_edit_aspect_original)
+
+/** "Square": One choice of the crop's shape in the photo editor: as wide as it is high. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditAspectSquare(): UiText =
+    UiText.Res(R.string.app_photos_edit_aspect_square)
+
+/** "Edit": The photo viewer's button that opens the editor: turn and crop the photo shown. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditButton(): UiText =
+    UiText.Res(R.string.app_photos_edit_button)
+
+/** "Replace All {count}" (one: "Replace All {count}"): Button of app.photos.edit.copies_text: every copy of the photo on the device becomes the edit. {count} is how many: always 2 or more, so both forms are the plural. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditCopiesAll(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_edit_copies_all, count, listOf(count))
+
+/** "Only Here": Button of app.photos.edit.copies_text (and of revert_app.photos.edit.copies_text): only the copy opened changes; the other copies stay as they are. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditCopiesOnlyThis(): UiText =
+    UiText.Res(R.string.app_photos_edit_copies_only_this)
+
+/** "This photo is in {count} places on your device. Replace it in all of them, or only here?" (one: "This photo is in {count} places on your device. Replace it in all of them, or only here?"): Asked after Replace Photo when the device holds the same photo at more than one path (the copies of the Delete question: another folder, or downloaded to a phone or computer and synced back). {count} is how many, this one included: always 2 or more, so both forms are the plural. Buttons: copies_all, copies_only_this and Cancel. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditCopiesText(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_edit_copies_text, count, listOf(count))
+
+/** "Discard": Button of discard_title: leaves the editor; the photo stays as it was. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditDiscard(): UiText =
+    UiText.Res(R.string.app_photos_edit_discard)
+
+/** "Discard the Edit?": Asked when the owner leaves the photo editor with a turn or a crop not saved. Buttons: discard and Cancel. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditDiscardTitle(): UiText =
+    UiText.Res(R.string.app_photos_edit_discard_title)
+
+/** "Couldn't save the edit. Try again.": Error when the edit couldn't be saved and the device said nothing about why (the connection dropped). When the device gives a reason, its own words are shown instead. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditFailed(): UiText =
+    UiText.Res(R.string.app_photos_edit_failed)
+
+/** "Replace Photo": Button of the question app.photos.edit.save_title: the photo becomes the edit; its original is kept hidden on the device. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditReplace(): UiText =
+    UiText.Res(R.string.app_photos_edit_replace)
+
+/** "Reset": Button in the photo editor: undoes the turns and the crop made so far, back to the photo as it opened. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditReset(): UiText =
+    UiText.Res(R.string.app_photos_edit_reset)
+
+/** "Revert to Original": Item of the photo viewer (for a photo replaced by an edit on the device): puts the original back. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditRevert(): UiText =
+    UiText.Res(R.string.app_photos_edit_revert)
+
+/** "Revert All {count}" (one: "Revert All {count}"): Button of revert_app.photos.edit.copies_text: every copy of the edit goes back to the original. {count}: always 2 or more. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditRevertAll(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_edit_revert_all, count, listOf(count))
+
+/** "Revert": Button of revert_title (revert_text): puts the original back. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditRevertButton(): UiText =
+    UiText.Res(R.string.app_photos_edit_revert_button)
+
+/** "This edit is in {count} places on your device. Revert all of them, or only here?" (one: "This edit is in {count} places on your device. Revert all of them, or only here?"): Text of revert_title instead of revert_text when the device holds the edited photo at more than one path (it was replaced in all its copies). {count} is how many: always 2 or more, so both forms are the plural. Buttons: revert_all, copies_only_this and Cancel. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditRevertCopiesText(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_edit_revert_copies_text, count, listOf(count))
+
+/** "Couldn't put the original back. Try again.": Error when the original couldn't be put back and the device said nothing about why (the connection dropped). When the device gives a reason, its own words are shown instead. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditRevertFailed(): UiText =
+    UiText.Res(R.string.app_photos_edit_revert_failed)
+
+/** "The edit is removed and the photo is as it was before it was edited.": Text of revert_title. Buttons: revert_button and Cancel. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditRevertText(): UiText =
+    UiText.Res(R.string.app_photos_edit_revert_text)
+
+/** "Revert to the Original?": Title of the confirmation of revert. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditRevertTitle(): UiText =
+    UiText.Res(R.string.app_photos_edit_revert_title)
+
+/** "Reverting…": Shown while the device puts a photo's original back. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditReverting(): UiText =
+    UiText.Res(R.string.app_photos_edit_reverting)
+
+/** "Rotate Left": Button in the photo editor: turns the photo a quarter turn to the left (anticlockwise). In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditRotateLeft(): UiText =
+    UiText.Res(R.string.app_photos_edit_rotate_left)
+
+/** "Rotate Right": Button in the photo editor: turns the photo a quarter turn to the right (clockwise). In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditRotateRight(): UiText =
+    UiText.Res(R.string.app_photos_edit_rotate_right)
+
+/** "Replace the photo with the edit, or save the edit as a new photo next to it? A replaced photo's original is kept, so you can go back to it.": Text of the question app.photos.edit.save_title. Replace: the photo becomes the edit (in Images, collections, Favourites), and the device keeps the original hidden so Revert to original can bring it back. Copy: a new photo in the same folder, the photo left as it was. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditSaveText(): UiText =
+    UiText.Res(R.string.app_photos_edit_save_text)
+
+/** "Save the Edit": Title of the question asked when the owner saves a turn or a crop in the photo editor: replace the photo, or save the edit as a new photo. In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditSaveTitle(): UiText =
+    UiText.Res(R.string.app_photos_edit_save_title)
+
+/** "Saved as {name}": Shown once the edit is saved as a copy. {name} is the copy's file name (IMG_1234 (edited).jpg). In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditSavedCopy(name: String): UiText =
+    UiText.Res(R.string.app_photos_edit_saved_copy, listOf(name))
+
+/** "Saving…": Shown while the device saves the edit (it turns and crops the full-size photo: a few seconds). In the phone apps' (iPhone, Android) photo editor. */
+fun S.appPhotosEditSaving(): UiText =
+    UiText.Res(R.string.app_photos_edit_saving)
+
 /** "{count} items · {span}" (one: "{count} item · {span}"): Under an open collection's name, over its photos in Images: how many photos and videos it holds, then the months they span (app.photos.months.short_title, range_in_year or range). Without the months it is app.shell.collection_items. */
 fun S.appPhotosGridCollectionItemsSpan(count: Int, span: String): UiText =
     UiText.Plural(R.plurals.app_photos_grid_collection_items_span, count, listOf(count, span))

@@ -5,7 +5,9 @@ package websocket
 import (
 	"errors"
 
+	"github.com/alonsovidales/otc/devtext"
 	filesmanager "github.com/alonsovidales/otc/files_manager"
+	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
@@ -33,5 +35,26 @@ func contentCode(resp *pb.RespEnvelope, err error) {
 		resp.ErrorCode = cCodeStorageFull
 	case errors.Is(err, filesmanager.ErrTooLarge):
 		resp.ErrorCode = cCodeTooLarge
+	}
+}
+
+// editError fills resp with an edit's or a revert's refusal (EditImage,
+// RevertImage): its code, and its message in lang.
+func editError(resp *pb.RespEnvelope, lang string, err error) {
+	var changed *filesmanager.ContentChangedError
+	resp.Error = true
+	resp.ErrorMessage = devtext.Text(lang, err)
+	switch {
+	case errors.As(err, &changed):
+		log.Info("a photo edit was refused: the path holds other content than the client showed")
+		resp.ErrorCode = cCodeContentChanged
+	case filesmanager.IsNotEditable(err):
+		log.Info("a photo edit was refused: the content can't be edited")
+		resp.ErrorCode = cCodeNotEditable
+	case errors.Is(err, filesmanager.ErrNotEdited):
+		resp.ErrorCode = cCodeNotEdited
+	default:
+		log.Error("a photo edit failed:", err)
+		contentCode(resp, err)
 	}
 }

@@ -838,9 +838,9 @@ disks itself and watches them, as the Raspberry Pi does; updates come by pulling
 ## What is encrypted on the device
 
 Everything you store is encrypted at rest under a key only your password unlocks: file
-contents, thumbnails, previous versions and face embeddings (AES-GCM, in 1 MiB segments; since
-release 164 each file is sealed under a key of its own, derived from that key and a random salt
-kept with the file). A share link's archive or gallery is encrypted the same way under the secret
+contents, thumbnails, previous versions, the originals of photos you edited and face embeddings
+(AES-GCM, in 1 MiB segments; since release 164 each file is sealed under a key of its own,
+derived from that key and a random salt kept with the file). A share link's archive or gallery is encrypted the same way under the secret
 in the link itself, which the device doesn't keep. Someone who takes the disks - or the whole device - without your password can't
 read any of it.
 

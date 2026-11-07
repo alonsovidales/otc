@@ -103,7 +103,7 @@ func TestUploadOfProcessedContentIsNotProcessedAgain(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		mg := keptOut(&Manager{dao: dao.NewWithDB(db)})
 		mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
-			WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+			WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 		mock.ExpectExec("insert into `files`").WillReturnResult(sqlmock.NewResult(1, 1))
 		if !processed {
 			mock.ExpectExec("insert ignore into `pending_analysis`").WithArgs(hash, sqlmock.AnyArg()).
@@ -162,7 +162,7 @@ func TestOverrideKeepsThePathsVersions(t *testing.T) {
 	mock.ExpectCommit()
 	// The replaced content is still a version's: its blob stays.
 	mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
-		WithArgs(oldHash, oldHash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+		WithArgs(oldHash, oldHash, oldHash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 
 	f, err := mg.LinkFile(ses, "/backup/a.txt", newHash, true, nil, nil, "")
 	if err != nil || f.Hash != newHash {

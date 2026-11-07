@@ -158,10 +158,14 @@ func (dao *Dao) hashFaces(hash string) (faces []DeletedFace, err error) {
 }
 
 // OrphanFaceHashes is the content hashes that have faces but no file or
-// kept version any more - left by deletes from before faces went with
-// their content.
+// kept version any more, nor are kept as an edit's original - left by
+// deletes from before faces went with their content.
 func (dao *Dao) OrphanFaceHashes() (hashes []string, err error) {
-	rows, err := dao.db.Query("select distinct `hash` from `faces` as `fc` where not exists (select 1 from `files` where `files`.`hash` = `fc`.`hash`) and not exists (select 1 from `file_versions` where `file_versions`.`hash` = `fc`.`hash`)")
+	const orphan = "select distinct `hash` from `faces` as `fc` where not exists (select 1 from `files` where `files`.`hash` = `fc`.`hash`) and not exists (select 1 from `file_versions` where `file_versions`.`hash` = `fc`.`hash`)"
+	rows, err := dao.db.Query(orphan + " and not exists (select 1 from `edited_content` where `edited_content`.`original_hash` = `fc`.`hash`)")
+	if isNoSuchTable(err) {
+		rows, err = dao.db.Query(orphan) // a database without edits
+	}
 	if err != nil {
 		return nil, err
 	}

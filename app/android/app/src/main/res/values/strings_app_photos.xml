@@ -50,6 +50,48 @@
     <string name="app_photos_delete_phone_title">Also delete from this phone?</string>
     <string name="app_photos_delete_phone_title_several">Also delete them from this phone?</string>
     <string name="app_photos_delete_phone_video">This video is also on this phone.</string>
+    <string name="app_photos_edit_as_copy">Save as Copy</string>
+    <string name="app_photos_edit_aspect">Aspect</string>
+    <string name="app_photos_edit_aspect_16_9">16:9</string>
+    <string name="app_photos_edit_aspect_4_3">4:3</string>
+    <string name="app_photos_edit_aspect_free">Free</string>
+    <string name="app_photos_edit_aspect_original">Original</string>
+    <string name="app_photos_edit_aspect_square">Square</string>
+    <string name="app_photos_edit_button">Edit</string>
+    <plurals name="app_photos_edit_copies_all">
+        <item quantity="one">Replace All %1$s</item>
+        <item quantity="other">Replace All %1$s</item>
+    </plurals>
+    <string name="app_photos_edit_copies_only_this">Only Here</string>
+    <plurals name="app_photos_edit_copies_text">
+        <item quantity="one">This photo is in %1$s places on your device. Replace it in all of them, or only here?</item>
+        <item quantity="other">This photo is in %1$s places on your device. Replace it in all of them, or only here?</item>
+    </plurals>
+    <string name="app_photos_edit_discard">Discard</string>
+    <string name="app_photos_edit_discard_title">Discard the Edit?</string>
+    <string name="app_photos_edit_failed">Couldn\'t save the edit. Try again.</string>
+    <string name="app_photos_edit_replace">Replace Photo</string>
+    <string name="app_photos_edit_reset">Reset</string>
+    <string name="app_photos_edit_revert">Revert to Original</string>
+    <plurals name="app_photos_edit_revert_all">
+        <item quantity="one">Revert All %1$s</item>
+        <item quantity="other">Revert All %1$s</item>
+    </plurals>
+    <string name="app_photos_edit_revert_button">Revert</string>
+    <plurals name="app_photos_edit_revert_copies_text">
+        <item quantity="one">This edit is in %1$s places on your device. Revert all of them, or only here?</item>
+        <item quantity="other">This edit is in %1$s places on your device. Revert all of them, or only here?</item>
+    </plurals>
+    <string name="app_photos_edit_revert_failed">Couldn\'t put the original back. Try again.</string>
+    <string name="app_photos_edit_revert_text">The edit is removed and the photo is as it was before it was edited.</string>
+    <string name="app_photos_edit_revert_title">Revert to the Original?</string>
+    <string name="app_photos_edit_reverting">Reverting…</string>
+    <string name="app_photos_edit_rotate_left">Rotate Left</string>
+    <string name="app_photos_edit_rotate_right">Rotate Right</string>
+    <string name="app_photos_edit_save_text">Replace the photo with the edit, or save the edit as a new photo next to it? A replaced photo\'s original is kept, so you can go back to it.</string>
+    <string name="app_photos_edit_save_title">Save the Edit</string>
+    <string name="app_photos_edit_saved_copy">Saved as \u2068%1$s\u2069</string>
+    <string name="app_photos_edit_saving">Saving…</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s item · %2$s</item>
         <item quantity="other">%1$s items · %2$s</item>

@@ -168,6 +168,150 @@
     "en": "This video is also on this phone.",
     "reviewed": "claude-backtranslation 2026-11-03 #774d1af2"
   },
+  "app.photos.edit.as_copy": {
+    "text": "Als Kopie speichern",
+    "en": "Save as Copy"
+  },
+  "app.photos.edit.aspect": {
+    "text": "Seitenverhältnis",
+    "en": "Aspect"
+  },
+  "app.photos.edit.aspect_16_9": {
+    "text": "16:9",
+    "en": "16:9"
+  },
+  "app.photos.edit.aspect_4_3": {
+    "text": "4:3",
+    "en": "4:3"
+  },
+  "app.photos.edit.aspect_free": {
+    "text": "Frei",
+    "en": "Free"
+  },
+  "app.photos.edit.aspect_original": {
+    "text": "Original",
+    "en": "Original"
+  },
+  "app.photos.edit.aspect_square": {
+    "text": "Quadrat",
+    "en": "Square"
+  },
+  "app.photos.edit.button": {
+    "text": "Bearbeiten",
+    "en": "Edit"
+  },
+  "app.photos.edit.copies_all": {
+    "text": {
+      "one": "Überall ersetzen ({count})",
+      "other": "Überall ersetzen ({count})"
+    },
+    "en": {
+      "one": "Replace All {count}",
+      "other": "Replace All {count}"
+    }
+  },
+  "app.photos.edit.copies_only_this": {
+    "text": "Nur hier",
+    "en": "Only Here"
+  },
+  "app.photos.edit.copies_text": {
+    "text": {
+      "one": "Dieses Foto liegt an {count} Stellen auf deinem Gerät. Überall ersetzen oder nur hier?",
+      "other": "Dieses Foto liegt an {count} Stellen auf deinem Gerät. Überall ersetzen oder nur hier?"
+    },
+    "en": {
+      "one": "This photo is in {count} places on your device. Replace it in all of them, or only here?",
+      "other": "This photo is in {count} places on your device. Replace it in all of them, or only here?"
+    }
+  },
+  "app.photos.edit.discard": {
+    "text": "Verwerfen",
+    "en": "Discard"
+  },
+  "app.photos.edit.discard_title": {
+    "text": "Bearbeitung verwerfen?",
+    "en": "Discard the Edit?"
+  },
+  "app.photos.edit.failed": {
+    "text": "Die Bearbeitung konnte nicht gespeichert werden. Versuche es erneut.",
+    "en": "Couldn't save the edit. Try again."
+  },
+  "app.photos.edit.replace": {
+    "text": "Foto ersetzen",
+    "en": "Replace Photo"
+  },
+  "app.photos.edit.reset": {
+    "text": "Zurücksetzen",
+    "en": "Reset"
+  },
+  "app.photos.edit.revert": {
+    "text": "Zum Original zurück",
+    "en": "Revert to Original"
+  },
+  "app.photos.edit.revert_all": {
+    "text": {
+      "one": "Überall rückgängig ({count})",
+      "other": "Überall rückgängig ({count})"
+    },
+    "en": {
+      "one": "Revert All {count}",
+      "other": "Revert All {count}"
+    }
+  },
+  "app.photos.edit.revert_button": {
+    "text": "Wiederherstellen",
+    "en": "Revert"
+  },
+  "app.photos.edit.revert_copies_text": {
+    "text": {
+      "one": "Diese Bearbeitung liegt an {count} Stellen auf deinem Gerät. Überall rückgängig machen oder nur hier?",
+      "other": "Diese Bearbeitung liegt an {count} Stellen auf deinem Gerät. Überall rückgängig machen oder nur hier?"
+    },
+    "en": {
+      "one": "This edit is in {count} places on your device. Revert all of them, or only here?",
+      "other": "This edit is in {count} places on your device. Revert all of them, or only here?"
+    }
+  },
+  "app.photos.edit.revert_failed": {
+    "text": "Das Original konnte nicht wiederhergestellt werden. Versuche es erneut.",
+    "en": "Couldn't put the original back. Try again."
+  },
+  "app.photos.edit.revert_text": {
+    "text": "Die Bearbeitung wird entfernt und das Foto ist wieder so wie vor der Bearbeitung.",
+    "en": "The edit is removed and the photo is as it was before it was edited."
+  },
+  "app.photos.edit.revert_title": {
+    "text": "Zum Original zurückkehren?",
+    "en": "Revert to the Original?"
+  },
+  "app.photos.edit.reverting": {
+    "text": "Wird wiederhergestellt…",
+    "en": "Reverting…"
+  },
+  "app.photos.edit.rotate_left": {
+    "text": "Nach links drehen",
+    "en": "Rotate Left"
+  },
+  "app.photos.edit.rotate_right": {
+    "text": "Nach rechts drehen",
+    "en": "Rotate Right"
+  },
+  "app.photos.edit.save_text": {
+    "text": "Das Foto durch die Bearbeitung ersetzen oder die Bearbeitung als neues Foto daneben speichern? Beim Ersetzen bleibt das Original erhalten, damit du dorthin zurückkehren kannst.",
+    "en": "Replace the photo with the edit, or save the edit as a new photo next to it? A replaced photo's original is kept, so you can go back to it."
+  },
+  "app.photos.edit.save_title": {
+    "text": "Bearbeitung speichern",
+    "en": "Save the Edit"
+  },
+  "app.photos.edit.saved_copy": {
+    "text": "Gespeichert als {name}",
+    "en": "Saved as {name}"
+  },
+  "app.photos.edit.saving": {
+    "text": "Wird gespeichert…",
+    "en": "Saving…"
+  },
   "app.photos.grid.collection_items_span": {
     "text": {
       "one": "{count} Element · {span}",

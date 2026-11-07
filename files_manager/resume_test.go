@@ -116,7 +116,7 @@ func TestUploadResumesAfterADrop(t *testing.T) {
 	}
 	sendFrom(t, mg, ses, id, content, first, 700000, connB)
 
-	mock.ExpectQuery(reReferenced).WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+	mock.ExpectQuery(reReferenced).WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec("insert into `files`").
 		WithArgs(hash, sqlmock.AnyArg(), sqlmock.AnyArg(), modified.AsTime(), "/Videos/clip.bin", size, "cloud-2").
 		WillReturnResult(sqlmock.NewResult(1, 1))

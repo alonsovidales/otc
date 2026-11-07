@@ -61,6 +61,18 @@
     "text": "erreur lors du téléchargement du fichier : {detail}",
     "en": "error trying to download file: {detail}"
   },
+  "dev.files.edit_failed": {
+    "text": "la modification n’a pas pu être enregistrée : {reason}",
+    "en": "the edit could not be saved: {reason}"
+  },
+  "dev.files.edited_copy_name": {
+    "text": "{name} (modifiée)",
+    "en": "{name} (edited)"
+  },
+  "dev.files.edits_unavailable": {
+    "text": "cet appareil pourra modifier des photos une fois sa mise à jour terminée : réessayez dans quelques minutes",
+    "en": "this device can edit photos once its update has finished: try again in a few minutes"
+  },
   "dev.files.exif_unsupported": {
     "text": "type MIME non pris en charge pour EXIF : {mime}",
     "en": "unsupported mime type for EXIF: {mime}"
@@ -172,6 +184,14 @@
   "dev.files.no_such_path": {
     "text": "fichier ou dossier introuvable : {path}",
     "en": "no such file or directory: {path}"
+  },
+  "dev.files.not_editable": {
+    "text": "ce fichier ne peut pas être modifié : seules les photos peuvent être pivotées et recadrées, pas les vidéos, les fichiers RAW d’appareil photo ni les animations",
+    "en": "this file can't be edited: only photos can be turned and cropped, not videos, camera raws or animations"
+  },
+  "dev.files.not_edited": {
+    "text": "cette photo n’a aucune modification à annuler",
+    "en": "this photo has no edit to undo"
   },
   "dev.files.not_on_device": {
     "text": "{path} n’est pas sur cet appareil",

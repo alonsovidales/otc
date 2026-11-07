@@ -137,11 +137,12 @@ func expectLastDelFile(mock sqlmock.Sqlmock, path, hash string) {
 	mock.ExpectQuery("select `hash` from `files` where `path` = \\?").WithArgs(path, path).WillReturnRows(hashRows(hash))
 	mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\?").WithArgs(hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 	mock.ExpectQuery("select count\\(\\*\\) from `file_versions` where `hash` = \\?").WithArgs(hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+	mock.ExpectQuery("select count\\(\\*\\) from `edited_content` where `original_hash` = \\?").WithArgs(hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec("delete from `file_tags` where `hash` = \\?").WithArgs(hash).WillReturnResult(sqlmock.NewResult(0, 3))
 	mock.ExpectExec("delete from `files` where `path` = \\?").WithArgs(path, path).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	mock.ExpectQuery("select `hash` from `file_versions` where `path` = \\?").WithArgs(path, path).WillReturnRows(hashRows())
-	mock.ExpectQuery(reReferenced).WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+	mock.ExpectQuery(reReferenced).WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs(hash).WillReturnRows(sqlmock.NewRows([]string{"id", "person_id"}))
 	mock.ExpectExec("delete from `skipped_analysis` where `hash` in").WithArgs(hash).WillReturnResult(sqlmock.NewResult(0, 0))
 }

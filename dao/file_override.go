@@ -56,8 +56,15 @@ func (dao *Dao) OverrideFile(file *pb.File, cloudID string) (oldHash string, err
 			return "", err
 		}
 		if refCount+versionRefs <= 1 {
-			if _, err = tx.Exec("delete from `file_tags` where `hash` = ?", oldHash); err != nil {
+			// Nor an edit's original, which keeps its tags while it is kept.
+			edits, err := editRefs(tx, oldHash)
+			if err != nil {
 				return "", err
+			}
+			if edits == 0 {
+				if _, err = tx.Exec("delete from `file_tags` where `hash` = ?", oldHash); err != nil {
+					return "", err
+				}
 			}
 		}
 	}

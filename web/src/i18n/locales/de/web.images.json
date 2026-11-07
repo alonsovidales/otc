@@ -103,6 +103,52 @@
     "other": "{count} Elemente liegen in einem Ordner mit „Nur hochladen“ und können nicht gelöscht werden",
     "arg": "count"
   },
+  "web.images.edit.as_copy": "Als Kopie speichern",
+  "web.images.edit.aspect": "Seitenverhältnis",
+  "web.images.edit.aspect_16_9": "16:9",
+  "web.images.edit.aspect_4_3": "4:3",
+  "web.images.edit.aspect_free": "Frei",
+  "web.images.edit.aspect_original": "Original",
+  "web.images.edit.aspect_square": "Quadrat",
+  "web.images.edit.button": "Bearbeiten",
+  "web.images.edit.copies_all": {
+    "one": "Überall ersetzen ({count})",
+    "other": "Überall ersetzen ({count})",
+    "arg": "count"
+  },
+  "web.images.edit.copies_only_this": "Nur hier",
+  "web.images.edit.copies_text": {
+    "one": "Dieses Foto liegt an {count} Stellen auf deinem Gerät. Überall ersetzen oder nur hier?",
+    "other": "Dieses Foto liegt an {count} Stellen auf deinem Gerät. Überall ersetzen oder nur hier?",
+    "arg": "count"
+  },
+  "web.images.edit.discard": "Verwerfen",
+  "web.images.edit.discard_title": "Bearbeitung verwerfen?",
+  "web.images.edit.failed": "Die Bearbeitung konnte nicht gespeichert werden. Versuche es erneut.",
+  "web.images.edit.replace": "Foto ersetzen",
+  "web.images.edit.reset": "Zurücksetzen",
+  "web.images.edit.revert": "Zum Original zurück",
+  "web.images.edit.revert_all": {
+    "one": "Überall rückgängig ({count})",
+    "other": "Überall rückgängig ({count})",
+    "arg": "count"
+  },
+  "web.images.edit.revert_button": "Wiederherstellen",
+  "web.images.edit.revert_copies_text": {
+    "one": "Diese Bearbeitung liegt an {count} Stellen auf deinem Gerät. Überall rückgängig machen oder nur hier?",
+    "other": "Diese Bearbeitung liegt an {count} Stellen auf deinem Gerät. Überall rückgängig machen oder nur hier?",
+    "arg": "count"
+  },
+  "web.images.edit.revert_failed": "Das Original konnte nicht wiederhergestellt werden. Versuche es erneut.",
+  "web.images.edit.revert_text": "Die Bearbeitung wird entfernt und das Foto ist wieder so wie vor der Bearbeitung.",
+  "web.images.edit.revert_title": "Zum Original zurückkehren?",
+  "web.images.edit.reverting": "Wird wiederhergestellt…",
+  "web.images.edit.rotate_left": "Nach links drehen",
+  "web.images.edit.rotate_right": "Nach rechts drehen",
+  "web.images.edit.save_text": "Das Foto durch die Bearbeitung ersetzen oder die Bearbeitung als neues Foto daneben speichern? Beim Ersetzen bleibt das Original erhalten, damit du dorthin zurückkehren kannst.",
+  "web.images.edit.save_title": "Bearbeitung speichern",
+  "web.images.edit.saved_copy": "Gespeichert als \u2068{name}\u2069",
+  "web.images.edit.saving": "Wird gespeichert…",
   "web.images.error.unreachable": "Dein Gerät war nicht erreichbar. Versuche es erneut.",
   "web.images.grid.clear_search": "Suche löschen",
   "web.images.grid.date": "{day}. {month} {year}",

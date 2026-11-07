@@ -120,7 +120,7 @@ func storedFile(t *testing.T, ses *session.Session, hash, path, mime string, con
 }
 
 func referenced(mock sqlmock.Sqlmock, hash string) {
-	mock.ExpectQuery(reReferenced).WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+	mock.ExpectQuery(reReferenced).WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 }
 
 func pendingCleared(mock sqlmock.Sqlmock, hash string) {

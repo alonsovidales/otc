@@ -536,6 +536,10 @@ func TestDelFileByPathLocksRefCountQuery(t *testing.T) {
 		mock.ExpectQuery("select count\\(\\*\\) from `file_versions` where `hash` = \\?").
 			WithArgs(hash).
 			WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
+		// So does an edit's original (edited.go).
+		mock.ExpectQuery("select count\\(\\*\\) from `edited_content` where `original_hash` = \\?").
+			WithArgs(hash).
+			WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
 		mock.ExpectExec("delete from `file_tags` where `hash` = \\?").
 			WithArgs(hash).
 			WillReturnResult(sqlmock.NewResult(0, 1))
@@ -549,6 +553,33 @@ func TestDelFileByPathLocksRefCountQuery(t *testing.T) {
 		}
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Errorf("unmet expectations (a fix that drops the FOR UPDATE lock, or skips deleting file_tags, would show up here): %v", err)
+		}
+	})
+
+	t.Run("an edit made from it leaves file_tags alone", func(t *testing.T) {
+		mock.ExpectBegin()
+		mock.ExpectQuery("select `hash` from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\) for update").
+			WithArgs("/c.jpg", "/c.jpg").
+			WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow(hash))
+		mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\? for update").
+			WithArgs(hash).
+			WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(1))
+		mock.ExpectQuery("select count\\(\\*\\) from `file_versions` where `hash` = \\?").
+			WithArgs(hash).
+			WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
+		mock.ExpectQuery("select count\\(\\*\\) from `edited_content` where `original_hash` = \\?").
+			WithArgs(hash).
+			WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(1))
+		mock.ExpectExec("delete from `files` where `path` = \\? and length\\(`path`\\) = length\\(\\?\\)").
+			WithArgs("/c.jpg", "/c.jpg").
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+
+		if err := d.DelFileByPath("/c.jpg"); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("unmet expectations (the tags of an edit's original deleted would show up here): %v", err)
 		}
 	})
 

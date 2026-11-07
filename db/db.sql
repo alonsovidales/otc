@@ -80,6 +80,29 @@ create table file_versions
   key (`hash`)
 ) engine=InnoDB;
 
+-- Photo edit (EditImage): content made on the device by rotating and
+-- cropping a photo, one row per edit's hash, naming the photo it was made
+-- from (the first original, through edits of edits). The original's blob,
+-- thumbnails, tags and faces are kept while an edit of it is held - it has
+-- no path, and is what RevertImage puts back - so a phone's sync and Free
+-- up space still find it by its hash. `original_mime`/`original_size` are
+-- the original's; `original_ext` its name's extension as it was (".HEIC")
+-- when the edit changed it, '' when it didn't. The row goes when no file or
+-- kept version holds the edit any more, and the original with it once
+-- nothing else holds that.
+create table edited_content
+(
+  `hash` varchar(64) not null,
+  `original_hash` varchar(64) not null,
+  `original_mime` varchar(150) not null,
+  `original_size` bigint not null,
+  `original_ext` varchar(16) not null default '',
+  `edited` datetime not null,
+
+  primary key (`hash`),
+  key (`original_hash`)
+) engine=InnoDB;
+
 -- Issue #192: folders kept out of Images. A path (always with its trailing
 -- slash) listed here, and everything under it, is left out of Images - the
 -- photo search, its date buckets, collections - and its photos and videos

@@ -362,6 +362,82 @@ message LinkFile {
   google.protobuf.Timestamp modified = 6;
 }
 
+// Photo edit: rotates and crops a photo on the device (the viewers' Edit).
+// The device decodes the photo as it is shown (its own orientation turned
+// in), turns it quarter_turns clockwise, keeps crop of it, and stores the
+// result as new content with a hash of its own: a JPEG (camera details and
+// colour profile kept, the orientation then upright), a PNG for a PNG. A
+// JPEG only turned is turned losslessly instead: only its orientation tag
+// changes. The original is kept - hidden, no path of its own - so the
+// edit can be reverted (RevertImage), a phone's sync finds the photo it
+// sends already there (HasFile, and LinkFile or an upload of it into the
+// folder holding its edit answers with the edited file), and Free up space
+// can still count it held (HasHashes).
+//
+// Replacing (as_copy false) gives this path - or, with every_copy, every
+// path holding the same content (File.copies) - the edit in place: a name
+// whose extension no longer fits (a HEIC become a JPEG) gets ".jpg", or
+// the first free "<name> (n).jpg". Once no path holds the photo any more,
+// its collections, favourite and ratings go with its edit, its faces too
+// (moved with the crop). as_copy leaves the photo as it was and saves the
+// edit next to it as "<name> (edited).jpg" (in the owner's language), with
+// the photo's date.
+//
+// Answers with the edited file (resp_file; the copy for as_copy), or an
+// error: error_code "changed" when hash is set and the path holds other
+// content now (nothing edited), "not_editable" for content the device
+// can't edit (videos, camera raws, animations, anything not a photo),
+// "storage_full" when there is no room; the message says so in the
+// owner's language. Devices before it answer "unknown_payload".
+message EditImage {
+  string path = 1;
+  // The content the client showed for path (File.hash); empty checks
+  // nothing.
+  string hash = 2;
+  // Clockwise, 0 to 3; anything else is taken modulo 4.
+  int32 quarter_turns = 3;
+  // The part kept of the turned photo; unset keeps it whole.
+  EditCrop crop = 4;
+  bool as_copy = 5;
+  // With as_copy false: every path holding this content, not only path.
+  bool every_copy = 6;
+}
+
+// The part of a photo an edit keeps: fractions (0 to 1) of the turned
+// photo's width and height, from its top left corner. Rounded to whole
+// pixels, at least one, and kept inside the photo.
+message EditCrop {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+}
+
+// Photo edit: puts the original back (File.original_hash) at path - or,
+// with every_copy, at every path holding the same edit - with its own name
+// back when the edit changed it and that name is free. The edit itself is
+// deleted once no path holds it, and its collections and ratings go back
+// to the original. Answers with the file at path (resp_file); error_code
+// "changed" as EditImage's, "not_edited" when path holds no edit.
+message RevertImage {
+  string path = 1;
+  string hash = 2;
+  bool every_copy = 3;
+}
+
+// Photo edit: what the edit's Save asks before it is sent - how many paths
+// hold the content at path (copies, at least 1: the "all N copies or only
+// this one" question), and whether it is an edit (edited: Revert to
+// original). Answers with EditState.
+message GetEditState {
+  string path = 1;
+}
+
+message EditState {
+  int32 copies = 1;
+  bool edited = 2;
+}
+
 message DelFile {
   string path = 1;
   // Issue #201: Images' "delete every copy". When true, the device
@@ -991,6 +1067,14 @@ message File {
   // Rating is on, the photo's stars and comment there - unset for a photo
   // with neither, and everywhere else.
   optional PhotoRating rating = 15;
+  // Photo edit (EditImage): set when this content is a photo edited on the
+  // device, to the SHA-256 of the photo it was made from (the first one,
+  // through edits of edits). The device keeps that original, so the viewer
+  // offers RevertImage, and a phone's sync and Free up space find it by
+  // that hash. In ListFiles and SearchPhotos answers (and the files of an
+  // edit's own answer); empty everywhere else, for content that isn't an
+  // edit, and from devices before it.
+  string original_hash = 16;
 }
 
 message Ack {
@@ -3197,6 +3281,12 @@ message ReqEnvelope {
     // A slideshow's photos in a random order: resp_list_of_files. Devices
     // before it answer "unknown_payload".
     RandomPhotos req_random_photos = 161;
+    // Photo edit: EditImage and RevertImage answer with resp_file,
+    // GetEditState with resp_edit_state. Devices before them answer
+    // "unknown_payload".
+    EditImage req_edit_image = 162;
+    RevertImage req_revert_image = 163;
+    GetEditState req_get_edit_state = 164;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -3328,5 +3418,7 @@ message RespEnvelope {
     PhotoFaces resp_photo_faces = 75;
     // The answer to SetPhotoRating.
     PhotoRating resp_photo_rating = 76;
+    // The answer to GetEditState.
+    EditState resp_edit_state = 77;
   }
 }

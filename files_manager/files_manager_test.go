@@ -458,7 +458,7 @@ func TestDelFileKeepsUnderlyingBlobWhenHashStillReferencedByAnotherPath(t *testi
 	// ...and the check DelFile actually needs: does anything else still
 	// reference this hash - another path or a kept version. 1 means yes.
 	mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
-		WithArgs(hash, hash).
+		WithArgs(hash, hash, hash).
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 
 	mg := keptOut(&Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(10)})

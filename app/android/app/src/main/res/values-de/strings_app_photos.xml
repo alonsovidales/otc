@@ -51,6 +51,48 @@
     <string name="app_photos_delete_phone_title">Auch von diesem Handy löschen?</string>
     <string name="app_photos_delete_phone_title_several">Diese auch von diesem Handy löschen?</string>
     <string name="app_photos_delete_phone_video">Dieses Video ist auch auf diesem Handy.</string>
+    <string name="app_photos_edit_as_copy">Als Kopie speichern</string>
+    <string name="app_photos_edit_aspect">Seitenverhältnis</string>
+    <string name="app_photos_edit_aspect_16_9">16:9</string>
+    <string name="app_photos_edit_aspect_4_3">4:3</string>
+    <string name="app_photos_edit_aspect_free">Frei</string>
+    <string name="app_photos_edit_aspect_original">Original</string>
+    <string name="app_photos_edit_aspect_square">Quadrat</string>
+    <string name="app_photos_edit_button">Bearbeiten</string>
+    <plurals name="app_photos_edit_copies_all">
+        <item quantity="one">Überall ersetzen (%1$s)</item>
+        <item quantity="other">Überall ersetzen (%1$s)</item>
+    </plurals>
+    <string name="app_photos_edit_copies_only_this">Nur hier</string>
+    <plurals name="app_photos_edit_copies_text">
+        <item quantity="one">Dieses Foto liegt an %1$s Stellen auf deinem Gerät. Überall ersetzen oder nur hier?</item>
+        <item quantity="other">Dieses Foto liegt an %1$s Stellen auf deinem Gerät. Überall ersetzen oder nur hier?</item>
+    </plurals>
+    <string name="app_photos_edit_discard">Verwerfen</string>
+    <string name="app_photos_edit_discard_title">Bearbeitung verwerfen?</string>
+    <string name="app_photos_edit_failed">Die Bearbeitung konnte nicht gespeichert werden. Versuche es erneut.</string>
+    <string name="app_photos_edit_replace">Foto ersetzen</string>
+    <string name="app_photos_edit_reset">Zurücksetzen</string>
+    <string name="app_photos_edit_revert">Zum Original zurück</string>
+    <plurals name="app_photos_edit_revert_all">
+        <item quantity="one">Überall rückgängig (%1$s)</item>
+        <item quantity="other">Überall rückgängig (%1$s)</item>
+    </plurals>
+    <string name="app_photos_edit_revert_button">Wiederherstellen</string>
+    <plurals name="app_photos_edit_revert_copies_text">
+        <item quantity="one">Diese Bearbeitung liegt an %1$s Stellen auf deinem Gerät. Überall rückgängig machen oder nur hier?</item>
+        <item quantity="other">Diese Bearbeitung liegt an %1$s Stellen auf deinem Gerät. Überall rückgängig machen oder nur hier?</item>
+    </plurals>
+    <string name="app_photos_edit_revert_failed">Das Original konnte nicht wiederhergestellt werden. Versuche es erneut.</string>
+    <string name="app_photos_edit_revert_text">Die Bearbeitung wird entfernt und das Foto ist wieder so wie vor der Bearbeitung.</string>
+    <string name="app_photos_edit_revert_title">Zum Original zurückkehren?</string>
+    <string name="app_photos_edit_reverting">Wird wiederhergestellt…</string>
+    <string name="app_photos_edit_rotate_left">Nach links drehen</string>
+    <string name="app_photos_edit_rotate_right">Nach rechts drehen</string>
+    <string name="app_photos_edit_save_text">Das Foto durch die Bearbeitung ersetzen oder die Bearbeitung als neues Foto daneben speichern? Beim Ersetzen bleibt das Original erhalten, damit du dorthin zurückkehren kannst.</string>
+    <string name="app_photos_edit_save_title">Bearbeitung speichern</string>
+    <string name="app_photos_edit_saved_copy">Gespeichert als \u2068%1$s\u2069</string>
+    <string name="app_photos_edit_saving">Wird gespeichert…</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s Element · %2$s</item>
         <item quantity="other">%1$s Elemente · %2$s</item>

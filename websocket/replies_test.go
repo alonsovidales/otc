@@ -278,6 +278,11 @@ var headEnglish = []struct {
 	{"dev.files.rating_no_collection", i18n.DevFilesRatingNoCollection(), "this collection no longer exists"},
 	{"dev.files.rating_bad_stars", i18n.DevFilesRatingBadStars(), "a photo's rating is from 0 to 5 stars"},
 	{"dev.files.rating_comment_too_long", i18n.DevFilesRatingCommentTooLong(2000), "a comment can be at most 2,000 characters long"},
+	{"dev.files.not_editable", i18n.DevFilesNotEditable(), "this file can't be edited: only photos can be turned and cropped, not videos, camera raws or animations"},
+	{"dev.files.not_edited", i18n.DevFilesNotEdited(), "this photo has no edit to undo"},
+	{"dev.files.edits_unavailable", i18n.DevFilesEditsUnavailable(), "this device can edit photos once its update has finished: try again in a few minutes"},
+	{"dev.files.edit_failed", i18n.DevFilesEditFailed("x"), "the edit could not be saved: x"},
+	{"dev.files.edited_copy_name", i18n.DevFilesEditedCopyName("IMG_1"), "IMG_1 (edited)"},
 }
 
 // The catalog's English is the device's English as it was.

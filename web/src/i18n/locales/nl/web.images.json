@@ -103,6 +103,52 @@
     "other": "{count} items staan in een map met “Alleen uploaden” en kunnen niet worden verwijderd",
     "arg": "count"
   },
+  "web.images.edit.as_copy": "Opslaan als kopie",
+  "web.images.edit.aspect": "Verhouding",
+  "web.images.edit.aspect_16_9": "16:9",
+  "web.images.edit.aspect_4_3": "4:3",
+  "web.images.edit.aspect_free": "Vrij",
+  "web.images.edit.aspect_original": "Origineel",
+  "web.images.edit.aspect_square": "Vierkant",
+  "web.images.edit.button": "Bewerken",
+  "web.images.edit.copies_all": {
+    "one": "Overal vervangen ({count})",
+    "other": "Overal vervangen ({count})",
+    "arg": "count"
+  },
+  "web.images.edit.copies_only_this": "Alleen hier",
+  "web.images.edit.copies_text": {
+    "one": "Deze foto staat op {count} plekken op je apparaat. Overal vervangen of alleen hier?",
+    "other": "Deze foto staat op {count} plekken op je apparaat. Overal vervangen of alleen hier?",
+    "arg": "count"
+  },
+  "web.images.edit.discard": "Weggooien",
+  "web.images.edit.discard_title": "Bewerking weggooien?",
+  "web.images.edit.failed": "De bewerking kon niet worden opgeslagen. Probeer het opnieuw.",
+  "web.images.edit.replace": "Foto vervangen",
+  "web.images.edit.reset": "Terugzetten",
+  "web.images.edit.revert": "Terug naar origineel",
+  "web.images.edit.revert_all": {
+    "one": "Overal ongedaan maken ({count})",
+    "other": "Overal ongedaan maken ({count})",
+    "arg": "count"
+  },
+  "web.images.edit.revert_button": "Herstellen",
+  "web.images.edit.revert_copies_text": {
+    "one": "Deze bewerking staat op {count} plekken op je apparaat. Overal ongedaan maken of alleen hier?",
+    "other": "Deze bewerking staat op {count} plekken op je apparaat. Overal ongedaan maken of alleen hier?",
+    "arg": "count"
+  },
+  "web.images.edit.revert_failed": "Het origineel kon niet worden teruggezet. Probeer het opnieuw.",
+  "web.images.edit.revert_text": "De bewerking wordt verwijderd en de foto is weer zoals vóór de bewerking.",
+  "web.images.edit.revert_title": "Terug naar het origineel?",
+  "web.images.edit.reverting": "Herstellen…",
+  "web.images.edit.rotate_left": "Linksom draaien",
+  "web.images.edit.rotate_right": "Rechtsom draaien",
+  "web.images.edit.save_text": "De foto vervangen door de bewerking, of de bewerking als nieuwe foto ernaast opslaan? Bij vervangen blijft het origineel bewaard, zodat je ernaar terug kunt.",
+  "web.images.edit.save_title": "Bewerking opslaan",
+  "web.images.edit.saved_copy": "Opgeslagen als \u2068{name}\u2069",
+  "web.images.edit.saving": "Opslaan…",
   "web.images.error.unreachable": "Kan je apparaat niet bereiken. Probeer het opnieuw.",
   "web.images.grid.clear_search": "Zoekopdracht wissen",
   "web.images.grid.date": "{day} {month} {year}",

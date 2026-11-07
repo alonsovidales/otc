@@ -545,6 +545,8 @@ func (mg *Manager) ListFiles(session *session.Session, path string, recursive bo
 		return nil, err
 	}
 	annotateListing(files, folders, outOfImages, versions)
+	// Photo edits: which are, so the viewers offer Revert to original.
+	mg.setOriginals(files)
 
 	return files, nil
 }
@@ -576,6 +578,7 @@ func (mg *Manager) SearchFiles(query string, limit int32) ([]*pb.File, error) {
 		return nil, err
 	}
 	annotateListing(files, folders, outOfImages, versions)
+	mg.setOriginals(files)
 
 	return files, nil
 }
@@ -1384,6 +1387,8 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 	if copiesErr := mg.setCopies(page); copiesErr != nil {
 		log.Error("error counting the copies of a search page, served without them:", copiesErr)
 	}
+	// Photo edits: which photos are, for the viewer's Revert to original.
+	mg.setOriginals(page)
 	// Rating (release 163): each photo's stars and comment in a rated
 	// collection, read for the page as it is served (a rating changed
 	// since the search started shows). A failed read serves the page
@@ -2068,6 +2073,11 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 	if err := mg.checkNewPath(path); err != nil {
 		return nil, false, err
 	}
+	// As LinkFile: a sync sending the photo it took into the folder
+	// holding its edit gets the edit, which the photo is now.
+	if edited := mg.editedAlready(path, hash); edited != nil {
+		return edited, false, nil
+	}
 
 	file = &pb.File{
 		Created:  created,
@@ -2463,7 +2473,9 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 func (mg *Manager) HasFile(hash, cloudID string) (exists bool, err error) {
 	_, err = mg.dao.GetFileByHash(hash)
 	if err == sql.ErrNoRows {
-		return false, nil
+		// An edit's original, kept whole though no path holds it
+		// (edit_image.go): the phone that took it never sends it again.
+		return mg.heldOriginal(hash) != nil, nil
 	}
 	if err != nil {
 		return false, err
@@ -2536,11 +2548,24 @@ func (mg *Manager) withBlob(hash string, fn func() error) error {
 // removeBlobIfUnused deletes hash's blob, thumbnails and faces once no file
 // or kept version uses it any more.
 func (mg *Manager) removeBlobIfUnused(hash string) error {
+	removed, err := mg.removeUnusedBlob(hash)
+	if removed {
+		// An edit gone takes its original with it, once nothing else
+		// holds that (edit_image.go) - after this hash's lock, which the
+		// original's could share.
+		mg.releaseEdit(hash)
+	}
+	return err
+}
+
+// removeUnusedBlob is removeBlobIfUnused for hash alone: removed reports
+// whether it was unused, and so went.
+func (mg *Manager) removeUnusedBlob(hash string) (removed bool, err error) {
 	unlock := lockBlob(hash)
 	defer unlock()
 	referenced, err := mg.dao.HashReferenced(hash)
 	if err != nil || referenced {
-		return err
+		return false, err
 	}
 	mg.dropFacesOfHash(hash)
 	// Issue #192: content that is gone keeps no row.
@@ -2559,10 +2584,10 @@ func (mg *Manager) removeBlobIfUnused(hash string) error {
 	mg.forgetEmbedding(hash)
 	fullPath := blobPath(hash)
 	if err = os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
-		return err
+		return true, err
 	}
 	removeThumbnails(fullPath)
-	return nil
+	return true, nil
 }
 
 // removeThumbnails removes what is derived from the blob at full: both
@@ -2620,14 +2645,19 @@ func blobPath(hash string) string {
 // hash's lock, like every other decision to remove a blob, so an upload of
 // the same content can't slip in between the check and the removal.
 func (mg *Manager) dropIfOrphaned(hash string) {
-	if hash == "" {
-		return
+	if hash != "" && mg.dropOrphan(hash) {
+		mg.releaseEdit(hash) // as removeBlobIfUnused, after the lock
 	}
+}
+
+// dropOrphan is dropIfOrphaned under hash's lock: whether it was orphaned,
+// and so dropped.
+func (mg *Manager) dropOrphan(hash string) bool {
 	unlock := lockBlob(hash)
 	defer unlock()
 	referenced, err := mg.dao.HashReferenced(hash)
 	if err != nil || referenced {
-		return
+		return false
 	}
 	mg.donePendingAnalysis(hash)
 	if err := mg.dao.DelTagsByHash(hash); err != nil {
@@ -2648,6 +2678,7 @@ func (mg *Manager) dropIfOrphaned(hash string) {
 	os.Remove(full)
 	removeThumbnails(full)
 	log.Info("removed what processing left for content deleted meanwhile:", hash)
+	return true
 }
 
 // hasBlob is whether the content for hash is actually on the disk, not
@@ -2673,9 +2704,18 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 	if err := mg.checkNewPath(path); err != nil {
 		return nil, err
 	}
+	// A phone's sync linking the photo it took into the folder holding
+	// its edit: the edit is that photo now (edit_image.go).
+	if edited := mg.editedAlready(path, hash); edited != nil {
+		return edited, nil
+	}
 	existing, err := mg.dao.GetFileByHash(hash)
 	if err == sql.ErrNoRows {
-		return nil, devtext.New(i18n.DevFilesNoSuchHash())
+		// An edit's original, linked anywhere else: a path of its own.
+		if existing = mg.heldOriginal(hash); existing == nil {
+			return nil, devtext.New(i18n.DevFilesNoSuchHash())
+		}
+		err = nil
 	}
 	if err != nil {
 		return nil, err

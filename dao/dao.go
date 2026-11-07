@@ -622,8 +622,15 @@ func (dao *Dao) DelFileIfHash(path, expected string) (hash string, err error) {
 		return "", err
 	}
 	if refCount+versionRefs <= 1 {
-		if _, err = tx.Exec("delete from `file_tags` where `hash` = ?", hash); err != nil {
+		// Nor an edit's original, which keeps its tags while it is kept.
+		edits, err := editRefs(tx, hash)
+		if err != nil {
 			return "", err
+		}
+		if edits == 0 {
+			if _, err = tx.Exec("delete from `file_tags` where `hash` = ?", hash); err != nil {
+				return "", err
+			}
 		}
 	}
 
@@ -879,10 +886,15 @@ func (dao *Dao) DelTagsByHash(hash string) error {
 }
 
 // HashReferenced is whether any current file or kept version still uses
-// this content - the check before a blob is removed from disk.
+// this content, or it is kept as the original of an edit (edited.go) -
+// the check before a blob is removed from disk.
 func (dao *Dao) HashReferenced(hash string) (bool, error) {
 	var n int
-	err := dao.db.QueryRow("select (select count(*) from `files` where `hash` = ?) + (select count(*) from `file_versions` where `hash` = ?)", hash, hash).Scan(&n)
+	err := dao.db.QueryRow("select (select count(*) from `files` where `hash` = ?) + (select count(*) from `file_versions` where `hash` = ?) + (select count(*) from `edited_content` where `original_hash` = ?)", hash, hash, hash).Scan(&n)
+	if isNoSuchTable(err) {
+		// A database without edits (a binary newer than its schema).
+		err = dao.db.QueryRow("select (select count(*) from `files` where `hash` = ?) + (select count(*) from `file_versions` where `hash` = ?)", hash, hash).Scan(&n)
+	}
 
 	return n > 0, err
 }
@@ -2684,10 +2696,12 @@ func (dao *Dao) faceEmbeddings(query string, args ...any) (faces []FaceEmbedding
 func (dao *Dao) ListPeople(cohesionThreshold float64) (people []*pb.Person, err error) {
 	// One statement: the cover thumbnail used to be one more query per
 	// person, and every unmatched stranger in a crowd is a person. A cover
-	// face that is gone reads NULL (no thumbnail), as its lookup did.
+	// face that is gone reads NULL (no thumbnail), as its lookup did. The
+	// count is of the faces in photos a file holds: an edited photo's
+	// original keeps its faces, hidden (edited.go), and is no photo more.
 	rows, err := dao.db.Query(
 		"select `p`.`id`, `p`.`name`, "+
-			"(select count(*) from `faces` as `f` where `f`.`person_id` = `p`.`id`) as `face_count`, "+
+			"(select count(*) from `faces` as `f` where `f`.`person_id` = `p`.`id` and exists (select 1 from `files` as `fl` where `fl`.`hash` = `f`.`hash`)) as `face_count`, "+
 			"coalesce(`p`.`cover_image`, case when `p`.`cover_face_id` is not null and `p`.`cover_face_id` <> '' "+
 			"then (select `c`.`thumbnail` from `faces` as `c` where `c`.`id` = `p`.`cover_face_id`) "+
 			"else (select `o`.`thumbnail` from `faces` as `o` where `o`.`person_id` = `p`.`id` order by `o`.`created` asc limit 1) "+

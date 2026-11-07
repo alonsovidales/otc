@@ -316,6 +316,150 @@
       "other": "{count} items are in an upload-only folder and can't be deleted"
     }
   },
+  "web.images.edit.as_copy": {
+    "text": "Enregistrer une copie",
+    "en": "Save as copy"
+  },
+  "web.images.edit.aspect": {
+    "text": "Format",
+    "en": "Aspect"
+  },
+  "web.images.edit.aspect_16_9": {
+    "text": "16:9",
+    "en": "16:9"
+  },
+  "web.images.edit.aspect_4_3": {
+    "text": "4:3",
+    "en": "4:3"
+  },
+  "web.images.edit.aspect_free": {
+    "text": "Libre",
+    "en": "Free"
+  },
+  "web.images.edit.aspect_original": {
+    "text": "Original",
+    "en": "Original"
+  },
+  "web.images.edit.aspect_square": {
+    "text": "Carré",
+    "en": "Square"
+  },
+  "web.images.edit.button": {
+    "text": "Modifier",
+    "en": "Edit"
+  },
+  "web.images.edit.copies_all": {
+    "text": {
+      "one": "Remplacer partout ({count})",
+      "other": "Remplacer partout ({count})"
+    },
+    "en": {
+      "one": "Replace all {count}",
+      "other": "Replace all {count}"
+    }
+  },
+  "web.images.edit.copies_only_this": {
+    "text": "Seulement ici",
+    "en": "Only here"
+  },
+  "web.images.edit.copies_text": {
+    "text": {
+      "one": "Cette photo se trouve à {count} endroits sur votre appareil. La remplacer partout, ou seulement ici ?",
+      "other": "Cette photo se trouve à {count} endroits sur votre appareil. La remplacer partout, ou seulement ici ?"
+    },
+    "en": {
+      "one": "This photo is in {count} places on your device. Replace it in all of them, or only here?",
+      "other": "This photo is in {count} places on your device. Replace it in all of them, or only here?"
+    }
+  },
+  "web.images.edit.discard": {
+    "text": "Abandonner",
+    "en": "Discard"
+  },
+  "web.images.edit.discard_title": {
+    "text": "Abandonner la modification ?",
+    "en": "Discard the edit?"
+  },
+  "web.images.edit.failed": {
+    "text": "La modification n’a pas pu être enregistrée. Réessayez.",
+    "en": "Couldn't save the edit. Try again."
+  },
+  "web.images.edit.replace": {
+    "text": "Remplacer la photo",
+    "en": "Replace photo"
+  },
+  "web.images.edit.reset": {
+    "text": "Réinitialiser",
+    "en": "Reset"
+  },
+  "web.images.edit.revert": {
+    "text": "Revenir à l’original",
+    "en": "Revert to original"
+  },
+  "web.images.edit.revert_all": {
+    "text": {
+      "one": "Annuler partout ({count})",
+      "other": "Annuler partout ({count})"
+    },
+    "en": {
+      "one": "Revert all {count}",
+      "other": "Revert all {count}"
+    }
+  },
+  "web.images.edit.revert_button": {
+    "text": "Rétablir",
+    "en": "Revert"
+  },
+  "web.images.edit.revert_copies_text": {
+    "text": {
+      "one": "Cette modification se trouve à {count} endroits sur votre appareil. L’annuler partout, ou seulement ici ?",
+      "other": "Cette modification se trouve à {count} endroits sur votre appareil. L’annuler partout, ou seulement ici ?"
+    },
+    "en": {
+      "one": "This edit is in {count} places on your device. Revert all of them, or only here?",
+      "other": "This edit is in {count} places on your device. Revert all of them, or only here?"
+    }
+  },
+  "web.images.edit.revert_failed": {
+    "text": "L’original n’a pas pu être rétabli. Réessayez.",
+    "en": "Couldn't put the original back. Try again."
+  },
+  "web.images.edit.revert_text": {
+    "text": "La modification est supprimée et la photo redevient telle qu’elle était avant.",
+    "en": "The edit is removed and the photo is as it was before it was edited."
+  },
+  "web.images.edit.revert_title": {
+    "text": "Revenir à l’original ?",
+    "en": "Revert to the original?"
+  },
+  "web.images.edit.reverting": {
+    "text": "Rétablissement…",
+    "en": "Reverting…"
+  },
+  "web.images.edit.rotate_left": {
+    "text": "Faire pivoter à gauche",
+    "en": "Rotate left"
+  },
+  "web.images.edit.rotate_right": {
+    "text": "Faire pivoter à droite",
+    "en": "Rotate right"
+  },
+  "web.images.edit.save_text": {
+    "text": "Remplacer la photo par la modification, ou enregistrer la modification comme nouvelle photo à côté ? Si vous la remplacez, l’original est conservé pour que vous puissiez y revenir.",
+    "en": "Replace the photo with the edit, or save the edit as a new photo next to it? A replaced photo's original is kept, so you can go back to it."
+  },
+  "web.images.edit.save_title": {
+    "text": "Enregistrer la modification",
+    "en": "Save the edit"
+  },
+  "web.images.edit.saved_copy": {
+    "text": "Enregistrée sous {name}",
+    "en": "Saved as {name}"
+  },
+  "web.images.edit.saving": {
+    "text": "Enregistrement…",
+    "en": "Saving…"
+  },
   "web.images.error.unreachable": {
     "text": "Impossible de joindre votre appareil. Réessayez.",
     "en": "Couldn't reach your device. Try again."
