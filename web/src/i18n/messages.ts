@@ -332,6 +332,7 @@ export type MessageKey =
   | "web.images.edit.discard"
   | "web.images.edit.discard_title"
   | "web.images.edit.failed"
+  | "web.images.edit.frame"
   | "web.images.edit.replace"
   | "web.images.edit.reset"
   | "web.images.edit.revert"
@@ -1577,6 +1578,7 @@ export interface MessageArgs {
   "web.images.edit.discard": undefined;
   "web.images.edit.discard_title": undefined;
   "web.images.edit.failed": undefined;
+  "web.images.edit.frame": undefined;
   "web.images.edit.replace": undefined;
   "web.images.edit.reset": undefined;
   "web.images.edit.revert": undefined;

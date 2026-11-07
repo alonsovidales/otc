@@ -11,7 +11,10 @@
 // photo in Favourites or takes it out (useFavourites.ts); opened in a
 // collection whose Rating is on, the photo's stars and comment (rating.ts,
 // RatingPanel.tsx) - a bar under it, or on a phone a sheet its Rate button
-// opens. The apps do the same with ImageModal.
+// opens; and where the caller allows it (the owner's own library), Edit -
+// the photo editor (PhotoEditor.tsx: rotate and crop, saved by the device)
+// - and, for a photo that is an edit, Revert to original (photoEdit.ts).
+// The apps do the same with ImageModal.
 // Loaded when first opened (lazyPart.ts: Images and Files wrap it in a
 // layer's Part); Back closes it.
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -43,6 +46,12 @@ import { ratingRefusalText } from "./ratingText";
 import { RateButton, RatingPanel } from "./RatingPanel";
 import { useRatingSheet } from "./useRatingSheet";
 import { safeImage, safeVideo } from "./inlineTypes";
+import { lazyPart } from "./lazyPart";
+import Part from "./Part";
+import { canEdit, canRevert, copiesAsk, copiesFrom, editAnswer, editStatePayload, leafOf, refusalOf, revertPayload, type EditDone } from "./photoEdit";
+
+// The editor: a chunk of its own, loaded when Edit is first pressed.
+const PhotoEditor = lazyPart(() => import("./PhotoEditor"));
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
@@ -62,7 +71,9 @@ const hasInnerStops = (el: Element) => el instanceof HTMLVideoElement || el inst
  *  a path holding other content by then is refused, not deleted), and for
  *  Images how many paths hold that content (File.copies; unset where the
  *  device didn't say). In a collection with Rating on, its stars and
- *  comment as the grid's page said (File.rating). */
+ *  comment as the grid's page said (File.rating). A photo edited on the
+ *  device: the hash of the photo it was made from (File.original_hash),
+ *  for Revert to original. */
 export type ViewerItem = {
   path: string;
   mime?: string;
@@ -71,6 +82,7 @@ export type ViewerItem = {
   hash?: string;
   copies?: number;
   rating?: ShownRating;
+  originalHash?: string;
 };
 
 /** A collection's Rating, for the viewer's stars and comment box: the
@@ -113,10 +125,12 @@ const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg")
 // what the cache is for. A video (a clip too short for the device to
 // stream) is read in 4 MB ReadFile pieces instead, as Files reads: GetFile
 // is for what the device converts (a HEIC shown as a JPEG), and a device
-// may refuse it a whole video.
+// may refuse it a whole video. By path and the content shown: a photo
+// edited in place keeps its path, and its edit is another request.
 const inFlight = new Map<string, Promise<Blob | null>>();
 function fetchWhole(item: ViewerItem): Promise<Blob | null> {
-  let p = inFlight.get(item.path);
+  const key = `${item.path}\n${item.hash ?? ""}`;
+  let p = inFlight.get(key);
   if (!p) {
     p = (async () => {
       if (isVideoFile(item)) {
@@ -132,8 +146,8 @@ function fetchWhole(item: ViewerItem): Promise<Blob | null> {
       const blob = full ? bytesToBlob(full.content, full.mime || "image/jpeg") : null;
       if (blob) fullSizeCache.put(full?.hash || item.hash, blob);
       return blob;
-    })().finally(() => inFlight.delete(item.path));
-    inFlight.set(item.path, p);
+    })().finally(() => inFlight.delete(key));
+    inFlight.set(key, p);
   }
   return p;
 }
@@ -166,8 +180,24 @@ async function deleteOnDevice(it: ViewerItem, every: boolean): Promise<{ error: 
   return { error: (t) => t("web.images.delete.failed", { count: 1 }), changed: null };
 }
 
+// Revert to original: the original's small thumbnail (the device kept it
+// with the original), for the tile behind until the page lists it again;
+// null when none came.
+async function smallThumbOf(path: string): Promise<Blob | null> {
+  try {
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      e.payload = { $case: "reqGetThumbnails", reqGetThumbnails: { paths: [path], smallThumbnails: true } };
+    });
+    const f = resp.payload?.$case === "respListOfFiles" ? resp.payload.respListOfFiles.files.find((x) => x.path === path) : undefined;
+    return bytesToBlob(f?.content);
+  } catch {
+    return null;
+  }
+}
+
 // How long a note over the photo stays: a heart the device refused, a face
-// chosen or not (Use this face), a face taken off the photo in Info.
+// chosen or not (Use this face), a face taken off the photo in Info, a copy
+// of an edit saved.
 const cNoteMs = 6000;
 
 // A device from before GetPhotoFaces ("unknown_payload"): Info shows no
@@ -179,6 +209,20 @@ const HeartGlyph = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
     <path d="M12 20.5s-7.5-4.6-9.2-9.3C1.6 7.8 3.9 4.5 7.3 4.5c2 0 3.4 1.1 4.7 2.8 1.3-1.7 2.7-2.8 4.7-2.8 3.4 0 5.7 3.3 4.5 6.7-1.7 4.7-9.2 9.3-9.2 9.3Z"
       strokeWidth="1.8" strokeLinejoin="round" />
+  </svg>
+);
+
+// Edit: the crop's two corners.
+const CropGlyph = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+    <path d="M6.5 3v12.5a2 2 0 0 0 2 2H21M3 6.5h12.5a2 2 0 0 1 2 2V21" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+// Revert to original: an arrow turning back.
+const RevertGlyph = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+    <path d="M5 12.5a7 7 0 1 0 2.05-4.95L4.5 10M4.5 5.5V10H9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
@@ -205,7 +249,7 @@ function downloadItem(it: ViewerItem) {
   });
 }
 
-export default function MediaViewer({ items, index, onIndexChange, onClose, onDeleted, onDeleteChanged, deleteBlocked, inCollection = false, personId, onPersonFixed, canFavourite = false, rating }: {
+export default function MediaViewer({ items, index, onIndexChange, onClose, onDeleted, onDeleteChanged, deleteBlocked, inCollection = false, personId, onPersonFixed, canFavourite = false, rating, onEdited, onEditChanged }: {
   items: ViewerItem[];
   index: number;
   onIndexChange: (i: number) => void;
@@ -240,6 +284,21 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   /** Opened inside a collection whose Rating is on (Images only): the
    *  item's stars and comment, under the photo or in a phone's sheet. */
   rating?: ViewerRating;
+  /** Photo edit, on this device's own library only (Images, Files, On
+   *  this day's See all, Places): with it, the header has Edit for a photo
+   *  the device can edit and Revert to original for one that is an edit.
+   *  Called once the device saved an edit or put the original back: for a
+   *  Replace or a Revert the caller shows `done.file` in place of `item`
+   *  in `items`, at the same index - the viewer stays on it and fetches
+   *  its full size - and for a copy adds it where its page lists it; and
+   *  it shows the change behind as after a delete (photoEdit.ts' EditDone). */
+  onEdited?: (item: ViewerItem, done: EditDone) => void;
+  /** The edit or the revert was refused because the photo's path holds
+   *  other content now ("changed"; `text`: the device's words): as for
+   *  onDeleteChanged, the caller closes the viewer - the editor with it -
+   *  says so, and lists its photos again; trying again would fail the
+   *  same way. Without it, the question says it. */
+  onEditChanged?: (item: ViewerItem, text: UiText) => void;
 }) {
   const t = useT();
   // Back closes the viewer (backStack.ts), as its × does.
@@ -453,7 +512,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     if (!rapid) { void fetchFull(); return; }
     const timer = setTimeout(() => void fetchFull(), cRapidStepMs);
     return () => clearTimeout(timer);
-  }, [item?.path, item?.mime]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [item?.path, item?.mime, item?.hash]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Read-ahead: once the open photo is on screen at full size, the next
   // one and then the previous one are fetched into fullSizeCache, so a
@@ -633,6 +692,84 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     onPersonFixedRef.current?.(done);
   };
 
+  // Photo edit: Edit opens the editor over the viewer on the photo on
+  // screen (a demo device refuses it first, as Delete); Revert to original,
+  // for a photo that is an edit, asks the device how many paths hold the
+  // edit (its button's spinner meanwhile) and then whether to revert them
+  // all, or only here, or plainly; RevertImage then goes, the dialog's
+  // button saying Reverting… until the device answers. Either way the
+  // caller shows the photo the device answered with in place of this one
+  // (onEdited) - for a copy, the viewer stays on this one and says the
+  // copy's name. The keys are the editor's or the question's meanwhile.
+  const onEditedRef = useRef(onEdited);
+  const onEditChangedRef = useRef(onEditChanged);
+  useLayoutEffect(() => {
+    onEditedRef.current = onEdited;
+    onEditChangedRef.current = onEditChanged;
+  });
+  const [editing, setEditing] = useState<ViewerItem | null>(null);
+  const canEditItem = !!onEdited && !!item && canEdit(item);
+  const canRevertItem = !!onEdited && !!item && canRevert(item);
+  const startEdit = useCallback(() => {
+    const it = items[index];
+    if (canEditItem && it && !refuseOnDemo()) setEditing(it);
+  }, [canEditItem, items, index]);
+  const edited = (it: ViewerItem, done: EditDone) => {
+    if (!mountedRef.current) return;
+    setEditing(null);
+    setReverting(null);
+    if (done.kind === "copy") {
+      const copyName = leafOf(done.file.path);
+      setNote({ text: (tt) => tt("web.images.edit.saved_copy", { name: copyName }), seq: Date.now(), done: true });
+    }
+    onEditedRef.current?.(it, done);
+  };
+  // Refused as "changed": the caller closes the viewer (photoEdit.ts'
+  // refusalOf).
+  const editChanged = (it: ViewerItem, text: UiText) => {
+    if (!mountedRef.current) return;
+    setEditing(null);
+    setReverting(null);
+    onEditChangedRef.current?.(it, text);
+  };
+  const [reverting, setReverting] = useState<{ item: ViewerItem; copies: number } | null>(null);
+  const [revertLooking, setRevertLooking] = useState(false);
+  const askRevert = async () => {
+    const it = items[index];
+    if (!canRevertItem || !it || revertLooking || refuseOnDemo()) return;
+    setRevertLooking(true);
+    let copies: number;
+    try {
+      copies = copiesFrom(await useWS.request((e: Partial<ReqEnvelope>) => { e.payload = editStatePayload(it.path); }));
+    } catch {
+      copies = copiesFrom(null);
+    }
+    if (!mountedRef.current) return;
+    setRevertLooking(false);
+    // Stepped to another photo meanwhile: nothing is asked about this one.
+    if (itemPathRef.current === it.path) setReverting({ item: it, copies });
+  };
+  const confirmRevert = async (every: boolean): Promise<UiText | null> => {
+    const r = reverting;
+    if (!r) return null;
+    let resp: RespEnvelope;
+    try {
+      resp = await useWS.request((e: Partial<ReqEnvelope>) => { e.payload = revertPayload(r.item, every); });
+    } catch {
+      return say("web.images.edit.revert_failed");
+    }
+    const answer = editAnswer(resp);
+    if (answer.kind === "refused") {
+      const refused = refusalOf(answer, true);
+      if (!refused.closes || !onEditChangedRef.current) return refused.text;
+      editChanged(r.item, refused.text);
+      return null;
+    }
+    const thumb = await smallThumbOf(answer.file.path);
+    edited(r.item, { kind: "revert", file: answer.file, thumb, copies: r.copies, every });
+    return null;
+  };
+
   // A face's × in Info: Not this person for this one photo - the same
   // question, then RemoveFromPerson with the photo's hash (personFix.tsx).
   // Opened on that person's photos, the photo leaves their grid as after
@@ -767,7 +904,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
 
   // The question gone, the viewer has the focus again if it fell out of it
   // (a click on Delete leaves it on nothing once the dialog goes).
-  const dialogOpen = asking != null || fixing != null || unfacing != null;
+  const dialogOpen = asking != null || fixing != null || unfacing != null || editing != null || reverting != null;
   const wasAskingRef = useRef(false);
   useEffect(() => {
     const was = wasAskingRef.current;
@@ -913,6 +1050,9 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   };
   if (!item) return null;
   const name = items[index].path.split("/").pop();
+  // The picture on screen, for the editor: the full size (unless the
+  // browser couldn't draw it), else the big thumbnail or the grid's.
+  const shownPicture = (stuck === item.path ? null : hiURL) || (bigThumb?.path === item.path ? bigThumb.url : "") || item.thumbURL || ownThumb;
   return (
     <div className="pg-modal" onClick={onClose}>
       <div
@@ -967,6 +1107,19 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
               <HeartGlyph />
             </button>
           ))}
+          {/* Photo edit: turn and crop it (PhotoEditor.tsx). */}
+          {canEditItem && (
+            <button
+              type="button"
+              className="pg-modal-act"
+              data-tip={t("web.images.edit.button")}
+              aria-label={t("web.images.edit.button")}
+              aria-haspopup="dialog"
+              onClick={startEdit}
+            >
+              <CropGlyph />
+            </button>
+          )}
           {/* The original file, under its own name. */}
           <DownloadButton save={save} onClick={download} what={name ?? ""} />
           {/* Opened on one person's photos: this one isn't them, or is
@@ -1005,6 +1158,20 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
                 </button>
               )}
             </>
+          )}
+          {/* A photo edited on the device: its original back. */}
+          {canRevertItem && (
+            <button
+              type="button"
+              className="pg-modal-act"
+              data-tip={t("web.images.edit.revert")}
+              aria-label={t("web.images.edit.revert")}
+              aria-haspopup="dialog"
+              aria-busy={revertLooking || undefined}
+              onClick={() => void askRevert()}
+            >
+              {revertLooking ? <span className="pg-modal-dl-spin" aria-hidden="true" /> : <RevertGlyph />}
+            </button>
           )}
           {/* Issue #199: where the caller allows it. Greyed out, with
               the reason as its tooltip, where the device would refuse;
@@ -1105,7 +1272,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
               <>
                 <img
                   ref={imgRef}
-                  src={full || thumb}
+                  src={full || thumb || undefined}
                   alt={f.path}
                   onError={full ? () => setStuck(f.path) : undefined}
                   style={{ transform: `scale(${zoomScale})`, transition: pinchStartDist.current ? "none" : "transform 0.15s ease-out" }} // i18n-ignore: a CSS transition
@@ -1306,6 +1473,36 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
             onCancel={() => setUnfacing(null)}
             onDone={faceRemoved}
           />
+        )}
+        {/* Revert to original's question: all of the edit's copies or
+            only here, or plainly. */}
+        {reverting && (() => {
+          const q = copiesAsk(reverting.copies);
+          return (
+            <ConfirmDialog
+              title={t("web.images.edit.revert_title")}
+              text={q.kind === "copies" ? t("web.images.edit.revert_copies_text", { count: q.count }) : t("web.images.edit.revert_text")}
+              confirm={q.kind === "copies" ? t("web.images.edit.revert_all", { count: q.count }) : t("web.images.edit.revert_button")}
+              busyText={t("web.images.edit.reverting")}
+              onConfirm={() => confirmRevert(q.kind === "copies")}
+              other={q.kind === "copies" ? { label: t("web.images.edit.copies_only_this"), onConfirm: () => confirmRevert(false) } : undefined}
+              onCancel={() => setReverting(null)}
+            />
+          );
+        })()}
+        {/* The editor, over everything of the viewer's, on the picture
+            the viewer shows: the full size, or the thumbnail until it
+            comes. */}
+        {editing && (
+          <Part kind="layer" onClose={() => setEditing(null)}>
+            <PhotoEditor
+              item={editing}
+              src={editing.path === item.path ? shownPicture : (editing.thumbURL ?? "")}
+              onCancel={() => setEditing(null)}
+              onSaved={(done) => edited(editing, done)}
+              onChanged={onEditChanged ? (text) => editChanged(editing, text) : undefined}
+            />
+          </Part>
         )}
         {/* Last of all: see onGuardFocus. */}
         <span ref={guardRef} className="pg-modal-sr" tabIndex={0} onFocus={onGuardFocus} />

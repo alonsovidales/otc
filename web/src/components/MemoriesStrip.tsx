@@ -183,6 +183,7 @@ export default function MemoriesStrip() {
             onClose={() => setOpen(null)}
             onHidden={onHidden}
             onHideFailed={refused}
+            onEditChanged={(text) => showToast({ text, error: true })}
           />
         </Part>
       )}

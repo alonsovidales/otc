@@ -125,6 +125,7 @@
   "web.images.edit.discard": "Verwerfen",
   "web.images.edit.discard_title": "Bearbeitung verwerfen?",
   "web.images.edit.failed": "Die Bearbeitung konnte nicht gespeichert werden. Versuche es erneut.",
+  "web.images.edit.frame": "Zuschnittrahmen",
   "web.images.edit.replace": "Foto ersetzen",
   "web.images.edit.reset": "Zurücksetzen",
   "web.images.edit.revert": "Zum Original zurück",

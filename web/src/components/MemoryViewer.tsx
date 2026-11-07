@@ -16,9 +16,12 @@ import type { File as MsgFile, Memory } from "../proto/messages";
 import { useBackLayer } from "./backStack";
 import { lazyPart } from "./lazyPart";
 import { usePeople } from "./libraryStore";
-import { dayDate, fetchThumbs, hideMemory, localDay, thumbFor, useThumbVersion, type HideKind } from "./memories";
+import { dayDate, fetchThumbs, hideMemory, localDay, photoEdited, refreshMemories, thumbFor, useThumbVersion, type HideKind } from "./memories";
 import type { Hidden } from "./MemoriesStrip";
+import type { ViewerItem } from "./MediaViewer";
 import Part from "./Part";
+import { shownAfter, type EditDone } from "./photoEdit";
+import type { UiText } from "./uiText";
 import "./MemoryViewer.css";
 
 const MediaViewer = lazyPart(() => import("./MediaViewer"));
@@ -69,7 +72,7 @@ const GridIcon = () => <Icon size={20}><rect x="4" y="4" width="6.5" height="6.5
 
 const markLoaded = (e: SyntheticEvent<HTMLImageElement>) => { e.currentTarget.dataset.loaded = "1"; };
 
-export default function MemoryViewer({ memories, index, startPaused = false, onClose, onHidden, onHideFailed }: {
+export default function MemoryViewer({ memories, index, startPaused = false, onClose, onHidden, onHideFailed, onEditChanged }: {
   memories: Memory[];
   index: number;
   /** Opened from the keyboard: waits for Play (a screen reader reads first). */
@@ -79,6 +82,10 @@ export default function MemoryViewer({ memories, index, startPaused = false, onC
   onHidden: (h: Hidden) => void;
   /** The device refused a hide: its words, or "" for none. */
   onHideFailed: (said: string) => void;
+  /** See all's viewer had an edit or a revert refused as "changed" (the
+   *  photo's path holds other content now): these words, said by the
+   *  strip once the slideshow has closed. */
+  onEditChanged: (text: UiText) => void;
 }) {
   const t = useT();
   useThumbVersion();
@@ -232,11 +239,35 @@ export default function MemoryViewer({ memories, index, startPaused = false, onC
   };
 
   const viewerItems = useMemo(
-    () => files.map((f) => ({ path: f.path, mime: f.mime, hash: f.hash, copies: f.copies, thumbURL: thumbFor(f.path, true) || thumbFor(f.path, false) || undefined })),
+    () => files.map((f) => ({ path: f.path, mime: f.mime, hash: f.hash, copies: f.copies, originalHash: f.originalHash || undefined, thumbURL: thumbFor(f.path, true) || thumbFor(f.path, false) || undefined })),
     // thumbFor reads the module's cache; the version re-renders.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [files, viewing],
   );
+
+  // Photo edit, from See all's viewer: a photo replaced by its edit, or
+  // with its original put back, stays in the memory in its place as the
+  // device answered (its thumbnails follow: memories.ts' photoEdited); an
+  // edit saved as a copy isn't one of the memory's photos. The memories
+  // are asked again either way: what they hold may have changed.
+  const onEdited = (it: ViewerItem, done: EditDone) => {
+    if (done.kind !== "copy") {
+      const now = files.map((f) => (f.path === it.path ? shownAfter(f, done) : f));
+      setMems(mems.map((m, i) => (i === mi ? { ...m, files: now } : m)));
+      photoEdited(it.path, done.file.path, done.thumb);
+    }
+    void refreshMemories();
+  };
+  // Refused as "changed", as the viewer's Delete is elsewhere: what this
+  // slideshow holds of the photo is out of date, so it closes with the
+  // viewer, the memories are asked again (the photo's thumbnails too) and
+  // the strip says the device's words.
+  const onEditRefused = (it: ViewerItem, text: UiText) => {
+    photoEdited(it.path, it.path, null);
+    void refreshMemories();
+    onClose();
+    onEditChanged(text);
+  };
 
   if (!memory || !file) return null;
   const { when, days } = memoryTitle(t, memory);
@@ -396,6 +427,8 @@ export default function MemoryViewer({ memories, index, startPaused = false, onC
             onIndexChange={setViewing}
             onClose={() => setViewing(null)}
             canFavourite
+            onEdited={onEdited}
+            onEditChanged={onEditRefused}
           />
         </Part>
       )}

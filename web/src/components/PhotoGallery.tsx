@@ -58,7 +58,7 @@ import { refreshSmartSearch, setSmartSearchOn } from "./smartSearch";
 import MemoriesStrip from "./MemoriesStrip";
 import { nameCollator } from "./filesSort";
 import { sortCollections } from "./librarySort";
-import { choosePersonCover, collectionName, dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, setGroupRatingLocally, useGroups, usePeople } from "./libraryStore";
+import { choosePersonCover, collectionName, dropGroupLocally, groupsChanged, personLabel, reloadGroups, reloadPeople, renameGroupLocally, setGroupRatingLocally, useGroups, usePeople } from "./libraryStore";
 import { asIs, say, type UiText } from "./uiText";
 import { favourites } from "./useFavourites";
 import { openWaitingTab } from "./zipTab";
@@ -69,6 +69,7 @@ import { coverImageFits, faceHash, type CoverChoice } from "./personCover";
 // through (PersonFace); in the first chunk already (App's ProfileCard).
 import PhotoCropDialog from "./PhotoCropDialog";
 import { copiesChoice, delFileFields, deleteNotice, deleteNoticeText, deleteOutcome, refusedText, type DeleteResult } from "./photoCopies";
+import { leftOthers, shownAfter, type EditDone } from "./photoEdit";
 import {
   cUpReach, cUpStart, deviceIgnoresNewerThan, nearTop, notShown, readUpward, scrollArmsUp, shiftIndex, topReserve, upwardApplies, upwardRequest, viewerAsksUp,
   type ScrollAt, type UpCursor,
@@ -987,7 +988,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
   // In a rated collection, with what its page said of its stars.
   const viewerItems = useMemo(
     () => (viewerOpen
-      ? items.map((f) => ({ path: f.path, mime: f.mime, thumbURL: thumbFor(f), hash: f.hash, copies: f.copies, ...(rated ? { rating: listedRating(f.rating) } : {}) }))
+      ? items.map((f) => ({ path: f.path, mime: f.mime, thumbURL: thumbFor(f), hash: f.hash, copies: f.copies, originalHash: f.originalHash || undefined, ...(rated ? { rating: listedRating(f.rating) } : {}) }))
       : []),
     [viewerOpen, items, thumbFor, rated]
   );
@@ -1272,6 +1273,14 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
   const leaveViewerRef = useRef(closeViewer);
   useLayoutEffect(() => {
     leaveViewerRef.current = () => {
+      // An edit or a revert left other paths holding the photo as it was
+      // (see onViewerEdited): the grid is loaded again, with them.
+      if (editsLeftRef.current) {
+        editsLeftRef.current = false;
+        closeViewer();
+        reloadGrid();
+        return;
+      }
       // Rating: narrowed or sorted by it, the grid follows what was rated -
       // after the frame in which the viewer's comment box, closing, saved
       // what it held.
@@ -1297,6 +1306,47 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
   // or closes when none is left, as the apps' viewers do. Called with the
   // grid as it is now (MediaViewer keeps the latest of this callback).
   const onViewerDeleted = (it: ViewerItem) => viewerDropped(new Set([it.path]));
+  // Photo edit (photoEdit.ts), from the viewer: the photo replaced by its
+  // edit, or its original put back, is the device's answer in its tile's
+  // place - a new hash, maybe a new path (a HEIC edited is a JPEG) - with
+  // the thumbnail the viewer drew or fetched for it until the grid next
+  // loads (the device makes its own a little later); the viewer stays on
+  // it. An edit saved as a copy has the photo's date and joins the grid
+  // after it while the grid is the whole library by date (a collection, a
+  // person, a tag, a place or a description doesn't hold it yet), counted
+  // in the `have` of the search that brought the photo, as the device's
+  // search now holds it too. The months, the places and the collections
+  // follow, as after a delete. Replaced or reverted "only here", other
+  // paths still hold the photo as it was, which the grid - a photo once by
+  // its content - can't place: it is loaded again as the viewer closes.
+  const editsLeftRef = useRef(false);
+  const onViewerEdited = (it: ViewerItem, done: EditDone) => {
+    const old = items.find((f) => f.path === it.path);
+    if (!old) return;
+    const now = shownAfter(old, done);
+    // The tile's thumbnail (thumbOf finds it).
+    if (done.thumb) thumbBlobs.set(now, done.thumb);
+    if (done.kind === "copy") {
+      if (!isFiltered(filter) && dateOrdered) {
+        setItems((prev) => {
+          const at = prev.findIndex((f) => f.path === it.path);
+          return at < 0 ? prev : [...prev.slice(0, at + 1), now, ...prev.slice(at + 1)];
+        });
+        const fromUp = [...upMapRef.current.values()].some((f) => f.path === it.path);
+        (fromUp ? upMapRef : mapRef).current.set(`edit#${now.path}`, now);
+      }
+    } else {
+      const swap = (f: MsgFile) => (f.path === it.path ? now : f);
+      setItems((prev) => prev.map(swap));
+      setSel((prev) => (prev.some((f) => f.path === it.path) ? prev.map(swap) : prev));
+      for (const m of [mapRef.current, upMapRef.current]) for (const [k, f] of m) if (f.path === it.path) m.set(k, now);
+      if (leftOthers(done)) editsLeftRef.current = true;
+    }
+    dropPlaces();
+    void loadDateBuckets();
+    groupsChanged();
+  };
+
   // The viewer's photo (and any other tile of it) left the grid.
   const viewerDropped = (gone: Set<string>) => {
     const rest = items.filter((f) => !gone.has(f.path));
@@ -2086,6 +2136,14 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
           onPersonFixed={onViewerPersonFixed}
           // A collection with Rating on: the stars and the comment box.
           rating={rated ? { ratings, onRefused: onRatingRefused } : undefined}
+          // Edit and Revert to original; refused as "changed", as a
+          // delete is: closed, said in the device's words, loaded again.
+          onEdited={onViewerEdited}
+          onEditChanged={(_it, text) => {
+            closeViewer();
+            showToast({ text, error: true });
+            reloadGrid();
+          }}
         />
         </Part>
       )}

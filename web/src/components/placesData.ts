@@ -195,6 +195,22 @@ async function pumpThumbs(onScreen: Set<string>) {
   }
 }
 
+/** Photo edit: the photo at `from` was replaced by its edit, or had its
+ *  original put back, and is now at `to` with other content: its
+ *  thumbnails at both go, and `thumb` (the small one the viewer drew or
+ *  fetched) stands in at `to`, as the device may not have made its own
+ *  yet. */
+export function photoEdited(from: string, to: string, thumb: Blob | null) {
+  for (const p of new Set([from, to])) {
+    const u = thumbs.get(p);
+    if (u) URL.revokeObjectURL(u);
+    thumbs.delete(p);
+    thumbAsked.delete(p);
+  }
+  if (thumb) thumbs.set(to, URL.createObjectURL(thumb));
+  thumbListeners.forEach((l) => l());
+}
+
 function forgetThumbs() {
   for (const url of thumbs.values()) if (url) URL.revokeObjectURL(url);
   thumbs.clear();

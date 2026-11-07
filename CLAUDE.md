@@ -3726,6 +3726,30 @@ cursors reset) and a page refreshes a picked photo's hash (`refreshPicked`). The
 `changed` (toast, reload, as the phones); so does Files' viewer (an alert with the words, as
 Files' selection says them, and the folder listed again).
 
+Photo edit on the web (2026-11; `components/PhotoEditor.tsx`/`.css` is the editor, its own lazy
+chunk; `photoEditMath.ts` the pure crop maths; `photoEdit.ts` the rules, requests and answers;
+`node web/scripts/photo-edit-test.mjs` tests them). The device side is in the Photo edits bullet
+under Architecture.
+- **Where:** `MediaViewer` shows Edit and Revert to original when its caller passes `onEdited`:
+  Images (with collections and Favourites), Files, Memories' See all, Places. The demo refuses
+  both at the press (`demo.ts`).
+- **The editor:** a frame (`role="group"`, `web.images.edit.frame`) with corner and edge handles,
+  for mouse and touch (pointer events; a second finger is ignored). The arrow keys move it 1%
+  (10% with Shift), and Escape puts back a drag or cancels. There are Rotate left/right, an Aspect
+  select and Reset.
+- **Save** uses `ConfirmDialog`: Replace (ember) or Save as copy (plain outline; `text` is
+  optional, and the second button is red only for `tone="danger"`), then the copies question after
+  GetEditState.
+- **Refusals:** `refusalOf` decides. "changed" closes the editor and viewer through
+  `onEditChanged` (Images reloads the grid as Delete does; Files lists the folder again; Memories
+  and Places ask again and toast). Any other refusal stays in the question.
+- **After a save:** the editor draws a small JPEG for the tile until the device's thumbnail comes.
+  Images swaps the tile in place (`shownAfter`), adds a copy next to the photo in the whole-library
+  date view, and reloads as the viewer closes after "Only here" of several copies (`leftOthers`).
+  The viewer fetches the full size again when the hash changes at the same path.
+- **Phone layout:** `--pg-hdr-h: 79px` sizes the viewer's picture under its two-row header below
+  720px. It used to cover the actions row.
+
 Newer photos above a jump on the web (issue #194, `components/newerPhotos.ts`,
 `node web/scripts/newer-photos-test.mjs`): after a scrubber jump (`cutoff`), `PhotoGallery` keeps an
 upward cursor - `upRef` (token, end), `upMapRef` (its `have`; `mapRef` is the jump's search alone,
@@ -5531,6 +5555,35 @@ the `have` of the search that brought the photo. The viewer's Save downloads the
 `Movies/Off The Cloud`), in the view model's scope; Save spins meanwhile (`State.saving`); only a
 type the library refuses is saved as the shown picture in JPEG, as before.
 
+**Photo edit on Android** (2026-11; `ui/gallery/PhotoEdit.kt` holds the pure rules and crop maths,
+`PhotoEditor.kt` the full-screen editor, `PhotoEditTest.kt` and `PhotoGalleryEditTest.kt` the tests,
+and the debug-only `PhotoEditPreviewActivity` shows it on samples with a pretend device). The
+device side is in the Photo edits bullet under Architecture.
+- **Edit and Revert to Original** sit next to the viewer's Info (the top bar in portrait, the
+  leading column in landscape) wherever the shared viewer opens: Images, collections, Favourites,
+  Files and its search, Memories, the map.
+- **When they are offered:** Edit for `PhotoEdit.editable` (JPEG, PNG, HEIC/HEIF by type or a
+  `.heic`/`.heif` name, AVIF, WebP; never a video, GIF, raw, TIFF or SVG). Revert when
+  `Item.originalHash` (`File.original_hash`) is set.
+- **The editor:**
+  - It shows the viewer's own picture (`viewerImage`) with a crop frame: handles, the outside
+    dimmed, thirds while dragging.
+  - Rotate Left/Right turn the crop with the picture; Aspect fits the largest frame of that shape
+    centred on the current one; Reset; Save only when something changed.
+  - The edit in progress survives the activity being recreated.
+- **Save:** save_title asks Replace or Save as Copy. Replace asks GetEditState first (60 s; failing
+  or older counts as 1). With copies > 1 it asks copies_text, and "All" sends `every_copy`.
+  EditImage then sends the shown `hash`, and Saving… blocks the editor.
+- **What it shows after:** Replace puts the returned File in the item's place, with a picture
+  turned and cut on the phone (at most 1024 px) until the full size comes. The in-flight full-size
+  fetch is keyed by item, so the old content's late answer can't land on the edit. Save as Copy
+  inserts the copy next to the photo, in the whole-library view only, and says saved_copy.
+- **Refusals:** "changed" from either request closes the editor and viewer and reads the photos
+  again, as Delete's does. Other refusals show the device's words in the editor (revert's in the
+  viewer's alert). The demo's refusal and an older device's `unknown_payload` show the device's
+  message.
+- **Behind the viewer:** Files, Memories and Places re-read their own listing.
+
 **Also delete from this phone on Android** (owner's request 2026-11-03; `ui/gallery/DeletePhoneCopy.kt`:
 the rules `DeletePhoneCopy`, `DeletePhoneCopyModel`, `DeletePhoneCopyDialog` in RootView; tests
 `DeletePhoneCopyTest.kt`, cases D1-D9 as iOS's, and `DeletePhoneCopyGalleryTest`; texts
@@ -5599,6 +5652,25 @@ where it began (`reloadSearch`: a jump at its month), the Files viewer lists its
 even for HEIC) and adds it as it is (`PHAssetCreationRequest` `.photo`/`.video` resource,
 `creationDate` = the item's date), add-only access as before; Save spins (`savingPath`,
 `app.photos.viewer.saving`); only a photo Photos refuses is saved as the picture shown.
+
+**Photo edit on iOS** (2026-11; `PhotoEditor.swift` holds the rules, crop maths, requests, flows
+and the editor view, tested by `PhotoEditorTests.swift`; the project's folders sync with the disk,
+so no pbxproj entry is needed). It works as Android's above.
+- **Placement:** Edit (`crop.rotate`) and Revert to Original (`arrow.uturn.backward.circle`, a
+  spinner while asking) sit beside Info in `ImageModal`, so they show everywhere the shared viewer
+  opens.
+- **When they are offered:** `PhotoEditRules.offersEdit` and `offersRevert` (on
+  `Item.originalHash`).
+- **Save and refusals:** a confirmation dialog asks Replace or Save as Copy, then the copies
+  question after GetEditState (asked 0.6 s after the first, so a fast reply doesn't drop it).
+  "changed" closes the editor and viewer through Delete's `contentChanged`, as on Android.
+- **After Replace:** the item is swapped in place (`editShown`) with a preview drawn on the phone
+  (`PhotoEditRender`). The full-size loads are keyed by path and hash (`inFlightHiRes`), and
+  `forgetFullSize` drops what was decoded from the old content.
+- **After a copy, or "Only Here" of several copies:** the grid is read again as the viewer closes
+  (`editReloadOnClose`, as Rating does). Files, Memories and the map re-read through `onDeleted`.
+- **Revert** asks revert_title (with revert_copies_text for several copies), and forgets the
+  edit's cached thumbnail when no path holds it any more.
 
 **Also delete from this phone on iOS** (owner's request 2026-11-03; `DeletePhoneCopy.swift`: the rules
 `DeletePhoneCopy` and `DeletePhoneCopyModel`; tests `DeletePhoneCopyTests.swift`, cases D1-D9 as

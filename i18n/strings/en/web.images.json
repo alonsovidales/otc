@@ -415,6 +415,11 @@
     "text": "Couldn't save the edit. Try again.",
     "note": "Error when the edit couldn't be saved and the device said nothing about why (the connection dropped). When the device gives a reason, its own words are shown instead. In the web app's photo editor."
   },
+  "web.images.edit.frame": {
+    "text": "Crop frame",
+    "note": "The web app's photo editor: what a screen reader calls the frame over the photo that marks the part kept (drag it, or move it with the arrow keys). Not shown on screen.",
+    "max": 30
+  },
   "web.images.edit.replace": {
     "text": "Replace photo",
     "note": "Button of the question web.images.edit.save_title: the photo becomes the edit; its original is kept hidden on the device. In the web app's photo editor.",

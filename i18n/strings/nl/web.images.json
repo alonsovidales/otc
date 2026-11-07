@@ -384,6 +384,10 @@
     "text": "De bewerking kon niet worden opgeslagen. Probeer het opnieuw.",
     "en": "Couldn't save the edit. Try again."
   },
+  "web.images.edit.frame": {
+    "text": "Uitsnedekader",
+    "en": "Crop frame"
+  },
   "web.images.edit.replace": {
     "text": "Foto vervangen",
     "en": "Replace photo"

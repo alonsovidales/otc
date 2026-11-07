@@ -35,6 +35,7 @@ import { useDragSelect } from "./useDragSelect";
 import { useFilesColumns } from "./useFilesColumns";
 import { labelShare, shareShown, usageAnswerFits, usageRows, type Share, type UsageRow } from "./folderUsage";
 import { refusedText } from "./photoCopies";
+import { shownAfter, type EditDone } from "./photoEdit";
 import { openWaitingTab } from "./zipTab";
 import { SelectField } from "./SortBy";
 import { canOpenInline, safeToOpen } from "./inlineTypes";
@@ -91,7 +92,7 @@ let noFolderUsage = false;
 // folder holding only older versions).
 const cNoFile: PbFile = {
   hash: "", mime: "", created: undefined, modified: undefined, path: "", size: 0, content: undefined,
-  uploadOnly: false, versions: 0, size64: 0n, outOfImages: false,
+  uploadOnly: false, versions: 0, size64: 0n, outOfImages: false, originalHash: "",
 };
 // The way up, the first row of every folder but the root's.
 const cUpEntry: PbFile = { ...cNoFile, mime: "inode/directory", path: ".." };
@@ -1429,7 +1430,7 @@ function FilesExplorerView({
     const media = rows.map(r => r.file).filter(x => !isDir(x) && isMedia(x));
     const items: ViewerItem[] = media.map(x => {
       const full = fullPathOf(x);
-      return { path: full, mime: x.mime, thumbURL: thumbs[full] || undefined, hash: x.hash };
+      return { path: full, mime: x.mime, thumbURL: thumbs[full] || undefined, hash: x.hash, originalHash: x.originalHash || undefined };
     });
     const index = Math.max(0, media.findIndex(x => x.path === f.path));
     showViewer({ items, index });
@@ -1534,7 +1535,7 @@ function FilesExplorerView({
       // In the order on screen (issue #196).
       const media = found.filter(x => x.media).map(x => x.file);
       showViewer({
-        items: media.map(x => ({ path: x.path, mime: x.mime, thumbURL: thumbs[x.path] || undefined, hash: x.hash })),
+        items: media.map(x => ({ path: x.path, mime: x.mime, thumbURL: thumbs[x.path] || undefined, hash: x.hash, originalHash: x.originalHash || undefined })),
         index: Math.max(0, media.findIndex(x => x.path === f.path)),
       });
       return;
@@ -1588,8 +1589,8 @@ function FilesExplorerView({
     const index = media.findIndex(x => full(x) === want.file.path);
     // Not in the listing (it failed, or the file went): the file alone.
     const items: ViewerItem[] = index >= 0
-      ? media.map(x => ({ path: full(x), mime: x.mime, thumbURL: thumbsRef.current[full(x)] || undefined, hash: x.hash }))
-      : [{ path: want.file.path, mime: want.file.mime, hash: want.file.hash }];
+      ? media.map(x => ({ path: full(x), mime: x.mime, thumbURL: thumbsRef.current[full(x)] || undefined, hash: x.hash, originalHash: x.originalHash || undefined }))
+      : [{ path: want.file.path, mime: want.file.mime, hash: want.file.hash, originalHash: want.file.originalHash || undefined }];
     viewerOpener.current = null;
     setMediaViewer({ items, index: Math.max(0, index) });
   }, [listed, rows]);
@@ -1637,6 +1638,60 @@ function FilesExplorerView({
       if (thumb) URL.revokeObjectURL(thumb);
     }
     if (listing.some(f => f.path !== ".." && fullPathOf(f) === it.path)) void loadList(pathRef.current);
+  };
+  // Photo edit (photoEdit.ts), from the viewer: a photo replaced by its
+  // edit, or its original put back, is the device's answer in its place in
+  // the viewer - a new hash, maybe a new path (a HEIC edited is a JPEG) -
+  // and in a search's results; its tile's thumbnail is the one the viewer
+  // drew or fetched for it, kept for the page (the device makes its own a
+  // little later, and asking now could find none). An edit saved as a copy
+  // lies next to the photo: the folder shows it. The folder is listed again
+  // when the photo was in it, as after a delete.
+  const onViewerEdited = (it: ViewerItem, done: EditDone) => {
+    const f = done.file;
+    const gone = done.kind === "copy" ? [f.path] : [...new Set([it.path, f.path])];
+    for (const p of gone) {
+      const u = thumbsRef.current[p];
+      if (u) URL.revokeObjectURL(u);
+      thumbsAsked.current.delete(p);
+      thumbSeen.current.delete(p);
+    }
+    const url = done.thumb ? URL.createObjectURL(done.thumb) : "";
+    if (url) {
+      thumbsAsked.current.add(f.path);
+      sawThumb(f.path);
+    }
+    setThumbs(prev => {
+      const next = { ...prev };
+      for (const p of gone) delete next[p];
+      if (url) next[f.path] = url;
+      return next;
+    });
+    if (done.kind !== "copy") {
+      const now: ViewerItem = { path: f.path, mime: f.mime, hash: f.hash, originalHash: f.originalHash || undefined };
+      setMediaViewer(v => (v ? { ...v, items: v.items.map(x => (x.path === it.path ? now : x)) } : v));
+      setResults(r => (r?.files.some(x => x.path === it.path) ? { ...r, files: r.files.map(x => (x.path === it.path ? shownAfter(x, done) : x)) } : r));
+    }
+    if (listing.some(x => x.path !== ".." && fullPathOf(x) === it.path)) void loadList(pathRef.current);
+  };
+  // An edit or a revert refused as "changed" - the file holds other
+  // content now - is a delete refused so (Issue #201): the viewer closes,
+  // the folder is listed again and the device's words say so; the tile's
+  // thumbnail, of what the path held, is asked for again.
+  const onViewerEditChanged = (it: ViewerItem, text: UiText) => {
+    closeViewer();
+    const u = thumbsRef.current[it.path];
+    if (u !== undefined) {
+      if (u) URL.revokeObjectURL(u);
+      thumbsAsked.current.delete(it.path);
+      setThumbs(prev => {
+        const next = { ...prev };
+        delete next[it.path];
+        return next;
+      });
+    }
+    void loadList(pathRef.current);
+    showToast({ text, error: true });
   };
   // Nothing in an upload-only folder can be deleted: the viewer's Delete is
   // greyed out there, saying why, as the selection's is.
@@ -2383,6 +2438,9 @@ function FilesExplorerView({
           }}
           deleteBlocked={viewerDeleteBlocked}
           canFavourite
+          // Edit and Revert to original.
+          onEdited={onViewerEdited}
+          onEditChanged={onViewerEditChanged}
         />
         </Part>
       )}

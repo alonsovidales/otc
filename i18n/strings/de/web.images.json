@@ -384,6 +384,10 @@
     "text": "Die Bearbeitung konnte nicht gespeichert werden. Versuche es erneut.",
     "en": "Couldn't save the edit. Try again."
   },
+  "web.images.edit.frame": {
+    "text": "Zuschnittrahmen",
+    "en": "Crop frame"
+  },
   "web.images.edit.replace": {
     "text": "Foto ersetzen",
     "en": "Replace photo"

@@ -1,0 +1,162 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* The photo editor (PhotoEditor.tsx): the whole window over the viewer, in
+   the viewer's own look - its header row (Cancel, the name, Save), the
+   photo on the dark ink, and a row of tools under it. Inside the viewer's
+   layer (MediaViewer.tsx's .pg-modal, z-index 50), so over its box and
+   under nothing else; its questions are drawn inside it, over it. */
+.pe-root {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: var(--ink-2);
+  color: var(--mist);
+}
+.pe-root:focus { outline: none; }
+
+.pe-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  padding-top: max(6px, env(safe-area-inset-top, 0px));
+  border-bottom: 1px solid var(--line);
+}
+.pe-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 13px;
+  color: var(--mist-dim);
+}
+
+/* The stage: the picture fitted in it, with room round it for the
+   handles (cPad). No scrolling, zooming or selecting while a frame is
+   dragged on it. */
+.pe-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--ink);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.pe-wait { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mist-dim); font-size: 24px; }
+.pe-pic { position: absolute; }
+/* The photo in its own proportions, turned about its middle into the
+   turned picture's box. */
+.pe-img {
+  position: absolute;
+  display: block;
+  max-width: none;
+  transform-origin: 50% 50%;
+  pointer-events: none;
+}
+/* The outside of the frame dimmed: the hole's shadow, clipped to the
+   picture (the frame and its handles are drawn over it, unclipped). */
+.pe-dim { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.pe-hole { position: absolute; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .58); }
+
+.pe-frame {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid rgba(234, 242, 239, .9);
+  cursor: move;
+  touch-action: none;
+}
+.pe-frame:focus { outline: none; }
+.pe-frame:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+/* The rule of thirds, while the frame is dragged. */
+.pe-grid { position: absolute; inset: 0; pointer-events: none; }
+.pe-grid-v, .pe-grid-h { position: absolute; background: rgba(234, 242, 239, .55); box-shadow: 0 0 2px rgba(0, 0, 0, .5); }
+.pe-grid-v { top: 0; bottom: 0; width: 1px; }
+.pe-grid-h { left: 0; right: 0; height: 1px; }
+
+/* The handles: a 44px target round each corner and a band along each edge
+   between them, 32px across it, half outside the frame; drawn as the
+   corners' brackets and the edges' short bars, just outside its line. */
+.pe-h { position: absolute; box-sizing: border-box; touch-action: none; }
+.pe-h::before { content: ""; position: absolute; box-sizing: border-box; border-color: var(--mist); border-style: solid; border-width: 0; filter: drop-shadow(0 0 1px rgba(0, 0, 0, .7)); }
+.pe-h-n, .pe-h-s { left: 22px; right: 22px; height: 32px; cursor: ns-resize; }
+.pe-h-e, .pe-h-w { top: 22px; bottom: 22px; width: 32px; cursor: ew-resize; }
+.pe-h-n { top: -16px; }
+.pe-h-s { bottom: -16px; }
+.pe-h-e { right: -16px; }
+.pe-h-w { left: -16px; }
+.pe-h-n::before, .pe-h-s::before { left: 50%; width: 20px; margin-left: -10px; height: 0; border-top-width: 3px; }
+.pe-h-n::before { top: 13px; }
+.pe-h-s::before { top: 16px; }
+.pe-h-e::before, .pe-h-w::before { top: 50%; height: 20px; margin-top: -10px; width: 0; border-left-width: 3px; }
+.pe-h-e::before { left: 16px; }
+.pe-h-w::before { left: 13px; }
+.pe-h-nw, .pe-h-ne, .pe-h-se, .pe-h-sw { width: 44px; height: 44px; z-index: 1; }
+.pe-h-nw { left: -22px; top: -22px; cursor: nwse-resize; }
+.pe-h-se { right: -22px; bottom: -22px; cursor: nwse-resize; }
+.pe-h-ne { right: -22px; top: -22px; cursor: nesw-resize; }
+.pe-h-sw { left: -22px; bottom: -22px; cursor: nesw-resize; }
+.pe-h-nw::before, .pe-h-ne::before, .pe-h-se::before, .pe-h-sw::before { width: 18px; height: 18px; }
+.pe-h-nw::before { left: 19px; top: 19px; border-top-width: 3px; border-left-width: 3px; }
+.pe-h-ne::before { right: 19px; top: 19px; border-top-width: 3px; border-right-width: 3px; }
+.pe-h-se::before { right: 19px; bottom: 19px; border-bottom-width: 3px; border-right-width: 3px; }
+.pe-h-sw::before { left: 19px; bottom: 19px; border-bottom-width: 3px; border-left-width: 3px; }
+
+/* The tools: the turns as the viewer's pills (Info's look), the shape as
+   Sort by's select, Reset quiet. */
+.pe-tools {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 10px;
+  padding: 10px 12px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+}
+.pe-tool {
+  flex: none;
+  margin: 0;
+  box-sizing: border-box;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 14px 0 10px;
+  background: var(--panel);
+  color: var(--mist);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pe-tool svg { display: block; flex: none; }
+.pe-tool:hover { filter: none; }
+@media (hover: hover) {
+  .pe-tool:hover:not(:disabled) { background: var(--ember); color: var(--ember-ink); border-color: transparent; }
+}
+.pe-tool:disabled { opacity: .5; cursor: default; }
+.pe-tool:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.pe-aspect { margin: 0 4px; }
+
+/* A phone: the turns as round icons (named by their labels and tips), 44px
+   to hit, and the tools on one line where they fit. */
+@media (max-width: 599px) {
+  .pe-tools { gap: 8px; padding-left: 8px; padding-right: 8px; }
+  .pe-tool { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .pe-tool-text { display: none; }
+  .pe-aspect { margin: 0; }
+}

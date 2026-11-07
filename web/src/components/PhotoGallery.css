@@ -1131,6 +1131,10 @@
    they pushed Close and Delete past the screen's edge on one person's
    photos, in most languages. Close never shrinks, last of its row. */
 @media (max-width: 719px) {
+  /* The picture is as much shorter (--pg-hdr-h, the img rule below): one
+     sized for a row stood out of its box by half the difference at each
+     end, over the actions' row, which then took only half a tap. */
+  .pg-modal-inner { --pg-hdr-h: 79px; }
   .pg-modal-hdr { flex-wrap: wrap; justify-content: flex-end; row-gap: 3px; }
   .pg-modal-hdr > * { order: 4; }
   .pg-modal-hdr > .pg-info-btn { order: 0; }
@@ -1235,7 +1239,7 @@
   .pg-modal-inner:has(.pg-info-panel) .pg-nav.right { right: 330px; }
 }
 .pg-modal-imgwrap { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; touch-action: none; background: var(--ink); }
-.pg-modal-imgwrap img { width: 100%; height: calc(94vh - 45px - var(--pg-rate-h, 0px)); object-fit: contain; background: var(--ink); }
+.pg-modal-imgwrap img { width: 100%; height: calc(94vh - var(--pg-hdr-h, 45px) - var(--pg-rate-h, 0px)); object-fit: contain; background: var(--ink); }
 
 /* A collection's Rating (RatingPanel.tsx): the stars and comment box in a
    bar of their own under the photo, which is that much shorter
@@ -1281,7 +1285,7 @@
    modal's padding rather than being clipped off. */
 .pg-modal-imgwrap video {
   width: 100%;
-  max-height: calc(94vh - 45px - var(--pg-rate-h, 0px));
+  max-height: calc(94vh - var(--pg-hdr-h, 45px) - var(--pg-rate-h, 0px));
   object-fit: contain;
   display: block;
   background: var(--ink);

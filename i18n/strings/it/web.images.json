@@ -384,6 +384,10 @@
     "text": "Non è stato possibile salvare la modifica. Riprova.",
     "en": "Couldn't save the edit. Try again."
   },
+  "web.images.edit.frame": {
+    "text": "Riquadro di ritaglio",
+    "en": "Crop frame"
+  },
   "web.images.edit.replace": {
     "text": "Sostituisci foto",
     "en": "Replace photo"

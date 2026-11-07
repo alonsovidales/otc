@@ -125,6 +125,7 @@
   "web.images.edit.discard": "Abandonner",
   "web.images.edit.discard_title": "Abandonner la modification ?",
   "web.images.edit.failed": "La modification n’a pas pu être enregistrée. Réessayez.",
+  "web.images.edit.frame": "Cadre de recadrage",
   "web.images.edit.replace": "Remplacer la photo",
   "web.images.edit.reset": "Réinitialiser",
   "web.images.edit.revert": "Revenir à l’original",

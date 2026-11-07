@@ -125,6 +125,7 @@
   "web.images.edit.discard": "Discard",
   "web.images.edit.discard_title": "Discard the edit?",
   "web.images.edit.failed": "Couldn't save the edit. Try again.",
+  "web.images.edit.frame": "Crop frame",
   "web.images.edit.replace": "Replace photo",
   "web.images.edit.reset": "Reset",
   "web.images.edit.revert": "Revert to original",

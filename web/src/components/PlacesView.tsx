@@ -30,8 +30,12 @@ import Spinner from "./Spinner";
 import type { ViewerItem } from "./MediaViewer";
 import { cMapHost, mapFetch, mapFetchJSON } from "./mapFetch";
 import { isFiltered, leaveArea, showArea, usePhotoFilter } from "./photoFilter";
-import { keepCamera, lastCamera } from "./places";
-import { askLocated, askTiles, cKeepReadingMs, filterKeyOf, locatedOf, onPlaces, onThumbs, placesOf, thumbOf, wantThumbs, type PlaceFilter } from "./placesData";
+import { dropPlaces, keepCamera, lastCamera } from "./places";
+import { askLocated, askTiles, cKeepReadingMs, filterKeyOf, locatedOf, onPlaces, onThumbs, photoEdited, placesOf, thumbOf, wantThumbs, type PlaceFilter } from "./placesData";
+import type { EditDone } from "./photoEdit";
+import type { UiText } from "./uiText";
+import { useToasts } from "./useToasts";
+import ToastView from "./ToastView";
 import { areaSpanMetres, deviceZoom, fitCorners, mergePins, tileX, tileY, tilesFor, wrapX, type Area, type Pin } from "./placesMath";
 import "./PlacesView.css";
 
@@ -204,6 +208,29 @@ function PlacesMap({ onOpenPhotos }: { onOpenPhotos: () => void }) {
   const [reading, setReading] = useState(() => locatedOf(fk)?.reading ?? false);
   const [placesFailed, setPlacesFailed] = useState(false);
   const [viewing, setViewing] = useState<ViewerItem | null>(null);
+  // Photo edit, from the viewer: a photo replaced by its edit, or with its
+  // original put back, is the one the viewer shows now (the device's
+  // answer), its pin's thumbnail following (placesData.ts' photoEdited);
+  // a copy has the photo's place too. The places are asked again either
+  // way, as after a delete in Images.
+  const onEdited = (it: ViewerItem, done: EditDone) => {
+    if (done.kind !== "copy") {
+      const f = done.file;
+      photoEdited(it.path, f.path, done.thumb);
+      setViewing({ path: f.path, mime: f.mime, hash: f.hash, originalHash: f.originalHash || undefined, thumbURL: thumbOf(f.path) || undefined });
+    }
+    dropPlaces();
+  };
+  // Refused as "changed" (the photo's path holds other content now), as a
+  // delete is in Images: the viewer closes, the places and the pin's
+  // thumbnail are asked again, and a note says the device's words.
+  const { toast, showToast, dismissToast } = useToasts();
+  const onEditChanged = (it: ViewerItem, text: UiText) => {
+    setViewing(null);
+    photoEdited(it.path, it.path, null);
+    dropPlaces();
+    showToast({ text, error: true });
+  };
 
   // What the latest render knows, for the map's own event handlers.
   const live = useRef({ pf, fk, t });
@@ -586,9 +613,10 @@ function PlacesMap({ onOpenPhotos }: { onOpenPhotos: () => void }) {
       )}
       {viewing && (
         <Part kind="layer" onClose={() => setViewing(null)}>
-          <MediaViewer items={[viewing]} index={0} onIndexChange={() => {}} onClose={() => setViewing(null)} canFavourite />
+          <MediaViewer items={[viewing]} index={0} onIndexChange={() => {}} onClose={() => setViewing(null)} canFavourite onEdited={onEdited} onEditChanged={onEditChanged} />
         </Part>
       )}
+      <ToastView toast={toast} onDismiss={dismissToast} />
     </div>
   );
 }

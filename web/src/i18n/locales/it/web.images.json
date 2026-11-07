@@ -125,6 +125,7 @@
   "web.images.edit.discard": "Scarta",
   "web.images.edit.discard_title": "Scartare la modifica?",
   "web.images.edit.failed": "Non è stato possibile salvare la modifica. Riprova.",
+  "web.images.edit.frame": "Riquadro di ritaglio",
   "web.images.edit.replace": "Sostituisci foto",
   "web.images.edit.reset": "Reimposta",
   "web.images.edit.revert": "Torna all’originale",

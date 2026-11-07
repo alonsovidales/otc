@@ -384,6 +384,10 @@
     "text": "La modification n’a pas pu être enregistrée. Réessayez.",
     "en": "Couldn't save the edit. Try again."
   },
+  "web.images.edit.frame": {
+    "text": "Cadre de recadrage",
+    "en": "Crop frame"
+  },
   "web.images.edit.replace": {
     "text": "Remplacer la photo",
     "en": "Replace photo"

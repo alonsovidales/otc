@@ -125,6 +125,7 @@
   "web.images.edit.discard": "Descartar",
   "web.images.edit.discard_title": "¿Descartar la edición?",
   "web.images.edit.failed": "No se ha podido guardar la edición. Vuelve a intentarlo.",
+  "web.images.edit.frame": "Marco de recorte",
   "web.images.edit.replace": "Sustituir foto",
   "web.images.edit.reset": "Restablecer",
   "web.images.edit.revert": "Volver al original",

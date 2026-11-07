@@ -384,6 +384,10 @@
     "text": "Não foi possível guardar a edição. Tenta novamente.",
     "en": "Couldn't save the edit. Try again."
   },
+  "web.images.edit.frame": {
+    "text": "Moldura de recorte",
+    "en": "Crop frame"
+  },
   "web.images.edit.replace": {
     "text": "Substituir foto",
     "en": "Replace photo"

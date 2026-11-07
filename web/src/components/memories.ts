@@ -322,6 +322,25 @@ export async function fetchThumbs(paths: readonly string[], small: boolean): Pro
   }
 }
 
+/** Photo edit: the photo at `from` was replaced by its edit, or had its
+ *  original put back, and is now at `to` (the same path, or a HEIC become a
+ *  JPEG and back) with other content. Its thumbnails at both go; `thumb`
+ *  (the small one the viewer drew or fetched) stands in for the small one
+ *  at `to`, as the device may not have made its own yet; the big one is
+ *  asked again when next wanted. */
+export function photoEdited(from: string, to: string, thumb: Blob | null) {
+  for (const p of new Set([from, to])) {
+    for (const m of [thumbs.small, thumbs.big]) {
+      const u = m.get(p);
+      if (u) URL.revokeObjectURL(u);
+      m.delete(p);
+    }
+  }
+  if (thumb) thumbs.small.set(to, URL.createObjectURL(thumb));
+  thumbVersion++;
+  listeners.forEach((l) => l());
+}
+
 // ---- the session -----------------------------------------------------------------------
 
 function forget() {

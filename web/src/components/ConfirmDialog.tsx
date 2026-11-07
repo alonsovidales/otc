@@ -4,7 +4,8 @@
 // dimmed page, and ConfirmDialog, a question with Cancel and a red button
 // (Delete...), and maybe a second, outlined one before it (issue #201's
 // "Delete only this copy") - or an ember one for a question that loses
-// nothing (BigFileDialog's). Images' dialogs use them, and the photo viewer
+// nothing (BigFileDialog's; the photo editor's Replace photo, its outlined
+// Save as copy then plain). Images' dialogs use them, and the photo viewer
 // (MediaViewer) asks with ConfirmDialog before deleting what it shows.
 // LinkDialog shows a share link to copy by hand (Images and Files). Styled
 // in PhotoGallery.css (.pg-dlg*, .pg-btn). Back closes a Modal, as Cancel
@@ -108,7 +109,9 @@ export function Modal({ labelledBy, label, busy = false, wide = false, className
 
 export function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCancel, other, tone = "danger" }: {
   title: string;
-  text: ReactNode;
+  // None for a question its title says whole (the editor's "Discard the
+  // edit?").
+  text?: ReactNode;
   confirm: string;
   busyText: string;
   // The go-ahead's colour: red for what is lost, ember for the rest.
@@ -118,8 +121,9 @@ export function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCan
   onConfirm: () => Promise<UiText | null>;
   onCancel: () => void;
   // A second way to go on, before the red button and outlined (issue
-  // #201: "Delete only this copy" beside "Delete all 3 copies"). Its work
-  // and its answer are as onConfirm's.
+  // #201: "Delete only this copy" beside "Delete all 3 copies") - red
+  // too, or plain beside an ember one (the editor's Save as copy, which
+  // loses nothing either). Its work and its answer are as onConfirm's.
   other?: { label: string; onConfirm: () => Promise<UiText | null> };
 }) {
   const t = useT();
@@ -141,14 +145,14 @@ export function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCan
     <Modal labelledBy={titleId} busy={busy != null} wide={!!other} onClose={onCancel}>
       <div>
         <h2 id={titleId} className="pg-dlg-title">{title}</h2>
-        <p className="pg-dlg-text">{text}</p>
+        {text != null && text !== "" && <p className="pg-dlg-text">{text}</p>}
       </div>
       {error && <p className="pg-dlg-error" role="alert">{error(t)}</p>}
       <div className="pg-dlg-actions">
         {/* Focus starts on Cancel: Enter right away keeps everything. */}
         <button type="button" className="pg-btn quiet" onClick={onCancel} disabled={busy != null} data-autofocus>{t("common.cancel")}</button>
         {other && (
-          <button type="button" className="pg-btn outline danger" onClick={() => void run("other", other.onConfirm)}
+          <button type="button" className={`pg-btn outline${tone === "danger" ? " danger" : ""}`} onClick={() => void run("other", other.onConfirm)}
             disabled={busy != null} aria-busy={busy === "other"}>
             {busy === "other" ? <Spinner label={busyText} /> : other.label}
           </button>
