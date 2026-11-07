@@ -570,24 +570,18 @@ struct SettingsView: View {
                 // for here is being added.
                 StorageSection(model: mirror, status: status)
 
-                // What the device works through by itself (release 152),
-                // from the Status answer above - asked every 5 s while
-                // Settings shows; only while it lists something.
-                BackgroundWorkSection(items: BackgroundWork.items(status.status))
+                // What is under way, beside the device's status: this
+                // phone's uploads - issue #122: the only place their
+                // progress is shown, also while a run waits for Wi-Fi or
+                // room on the device - then what the device works through
+                // by itself (release 152), from the Status answer above,
+                // asked every 5 s while Settings shows. Only while there is
+                // something.
+                InProgressSection(upload: upload, items: BackgroundWork.items(status.status))
 
                 // The device's accounts, right under its status (the
                 // owner's most used part of Settings).
                 UsersManagementSection(vm: users)
-
-                // Issue #122: the only place upload progress is shown. There
-                // used to be a hairline over every tab as well (issue #14);
-                // a background sync isn't worth announcing everywhere.
-                // Also while a run waits: for Wi-Fi, or room on the device.
-                if upload.totalPending > 0 || upload.isUploading || upload.halt != nil {
-                    Section(header: Text(S.appSettingsUploadsTitle)) {
-                        UploadDetail(upload: upload)
-                    }
-                }
 
                 // Issue #180: galleries and zip links shared from Images
                 // and Files - when they expire, how often they were opened,

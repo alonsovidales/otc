@@ -410,6 +410,10 @@ fun S.appSettingsProfileSaved(): UiText =
 fun S.appSettingsProfileTitle(): UiText =
     UiText.Res(R.string.app_settings_profile_title)
 
+/** "In progress": Heading of the Settings section that shows what is under way, only while something is: this phone's uploads to the device (the file being sent, a bar, how many wait, Pause), then what the device works through by itself (one row per task, in the device's own words, each with a bar). A short heading, like a status. */
+fun S.appSettingsProgressTitle(): UiText =
+    UiText.Res(R.string.app_settings_progress_title)
+
 /** "Reprocess All Media": Button of Settings > Reprocess Media that starts a run; asks for a confirmation first. */
 fun S.appSettingsReprocessAll(): UiText =
     UiText.Res(R.string.app_settings_reprocess_all)

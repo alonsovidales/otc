@@ -470,6 +470,10 @@
     "text": "Profiel",
     "en": "Profile"
   },
+  "app.settings.progress.title": {
+    "text": "Bezig",
+    "en": "In progress"
+  },
   "app.settings.reprocess.all": {
     "text": "Alle media opnieuw verwerken",
     "en": "Reprocess All Media"

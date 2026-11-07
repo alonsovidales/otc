@@ -557,6 +557,11 @@ extension S {
     /// Heading of the first section of Settings, where the owner edits the profile friends see: photo, name and description.
     static var appSettingsProfileTitle: String { L("app.settings.profile.title", table: "AppSettings") }
 
+    /// In progress
+    ///
+    /// Heading of the Settings section that shows what is under way, only while something is: this phone's uploads to the device (the file being sent, a bar, how many wait, Pause), then what the device works through by itself (one row per task, in the device's own words, each with a bar). A short heading, like a status.
+    static var appSettingsProgressTitle: String { L("app.settings.progress.title", table: "AppSettings") }
+
     /// Reprocess All Media
     ///
     /// Button of Settings > Reprocess Media that starts a run; asks for a confirmation first.

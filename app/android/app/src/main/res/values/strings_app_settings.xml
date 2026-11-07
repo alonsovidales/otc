@@ -120,6 +120,7 @@
     <string name="app_settings_profile_save_failed">Profile update failed</string>
     <string name="app_settings_profile_saved">Profile updated ✅</string>
     <string name="app_settings_profile_title">Profile</string>
+    <string name="app_settings_progress_title">In progress</string>
     <string name="app_settings_reprocess_all">Reprocess All Media</string>
     <plurals name="app_settings_reprocess_completed">
         <item quantity="one">Last run completed — %1$s file(s) processed.</item>

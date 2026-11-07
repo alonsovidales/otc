@@ -23,16 +23,18 @@ import androidx.compose.ui.unit.dp
 import cloud.offthe.otc.proto.BackgroundTask
 import cloud.offthe.otc.proto.Status
 import cloud.offthe.otc.ui.settings.BackgroundWork
-import cloud.offthe.otc.ui.settings.BackgroundWorkSection
+import cloud.offthe.otc.data.UploadModel
+import cloud.offthe.otc.ui.settings.InProgressSection
 import cloud.offthe.otc.ui.theme.OTCTheme
 import kotlinx.coroutines.delay
 
 /**
- * Debug builds only: Settings > Background work on sample tasks, no device
- * needed (adb shell am start -n cloud.offthe.otc/.BackgroundWorkPreviewActivity).
- * The rows are a pretend Status answer read through BackgroundWork, as
- * Settings reads the device's; the first one moves on every second, and
- * one doesn't know its total yet (an indeterminate bar, no count).
+ * Debug builds only: Settings > In progress on sample uploads and tasks, no
+ * device needed (adb shell am start -n cloud.offthe.otc/.BackgroundWorkPreviewActivity).
+ * The uploads are a pretend run of this phone's sync; the rows are a
+ * pretend Status answer read through BackgroundWork, as Settings reads the
+ * device's; one moves on every second, and one doesn't know its total yet
+ * (an indeterminate bar, no count).
  */
 class BackgroundWorkPreviewActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,7 +54,8 @@ class BackgroundWorkPreviewActivity : ComponentActivity() {
                         .addBackgroundTasks(task("places", "Finding where your photos were taken", 0, 0))
                         .build()
                     Column(Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(vertical = 16.dp)) {
-                        BackgroundWorkSection(BackgroundWork.tasks(status))
+                        val upload = UploadModel.State(totalPending = 214, currentName = "IMG_2041.HEIC", progress = 0.42f, isUploading = true)
+                        InProgressSection(upload, BackgroundWork.tasks(status))
                     }
                 }
             }

@@ -157,7 +157,7 @@ import cloud.offthe.otc.i18n.androidSettingsUploadPending
 import cloud.offthe.otc.i18n.androidSettingsUploadWaiting
 import cloud.offthe.otc.i18n.androidSettingsUploading
 import cloud.offthe.otc.i18n.appSettingsBackgroundFooter
-import cloud.offthe.otc.i18n.appSettingsBackgroundTitle
+import cloud.offthe.otc.i18n.appSettingsProgressTitle
 import cloud.offthe.otc.i18n.appSettingsBridgeAccountPage
 import cloud.offthe.otc.i18n.appSettingsBridgeAtHome
 import cloud.offthe.otc.i18n.appSettingsBridgeDeleteAccount
@@ -293,7 +293,6 @@ import cloud.offthe.otc.i18n.appSettingsUpdateSlow
 import cloud.offthe.otc.i18n.appSettingsUpdateStarting
 import cloud.offthe.otc.i18n.appSettingsUpdateTitle
 import cloud.offthe.otc.i18n.appSettingsUpdateUpToDate
-import cloud.offthe.otc.i18n.appSettingsUploadsTitle
 import cloud.offthe.otc.i18n.appSettingsUsersConfirmDelete
 import cloud.offthe.otc.i18n.appSettingsUsersConfirmHint
 import cloud.offthe.otc.i18n.appSettingsUsersCreate
@@ -632,33 +631,15 @@ fun SettingsView(secrets: SecretsStore) {
             // being added.
             StorageSection(status, mirror)
 
-            // What the device works through by itself (release 152), beside
-            // its status: only while there is something. From the Status
-            // answers this screen already asks for every 5 s while in front.
+            // What is under way, beside the device's status: this phone's
+            // uploads, then what the device works through by itself (release
+            // 152), from the Status answers this screen already asks for
+            // every 5 s while in front. Only while there is something.
             val statusNow by status.state.collectAsState()
-            BackgroundWorkSection(BackgroundWork.tasks(statusNow.status))
+            InProgressSection(upload, BackgroundWork.tasks(statusNow.status))
 
             // The device's accounts, right under its status.
             UsersManagementSection()
-
-            // Also while a run waits: for Wi-Fi, or room on the device.
-            val halt = upload.halt
-            if (halt != null && !upload.isUploading) {
-                Section(S.appSettingsUploadsTitle().resolve()) {
-                    Text(halt.title.resolve(), style = MaterialTheme.typography.bodyMedium)
-                    halt.detail?.let { Caption(it) }
-                }
-            } else if (upload.totalPending > 0 || upload.isUploading) {
-                Section(S.appSettingsUploadsTitle().resolve()) {
-                    Text((if (upload.isUploading) S.androidSettingsUploading(upload.currentName) else S.androidSettingsUploadWaiting()).resolve(), style = MaterialTheme.typography.bodyMedium)
-                    LinearProgressIndicator(progress = { upload.progress }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Caption(S.androidSettingsUploadPending(upload.totalPending).resolve())
-                        Spacer(Modifier.weight(1f))
-                        RowButton((if (upload.isPaused) S.commonResume() else S.commonPause()).resolve()) { UploadModel.togglePause() }
-                    }
-                }
-            }
 
             Section(S.appSettingsSharingTitle().resolve(), S.androidSettingsSharingFooter().resolve()) {
                 RowLink(S.appSettingsLinksTitle().resolve()) { showSharedLinks = true }
@@ -1546,20 +1527,38 @@ internal fun sizeText(mb: Double): String = when {
 }
 
 /**
- * Settings > Background work (release 152): one row per piece of work the
- * device does by itself - its own words, a bar (indeterminate while it
- * doesn't know how many yet) and "4,210 of 12,800" - with the footer.
- * Nothing at all while the list is empty, as on a device before it. Each
- * row is one TalkBack element: the words, the count and the bar's
- * percentage. The same rules as iOS's BackgroundWork.
+ * Settings > In progress, shown only while something is under way. First
+ * this phone's uploads (the file being sent, a bar, how many wait, Pause -
+ * or why the run waits: for Wi-Fi, room on the device), then Background
+ * work (release 152): one row per piece of work the device does by itself -
+ * its own words, a bar (indeterminate while it doesn't know how many yet)
+ * and "4,210 of 12,800" - with its footer. Each row is one TalkBack
+ * element: the words, the count and the bar's percentage. The same rules
+ * as iOS's InProgressSection.
  */
 @Composable
-internal fun BackgroundWorkSection(tasks: List<BackgroundWork.Task>) {
-    if (tasks.isEmpty()) return
-    Section(S.appSettingsBackgroundTitle().resolve(), S.appSettingsBackgroundFooter().resolve()) {
+internal fun InProgressSection(upload: UploadModel.State, tasks: List<BackgroundWork.Task>) {
+    val uploads = BackgroundWork.showsUploads(upload)
+    if (!uploads && tasks.isEmpty()) return
+    Section(S.appSettingsProgressTitle().resolve(), if (tasks.isEmpty()) null else S.appSettingsBackgroundFooter().resolve()) {
+        if (uploads) {
+            val halt = upload.halt
+            if (halt != null && !upload.isUploading) {
+                Text(halt.title.resolve(), style = MaterialTheme.typography.bodyMedium)
+                halt.detail?.let { Caption(it) }
+            } else {
+                Text((if (upload.isUploading) S.androidSettingsUploading(upload.currentName) else S.androidSettingsUploadWaiting()).resolve(), style = MaterialTheme.typography.bodyMedium)
+                LinearProgressIndicator(progress = { upload.progress }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Caption(S.androidSettingsUploadPending(upload.totalPending).resolve())
+                    Spacer(Modifier.weight(1f))
+                    RowButton((if (upload.isPaused) S.commonResume() else S.commonPause()).resolve()) { UploadModel.togglePause() }
+                }
+            }
+        }
         tasks.forEachIndexed { i, task ->
             androidx.compose.runtime.key(task.kind) {
-                Column(Modifier.fillMaxWidth().padding(top = if (i > 0) 10.dp else 0.dp).semantics(mergeDescendants = true) {}) {
+                Column(Modifier.fillMaxWidth().padding(top = if (i > 0 || uploads) 10.dp else 0.dp).semantics(mergeDescendants = true) {}) {
                     if (task.text.isNotEmpty()) Text(task.text, style = MaterialTheme.typography.bodyMedium)
                     val bar = Modifier.fillMaxWidth().padding(vertical = 6.dp)
                     if (task.indeterminate) LinearProgressIndicator(bar)

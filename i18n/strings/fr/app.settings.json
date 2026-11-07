@@ -470,6 +470,10 @@
     "text": "Profil",
     "en": "Profile"
   },
+  "app.settings.progress.title": {
+    "text": "En cours",
+    "en": "In progress"
+  },
   "app.settings.reprocess.all": {
     "text": "Retraiter tous les médias",
     "en": "Reprocess All Media"

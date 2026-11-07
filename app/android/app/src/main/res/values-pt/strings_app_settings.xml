@@ -127,6 +127,7 @@
     <string name="app_settings_profile_save_failed">Não foi possível atualizar o perfil</string>
     <string name="app_settings_profile_saved">Perfil atualizado ✅</string>
     <string name="app_settings_profile_title">Perfil</string>
+    <string name="app_settings_progress_title">Em curso</string>
     <string name="app_settings_reprocess_all">Reprocessar toda a multimédia</string>
     <plurals name="app_settings_reprocess_completed">
         <item quantity="one">Última execução concluída: %1$s ficheiro processado.</item>

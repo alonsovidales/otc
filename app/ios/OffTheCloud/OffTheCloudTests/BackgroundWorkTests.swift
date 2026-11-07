@@ -76,4 +76,15 @@ struct BackgroundWorkTests {
         #expect(items.map(\.id) == ["analysis", "#1"])
         #expect(items[0].done == 1)
     }
+
+    /// Settings › In progress holds the uploads too (owner, 2026-11-07):
+    /// while a run sends, has photos waiting or is held up; with neither
+    /// and no device rows nothing shows. Android's
+    /// inProgressShowsTheUploadsWhileTheyAreUnderWayOrHeld.
+    @Test func inProgressShowsTheUploadsWhileTheyAreUnderWayOrHeld() {
+        #expect(!BackgroundWork.showsUploads(isUploading: false, pending: 0, held: false))
+        #expect(BackgroundWork.showsUploads(isUploading: true, pending: 0, held: false))
+        #expect(BackgroundWork.showsUploads(isUploading: false, pending: 3, held: false))
+        #expect(BackgroundWork.showsUploads(isUploading: false, pending: 0, held: true))
+    }
 }

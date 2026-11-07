@@ -4934,13 +4934,17 @@ the device is about to fetch it). A debug-only
 missing|downloading|problem|ready`; turned on from missing it runs a pretend download) draws both on
 sample data. Tests: `PhotoGallerySmartSearchTest.kt`, `SmartSearchModelTest.kt`.
 **Background work on Android** (release 152, `ui/settings/BackgroundWork.kt`; iOS's `BackgroundWork`;
-texts `app.settings.background.*`): Settings' section right after Status, shown only while
-`Status.background_tasks` isn't empty (an older device sends none): a row per task (keyed by `kind`)
+texts `app.settings.background.*`): in Settings' In progress section (`InProgressSection`, owner
+2026-11-07: "should be in the same section" as the uploads; heading `app.settings.progress.title`),
+right after Status and Storage: this phone's uploads first (the old Uploads section's rows, shown while
+`BackgroundWork.showsUploads` - sending, photos waiting, or a halt), then the device's rows, shown only
+while `Status.background_tasks` isn't empty (an older device sends none), with
+`app.settings.background.footer` only when there are some: a row per task (keyed by `kind`)
 with the device's `text`, a `LinearProgressIndicator` (indeterminate while `total` is 0, which shows
 no count) and `count` ("4,210 of 12,800", the app's number format), each row one TalkBack element. It
 reads the Status answers Settings already asks for every 5 s while in front (`StatusViewModel`), so it
-has no poll of its own. A debug-only `BackgroundWorkPreviewActivity` draws it on sample tasks. Tests:
-`BackgroundWorkTest.kt`.
+has no poll of its own. A debug-only `BackgroundWorkPreviewActivity` draws it on a sample upload and
+tasks. Tests: `BackgroundWorkTest.kt`.
 **Sort by and Back to the map on Android** (2026-10-30, the owner's request after user feedback;
 `ui/gallery/PageSort.kt`, `showsAreaBack` in `Places.kt`, `AreaBackButton` in `PhotoGalleryView.kt`; iOS
 `PeopleSort`/`CollectionsSort`/`AreaBackButton`, the same rules; texts `app.photos.sort_by`,
@@ -5169,9 +5173,11 @@ to Settings; MainView's top bar follows `searchableChanges` (no redraw at each s
 the user turned it on: off by default in release 151, on by default since 152, the app shows what
 the device says.
 **Background work on iOS** (release 152; `BackgroundWork.swift`, `BackgroundWorkTests.swift`;
-Android's `BackgroundWork`, the same rules; texts `app.settings.background.*`): Settings' section
-right after Status lists `Status.background_tasks` from the Status answer Settings already asks every
-5 s while it shows (`StatusViewModel`), only while the list isn't empty: a row per task in the
+Android's `BackgroundWork`, the same rules; texts `app.settings.background.*`): Settings' In progress
+section (`InProgressSection`, heading `app.settings.progress.title`), right after Status and Storage,
+holds this phone's uploads first (`UploadDetail`, while `BackgroundWork.showsUploads`) and then lists
+`Status.background_tasks` from the Status answer Settings already asks every 5 s while it shows
+(`StatusViewModel`), with the background footer only while that list isn't empty: a row per task in the
 device's order (a kind once, the first; no kind = `#<index>`), the device's `text`, "done of total"
 (`app.settings.background.count`, numbers as the app's other counts) over a `ProgressView(value:)`,
 or a spinner and no count while `total` is 0; done kept within 0...total. One VoiceOver element a

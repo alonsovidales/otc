@@ -4,7 +4,9 @@
 //  BackgroundWork.swift
 //  OffTheCloud
 //
-//  Settings › Background work (device release 152): what the device works
+//  Settings › In progress (owner, 2026-11-07: the uploads and the background
+//  work "should be in the same section"): this phone's uploads first, then
+//  Background work (device release 152) - what the device works
 //  through by itself for this library - new uploads' analysis, thumbnails,
 //  places, On this day's measures, Smart search's descriptions, photo
 //  dates, and kinds still to come - from Status.background_tasks, the
@@ -20,6 +22,13 @@ import SwiftUI
 
 /// The rules: which rows the section shows, and what each says.
 enum BackgroundWork {
+    /// Whether In progress shows this phone's uploads: a run sending or
+    /// with photos and videos waiting, or one held up (Wi-Fi only off
+    /// Wi-Fi, the device full). Android's BackgroundWork.showsUploads.
+    static func showsUploads(isUploading: Bool, pending: Int, held: Bool) -> Bool {
+        isUploading || pending > 0 || held
+    }
+
     /// One piece of work, as a row shows it.
     struct Item: Equatable, Identifiable {
         /// The task's kind ("smart_search"), a key never shown; "#<index>"
@@ -57,17 +66,25 @@ enum BackgroundWork {
     }
 }
 
-/// Settings › Background work: shown only while the device lists some.
-struct BackgroundWorkSection: View {
+/// Settings › In progress: this phone's uploads (UploadDetail: what is
+/// being sent, a bar, how many wait, pause - or why the run waits), then
+/// the device's background work with its footer. Shown only while either
+/// has something; Android's InProgressSection.
+struct InProgressSection: View {
+    @ObservedObject var upload: UploadModel
     let items: [BackgroundWork.Item]
 
     var body: some View {
-        if !items.isEmpty {
-            Section(
-                header: Text(S.appSettingsBackgroundTitle),
-                footer: Text(S.appSettingsBackgroundFooter)
-            ) {
+        let uploads = BackgroundWork.showsUploads(
+            isUploading: upload.isUploading, pending: upload.totalPending, held: upload.halt != nil)
+        if uploads || !items.isEmpty {
+            Section {
+                if uploads { UploadDetail(upload: upload) }
                 ForEach(items) { BackgroundWorkRow(item: $0) }
+            } header: {
+                Text(S.appSettingsProgressTitle)
+            } footer: {
+                if !items.isEmpty { Text(S.appSettingsBackgroundFooter) }
             }
         }
     }

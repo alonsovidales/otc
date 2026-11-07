@@ -121,6 +121,7 @@
     <string name="app_settings_profile_save_failed">Aktualisierung des Profils fehlgeschlagen</string>
     <string name="app_settings_profile_saved">Profil aktualisiert ✅</string>
     <string name="app_settings_profile_title">Profil</string>
+    <string name="app_settings_progress_title">In Arbeit</string>
     <string name="app_settings_reprocess_all">Alle Medien neu verarbeiten</string>
     <plurals name="app_settings_reprocess_completed">
         <item quantity="one">Letzter Durchlauf abgeschlossen – %1$s Datei verarbeitet.</item>

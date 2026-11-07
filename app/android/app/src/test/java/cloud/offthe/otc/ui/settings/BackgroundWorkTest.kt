@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.settings
 
+import cloud.offthe.otc.data.SyncHalt
+import cloud.offthe.otc.data.UploadModel
 import cloud.offthe.otc.i18n.english
 import cloud.offthe.otc.proto.BackgroundTask
 import cloud.offthe.otc.proto.Status
@@ -72,5 +74,15 @@ class BackgroundWorkTest {
         ))
         assertEquals(listOf("Reading photo dates", "Something new", "Something else"), rows.map { it.text })
         assertEquals(rows.size, rows.map { it.kind }.toSet().size)
+    }
+
+    // Settings > In progress holds the uploads too (owner, 2026-11-07): while
+    // a run sends, has photos waiting or is held up; the device's rows
+    // follow them, and with neither nothing shows.
+    @Test fun inProgressShowsTheUploadsWhileTheyAreUnderWayOrHeld() {
+        assertFalse(BackgroundWork.showsUploads(UploadModel.State()))
+        assertTrue(BackgroundWork.showsUploads(UploadModel.State(isUploading = true)))
+        assertTrue(BackgroundWork.showsUploads(UploadModel.State(totalPending = 3)))
+        assertTrue(BackgroundWork.showsUploads(UploadModel.State(halt = SyncHalt.DeviceFull("No room (test)."))))
     }
 }

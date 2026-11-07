@@ -127,6 +127,7 @@
     <string name="app_settings_profile_save_failed">Échec de la mise à jour du profil</string>
     <string name="app_settings_profile_saved">Profil mis à jour ✅</string>
     <string name="app_settings_profile_title">Profil</string>
+    <string name="app_settings_progress_title">En cours</string>
     <string name="app_settings_reprocess_all">Retraiter tous les médias</string>
     <plurals name="app_settings_reprocess_completed">
         <item quantity="one">Dernière exécution terminée : %1$s fichier traité.</item>

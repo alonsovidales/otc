@@ -127,6 +127,7 @@
     <string name="app_settings_profile_save_failed">Aggiornamento del profilo non riuscito</string>
     <string name="app_settings_profile_saved">Profilo aggiornato ✅</string>
     <string name="app_settings_profile_title">Profilo</string>
+    <string name="app_settings_progress_title">In corso</string>
     <string name="app_settings_reprocess_all">Rielabora tutti i media</string>
     <plurals name="app_settings_reprocess_completed">
         <item quantity="one">Ultima esecuzione completata: %1$s file elaborato.</item>

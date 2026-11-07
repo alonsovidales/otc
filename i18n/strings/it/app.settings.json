@@ -470,6 +470,10 @@
     "text": "Profilo",
     "en": "Profile"
   },
+  "app.settings.progress.title": {
+    "text": "In corso",
+    "en": "In progress"
+  },
   "app.settings.reprocess.all": {
     "text": "Rielabora tutti i media",
     "en": "Reprocess All Media"

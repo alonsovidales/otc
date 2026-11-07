@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.settings
 
+import cloud.offthe.otc.data.UploadModel
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.appSettingsBackgroundCount
 import cloud.offthe.otc.proto.Status
 
 /**
- * Settings > Background work: what the device works through by itself for
- * this library (Status.background_tasks, release 152) - the analysis of new
+ * Settings > In progress (owner, 2026-11-07: the uploads and the background
+ * work "should be in the same section"): this phone's uploads first, then
+ * Background work - what the device works through by itself for this
+ * library (Status.background_tasks, release 152) - the analysis of new
  * uploads, the passes after an update or a switch turned on (thumbnails,
  * places, On this day's measures, Smart search's descriptions, photo
  * dates...). The section shows only while the list isn't empty, from the
@@ -16,6 +19,14 @@ import cloud.offthe.otc.proto.Status
  * (StatusViewModel): an older device sends none. iOS's BackgroundWork.
  */
 object BackgroundWork {
+    /**
+     * Whether In progress shows this phone's uploads: a run sending or with
+     * photos and videos waiting, or one held up (Wi-Fi only off Wi-Fi, the
+     * device full).
+     */
+    fun showsUploads(upload: UploadModel.State): Boolean =
+        upload.isUploading || upload.totalPending > 0 || upload.halt != null
+
     /**
      * One piece of work: the device's [text] (in the request's language,
      * shown as it comes), [done] of [total] photos or videos - [total] 0

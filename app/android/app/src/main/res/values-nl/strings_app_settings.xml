@@ -121,6 +121,7 @@
     <string name="app_settings_profile_save_failed">Bijwerken van profiel mislukt</string>
     <string name="app_settings_profile_saved">Profiel bijgewerkt ✅</string>
     <string name="app_settings_profile_title">Profiel</string>
+    <string name="app_settings_progress_title">Bezig</string>
     <string name="app_settings_reprocess_all">Alle media opnieuw verwerken</string>
     <plurals name="app_settings_reprocess_completed">
         <item quantity="one">Laatste verwerking voltooid: %1$s bestand verwerkt.</item>
