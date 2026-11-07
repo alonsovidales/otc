@@ -68,6 +68,11 @@ final class PhotoGalleryVM: ObservableObject {
         /// Its stars and comment in the open collection while its Rating
         /// is on (File.rating, Rating.swift); none elsewhere.
         var rating: RatingMark = .none
+        /// The photo an edit made on the device was made from
+        /// (File.original_hash): set, the viewer offers Revert to Original
+        /// (PhotoEditor.swift). "" for content that isn't an edit, and from
+        /// devices before photo edits.
+        var originalHash: String = ""
     }
 
     // Shared, already-authenticated connection (see OTCConnection.swift)
@@ -534,8 +539,9 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var hiResImages: [String: UIImage] = [:]
     private var hiResSource: [String: HiResSource] = [:]
     private var hiResOrder: [String] = []
-    /// The full-size loads on their way, by path: a second ask for one
-    /// waits for it.
+    /// The full-size loads on their way, by path and content: a second ask
+    /// for one waits for it, and an edit's new content at the same path
+    /// (PhotoEditor.swift) is asked for on its own.
     private var inFlightHiRes: [String: Task<Void, Never>] = [:]
     /// The bytes behind them, kept for the session (tests use their own).
     var fullPhotos: FullPhotoCache = .shared
@@ -647,6 +653,20 @@ final class PhotoGalleryVM: ObservableObject {
     /// again as it closes.
     var ratingReloadOnClose = false
     private var ratingWatch: AnyCancellable?
+
+    // MARK: Photo edit (PhotoEditor.swift)
+    /// Revert to Original is waiting on the device for the photo at this
+    /// path (how many copies, then the revert itself): its button is a
+    /// spinner, "Reverting…".
+    @Published var revertingPath: String?
+    /// Revert to Original's question, once the device said at how many
+    /// paths it holds the edit.
+    @Published var revertAsk: RevertAsk?
+    /// The viewer saved an edit as a copy, or changed one copy of a photo
+    /// held at several paths: what the grid shows is out of date, so it is
+    /// asked again as the viewer closes (not under it, where the viewer's
+    /// own list would change).
+    var editReloadOnClose = false
 
     /// Whether the alert (`notice`, `needsUpdate`) shows `overViewer`
     /// (ImageModal) or over the screen under it (Images, Files): over the
@@ -798,8 +818,10 @@ final class PhotoGalleryVM: ObservableObject {
     // showFiles - no search, no paging, no local merge.
     private(set) var fixedList = false
     /// Called with the path after the viewer deleted a file - or found it
-    /// holds other content than was shown (issue #201's "changed") - so the
-    /// screen that opened it can re-read its listing.
+    /// holds other content than was shown (issue #201's "changed"), or
+    /// edited it (PhotoEditor.swift: replaced by its edit, its original put
+    /// back, or an edit saved next to it) - so the screen that opened it
+    /// can re-read its listing.
     var onDeleted: ((String) -> Void)?
 
     init() {
@@ -2270,7 +2292,8 @@ final class PhotoGalleryVM: ObservableObject {
                 hash: f.hash,
                 copies: f.hasCopies ? Int(f.copies) : nil,
                 up: true,
-                rating: f.hasRating ? RatingMark(f.rating) : .none
+                rating: f.hasRating ? RatingMark(f.rating) : .none,
+                originalHash: f.originalHash
             )
         }
         upHidden += PhotoPaging.hidden(lof.files, own: own, added: new.count)
@@ -2591,7 +2614,8 @@ final class PhotoGalleryVM: ObservableObject {
                 created: f.hasCreated ? f.created.date : nil,
                 hash: f.hash,
                 copies: f.hasCopies ? Int(f.copies) : nil,
-                rating: f.hasRating ? RatingMark(f.rating) : .none
+                rating: f.hasRating ? RatingMark(f.rating) : .none,
+                originalHash: f.originalHash
             )
         }
         downHidden += PhotoPaging.hidden(lof.files, own: own, added: filtered.count)
@@ -2716,6 +2740,9 @@ final class PhotoGalleryVM: ObservableObject {
         // The comment typed is saved; sorted or filtered by rating, the
         // grid again (Rating.swift).
         ratingViewerClosed()
+        // An edit saved as a copy (or of one copy only): the grid again
+        // (PhotoEditor.swift).
+        editViewerClosed()
     }
 
     /// The open item's path; nil while the viewer is closed.
@@ -3194,8 +3221,9 @@ final class PhotoGalleryVM: ObservableObject {
     /// than was shown: the viewer closes (its photos are out of date), its
     /// alert says why, and Images reads its search again (at the jump, if
     /// there was one) - Files (the viewer's own list) its listing. The
-    /// same on the web and Android.
-    private func contentChanged(_ path: String) {
+    /// same on the web and Android. An edit or a revert refused the same
+    /// way does the same (PhotoEditor.swift).
+    func contentChanged(_ path: String) {
         closeModal()
         if fixedList {
             onDeleted?(path)
@@ -3243,26 +3271,31 @@ final class PhotoGalleryVM: ObservableObject {
         if hiResImages[it.path] != nil { return }
         // On its way already (read ahead, and now opened): waited for, not
         // asked for twice.
-        if let running = inFlightHiRes[it.path] {
+        let key = it.path + "\u{0}" + it.hash
+        if let running = inFlightHiRes[key] {
             await running.value
             return
         }
         let load = Task { await loadHiRes(it) }
-        inFlightHiRes[it.path] = load
+        inFlightHiRes[key] = load
         await load.value
-        inFlightHiRes[it.path] = nil
+        inFlightHiRes[key] = nil
     }
 
     /// The full size of `it` into hiResImages: its local file, the bytes
     /// kept this session, or GetFile.
     private func loadHiRes(_ it: Item) async {
+        // Kept only while the viewer is open (closed meanwhile: the cache
+        // isn't filled again) and its path still shows this content: one
+        // replaced by its edit meanwhile (PhotoEditor.swift) would otherwise
+        // show the photo as it was, and the edit would never be asked for.
+        func current() -> Bool { openIndex != nil && items.contains { $0.path == it.path && $0.hash == it.hash } }
         if let u = it.localURL {
             let img = await Task.detached(priority: .userInitiated) {
                 CGImageSourceCreateWithURL(u as CFURL, nil).flatMap { Self.decodeForDisplay($0) }
             }.value
             if let img {
-                // Closed meanwhile: don't fill the cache again.
-                if openIndex != nil { cacheHiRes(img, source: .file(u), for: it.path) }
+                if current() { cacheHiRes(img, source: .file(u), for: it.path) }
                 return
             }
         }
@@ -3274,7 +3307,7 @@ final class PhotoGalleryVM: ObservableObject {
                 CGImageSourceCreateWithData(kept as CFData, nil).flatMap { Self.decodeForDisplay($0) }
             }.value
             if let img {
-                if openIndex != nil { cacheHiRes(img, source: .data(kept), for: it.path) }
+                if current() { cacheHiRes(img, source: .data(kept), for: it.path) }
                 return
             }
             // Bytes that don't decode aren't kept: fetched again below.
@@ -3295,16 +3328,31 @@ final class PhotoGalleryVM: ObservableObject {
                     // file changed holds the old one, and the new content
                     // mustn't be found under it.
                     fullPhotos.store(f.hash.isEmpty ? it.hash : f.hash, data: data)
-                    if openIndex != nil { cacheHiRes(img, source: .data(data), for: it.path) }
+                    if current() { cacheHiRes(img, source: .data(data), for: it.path) }
                     return
                 }
             }
         } catch {}
         // Failed, or a format the phone can't decode: the thumbnail stays,
         // the big one if it is the open photo (a neighbour's full size is
-        // asked again when it is swiped to).
+        // asked again when it is swiped to). Not for content the path no
+        // longer holds.
+        guard items.contains(where: { $0.path == it.path && $0.hash == it.hash }) else { return }
         hiResFailed.insert(it.path)
         thumbnailStays(it.path)
+    }
+
+    /// The content at `path` changed under the viewer (replaced by its
+    /// edit, or its original put back: PhotoEditor.swift): what was decoded
+    /// from the content before goes, so the new one is asked for.
+    func forgetFullSize(of path: String) {
+        hiResImages.removeValue(forKey: path)
+        hiResSource.removeValue(forKey: path)
+        hiResOrder.removeAll { $0 == path }
+        hiResFailed.remove(path)
+        if bigThumbFor == path { stopBigThumb() }
+        bigThumbs.removeValue(forKey: path)
+        bigThumbOrder.removeAll { $0 == path }
     }
 
     /// Issue #106/#107: fetches a video and hands back a player.
@@ -3727,6 +3775,13 @@ enum GalleryNotice {
     /// A photo's stars or comment weren't saved (they are back as the
     /// device holds them): the device's words, if any.
     case ratingFailed(String?)
+    /// The editor saved its edit as a copy of this name (PhotoEditor.swift).
+    case savedCopy(String)
+    /// The edit wasn't saved and the viewer closed (the photo changed
+    /// since it was shown): the device's words, if any.
+    case editFailed(String?)
+    /// Revert to Original didn't go through: the device's words, if any.
+    case revertFailed(String?)
 
     var text: String {
         switch self {
@@ -3762,6 +3817,9 @@ enum GalleryNotice {
         case .favouriteFailed(let words): return words ?? S.appPhotosViewerFavouriteFailed
         case .ratingToggleFailed(let words): return words ?? S.appPhotosRatingToggleFailed
         case .ratingFailed(let words): return words ?? S.appPhotosRatingSaveFailed
+        case .savedCopy(let name): return S.appPhotosEditSavedCopy(name: name)
+        case .editFailed(let words): return words ?? S.appPhotosEditFailed
+        case .revertFailed(let words): return words ?? S.appPhotosEditRevertFailed
         }
     }
 }
@@ -5285,8 +5343,9 @@ private struct PhotoTile: View {
 /// photos by sliding the strip of previous/current/next (three views, so
 /// a library of thousands costs nothing), share/save-to-Photos/delete
 /// along the bottom (issue #9), info top-left (issue #41), pinch to zoom
-/// (issue #36). Mirrors the Android viewer's pager. The Files section
-/// opens its photos and videos in it too (PhotoGalleryVM.showFiles).
+/// (issue #36), Edit and Revert to Original beside info (PhotoEditor.swift).
+/// Mirrors the Android viewer's pager. The Files section opens its photos
+/// and videos in it too (PhotoGalleryVM.showFiles).
 struct ImageModal: View {
     @ObservedObject var vm: PhotoGalleryVM
     let save: () -> Void
@@ -5313,6 +5372,8 @@ struct ImageModal: View {
     @GestureState private var pinchAnchor: UnitPoint = .center
     /// The rating panel's comment box has the keyboard (Rating.swift).
     @FocusState private var commentFocused: Bool
+    /// The photo the editor is open on, over the viewer (PhotoEditor.swift).
+    @State private var editing: PhotoGalleryVM.Item?
 
     /// The rating panel shows: a collection whose Rating is on, its Rate
     /// button tapped (it stays open while swiping).
@@ -5333,8 +5394,9 @@ struct ImageModal: View {
                 let landscape = Self.controlsBeside(screen.size)
                 VStack(spacing: 0) {
                     if !landscape {
-                        HStack {
+                        HStack(spacing: 20) {
                             infoButton(landscape: false)
+                            editButtons(landscape: false)
                             Spacer()
                             closeButton(landscape: false)
                         }
@@ -5343,11 +5405,15 @@ struct ImageModal: View {
 
                     HStack(spacing: 0) {
                         if landscape {
-                            // Leading column: info at the top.
-                            infoButton(landscape: true)
-                                .frame(maxHeight: .infinity, alignment: .top)
-                                .frame(width: Self.sideColumnWidth)
-                                .padding(.top, 8)
+                            // Leading column: info at the top, Edit and
+                            // Revert to Original under it.
+                            VStack(spacing: 12) {
+                                infoButton(landscape: true)
+                                editButtons(landscape: true)
+                            }
+                            .frame(maxHeight: .infinity, alignment: .top)
+                            .frame(width: Self.sideColumnWidth)
+                            .padding(.top, 8)
                         }
                         strip
                         if landscape && ratingPanelShown {
@@ -5385,7 +5451,36 @@ struct ImageModal: View {
                     }
                 }
             }
+            // Under the editor, nothing of the viewer is VoiceOver's.
+            .accessibilityHidden(editing != nil)
+            // Revert to Original's question, once the device said how many
+            // paths hold the edit.
+            .confirmationDialog(
+                S.appPhotosEditRevertTitle,
+                isPresented: Binding(get: { vm.revertAsk != nil }, set: { if !$0 { vm.revertAsk = nil } }),
+                titleVisibility: .visible,
+                presenting: vm.revertAsk
+            ) { ask in
+                if ask.copies > 1 {
+                    Button(S.appPhotosEditRevertAll(count: ask.copies), role: .destructive) { vm.revert(ask, everyCopy: true) }
+                    Button(S.appPhotosEditCopiesOnlyThis, role: .destructive) { vm.revert(ask, everyCopy: false) }
+                } else {
+                    Button(S.appPhotosEditRevertButton, role: .destructive) { vm.revert(ask, everyCopy: false) }
+                }
+                Button(S.commonCancel, role: .cancel) {}
+            } message: { ask in
+                Text(ask.copies > 1 ? S.appPhotosEditRevertCopiesText(count: ask.copies) : S.appPhotosEditRevertText)
+            }
+
+            // Edit: full screen over the viewer, with the viewer's picture.
+            if let editing {
+                PhotoEditorView(vm: vm, item: editing, picture: picture(of: editing)) {
+                    self.editing = nil
+                }
+                .transition(.opacity)
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: editing?.id)
         .confirmationDialog(Self.deleteTitle(video: confirmDeleteVideo), isPresented: $confirmDelete, titleVisibility: .visible) {
             let ask = confirmCopies.map { CopiesAsk.one(count: $0) } ?? .plain
             if let only = ask.onlyShown, let all = ask.everyCopy {
@@ -5468,6 +5563,45 @@ struct ImageModal: View {
                 .contentShape(Rectangle())
         }
         .accessibilityLabel(S.appPhotosViewerMoreInfo)
+    }
+
+    /// Edit, for a photo the device can edit, and Revert to Original for an
+    /// edit (a spinner while the device answers).
+    @ViewBuilder
+    private func editButtons(landscape: Bool) -> some View {
+        let side: CGFloat? = landscape ? 44 : nil
+        if vm.editOffered {
+            Button { editing = vm.openItem } label: {
+                Image(systemName: "crop.rotate").font(.title2).foregroundStyle(.white)
+                    .frame(width: side, height: side)
+                    .contentShape(Rectangle())
+            }
+            .disabled(vm.revertingPath != nil)
+            .accessibilityLabel(S.appPhotosEditButton)
+        }
+        if vm.revertOffered {
+            let reverting = vm.revertingPath != nil && vm.revertingPath == vm.openPath
+            Button { vm.askRevert() } label: {
+                Group {
+                    if reverting {
+                        ProgressView().tint(.white)
+                    } else {
+                        Image(systemName: "arrow.uturn.backward.circle")
+                    }
+                }
+                .font(.title2).foregroundStyle(.white)
+                .frame(width: side, height: side)
+                .contentShape(Rectangle())
+            }
+            .disabled(vm.revertingPath != nil)
+            .accessibilityLabel(reverting ? S.appPhotosEditReverting : S.appPhotosEditRevert)
+        }
+    }
+
+    /// What the viewer shows for `item`: its full size, the big thumbnail,
+    /// or the grid's tile - the editor's picture too.
+    private func picture(of item: PhotoGalleryVM.Item) -> UIImage? {
+        vm.hiResImages[item.path] ?? vm.bigThumbs[item.path] ?? thumb(item)
     }
 
     private func closeButton(landscape: Bool) -> some View {
@@ -5648,7 +5782,7 @@ struct ImageModal: View {
                             player.play()
                         }
                         .onDisappear { player.pause() }
-                } else if let img = vm.hiResImages[item.path] ?? vm.bigThumbs[item.path] ?? thumb(item) {
+                } else if let img = picture(of: item) {
                     // Until the full size comes, the grid's small tile;
                     // where the thumbnail stays (the full size failed or
                     // can't be decoded, a video that can't be fetched or

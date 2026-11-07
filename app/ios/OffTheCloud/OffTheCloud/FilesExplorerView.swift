@@ -671,7 +671,8 @@ final class FilesExplorerViewModel: ObservableObject {
                 localURL: nil,
                 isLocalOnly: false,
                 thumbImage: thumb?.image,
-                hash: f.hash
+                hash: f.hash,
+                originalHash: f.originalHash
             )
         }
     }
@@ -882,7 +883,8 @@ final class FilesExplorerViewModel: ObservableObject {
                 localURL: nil,
                 isLocalOnly: false,
                 thumbImage: thumb?.image,
-                hash: row.raw.hash
+                hash: row.raw.hash,
+                originalHash: row.raw.originalHash
             )
         }
     }
@@ -1968,7 +1970,7 @@ struct FilesExplorerView: View {
                     viewer.showFiles([PhotoGalleryVM.Item(
                         id: "\(file.path)#\(file.hash)", path: file.path, mime: file.mime,
                         size: Int(file.fileSize), thumbData: nil, localURL: nil, isLocalOnly: false,
-                        hash: file.hash
+                        hash: file.hash, originalHash: file.originalHash
                     )], startAt: 0)
                 }
             }

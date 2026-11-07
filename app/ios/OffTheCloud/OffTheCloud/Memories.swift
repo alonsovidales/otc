@@ -1155,7 +1155,7 @@ struct MemoryGrid: View {
                 id: PhotoPaging.itemID(f), path: f.path, mime: f.mime, size: Int(f.fileSize),
                 thumbData: nil, localURL: nil, isLocalOnly: false,
                 thumbImage: model.image(for: f) ?? GridThumbCache.cached(id: f.hash, maxPt: PhotoGridMetrics.decodeSide),
-                created: f.hasCreated ? f.created.date : nil, hash: f.hash
+                created: f.hasCreated ? f.created.date : nil, hash: f.hash, originalHash: f.originalHash
             )
         }, startAt: i)
     }
