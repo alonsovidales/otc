@@ -93,6 +93,21 @@ func MemoryUsage() int64 {
 	return 0
 }
 
+// MemoryAvailable is how much more the container may use before its
+// memory limit: the limit less MemoryUsage. -1 without a limit, or when
+// either can't be read.
+func MemoryAvailable() int64 {
+	limit := memoryLimit()
+	if limit <= 0 {
+		return -1
+	}
+	used := MemoryUsage()
+	if used <= 0 {
+		return -1
+	}
+	return max(limit-used, 0)
+}
+
 // memTotal is /proc/meminfo's MemTotal in bytes, 0 when unknown.
 func memTotal() int64 {
 	f, err := os.Open(filepath.Join(root, "proc/meminfo"))

@@ -21,11 +21,16 @@ import (
 
 // LockMemory locks this process's memory, as it is touched. [otc]
 // disable-mlock turns it off, e.g. on a development machine without the
-// unit's LimitMEMLOCK=infinity.
+// unit's LimitMEMLOCK=infinity. Locked memory that the native libraries
+// free goes back to the system only as ReturnFreedMemory has glibc give
+// it, so that is set first, on every device: until release 176 only a
+// low-memory one had it, and an 8 GB Pi kept what tagging, faces and
+// HEIC decodes had freed until the kernel killed it (2026-11-08).
 func LockMemory() {
 	if cfg.GetBool("otc", "disable-mlock") {
 		return
 	}
+	ReturnFreedMemory()
 	if err := unix.Mlockall(unix.MCL_CURRENT | unix.MCL_FUTURE | unix.MCL_ONFAULT); err != nil {
 		log.Error("could not lock memory, decrypted data could be swapped out (needs LimitMEMLOCK=infinity):", err)
 		return

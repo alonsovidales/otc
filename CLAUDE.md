@@ -1712,7 +1712,8 @@ start takes its file.
   `pending_analysis` and queues it in the *fast lane* (NumCPU-1 workers, at most one per 2 GB - `processingWorkersFor`; the
   slow lane at most 3; ffmpeg decodes frames with a Pi's 4 threads: a 32-thread PC ran 31 a lane,
   more than 32 GB hold, until release 133; one job at a time across
-  both lanes in low-memory mode and for an hour after a death - see Low-memory profile): EXIF, decode,
+  both lanes in low-memory mode and for an hour after a death - see Low-memory profile; and, on
+  every device, no job beside others without the memory for it - see Memory admission): EXIF, decode,
   orientation, thumbnail - one frame for a video. It then moves to the *slow lane* (tags,
   faces; four frames for a video), whose workers only take a job while the fast lane has none
   queued or running, so during a big sync every thumbnail comes first. `processMedia(...,
@@ -2217,7 +2218,8 @@ start takes its file.
   `ram_plus_int8.onnx`); measured with ONNX Runtime 1.24.3 on arm64 (macOS, 2026-10-08) it is
   ~0.85-1.0 GB resident when freed memory goes back to the system (~2.3 GB with what the
   allocator keeps of the load), ~1.4 GB while loading, and a run needs ~650 MB more - which the
-  default CPU arena keeps after it (three runs at once: +1.3 GB). Loading reads the IO names from a
+  default CPU arena keeps after it (three runs at once: +1.3 GB), so every device has run it
+  without the arena since release 176. Loading reads the IO names from a
   whole temporary session (`firstTensorIO`), cached per process (`cachedTensorIO`) for reloads.
   Outside low-memory mode the primary loads it in the background (`files_manager/tagger_load.go`)
   the first time a photo of any of its users needs tags (`startTagger`, from `waitForTagger`; at
@@ -2341,17 +2343,46 @@ start takes its file.
   instead of 40% (`setMemoryLimit`, after `cfg.Init` now), content budget MemTotal/16 (the 256 MB
   floor on 4 GB), ffmpeg with `-threads 2` (`ffmpegInput` for frames and transcodes, plus the
   encoder's; a 4K HEVC frame took ~680 MB with ffmpeg's own thread count on 16 cores, ~270 MB with
-  1-2), glibc's mmap threshold fixed at 1 MiB and 2 arenas (`hardening.ReturnFreedMemory`, cgo
-  `mallopt`: Linux refuses MADV_DONTNEED on mlocked pages, so freed native memory stayed resident;
-  Go's own scavenger falls back to mmap and is fine). RAM++ runs without ONNX Runtime's CPU arena and
+  1-2). RAM++ runs without ONNX Runtime's CPU arena and
   memory pattern (`imagestagger.LoadOptions{NoArena}`), loads at first use (`waitForTagger` loads it
   before a photo's 10 s deadline starts) and is released with the face models after 10 idle minutes
   (`idleModels`, which also runs one model call at a time - tags or faces, local or a supervised
   instance's; `serveModels` = `modelserver.ServeLimited(..., 1)` reads one child's pixels at a time,
   "info" never waits). Face detection is unchanged (YuNet at 1600 px keeps ~100 MB; at 1024 px, or
-  cropping from a 2x-downscaled photo, a group photo lost 2 of 8 faces). After each job a new
-  resident-memory high-water mark (128 MB steps) is logged ("memory high-water mark: this process
-  holds ... MB"), and each model load logs what the process holds after it.
+  cropping from a 2x-downscaled photo, a group photo lost 2 of 8 faces). Each model load logs what
+  the process holds after it.
+- **Memory on every device** (release 176; Cala, 2026-11-08: an 8 GB Pi with a screen attached was
+  killed by the kernel every few hours while a phone uploaded, the process holding up to 6 GB with
+  under 300 MB left, each time 15-40 minutes after the hour of one job at a time ended):
+  - Freed native memory goes back. `hardening.LockMemory` first sets glibc's mmap threshold at 1 MiB
+    and 2 arenas (`ReturnFreedMemory`, cgo `mallopt`), on every device that locks its memory - until
+    176 only in low-memory mode. Linux refuses MADV_DONTNEED on mlocked pages, so what ONNX Runtime,
+    OpenCV and the HEIC decoder freed stayed resident, and glibc's threshold for a block of its own
+    rises to 32 MB after large frees; a block in its own mapping is unmapped when freed, locked or
+    not. Go's own scavenger falls back to mmap and is fine.
+  - RAM++ runs without ONNX Runtime's CPU arena and memory pattern on every device
+    (`loadRAMTagger`, `LoadOptions{NoArena}`, as low-memory mode always did): the arena kept each
+    run's ~650 MB after it, ~1.3 GB for the three analysis workers, held for good.
+  - Memory admission (`files_manager/memadmit.go`): every `beginProcessing` job (the lanes, the
+    backfills, Reprocess, thumbnail fixes, transcodes and cuts) starts beside others only while the
+    device has `cJobHeadroom` (1.5 GB) available for it, counting what the jobs let in during the
+    last `cAdmitSettle` (2 s) take, and otherwise waits for one to end or for the memory, looking
+    every second (`memAdmission`; Cancel ends a Reprocess's wait). A job with nothing else running
+    always starts. Available is MemAvailable, and in a container no more than its limit less its use
+    (`container.MemoryAvailable`); unknown (off Linux) waits for nothing. A wait is logged at most
+    every 10 minutes ("processing: N MB available, under the 1536 MB a job needs ..."). The lanes'
+    worker counts stay as measured on a Pi doing nothing else; what else runs - the screen's
+    Chromium (~0.5-1 GB), MariaDB, other users' instances - now lowers how many run at once.
+  - After each job a new resident-memory high-water mark (128 MB steps) is logged on every device
+    ("memory high-water mark: this process holds ... MB, ... MB available on the device" - in a
+    container, what is left under its limit).
+  - Measured on 2026-11-08 in the release image, held to 7.9 GB with 2.3 GB of it taken by a file
+    in its RAM disk (Cala's screen and system), memory locked, 4 CPUs, Smart search, tagging and
+    faces on: 60 12 MP and 12 48 MP HEICs and three 45 s 4K HEVC videos sent as the iPhone sends
+    them (three at once, 4 MB chunks). Release 175: the process at 3.98 GB at its peak, 3.72 GB at
+    rest after it, 3 min 13 s; release 176: 2.36 GB and 1.94 GB, 3 min 53 s (giving memory back
+    costs some speed). glibc's setting alone on 175 (`GLIBC_TUNABLES`): 3.62 GB at rest.
+  - Tests: `memadmit_test.go`.
 - **Run marker** (`files_manager/runstate.go`): `.otc-run` in the instance's working directory
   (the StateDirectory, or the user's home - not the RuntimeDirectory, which systemd empties at every
   stop), written at start with the boot id and the OOM kill counters (`/proc/vmstat` `oom_kill`,
@@ -3580,7 +3611,7 @@ sign-in came (a restored session too) - never over a new device's setup, in the 
 `localStorage.otc_tour_seen` = `cTourVersion` (2, so a browser that saw the first tour sees this one
 once; raise it only for a rewritten tour) before it shows, storage that throws means no tour by
 itself, and Sign out keeps the flag. Show the tour (account menu, between Settings and Sign out;
-Settings › Getting started, after Language) replays it from step 1 and leaves the flag alone. App
+Settings › Getting started, the last section of Settings on the web and the phones) replays it from step 1 and leaves the flag alone. App
 keeps `tour` (`{step, auto}`), so it comes back at its step after the unreachable screen, and drops
 it when the session ends; it is a lazy part (`lazyPart`, in a layer's `Part`: none of it, its rules
 or drawings is in the first chunk - `tourSeen.ts` is), and nothing else opens with it (notifications

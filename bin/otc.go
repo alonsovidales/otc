@@ -225,9 +225,6 @@ func main() {
 		log.Info(container.DescribeSizing(total, source, runtime.GOMAXPROCS(0)))
 	}
 	memProfile.ExportForChildren()
-	if memProfile.Low {
-		hardening.ReturnFreedMemory()
-	}
 	hardening.LockMemory()
 	hardening.SecureTempDir()
 

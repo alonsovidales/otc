@@ -269,8 +269,6 @@ type processingGuard struct {
 	// interrupted.
 	track    func(hash string, on bool)
 	tracking atomic.Bool
-	// after, when set, runs after each job (the memory log).
-	after func()
 	// sleep is time.Sleep, replaced by tests.
 	sleep func(time.Duration)
 	// lowMemory: the low-memory profile's guard, whose turn a post's
@@ -280,8 +278,7 @@ type processingGuard struct {
 }
 
 func newProcessingGuard(track func(hash string, on bool), lowMemory bool) *processingGuard {
-	hw := &memoryHighWater{}
-	g := &processingGuard{slot: make(chan struct{}, 1), track: track, sleep: time.Sleep, after: hw.check, lowMemory: lowMemory}
+	g := &processingGuard{slot: make(chan struct{}, 1), track: track, sleep: time.Sleep, lowMemory: lowMemory}
 	g.limited.Store(true)
 	g.tracking.Store(track != nil)
 	return g
@@ -305,14 +302,11 @@ func (mg *Manager) beginProcessing(hash string, kind jobKind) (done func()) {
 }
 
 // beginProcessingUnless is beginProcessing for a job that can be called
-// off while it waits out a pause (a Reprocess, by Cancel): ok is false,
-// and done a no-op, when stop said so.
+// off while it waits out a pause or for memory (a Reprocess, by Cancel):
+// ok is false, and done a no-op, when stop said so.
 func (mg *Manager) beginProcessingUnless(hash string, kind jobKind, stop func() bool) (done func(), ok bool) {
 	g := mg.guard
-	if g == nil {
-		return func() {}, true
-	}
-	if kind.paused() {
+	if g != nil && kind.paused() {
 		for d := time.Until(g.resumeAt); d > 0; d = time.Until(g.resumeAt) {
 			if stop == nil {
 				g.sleep(d)
@@ -324,6 +318,15 @@ func (mg *Manager) beginProcessingUnless(hash string, kind jobKind, stop func() 
 			g.sleep(min(d, cPausePoll))
 		}
 	}
+	// Every device, guard or not: room for it beside what already runs
+	// (memadmit.go).
+	if !mg.admission.admit(stop) {
+		return func() {}, false
+	}
+	var once sync.Once
+	if g == nil {
+		return func() { once.Do(mg.admission.done) }, true
+	}
 	held := g.limited.Load() && (kind != jobTranscode || g.lowMemory)
 	if held {
 		g.slot <- struct{}{}
@@ -332,7 +335,6 @@ func (mg *Manager) beginProcessingUnless(hash string, kind jobKind, stop func() 
 	if tracked {
 		g.track(hash, true)
 	}
-	var once sync.Once
 	return func() {
 		once.Do(func() {
 			if tracked {
@@ -341,9 +343,7 @@ func (mg *Manager) beginProcessingUnless(hash string, kind jobKind, stop func() 
 			if held {
 				<-g.slot
 			}
-			if g.after != nil {
-				g.after()
-			}
+			mg.admission.done()
 		})
 	}, true
 }
@@ -742,18 +742,18 @@ func procStatusKB(path, name string) int64 {
 }
 
 // memoryInUse is this process's resident memory and the device's
-// available memory, for the log: what to look at on a low-memory device.
+// available memory, for the log: what processing waits for (memadmit.go;
+// in a container, what is left under its limit).
 func memoryInUse() string {
 	rss := procStatusKB("/proc/self/status", "VmRSS")
-	avail := procStatusKB("/proc/meminfo", "MemAvailable")
 	if rss == 0 {
 		return "memory in use unknown" // i18n-ignore: a log line
 	}
-	return fmt.Sprintf("this process holds %d MB, %d MB available on the device", rss>>10, avail>>10) // i18n-ignore: a log line
+	return fmt.Sprintf("this process holds %d MB, %d MB available on the device", rss>>10, max(deviceAvailable(), 0)>>20) // i18n-ignore: a log line
 }
 
 // memoryHighWater logs each time the process holds 128 MB more than it
-// ever did (low-memory mode, after each job).
+// ever did (after each processing job, memadmit.go).
 type memoryHighWater struct {
 	mu   sync.Mutex
 	high int64

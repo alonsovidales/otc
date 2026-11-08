@@ -26,12 +26,12 @@ const (
 
 // ReturnFreedMemory makes what the native libraries free (ONNX Runtime's
 // tensors, OpenCV's images, the HEIC decoder's frames) go back to the
-// system, for a device short of memory. glibc keeps freed memory to reuse
-// it, and gives it back by MADV_DONTNEED - which Linux refuses for locked
-// pages (LockMemory): a locked process's freed heap stayed resident for
-// good. It also raises its threshold for a block of its own up to 32 MB
-// each time such a block is freed, so after a few large frees nearly
-// everything came from that heap. A fixed threshold keeps blocks of 1 MiB
+// system, for a process whose memory is locked. glibc keeps freed memory
+// to reuse it, and gives it back by MADV_DONTNEED - which Linux refuses
+// for locked pages (LockMemory): a locked process's freed heap stayed
+// resident for good. It also raises its threshold for a block of its own
+// up to 32 MB each time such a block is freed, so after a few large frees
+// nearly everything came from that heap. A fixed threshold keeps blocks of 1 MiB
 // or more in mappings of their own, unmapped - returned, locked or not -
 // when freed; two arenas keep the smaller ones from spreading over one
 // heap per thread.

@@ -79,13 +79,19 @@ const (
 	cTaggerRetryMax   = time.Hour
 )
 
-// loadRAMTagger is the model Init loads outside low-memory mode.
+// loadRAMTagger is the model Init loads outside low-memory mode. Without
+// ONNX Runtime's memory arena, as a low-memory device runs it (release
+// 176): the arena kept each run's ~650 MB after it, three runs at once
+// adding ~1.3 GB the device held for good (the process holds what is
+// locked), and with freed memory given back (hardening.ReturnFreedMemory)
+// a run's tensors leave with it.
 func loadRAMTagger() (loadedTagger, error) {
-	t, err := imagestagger.NewRAMTagger(
+	t, err := imagestagger.NewRAMTaggerWith(
 		cfg.GetStr("tagger", "model-path"),
 		cfg.GetStr("tagger", "tags-path"),
 		cfg.GetStr("tagger", "thresholds-path"),
 		imagestagger.DefaultRAMOptions(),
+		imagestagger.LoadOptions{NoArena: true},
 	)
 	if err != nil {
 		return nil, err

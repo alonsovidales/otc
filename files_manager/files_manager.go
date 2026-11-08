@@ -199,6 +199,9 @@ type Manager struct {
 	// there is none.
 	guard *processingGuard
 	run   *runState
+	// admission lets a processing job start beside others only while the
+	// device has the memory for it (memadmit.go); every device has it.
+	admission memAdmission
 	// profile is this device's memory profile (lowmem.go), decided at Init;
 	// the zero profile (NewWithDAO) allows everything.
 	profile MemoryProfile
