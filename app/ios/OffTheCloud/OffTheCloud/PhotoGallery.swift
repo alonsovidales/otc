@@ -3362,10 +3362,12 @@ final class PhotoGalleryVM: ObservableObject {
     /// (as the social feed used to) leaves a QuickTime recording - what an
     /// iPhone actually produces - mislabelled and silently unplayable.
     private func fetchVideo(_ it: Item) async {
-        // Still on this video? Stepping on before a slow stream URL or
-        // download came back used to start the previous video over the
-        // next one.
-        func stillOpen() -> Bool { openIndex.flatMap { items.indices.contains($0) ? items[$0].path : nil } == it.path }
+        // Still on this video, as it was? Stepping on before a slow stream
+        // URL or download came back used to start the previous video over
+        // the next one - and a cut that replaced it at the same path
+        // (PhotoEditor.swift) is fetched on its own, never shown as the
+        // video was.
+        func stillOpen() -> Bool { openItem.map { $0.path == it.path && $0.hash == it.hash } ?? false }
         if let u = it.localURL {
             let player = AVPlayer(url: u)
             watchPlayback(player, path: it.path)
@@ -5343,7 +5345,8 @@ private struct PhotoTile: View {
 /// photos by sliding the strip of previous/current/next (three views, so
 /// a library of thousands costs nothing), share/save-to-Photos/delete
 /// along the bottom (issue #9), info top-left (issue #41), pinch to zoom
-/// (issue #36), Edit and Revert to Original beside info (PhotoEditor.swift).
+/// (issue #36), Edit (a photo's turn and crop, a video's cut) and Revert to
+/// Original beside info (PhotoEditor.swift).
 /// Mirrors the Android viewer's pager. The Files section opens its photos
 /// and videos in it too (PhotoGalleryVM.showFiles).
 struct ImageModal: View {
@@ -5372,7 +5375,8 @@ struct ImageModal: View {
     @GestureState private var pinchAnchor: UnitPoint = .center
     /// The rating panel's comment box has the keyboard (Rating.swift).
     @FocusState private var commentFocused: Bool
-    /// The photo the editor is open on, over the viewer (PhotoEditor.swift).
+    /// The photo the editor is open on, or the video being cut, over the
+    /// viewer (PhotoEditor.swift).
     @State private var editing: PhotoGalleryVM.Item?
 
     /// The rating panel shows: a collection whose Rating is on, its Rate
@@ -5469,15 +5473,23 @@ struct ImageModal: View {
                 }
                 Button(S.commonCancel, role: .cancel) {}
             } message: { ask in
-                Text(ask.copies > 1 ? S.appPhotosEditRevertCopiesText(count: ask.copies) : S.appPhotosEditRevertText)
+                Text(PhotoEditRules.revertText(for: ask.item, copies: ask.copies))
             }
 
-            // Edit: full screen over the viewer, with the viewer's picture.
+            // Edit: full screen over the viewer, with the viewer's picture -
+            // or, for a video, what the viewer plays it from.
             if let editing {
-                PhotoEditorView(vm: vm, item: editing, picture: picture(of: editing)) {
-                    self.editing = nil
+                if VideoEditRules.offersEdit(editing) {
+                    VideoEditorView(vm: vm, item: editing) {
+                        self.editing = nil
+                    }
+                    .transition(.opacity)
+                } else {
+                    PhotoEditorView(vm: vm, item: editing, picture: picture(of: editing)) {
+                        self.editing = nil
+                    }
+                    .transition(.opacity)
                 }
-                .transition(.opacity)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: editing?.id)
@@ -5565,13 +5577,17 @@ struct ImageModal: View {
         .accessibilityLabel(S.appPhotosViewerMoreInfo)
     }
 
-    /// Edit, for a photo the device can edit, and Revert to Original for an
-    /// edit (a spinner while the device answers).
+    /// Edit, for a photo the device can edit or a video it can cut, and
+    /// Revert to Original for an edit (a spinner while the device answers).
     @ViewBuilder
     private func editButtons(landscape: Bool) -> some View {
         let side: CGFloat? = landscape ? 44 : nil
         if vm.editOffered {
-            Button { editing = vm.openItem } label: {
+            Button {
+                // A video's cut plays on its own: the viewer's stops under it.
+                vm.videoPlayer?.pause()
+                editing = vm.openItem
+            } label: {
                 Image(systemName: "crop.rotate").font(.title2).foregroundStyle(.white)
                     .frame(width: side, height: side)
                     .contentShape(Rectangle())

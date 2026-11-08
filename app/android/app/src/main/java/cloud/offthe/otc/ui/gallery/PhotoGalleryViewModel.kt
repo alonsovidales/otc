@@ -248,6 +248,9 @@ class PhotoGalleryViewModel(
     // shown: whether to delete them from this phone too is asked
     // (DeletePhoneCopy.kt). Tests listen in its place.
     private val deletedOnDevice: (List<DeletedOnDevice>) -> Unit = { DeletePhoneCopyModel.deleted(it) },
+    // The viewer's video at a path: a URL to stream it from (MediaStream,
+    // issue #110), null when it is fetched whole instead. Tests: their own.
+    private val streamUrl: suspend (path: String) -> String? = { MediaStream.url(forPath = it) },
 ) : ViewModel(), PeopleStore {
     private val scope: CoroutineScope = scope ?: viewModelScope
 
@@ -413,7 +416,8 @@ class PhotoGalleryViewModel(
         // collection's rating there.
         val fixed: Boolean = false,
         // Photo edit (PhotoEditor.kt): the editor is open over the viewer,
-        // for the open photo; what is on its way to the device (Saving…,
+        // for the open photo - or, for a video, the cut screen
+        // (VideoEditor.kt); what is on its way to the device (Saving…,
         // Reverting…); why the editor's Save didn't go through, shown in the
         // editor (the device's words, else edit.failed); and the viewer's
         // short note once a copy is saved.
@@ -2585,7 +2589,9 @@ class PhotoGalleryViewModel(
     /** prefetch: a neighbour readied for the slide (readyNeighbours) - its image is fetched, a video is not started until opened. */
     private suspend fun fetchHiRes(index: Int, prefetch: Boolean = false) {
         val it = _state.value.items.getOrNull(index) ?: return
-        if (it.mime.startsWith("video/")) { if (!prefetch && it.path !in _state.value.unplayable) fetchVideo(it); return }
+        // A video by its type, or by a name the device cuts (VideoEdit): the
+        // cut screen plays what the viewer plays.
+        if (VideoEdit.isVideo(it)) { if (!prefetch && it.path !in _state.value.unplayable) fetchVideo(it); return }
         if (it.path in _state.value.hiResImages) { touchHiRes(it.path); readyNeighbours(it.path); return }
         // On its way (a neighbour readied, now opened): it readies the
         // neighbours itself when it lands, if it is still the open one.
@@ -2665,9 +2671,11 @@ class PhotoGalleryViewModel(
     /** Issue #110: streamed when the device offers a URL, downloaded otherwise. */
     private suspend fun fetchVideo(it: Item) {
         // Still on this video? Stepping on before a slow stream URL or
-        // download came back used to start the previous video over the next one.
-        fun stillOpen() = openPath() == it.path
-        MediaStream.url(forPath = it.path)?.let { url -> if (stillOpen()) _state.update { s -> s.copy(videoUrl = url) }; return }
+        // download came back used to start the previous video over the next
+        // one. By the item, not its path: a cut that replaced it keeps the
+        // path, and the old content's late answer mustn't play in its place.
+        fun stillOpen() = _state.value.let { st -> st.openIndex?.let { i -> st.items.getOrNull(i)?.id } } == it.id
+        streamUrl(it.path)?.let { url -> if (stillOpen()) _state.update { s -> s.copy(videoUrl = url) }; return }
         var got = false
         try {
             // In pieces (a video can be far bigger than the heap), stopped as
@@ -2903,11 +2911,15 @@ class PhotoGalleryViewModel(
 
     // ---- Photo edit: the editor (PhotoEditor.kt) and Revert to Original ----
 
-    /** The viewer's Edit: the editor opens over the open photo - one the device can edit (PhotoEdit.editable). */
+    /**
+     * The viewer's Edit: the editor opens over the open photo - one the
+     * device can edit (PhotoEdit.editable) - or the cut screen over the open
+     * video, one the device can cut (VideoEdit.editable, VideoEditor.kt).
+     */
     fun openEditor() {
         val st = _state.value
         val item = st.openIndex?.let { st.items.getOrNull(it) } ?: return
-        if (!PhotoEdit.editable(item) || st.editBusy != null) return
+        if (!(PhotoEdit.editable(item) || VideoEdit.editable(item)) || st.editBusy != null) return
         _state.update { it.copy(editing = true, editError = null) }
     }
 
@@ -2952,23 +2964,49 @@ class PhotoGalleryViewModel(
      * a delete refused for it, the viewer closes saying so and the photos
      * are asked for again.
      */
-    fun saveEdit(turns: Int, crop: CropRect, asCopy: Boolean, everyCopy: Boolean = false): Job? {
+    fun saveEdit(turns: Int, crop: CropRect, asCopy: Boolean, everyCopy: Boolean = false): Job? =
+        saveOpenEdit(
+            asCopy, { b, item -> b.setReqEditImage(PhotoEdit.request(item.path, item.hash, turns, crop, asCopy, everyCopy)) },
+            // Until its full size comes: the picture the editor showed,
+            // turned and cut as the device did it.
+            shown = { item -> imageOf(item)?.let { src -> withContext(Dispatchers.Default) { editedPicture(src, turns, crop) } } },
+        )
+
+    /**
+     * The cut screen's Save (VideoEditor.kt): EditVideo for the open video
+     * as it was shown (its hash), from [start] to [end] seconds of a video
+     * [length] long (an end at its end goes as 0, VideoEdit.request);
+     * [asCopy]: a new video next to it, else the video replaced
+     * ([everyCopy]: at every path holding it). The rest is saveEdit's -
+     * Saving…, a copy named, a refusal in the cut screen, "changed" - with
+     * no picture made on the phone: a replaced video is the device's new
+     * content, its stream and thumbnail asked for by its new hash
+     * (showEdited, as it opens again). The socket's own time (30 minutes,
+     * as a post's publication), as every edit's: the device reads the
+     * whole video for it, a minute or more for a long 4K one on a Pi.
+     */
+    fun saveCut(start: Double, end: Double, length: Double?, asCopy: Boolean, everyCopy: Boolean = false): Job? =
+        saveOpenEdit(asCopy, { b, item -> b.setReqEditVideo(VideoEdit.request(item.path, item.hash, start, end, length, asCopy, everyCopy)) })
+
+    // An edit of the open item sent ([request], with the item as shown),
+    // and what its answer leads to - saveEdit's, saveCut's. [shown]: the
+    // picture a replaced item shows until its own comes (none: the spinner,
+    // or its poster).
+    private fun saveOpenEdit(asCopy: Boolean, request: (ReqEnvelope.Builder, Item) -> Unit, shown: suspend (Item) -> Bitmap? = { null }): Job? {
         val st = _state.value
         if (st.editBusy != null) return null
         val item = st.openIndex?.let { st.items.getOrNull(it) } ?: return null
         _state.update { it.copy(editBusy = EditBusy.SAVING, editError = null) }
         return scope.launch {
             try {
-                when (val answer = editAnswer(S.appPhotosEditFailed()) { it.setReqEditImage(PhotoEdit.request(item.path, item.hash, turns, crop, asCopy, everyCopy)) }) {
+                when (val answer = editAnswer(S.appPhotosEditFailed()) { request(it, item) }) {
                     is EditAnswer.Done -> if (asCopy) {
                         _state.update { it.copy(editing = false) }
                         copySaved(item, answer.file)
                     } else {
-                        // Until its full size comes: the picture the editor
-                        // showed, turned and cut as the device did it.
-                        val shown = imageOf(item)?.let { src -> withContext(Dispatchers.Default) { editedPicture(src, turns, crop) } }
+                        val picture = shown(item)
                         _state.update { it.copy(editing = false) }
-                        showEdited(item, answer.file, shown)
+                        showEdited(item, answer.file, picture)
                     }
                     is EditAnswer.Refused -> if (answer.code == DELETE_CHANGED) {
                         _state.update { it.copy(editing = false) }
@@ -3022,8 +3060,9 @@ class PhotoGalleryViewModel(
     /**
      * [old] is [f] on the device now - an edit replaced it, or Revert put
      * the original back - and the viewer shows that in its place, by the
-     * answer: its new hash brings its own full size and thumbnail ([shown]
-     * meanwhile, the picture as edited, else the spinner), and its path may
+     * answer: its new hash brings its own full size and thumbnail - a
+     * video's stream too, a cut keeping its path - ([shown] meanwhile, the
+     * picture as edited, else the spinner), and its path may
      * be another (a HEIC become a JPEG, and back). What the viewer held of
      * the old content at either path goes, and the hearts and Info are
      * asked for again. Images' tile behind follows it (its thumbnail asked

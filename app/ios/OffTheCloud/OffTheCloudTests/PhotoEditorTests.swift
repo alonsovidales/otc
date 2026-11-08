@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import AVFoundation
 import Foundation
 import SwiftProtobuf
 import Testing
@@ -9,7 +10,8 @@ import UIKit
 /// Photo edit (PhotoEditor.swift): the crop as the picture turns, the
 /// aspects and the handles, what Save and Revert to Original send, when
 /// the viewer offers them, and what the viewer shows once the device has
-/// answered. The same rules as Android's and the web's.
+/// answered. The same rules as Android's and the web's - and a video's
+/// cut (VideoEditRules, saveCut) with them.
 
 private func near(_ a: CropRect, _ b: CropRect, _ slack: Double = 1e-9) -> Bool {
     abs(a.x - b.x) <= slack && abs(a.y - b.y) <= slack && abs(a.width - b.width) <= slack && abs(a.height - b.height) <= slack
@@ -286,6 +288,109 @@ struct PhotoEditRequestTests {
     }
 }
 
+/// A video of the viewer's, shown with its type and name.
+private func video(_ path: String, mime: String = "video/quicktime", local: Bool = false, original: String = "") -> PhotoGalleryVM.Item {
+    PhotoGalleryVM.Item(id: path, path: path, mime: mime, size: 1, thumbData: nil, localURL: nil,
+                        isLocalOnly: local, hash: "hv", originalHash: original)
+}
+
+@MainActor
+struct VideoEditRulesTests {
+    @Test func editIsOfferedForAVideoTheDeviceCanCut() {
+        for m in ["video/mp4", "video/quicktime", "video/x-m4v", "video/3gpp", "video/3gpp2", "video/x-matroska",
+                  "video/webm", "video/x-msvideo", "VIDEO/MP4", "video/mp4; codecs=\"avc1.64001f\"", " video/webm ;x=1"] {
+            #expect(VideoEditRules.cuttable(mime: m, path: "/v/clip"), "\(m)")
+        }
+        // Other videos (MPEG-TS, WMV, FLV...) and anything else: never,
+        // whatever the name says.
+        for m in ["video/mp2t", "video/x-ms-wmv", "video/x-flv", "video/mpeg", "image/jpeg", "image/heic", "audio/mp4",
+                  "application/pdf"] {
+            #expect(!VideoEditRules.cuttable(mime: m, path: "/v/clip.mp4"), "\(m)")
+        }
+        // Without a type, or a generic one: by the name, in any case.
+        for ext in ["mp4", "MOV", "m4v", "3gp", "3G2", "mkv", "webm", "Avi"] {
+            #expect(VideoEditRules.cuttable(mime: "", path: "/v/clip.\(ext)"), "\(ext)")
+            #expect(VideoEditRules.cuttable(mime: "application/octet-stream", path: "/v/clip.\(ext)"), "\(ext)")
+        }
+        for name in ["clip.ts", "clip.wmv", "clip.flv", "clip.jpg", "clip", "mp4"] {
+            #expect(!VideoEditRules.cuttable(mime: "application/octet-stream", path: "/v/\(name)"), "\(name)")
+        }
+        // Only the owner's videos on the device; a photo is the photo
+        // editor's, a video never.
+        #expect(VideoEditRules.offersEdit(video("/v/a.mov")))
+        #expect(VideoEditRules.offersEdit(video("/v/a.mp4", mime: "")))
+        #expect(!VideoEditRules.offersEdit(video("/v/a.mov", local: true)))
+        #expect(!VideoEditRules.offersEdit(video("", mime: "video/mp4")))
+        #expect(!VideoEditRules.offersEdit(video("/v/a.ts", mime: "video/mp2t")))
+        // The device cuts an MKV, a WebM and an AVI, but this phone can't
+        // play them in the cut screen: no Edit for them here.
+        for (path, mime) in [("/v/a.mkv", "video/x-matroska"), ("/v/a.webm", "video/webm"), ("/v/a.avi", "video/x-msvideo"),
+                             ("/v/a.MKV", ""), ("/v/a.webm", "application/octet-stream")] {
+            #expect(!VideoEditRules.offersEdit(video(path, mime: mime)), "\(path) \(mime)")
+        }
+        #expect(VideoEditRules.offersEdit(video("/v/a.3gp", mime: "video/3gpp")))
+        #expect(VideoEditRules.offersEdit(video("/v/a.m4v", mime: "application/octet-stream")))
+        #expect(!VideoEditRules.offersEdit(item("/p/a.jpg")))
+        #expect(!PhotoEditRules.offersEdit(video("/v/a.mov")))
+    }
+
+    @Test func theCutSentIsItsStartItsEndAndTheContentShown() {
+        let cut = VideoEditRules.request(path: "/v/IMG_1.MOV", hash: "h1", cut: TrimRange(start: 2.5, end: 10),
+                                         duration: 30, asCopy: false, everyCopy: true)
+        #expect(cut.path == "/v/IMG_1.MOV" && cut.hash == "h1")
+        #expect(cut.startSecs == 2.5 && cut.endSecs == 10)
+        #expect(cut.everyCopy && !cut.asCopy)
+        // An end at the video's end goes as 0, "to the end": the very end,
+        // or within the device's slack of it.
+        let toTheEnd = VideoEditRules.request(path: "/v/a.mp4", hash: "h", cut: TrimRange(start: 4, end: 30),
+                                              duration: 30, asCopy: false, everyCopy: false)
+        #expect(toTheEnd.startSecs == 4 && toTheEnd.endSecs == 0)
+        #expect(!toTheEnd.everyCopy)
+        let nearly = VideoEditRules.request(path: "/v/a.mp4", hash: "h", cut: TrimRange(start: 4, end: 29.96),
+                                            duration: 30, asCopy: false, everyCopy: false)
+        #expect(nearly.endSecs == 0)
+        let before = VideoEditRules.request(path: "/v/a.mp4", hash: "h", cut: TrimRange(start: 0, end: 29.9),
+                                            duration: 30, asCopy: false, everyCopy: false)
+        #expect(before.startSecs == 0 && before.endSecs == 29.9)
+        // Never before the video's start; a copy changes no other copy.
+        let copy = VideoEditRules.request(path: "/v/a.mp4", hash: "h", cut: TrimRange(start: -0.2, end: 12),
+                                          duration: 30, asCopy: true, everyCopy: true)
+        #expect(copy.startSecs == 0 && copy.endSecs == 12)
+        #expect(copy.asCopy && !copy.everyCopy)
+    }
+
+    @Test func saveTakesARealCutOfHalfASecondOrMore() {
+        // The whole video, or all but the device's slack at its end: no cut.
+        #expect(!VideoEditRules.canSave(TrimRange(start: 0, end: 30), duration: 30))
+        #expect(!VideoEditRules.canSave(TrimRange(start: 0, end: 29.97), duration: 30))
+        // Anything off either end is one...
+        #expect(VideoEditRules.canSave(TrimRange(start: 0.1, end: 30), duration: 30))
+        #expect(VideoEditRules.canSave(TrimRange(start: 0, end: 29.9), duration: 30))
+        #expect(VideoEditRules.canSave(TrimRange(start: 5, end: 12), duration: 30))
+        // ...that keeps half a second at least.
+        #expect(VideoEditRules.canSave(TrimRange(start: 5, end: 5.5), duration: 30))
+        #expect(!VideoEditRules.canSave(TrimRange(start: 5, end: 5.4), duration: 30))
+        #expect(!VideoEditRules.canSave(TrimRange(start: 12, end: 5), duration: 30))
+        // The composer's Apply is the same rule.
+        #expect(TrimRange(start: 5, end: 5.5).isCut(of: 30) && !TrimRange(start: 0, end: 30).isCut(of: 30))
+        #expect(TrimRange(start: 0, end: 29.96).isWhole(of: 30) && !TrimRange(start: 0.01, end: 30).isWhole(of: 30))
+    }
+
+    @Test func aCutVideosRevertSaysTheCutIsUndone() {
+        #expect(PhotoEditRules.revertText(for: video("/v/a.mov", original: "o"), copies: 1) == S.appPhotosEditVideoRevertText)
+        #expect(PhotoEditRules.revertText(for: video("/v/a.mov", mime: "application/octet-stream", original: "o"), copies: 1)
+                == S.appPhotosEditVideoRevertText)
+        #expect(PhotoEditRules.revertText(for: item("/p/a.jpg", original: "o"), copies: 1) == S.appPhotosEditRevertText)
+        #expect(S.appPhotosEditVideoRevertText != S.appPhotosEditRevertText)
+        // At several paths: the copies question, a photo's or a video's.
+        #expect(PhotoEditRules.revertText(for: video("/v/a.mov", original: "o"), copies: 3) == S.appPhotosEditRevertCopiesText(count: 3))
+        #expect(PhotoEditRules.revertText(for: item("/p/a.jpg", original: "o"), copies: 2) == S.appPhotosEditRevertCopiesText(count: 2))
+        // Revert is offered for a cut video as for an edited photo.
+        #expect(PhotoEditRules.offersRevert(video("/v/a.mov", original: "o")))
+        #expect(!PhotoEditRules.offersRevert(video("/v/a.mov")))
+    }
+}
+
 /// A picture of `size` px, its left half red and its right half blue.
 private func halves(_ size: CGSize) -> UIImage {
     let format = UIGraphicsImageRendererFormat()
@@ -339,6 +444,7 @@ final class EditDevice {
     var searches = 0
     var editStates: [String] = []
     var edits: [Msg_EditImage] = []
+    var cuts: [Msg_EditVideo] = []
     var reverts: [Msg_RevertImage] = []
     var gets: [String] = []
     /// GetEditState's copies; 0 answers unknown_payload (an older device).
@@ -347,11 +453,17 @@ final class EditDevice {
     var refuse: (code: String, message: String)?
     /// No answer at all to an edit (the connection dropped).
     var drop = false
+    /// The third of the photos is a video (a QuickTime recording).
+    var videos = false
 
     func file(_ i: Int) -> Msg_File {
         var f = Msg_File()
         f.path = i == 0 ? "/photos/0.HEIC" : "/photos/\(i).jpg"
         f.mime = i == 0 ? "image/heic" : "image/jpeg"
+        if videos && i == 2 {
+            f.path = "/photos/2.mov"
+            f.mime = "video/quicktime"
+        }
         f.hash = "h\(i)"
         f.size64 = 100
         f.created = Google_Protobuf_Timestamp(date: Date(timeIntervalSince1970: 1_780_000_000 - Double(i) * 3600))
@@ -411,6 +523,18 @@ final class EditDevice {
                 f.mime = "image/jpeg"
                 f.hash = "e-" + e.hash
                 f.size64 = 90
+                f.originalHash = e.hash
+                r.payload = .respFile(f)
+            case .reqEditVideo(let e):
+                self.cuts.append(e)
+                if self.drop { throw WSClient.TimedOut() }
+                if let no = self.refused() { return no }
+                var f = Msg_File()
+                // A cut keeps its name; a copy goes next to it.
+                f.path = e.asCopy ? "/photos/2 (edited).mov" : e.path
+                f.mime = "video/quicktime"
+                f.hash = "c-" + e.hash
+                f.size64 = 80
                 f.originalHash = e.hash
                 r.payload = .respFile(f)
             case .reqRevertImage(let rv):
@@ -760,6 +884,160 @@ struct PhotoEditGalleryTests {
         #expect(viewer.hiResImages["/Docs/a.jpg"]?.size == CGSize(width: 20, height: 40))
         #expect(!viewer.hiResFailed.contains("/Docs/a.jpg"))
         viewer.closeModal()
+    }
+}
+
+/// A video's cut in the viewer (saveCut), as a photo's edit above: what
+/// is sent, the video in its place afterwards, copies, refusals.
+@MainActor
+@Suite(.serialized)
+struct VideoEditGalleryTests {
+    private func model() async -> (PhotoGalleryVM, EditDevice) {
+        let vm = PhotoGalleryVM(deviceID: "test", localPhotosFolder: nil, thumbCache: testThumbCache())
+        let device = EditDevice()
+        device.videos = true
+        device.attach(vm)
+        await vm.resetAndLoadFirstPage()
+        return (vm, device)
+    }
+
+    private let cut = TrimRange(start: 2, end: 9.5)
+
+    /// A video the viewer plays from a file of its own (a real one, so its
+    /// player doesn't fail): nothing asked of a device for it.
+    private func clip() throws -> (PhotoGalleryVM.Item, URL) {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("cut-\(UUID().uuidString).mp4")
+        try HomeMediaLoaderTests.tinyMP4.write(to: file)
+        let it = PhotoGalleryVM.Item(id: "/Docs/clip.mp4#hv", path: "/Docs/clip.mp4", mime: "video/mp4",
+                                     size: HomeMediaLoaderTests.tinyMP4.count, thumbData: nil, localURL: file,
+                                     isLocalOnly: false, hash: "hv")
+        return (it, file)
+    }
+
+    @Test func theViewerOffersEditForAVideoItCanCut() async {
+        let (vm, _) = await model()
+        vm.open(index: 2)
+        #expect(vm.items[2].mime == "video/quicktime")
+        #expect(vm.editOffered && !vm.revertOffered)
+        vm.closeModal()
+        // A video the device can't cut: no Edit.
+        let other = PhotoGalleryVM()
+        let files = EditDevice()
+        files.attach(other)
+        other.showFiles([video("/v/a.ts", mime: "video/mp2t")], startAt: 0)
+        #expect(!other.editOffered)
+        other.closeModal()
+    }
+
+    /// The cut plays what the viewer plays; replaced, the video's new
+    /// content takes its place and is fetched anew, never the old player.
+    @Test func aReplacedCutTakesTheVideosPlaceAndIsPlayedAnew() async throws {
+        let viewer = PhotoGalleryVM()
+        let device = EditDevice()
+        device.attach(viewer)
+        var relisted: [String] = []
+        viewer.onDeleted = { relisted.append($0) }
+        let (clip, file) = try clip()
+        defer { try? FileManager.default.removeItem(at: file) }
+        viewer.showFiles([clip], startAt: 0)
+        #expect(viewer.editOffered)
+        await waitUntil { viewer.videoPlayer != nil }
+        #expect(viewer.videoSource(of: clip) == file)
+        // Another item's player is never its source.
+        #expect(viewer.videoSource(of: video("/v/other.mov")) == nil)
+        #expect(!viewer.videoUnavailable(clip))
+        let old = viewer.videoPlayer
+        #expect(await viewer.saveCut(cut, duration: 30, of: clip, copies: 1, asCopy: false, everyCopy: true) == .saved)
+        let sent = device.cuts.first
+        #expect(sent?.path == "/Docs/clip.mp4" && sent?.hash == "hv")
+        #expect(sent?.startSecs == 2 && sent?.endSecs == 9.5)
+        #expect(sent?.asCopy == false && sent?.everyCopy == false)
+        // In its place, by its new content: a cut now, its original kept.
+        let now = viewer.items[0]
+        #expect(now.path == "/Docs/clip.mp4" && now.mime == "video/quicktime")
+        #expect(now.hash == "c-hv" && now.originalHash == "hv")
+        #expect(now.thumbImage == nil && now.localURL == nil)
+        #expect(viewer.openIndex == 0 && viewer.revertOffered)
+        #expect(PhotoEditRules.revertText(for: now, copies: 1) == S.appPhotosEditVideoRevertText)
+        // The old content's player is gone; the new one is fetched for it.
+        #expect(viewer.videoPlayer == nil || viewer.videoPlayer !== old)
+        #expect(viewer.videoSource(of: clip) == nil)
+        // Files lists its folder again.
+        #expect(relisted == ["/Docs/clip.mp4"])
+        viewer.closeModal()
+    }
+
+    @Test func aCutToTheEndGoesAsZero() async {
+        let (vm, device) = await model()
+        vm.open(index: 2)
+        #expect(await vm.saveCut(TrimRange(start: 3, end: 30), duration: 30, of: vm.items[2], copies: 1,
+                                 asCopy: false, everyCopy: false) == .saved)
+        #expect(device.cuts.last?.startSecs == 3 && device.cuts.last?.endSecs == 0)
+        #expect(vm.items[2].hash == "c-h2" && vm.items[2].path == "/photos/2.mov")
+        vm.closeModal()
+    }
+
+    @Test func everyCopyOrOnlyHereAndTheGridAgainForTheCopiesLeft() async {
+        let (vm, device) = await model()
+        device.copies = 3
+        vm.open(index: 2)
+        #expect(await vm.editCopies(of: "/photos/2.mov") == 3)
+        #expect(await vm.saveCut(cut, duration: 30, of: vm.items[2], copies: 3, asCopy: false, everyCopy: true) == .saved)
+        #expect(device.cuts.last?.everyCopy == true)
+        #expect(vm.items[2].copies == 3)
+        // Only here: the other copies keep the video, so the grid is read
+        // again once the viewer closes.
+        let searches = device.searches
+        #expect(await vm.saveCut(cut, duration: 30, of: vm.items[2], copies: 3, asCopy: false, everyCopy: false) == .saved)
+        #expect(device.cuts.last?.everyCopy == false)
+        #expect(vm.items[2].copies == nil)
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        #expect(device.searches == searches)
+        vm.closeModal()
+        await waitUntil { device.searches > searches }
+        #expect(device.searches == searches + 1)
+    }
+
+    @Test func aCopyIsSaidByItsNameAndTheViewerStaysOnTheVideo() async {
+        let (vm, device) = await model()
+        vm.open(index: 2)
+        let searches = device.searches
+        #expect(await vm.saveCut(cut, duration: 30, of: vm.items[2], copies: 1, asCopy: true, everyCopy: true) == .saved)
+        #expect(device.cuts.last?.asCopy == true && device.cuts.last?.everyCopy == false)
+        #expect(vm.showAlert && vm.alertShown(overViewer: true))
+        #expect(vm.notice?.text == S.appPhotosEditSavedCopy(name: "2 (edited).mov"))
+        #expect(vm.openIndex == 2 && vm.items[2].hash == "h2")
+        vm.showAlert = false
+        vm.closeModal()
+        await waitUntil { device.searches > searches }
+        #expect(device.searches == searches + 1)
+    }
+
+    @Test func aRefusedCutSaysTheDevicesWordsAndChangedClosesTheViewer() async {
+        let (vm, device) = await model()
+        vm.open(index: 2)
+        device.refuse = ("not_editable", "This video can't be cut.")
+        #expect(await vm.saveCut(cut, duration: 30, of: vm.items[2], copies: 1, asCopy: false, everyCopy: false)
+                == .failed("This video can't be cut."))
+        device.refuse = ("too_short", "")
+        #expect(await vm.saveCut(cut, duration: 30, of: vm.items[2], copies: 1, asCopy: true, everyCopy: false)
+                == .failed(S.appPhotosEditFailed))
+        device.refuse = nil
+        device.drop = true
+        #expect(await vm.saveCut(cut, duration: 30, of: vm.items[2], copies: 1, asCopy: false, everyCopy: false)
+                == .failed(S.appPhotosEditFailed))
+        #expect(vm.items[2].hash == "h2" && !vm.showAlert && vm.openIndex == 2)
+        // Other content at the path now: the viewer closes, the device's
+        // words under it, and the photos are read again.
+        device.drop = false
+        device.refuse = ("changed", "This video has changed since it was shown.")
+        let searches = device.searches
+        #expect(await vm.saveCut(cut, duration: 30, of: vm.items[2], copies: 1, asCopy: false, everyCopy: false) == .outOfDate)
+        #expect(vm.openIndex == nil)
+        #expect(vm.showAlert && vm.alertShown(overViewer: false))
+        #expect(vm.notice?.text == "This video has changed since it was shown.")
+        await waitUntil { device.searches > searches }
+        #expect(device.searches == searches + 1)
     }
 }
 }

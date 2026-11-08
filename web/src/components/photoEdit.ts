@@ -11,8 +11,9 @@
 //
 // Edit is offered for a photo of the owner's own library the device can
 // edit, by its type: JPEG, PNG, HEIC/HEIF (or a name ending in .heic/.heif,
-// whatever type a device gave it), AVIF and WebP - never a video, a GIF, a
-// camera raw, a TIFF or an SVG, which the device refuses as "not_editable".
+// whatever type a device gave it), AVIF and WebP - never a video (a video's
+// Edit is the cut: videoEdit.ts), a GIF, a camera raw, a TIFF or an SVG,
+// which the device refuses as "not_editable".
 // Revert to original is offered for a photo that is an edit
 // (File.original_hash, from ListFiles and SearchPhotos answers).
 //

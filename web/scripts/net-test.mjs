@@ -94,6 +94,8 @@ describe("ws.ts: how long a request waits", () => {
     assert.equal(ws.answerTimeoutMs("reqReadFile"), 300_000);
     assert.equal(ws.answerTimeoutMs("reqUploadChunk"), 300_000);
     assert.equal(ws.answerTimeoutMs("reqNewSocialPublication"), 0);
+    // A video cut takes as long as the device reads the whole video.
+    assert.equal(ws.answerTimeoutMs("reqEditVideo"), 0);
   });
 
   test("an answer in time resolves; one past its time fails with NoAnswer, the socket kept when frames came", async () => {

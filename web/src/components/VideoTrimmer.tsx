@@ -13,14 +13,41 @@
 // work with a keyboard and on a touch screen for free, and each one can
 // scrub the preview to its own position as it moves, which is the part
 // that actually makes trimming feel accurate.
-import { useEffect, useRef, useState } from "react";
+//
+// The viewer's Edit on a video (VideoEditor.tsx) is this same screen with
+// the `cut` option: the cut is saved on the device then (EditVideo,
+// videoEdit.ts' rules), so the bar has Save - on for a real cut of at
+// least half a second - in place of Apply and Remove trim, the small print
+// under the slider says the cut may start a little early, and Cancel (its
+// ✕, Escape, Back) with the range changed lets the caller ask first, as
+// the photo editor does. The caller's questions are its children, drawn
+// over the panel; while one shows, the keys are its own. It also takes
+// the keyboard's focus as it opens and keeps Tab inside, as the photo
+// editor does over the viewer. The composer's trim is as it always was.
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Trans, useT } from "../i18n";
+import { keepTabInside } from "./focusTrap";
 import { say, type UiText } from "./uiText";
+import { canSaveCut, cutOf, type Cut } from "./videoEdit";
 import { formatTimecode, type TrimRange } from "./videoTrim";
 import { useBackLayer } from "./backStack";
 import "./VideoTrimmer.css";
 
 export type { TrimRange };
+
+/** The viewer's cut (VideoEditor.tsx), in place of the composer's
+ *  `value` and `onApply`. */
+export type TrimCut = {
+  /** Save, with the cut the handles chose (videoEdit.ts). */
+  onSave: (cut: Cut) => void;
+  /** Cancel - its ✕, Escape or Back - with the range changed: the
+   *  caller asks first. With nothing changed it is onCancel. */
+  onDiscard: () => void;
+  /** A question of the caller's shows over the panel: the keys are
+   *  the question's. */
+  asking: boolean;
+};
 
 // Below this there's nothing left to watch, and ffmpeg's own output for a
 // sub-frame cut isn't something worth publishing.
@@ -32,16 +59,22 @@ const cReadTimeoutMs = 20000;
 
 type Props = {
   src: string;
-  // The trim already applied to this file, if it's being edited again.
-  value: TrimRange | null;
-  onApply: (range: TrimRange | null) => void;
   onCancel: () => void;
-};
+  // The cut's questions (VideoEditor.tsx), over the panel.
+  children?: ReactNode;
+} & (
+  | {
+      // The trim already applied to this file, if it's being edited again.
+      value: TrimRange | null;
+      onApply: (range: TrimRange | null) => void;
+      cut?: undefined;
+    }
+  | { cut: TrimCut; value?: undefined; onApply?: undefined }
+);
 
-export default function VideoTrimmer({ src, value, onApply, onCancel }: Props) {
+export default function VideoTrimmer({ src, value, onApply, onCancel, cut, children }: Props) {
   const t = useT();
-  // Back is Cancel (backStack.ts).
-  useBackLayer(true, onCancel);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
   // A browser that can't decode the clip doesn't necessarily fire `error`
@@ -67,7 +100,21 @@ export default function VideoTrimmer({ src, value, onApply, onCancel }: Props) {
     setDuration(d);
     setEnd(prev => (prev > 0 ? Math.min(prev, d) : d));
   };
+  // ...or before React listens: the viewer's cut renders this in its lazy
+  // chunk's retry, which can pause before the commit, and on a video the
+  // browser already holds (the viewer's own) the metadata, or the error,
+  // came in that pause - an event React drops for an element not on the
+  // page yet. Seen in Chrome: the clip read, "Reading the clip…" for good.
+  // So it is also looked at once the element is on the page.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.error) setLoadError(() => say("web.images.trim.unopenable"));
+    else if (v.readyState >= HTMLMediaElement.HAVE_METADATA) onLoadedMetadata();
+  }, [src]);
 
+  // From the source it was given: the cut's comes from the viewer, which
+  // may still be asking the device for it as the screen opens.
   useEffect(() => {
     if (duration !== null) return;
     const timer = setTimeout(
@@ -75,7 +122,7 @@ export default function VideoTrimmer({ src, value, onApply, onCancel }: Props) {
       cReadTimeoutMs
     );
     return () => clearTimeout(timer);
-  }, [duration]);
+  }, [duration, src]);
 
   const seek = (at: number) => {
     const v = videoRef.current;
@@ -131,18 +178,82 @@ export default function VideoTrimmer({ src, value, onApply, onCancel }: Props) {
   // nothing about it (see shouldTrimForSocial on the Go side).
   const isWholeClip = duration !== null && start <= 0 && effectiveEnd >= duration - 0.05;
 
+  // The viewer's cut, as the device takes it (videoEdit.ts): none until the
+  // clip's length is known. A range that isn't the whole video is what
+  // Cancel would lose.
+  const chosen = cut && duration !== null ? cutOf({ start, end: effectiveEnd }, duration) : null;
+  const changed = !!chosen && !chosen.whole;
+  // Cancel: the composer's at once; the cut's asked first when changed.
+  const cancel = () => {
+    if (cut && changed) cut.onDiscard();
+    else onCancel();
+  };
+  // Back is Cancel (backStack.ts); a question over the cut has its own
+  // Back (Modal), and the one this asks keeps the screen.
+  useBackLayer(true, () => {
+    if (!cut || !changed) { onCancel(); return; }
+    cut.onDiscard();
+    return false;
+  });
+  const save = () => {
+    if (!cut || !chosen || !canSaveCut(chosen)) return;
+    // The question comes over a still picture, not the cut playing on.
+    playingCutRef.current = false;
+    videoRef.current?.pause();
+    cut.onSave(chosen);
+  };
+
+  // The cut over the viewer: the keyboard's focus comes in, and goes back
+  // to Edit as it closes - after keyboard use only, as the dialogs do;
+  // Escape is Cancel and Tab stays inside, except while a question shows.
+  const cutting = !!cut;
+  const asking = !!cut?.asking;
+  const cancelRef = useRef(cancel);
+  useLayoutEffect(() => { cancelRef.current = cancel; });
+  const [returnFocus] = useState(() => {
+    const el = document.activeElement;
+    return el instanceof HTMLElement && el.matches(":focus-visible") ? el : null;
+  });
+  useEffect(() => {
+    if (!cutting) return;
+    rootRef.current?.focus({ preventScroll: true });
+    return () => { if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true }); };
+  }, [cutting, returnFocus]);
+  useEffect(() => {
+    if (!cutting || asking) return;
+    const onKey = (e: KeyboardEvent) => {
+      const root = rootRef.current;
+      if (!root) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cancelRef.current();
+      } else if (e.key === "Tab") {
+        keepTabInside(root, e);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [cutting, asking]);
+
   return (
-    <div className="vt-backdrop" role="dialog" aria-modal="true" aria-label={t("web.images.trim.title")}>
+    <div
+      ref={rootRef}
+      className="vt-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("web.images.trim.title")}
+      tabIndex={cut ? -1 : undefined}
+    >
       <div className="vt-panel">
         <div className="vt-header">
           <div className="vt-title">{t("web.images.trim.title")}</div>
-          <button className="vt-close" onClick={onCancel} aria-label={t("common.cancel")}>✕</button>
+          <button className="vt-close" onClick={cancel} aria-label={t("common.cancel")}>✕</button>
         </div>
 
         <video
           ref={videoRef}
           className="vt-video"
-          src={src}
+          src={src || undefined}
           onLoadedMetadata={onLoadedMetadata}
           onError={() => setLoadError(() => say("web.images.trim.unopenable"))}
           playsInline
@@ -210,27 +321,36 @@ export default function VideoTrimmer({ src, value, onApply, onCancel }: Props) {
                 parts={{ b: (s) => <strong>{s}</strong> }}
               />
             </div>
+            {/* A copied stream starts at a keyframe (EditVideo). */}
+            {cut && <p className="vt-note">{t("web.images.edit.video_cut_note")}</p>}
 
             <div className="vt-actions">
               <button className="vt-btn" onClick={playCut}>▶ {t("web.images.trim.play")}</button>
               <div className="vt-actions-spacer" />
               {value && (
-                <button className="vt-btn" onClick={() => onApply(null)}>
+                <button className="vt-btn" onClick={() => onApply?.(null)}>
                   {t("web.images.trim.remove")}
                 </button>
               )}
-              <button className="vt-btn" onClick={onCancel}>{t("common.cancel")}</button>
-              <button
-                className="vt-btn vt-btn-primary"
-                disabled={isWholeClip || cutLength < cMinTrimSecs}
-                onClick={() => onApply({ start, end: effectiveEnd })}
-              >
-                {t("common.apply")}
-              </button>
+              <button className="vt-btn" onClick={cancel}>{t("common.cancel")}</button>
+              {cut ? (
+                <button className="vt-btn vt-btn-primary" disabled={!chosen || !canSaveCut(chosen)} onClick={save}>
+                  {t("common.save")}
+                </button>
+              ) : (
+                <button
+                  className="vt-btn vt-btn-primary"
+                  disabled={isWholeClip || cutLength < cMinTrimSecs}
+                  onClick={() => onApply?.({ start, end: effectiveEnd })}
+                >
+                  {t("common.apply")}
+                </button>
+              )}
             </div>
           </>
         )}
       </div>
+      {children}
     </div>
   );
 }

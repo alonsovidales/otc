@@ -270,4 +270,113 @@ class PhotoEditTest {
         assertEquals("IMG_1 (edited).jpg", PhotoEdit.fileName("/Camera/IMG_1 (edited).jpg"))
         assertEquals("IMG_1.jpg", PhotoEdit.fileName("IMG_1.jpg"))
     }
+
+    // ---- Video edit (VideoEdit): the cut by time ----
+
+    @Test fun editIsOfferedForTheVideosTheDeviceCanCut() {
+        for (mime in listOf(
+            "video/mp4", "video/quicktime", "video/x-m4v", "video/3gpp", "video/3gpp2", "video/x-matroska", "video/webm", "video/x-msvideo",
+            // Any case, and parameters after a ";" don't count.
+            "VIDEO/MP4", "video/mp4; codecs=\"avc1.42E01E\"", " video/quicktime ;x=1",
+        )) {
+            assertTrue(mime, VideoEdit.editable(item(mime, "/Camera/VID_1.bin")))
+        }
+        // Typed as nothing in particular: by the name's extension, in any case.
+        for (name in listOf("a.mp4", "B.MOV", "c.M4v", "d.3gp", "e.3G2", "f.mkv", "g.WebM", "h.avi")) {
+            assertTrue(name, VideoEdit.editable(item("", "/Camera/$name")))
+            assertTrue(name, VideoEdit.editable(item("application/octet-stream", "/Camera/$name")))
+            assertTrue(name, VideoEdit.editable(item("Application/Octet-Stream; x=1", "/Camera/$name")))
+        }
+        // Not other videos: the device can't put their streams back (MPEG-TS, WMV, FLV...).
+        for (mime in listOf("video/mp2t", "video/x-ms-wmv", "video/x-flv", "video/mpeg", "video/ogg")) {
+            assertFalse(mime, VideoEdit.editable(item(mime, "/Camera/VID_2.mp4")))
+        }
+        // An untyped file named otherwise, or with no extension at all.
+        for (name in listOf("clip.ts", "clip.wmv", "clip.flv", "mp4", "clip", "clip.mp4.txt")) {
+            assertFalse(name, VideoEdit.editable(item("", "/Camera/$name")))
+        }
+        // A photo is the photo editor's, never the cut's - typed as one, or untyped and named as one.
+        for (mime in listOf("image/jpeg", "image/heic", "image/gif")) assertFalse(mime, VideoEdit.editable(item(mime, "/Camera/IMG_1.mp4")))
+        assertFalse(VideoEdit.editable(item("application/octet-stream", "/Camera/IMG_2.HEIC")))
+        // And the photo editor never takes a video.
+        assertFalse(PhotoEdit.editable(item("application/octet-stream", "/Camera/VID_3.MOV")))
+        // Revert is the same for a video: by its original.
+        assertTrue(PhotoEdit.revertable(item("video/mp4", "/Camera/VID_4.mp4", originalHash = "abc")))
+    }
+
+    @Test fun saveIsForARealCutOfHalfASecondOrMore() {
+        // Its length not read yet: nothing to save.
+        assertFalse(VideoEdit.savable(0.0, 0.0, null))
+        assertFalse(VideoEdit.savable(2.0, 5.0, null))
+        // The whole video: as it opened, the end at the end or within 0.05 s of it.
+        assertFalse(VideoEdit.savable(0.0, 0.0, 10.0))
+        assertFalse(VideoEdit.savable(0.0, 10.0, 10.0))
+        assertFalse(VideoEdit.savable(0.0, 9.96, 10.0))
+        // A start or an end moved: a cut.
+        assertTrue(VideoEdit.savable(0.0, 9.9, 10.0))
+        assertTrue(VideoEdit.savable(1.0, 10.0, 10.0))
+        assertTrue(VideoEdit.savable(1.0, 0.0, 10.0))
+        assertTrue(VideoEdit.savable(2.5, 7.25, 10.0))
+        // At least half a second kept.
+        assertTrue(VideoEdit.savable(3.0, 3.5, 10.0))
+        assertFalse(VideoEdit.savable(3.0, 3.49, 10.0))
+        assertFalse(VideoEdit.savable(9.7, 0.0, 10.0))
+        assertFalse(VideoEdit.savable(5.0, 4.0, 10.0))
+        // A video shorter than that has no cut to save.
+        assertFalse(VideoEdit.savable(0.1, 0.0, 0.55))
+        // The composer's Apply is the same rule.
+        assertEquals(cloud.offthe.otc.ui.compose.trimApplies(2.0, 5.0, 10.0), VideoEdit.savable(2.0, 5.0, 10.0))
+    }
+
+    @Test fun cancelAsksOnlyOnceSomethingWasCut() {
+        assertFalse(VideoEdit.changed(0.0, 0.0, null))
+        assertFalse(VideoEdit.changed(0.0, 0.0, 10.0))
+        assertFalse(VideoEdit.changed(0.0, 9.98, 10.0))
+        assertTrue(VideoEdit.changed(0.2, 10.0, 10.0))
+        assertTrue(VideoEdit.changed(0.0, 8.0, 10.0))
+        // Too short to save is still a cut that Cancel would lose.
+        assertTrue(VideoEdit.changed(3.0, 3.2, 10.0))
+    }
+
+    @Test fun theCutsRequestCarriesTheStartTheEndAndWhatWasShown() {
+        val replace = VideoEdit.request("/Camera/VID_1.MOV", "abc", 2.5, 7.25, 10.0, asCopy = false, everyCopy = true)
+        assertEquals("/Camera/VID_1.MOV", replace.path)
+        // The content shown: refused as "changed" if the path holds other now.
+        assertEquals("abc", replace.hash)
+        assertEquals(2.5, replace.startSecs, 0.0)
+        assertEquals(7.25, replace.endSecs, 0.0)
+        assertFalse(replace.asCopy)
+        assertTrue(replace.everyCopy)
+        // Only here: every_copy left out.
+        assertFalse(VideoEdit.request("p", "h", 1.0, 5.0, 10.0, asCopy = false).everyCopy)
+        // The end handle at the video's end, within 0.05 s of it, past it,
+        // or the length unknown: 0, "to the end" - the device's own length.
+        assertEquals(0.0, VideoEdit.request("p", "h", 3.0, 10.0, 10.0, asCopy = false).endSecs, 0.0)
+        assertEquals(0.0, VideoEdit.request("p", "h", 3.0, 9.96, 10.0, asCopy = false).endSecs, 0.0)
+        assertEquals(0.0, VideoEdit.request("p", "h", 3.0, 10.4, 10.0, asCopy = false).endSecs, 0.0)
+        assertEquals(0.0, VideoEdit.request("p", "h", 3.0, 0.0, 10.0, asCopy = false).endSecs, 0.0)
+        assertEquals(0.0, VideoEdit.request("p", "h", 3.0, 6.0, null, asCopy = false).endSecs, 0.0)
+        assertEquals(3.0, VideoEdit.request("p", "h", 3.0, 10.0, 10.0, asCopy = false).startSecs, 0.0)
+        // Short of it: the end chosen.
+        assertEquals(9.9, VideoEdit.request("p", "h", 0.0, 9.9, 10.0, asCopy = false).endSecs, 0.0)
+        // The start at the video's start: 0, never below.
+        assertEquals(0.0, VideoEdit.request("p", "h", -0.01, 4.0, 10.0, asCopy = false).startSecs, 0.0)
+        // A copy never replaces the other copies.
+        val copy = VideoEdit.request("p", "h", 1.0, 4.0, 10.0, asCopy = true, everyCopy = true)
+        assertTrue(copy.asCopy)
+        assertFalse(copy.everyCopy)
+    }
+
+    @Test fun revertSaysTheCutIsUndoneForAVideo() {
+        val video = "The cut is undone and the video is as it was before it was cut."
+        val photo = "The edit is removed and the photo is as it was before it was edited."
+        assertEquals(video, VideoEdit.revertText(item("video/mp4", "/Camera/VID_1.mp4", originalHash = "o")).english())
+        assertEquals(video, VideoEdit.revertText(item("video/quicktime", "/Camera/VID_2.MOV", originalHash = "o")).english())
+        // Typed as nothing in particular, by its name.
+        assertEquals(video, VideoEdit.revertText(item("application/octet-stream", "/Camera/VID_3.mkv", originalHash = "o")).english())
+        // A video of any type is a video, even one the device can't cut now.
+        assertEquals(video, VideoEdit.revertText(item("video/x-ms-wmv", "/Camera/VID_4.wmv", originalHash = "o")).english())
+        assertEquals(photo, VideoEdit.revertText(item("image/jpeg", originalHash = "o")).english())
+        assertEquals(photo, VideoEdit.revertText(item("application/octet-stream", "/Camera/IMG_5.HEIC", originalHash = "o")).english())
+    }
 }

@@ -38,6 +38,11 @@ class UploadQueue<T>(
     private val permits = Semaphore(slots)
     private val lock = Any()
     private val jobs = LinkedHashSet<Job>()
+    // The files not yet going, in the order picked. A job takes the first
+    // once it has a slot, not a file of its own: the jobs reach the slots
+    // in whatever order their threads run, and the third file picked
+    // could go before the second.
+    private val waiting = ArrayDeque<T>()
     private var total = 0
     private var finished = 0
 
@@ -45,8 +50,15 @@ class UploadQueue<T>(
     fun add(items: List<T>) {
         if (items.isEmpty()) return
         val added = synchronized(lock) {
-            val added = items.map { item ->
-                val job = scope.launch(start = CoroutineStart.LAZY) { permits.withPermit { send(item) } }
+            waiting.addAll(items)
+            val added = items.map {
+                val job = scope.launch(start = CoroutineStart.LAZY) {
+                    permits.withPermit {
+                        // None left: Cancel emptied the line as this got its slot.
+                        val next = synchronized(lock) { waiting.removeFirstOrNull() } ?: throw CancellationException()
+                        send(next)
+                    }
+                }
                 jobs += job
                 job.invokeOnCompletion { cause -> ended(job, cancelled = cause is CancellationException) }
                 job
@@ -62,7 +74,10 @@ class UploadQueue<T>(
 
     /** Cancel: nothing more goes up; nothing is reported for it. */
     fun cancel() {
-        synchronized(lock) { jobs.toList() }.forEach { it.cancel() }
+        synchronized(lock) {
+            waiting.clear()
+            jobs.toList()
+        }.forEach { it.cancel() }
     }
 
     /** Whether any is waiting or going. */

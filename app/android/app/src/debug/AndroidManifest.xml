@@ -66,10 +66,12 @@
             android:name=".SetupPicturePreviewActivity"
             android:exported="true"
             android:theme="@style/Theme.OffTheCloud" />
-        <!-- The photo editor (rotate and crop) and Revert to Original over the
-             viewer, on sample data (adb shell am start -n
+        <!-- The photo editor (rotate and crop), a video's cut and Revert to
+             Original over the viewer, on sample data and the assets' sample
+             video (adb shell am start -n
              cloud.offthe.otc/.PhotoEditPreviewActivity [- -ez editor true]
-             [- -ei photo 1] [- -es device demo|old]). -->
+             [- -ei photo 1] [- -es device demo|old] [- -es video <uri>]; the
+             first video is - -ei photo 3). -->
         <activity
             android:name=".PhotoEditPreviewActivity"
             android:exported="true"

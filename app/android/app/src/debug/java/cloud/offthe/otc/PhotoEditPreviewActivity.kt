@@ -42,16 +42,21 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.delay
 
 /**
- * Debug builds only: the photo editor on sample data, no device needed
- * (adb shell am start -n cloud.offthe.otc/.PhotoEditPreviewActivity): the
- * viewer over three pretend photos - a wide JPEG, an upright HEIC the
- * device holds at two paths (Replace asks about the copies; it comes back
- * as a JPEG), and an edit (Revert to Original). The pretend device takes a
- * moment and edits as the real one does, so the photo comes back turned
- * and cropped; a copy is listed by its name. `--ez editor true` opens the
- * editor at once, `--ei photo N` on the Nth photo; `--es device demo`
- * refuses every change as the demo device does, `--es device old` is a
- * device before photo edits.
+ * Debug builds only: the photo editor and the video cut on sample data, no
+ * device needed (adb shell am start -n
+ * cloud.offthe.otc/.PhotoEditPreviewActivity): the viewer over three
+ * pretend photos - a wide JPEG, an upright HEIC the device holds at two
+ * paths (Replace asks about the copies; it comes back as a JPEG), and an
+ * edit (Revert to Original) - and three pretend videos: an MP4 held at two
+ * paths, a MOV already cut (Revert to Original, a video's words), and a
+ * WMV the device can't cut (no Edit). The pretend device takes a moment
+ * and edits as the real one does, so the photo comes back turned and
+ * cropped (a video's cut keeps its path, with a new hash; the sample plays
+ * whole again, the pretend device not cutting it); a copy is listed by its
+ * name. The videos play the debug assets' sample (`--es video <uri>` plays
+ * another). `--ez editor true` opens the editor at once, `--ei photo N` on
+ * the Nth file (3: the MP4); `--es device demo` refuses every change as
+ * the demo device does, `--es device old` is a device before photo edits.
  */
 class PhotoEditPreviewActivity : ComponentActivity() {
     // A pretend file: its picture's name and size - or, for an edit, what
@@ -68,6 +73,8 @@ class PhotoEditPreviewActivity : ComponentActivity() {
         val device = intent.getStringExtra("device") ?: ""
         val editor = intent.getBooleanExtra("editor", false)
         val start = intent.getIntExtra("photo", 0)
+        // What the pretend videos play: the debug assets' sample, 8 s with its seconds counted.
+        val video = intent.getStringExtra("video") ?: "asset:///video-cut-sample.mp4"
         fun file(path: String, hash: String, mime: String = "image/jpeg", original: String = "") =
             File.newBuilder().setPath(path).setHash(hash).setMime(mime).setOriginalHash(original).build()
         val held = ConcurrentHashMap<String, Held>()
@@ -75,7 +82,12 @@ class PhotoEditPreviewActivity : ComponentActivity() {
         val upright = Held(file("/Camera/IMG_0002.HEIC", "p2", "image/heic"), "hills", 1200, 1600)
         val first = Held(file("/Camera/IMG_0003.JPG", "p3-original"), "dusk", 1600, 1200)
         val edit = Held(file("/Camera/IMG_0003.JPG", "p3", original = "p3-original"), "dusk", 1600, 1200, from = first, crop = CropRect(0.2, 0.1, 0.6, 0.8), original = first)
-        for (h in listOf(wide, upright, edit)) held[h.file.path] = h
+        // The videos: their pictures are never drawn (they stream), only named.
+        val clip = Held(file("/Camera/VID_0004.MP4", "v4", "video/mp4"), "clip", 320, 180)
+        val firstClip = Held(file("/Camera/VID_0005.MOV", "v5-original", "video/quicktime"), "clip-cut", 320, 180)
+        val cutClip = Held(file("/Camera/VID_0005.MOV", "v5", "video/quicktime", original = "v5-original"), "clip-cut", 320, 180, original = firstClip)
+        val wmv = Held(file("/Camera/VID_0006.WMV", "v6", "video/x-ms-wmv"), "clip-wmv", 320, 180)
+        for (h in listOf(wide, upright, edit, clip, cutClip, wmv)) held[h.file.path] = h
         var made = 0
         val unknown = RespEnvelope.newBuilder().setError(true).setErrorCode("unknown_payload")
             .setErrorMessage("Your device needs an update for this. Update it in Settings › Device version.").build()
@@ -92,7 +104,8 @@ class PhotoEditPreviewActivity : ComponentActivity() {
                 ReqEnvelope.PayloadCase.REQ_GET_EDIT_STATE -> if (device == "old") unknown else {
                     delay(300)
                     val h = held[req.reqGetEditState.path]
-                    RespEnvelope.newBuilder().setRespEditState(EditState.newBuilder().setCopies(if (h?.picture == "hills") 2 else 1).setEdited(h?.original != null)).build()
+                    val twice = h?.picture == "hills" || h?.picture == "clip"
+                    RespEnvelope.newBuilder().setRespEditState(EditState.newBuilder().setCopies(if (twice) 2 else 1).setEdited(h?.original != null)).build()
                 }
                 ReqEnvelope.PayloadCase.REQ_EDIT_IMAGE -> {
                     delay(1500)
@@ -114,6 +127,29 @@ class PhotoEditPreviewActivity : ComponentActivity() {
                                 from = h, turns = e.quarterTurns, crop = crop, original = if (e.asCopy) null else root,
                             )
                             if (!e.asCopy) held.remove(e.path)
+                            held[path] = next
+                            answer(next)
+                        }
+                    }
+                }
+                ReqEnvelope.PayloadCase.REQ_EDIT_VIDEO -> {
+                    // A long video takes a while on a Pi: Saving… shows.
+                    delay(2500)
+                    val e = req.reqEditVideo
+                    val h = held[e.path]
+                    when {
+                        device == "old" -> unknown
+                        device == "demo" -> demo
+                        h == null -> RespEnvelope.newBuilder().setError(true).setErrorCode("changed").setErrorMessage("This file has changed since it was shown: refresh and try again.").build()
+                        e.endSecs > 0 && e.endSecs - e.startSecs < 0.5 -> RespEnvelope.newBuilder().setError(true).setErrorCode("too_short").setErrorMessage("The cut is too short: keep at least half a second.").build()
+                        else -> {
+                            // A cut keeps its path; a copy is "<name> (edited).<ext>".
+                            val path = if (e.asCopy) "${e.path.substringBeforeLast('.')} (edited).${e.path.substringAfterLast('.')}" else e.path
+                            val root = h.original ?: h
+                            val next = Held(
+                                file(path, "cut${++made}", h.file.mime, original = if (e.asCopy) "" else root.file.hash), h.picture, h.w, h.h,
+                                original = if (e.asCopy) null else root,
+                            )
                             held[path] = next
                             answer(next)
                         }
@@ -141,7 +177,11 @@ class PhotoEditPreviewActivity : ComponentActivity() {
             OTCTheme {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val vm: PhotoGalleryViewModel = viewModel(key = "preview-photo-edit") {
-                        PhotoGalleryViewModel("preview", send = send, thumbs = MemoriesPreviewActivity.SampleThumbs, fullPhotos = NoFullPhotos, scope = lifecycleScope)
+                        PhotoGalleryViewModel(
+                            "preview", send = send, thumbs = MemoriesPreviewActivity.SampleThumbs, fullPhotos = NoFullPhotos, scope = lifecycleScope,
+                            // Every pretend video streams the sample.
+                            streamUrl = { path -> delay(300); video.takeIf { held[path]?.file?.mime?.startsWith("video/") == true } },
+                        )
                     }
                     val st by vm.state.collectAsState()
                     // The folder as the pretend device holds it now, copies and edits included.
@@ -154,8 +194,8 @@ class PhotoEditPreviewActivity : ComponentActivity() {
                     LaunchedEffect(Unit) {
                         open()
                         if (editor) {
-                            // Once its full size is in, as a person would.
-                            while (vm.state.value.hiRes == null) delay(100)
+                            // Once its full size is in (a video playing), as a person would.
+                            while (vm.state.value.hiRes == null && vm.state.value.videoUrl == null) delay(100)
                             vm.openEditor()
                         }
                     }

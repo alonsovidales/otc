@@ -3772,6 +3772,16 @@ under Architecture.
   The viewer fetches the full size again when the hash changes at the same path.
 - **Phone layout:** `--pg-hdr-h: 79px` sizes the viewer's picture under its two-row header below
   720px. It used to cover the actions row.
+- **Videos** (2026-11-08; `videoEdit.ts` the rules, `VideoEditor.tsx` its own lazy chunk,
+  `node web/scripts/video-edit-test.mjs`): Edit on a video the device can cut (`canCut`: the
+  device's eight types, or their extensions for an empty or generic type) opens the composer's
+  trimmer (`VideoTrimmer`'s `cut` prop: Save in place of Apply, no Remove trim, `video_cut_note`
+  under the length, a changed range asks to discard) on the viewer's own stream or clip
+  (`hiURL`), the viewer's video paused. Save asks as a photo's (`video_save_text`,
+  `video_replace`, `video_copies_text`) and sends EditVideo (`cutOf`: an end within one 0.1 s
+  step of the video's end goes as 0, the end); `reqEditVideo` is open-ended in `ws.ts`. After a
+  Replace the `<video>` is keyed by path and hash, so the new content streams anew; the tile has
+  no picture until the device's thumbnail comes. A video's Revert says `video_revert_text`.
 
 Newer photos above a jump on the web (issue #194, `components/newerPhotos.ts`,
 `node web/scripts/newer-photos-test.mjs`): after a scrubber jump (`cutoff`), `PhotoGallery` keeps an
@@ -5606,6 +5616,16 @@ device side is in the Photo edits bullet under Architecture.
   viewer's alert). The demo's refusal and an older device's `unknown_payload` show the device's
   message.
 - **Behind the viewer:** Files, Memories and Places re-read their own listing.
+- **Videos** (2026-11-08; `object VideoEdit` in `PhotoEdit.kt`, the screen `VideoEditor.kt`;
+  tests in `PhotoEditTest.kt`, `PhotoGalleryEditTest.kt`; the debug preview has three pretend
+  videos, `--ei photo 3`, and `debug/assets/video-cut-sample.mp4`): Edit on a video the device can
+  cut opens the composer's trimmer (`VideoTrimmerView` with options: Save, the cut note, no Remove
+  trim, `TrimHandles` kept through a rotation; the player through `MediaStream.player`, so the
+  pinned home stream plays) on the viewer's `videoUrl`, the viewer's player paused. Save asks as a
+  photo's (`video_save_text`, `video_replace`, `video_copies_text`); EditVideo waits as long as a
+  post (30 minutes); an end within 0.05 s of the video's goes as 0. The viewer's video fetch is
+  keyed by item id, not path - a cut keeps its path, and the old content's late stream answer
+  played in its place. A video's Revert says `video_revert_text`.
 
 **Also delete from this phone on Android** (owner's request 2026-11-03; `ui/gallery/DeletePhoneCopy.kt`:
 the rules `DeletePhoneCopy`, `DeletePhoneCopyModel`, `DeletePhoneCopyDialog` in RootView; tests
@@ -5694,6 +5714,16 @@ so no pbxproj entry is needed). It works as Android's above.
   (`editReloadOnClose`, as Rating does). Files, Memories and the map re-read through `onDeleted`.
 - **Revert** asks revert_title (with revert_copies_text for several copies), and forgets the
   edit's cached thumbnail when no path holds it any more.
+- **Videos** (2026-11-08; `VideoEditRules` beside `PhotoEditRules`, `VideoEditorView` and
+  `saveCut` in `PhotoEditor.swift`; tests `VideoEditRulesTests`, `VideoEditGalleryTests`): Edit on a
+  video the device can cut and AVFoundation plays (`playableHere`: not MKV, WebM or AVI, which the
+  cut screen couldn't open) opens the composer's trimmer (`VideoTrimmerView`'s `cut`: `TrimmerCut`,
+  Save, the cut note, no Remove trim; its player from `MediaStream.asset(for:)`) on the viewer's
+  own source (`videoSource(of:)`), the viewer's player paused. Save asks as a photo's
+  (`video_save_text`, `video_replace`, `video_copies_text`); EditVideo waits as long as a post (30
+  minutes); `TrimRange.reachesEnd` sends 0 for the end. After a Replace the viewer opens the item
+  again on a new stream (`fetchVideo`'s `stillOpen` checks path and hash). A video's Revert says
+  `video_revert_text`.
 
 **Also delete from this phone on iOS** (owner's request 2026-11-03; `DeletePhoneCopy.swift`: the rules
 `DeletePhoneCopy` and `DeletePhoneCopyModel`; tests `DeletePhoneCopyTests.swift`, cases D1-D9 as
@@ -5776,7 +5806,7 @@ Friends field); the add field's keyboard Send sends. Its list never reads "No fr
 list that didn't come (iOS `FriendshipsViewModel.body`, Android `friendsBody`; Alerts' rule): a spinner until the first
 answer, `app.social.friends.load_failed` with Try again when the answer was an error or none came
 (asked again at a wake), the list kept while a refresh of it fails. Files uploads go through `UploadQueue` (two
-at a time, `app.files.uploading` with Cancel, a cancel never reported) in the view model's scope;
+at a time in the order picked - Android's slots take the next file from one list, as iOS's did -, `app.files.uploading` with Cancel, a cancel never reported) in the view model's scope;
 iOS reads each through `NSFileCoordinator` and both say `app.files.cannot_read`; Android's
 multi-delete runs in the view model's scope. Images' and Files' bulk Delete hold the selection bar,
 its Delete a spinner, until every delete is done (`SelectionActionTask.delete` / `DELETE`): through

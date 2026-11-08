@@ -1,12 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 
 /* Issue #108. Sits above the composer (.np-root is z-index 2000), since
-   it's opened from it and has to cover it. */
+   it's opened from it and has to cover it. The viewer's cut
+   (VideoEditor.tsx) is inside the viewer's layer (.pg-modal, z-index 50),
+   so over its box; its questions are drawn inside this, over the panel. */
 .vt-backdrop {
   position: fixed; inset: 0; z-index: 2100;
   background: rgba(0, 0, 0, 0.72);
   display: grid; place-items: center; padding: 16px;
 }
+
+/* The viewer's cut takes the keyboard's focus on its backdrop. */
+.vt-backdrop:focus { outline: none; }
 
 .vt-panel {
   width: min(680px, 100%);
@@ -82,6 +87,8 @@
 
 .vt-summary { font-size: 13px; color: var(--mist-dim); }
 .vt-summary strong { color: var(--mist); font-variant-numeric: tabular-nums; }
+/* The viewer's cut: the small print under the slider. */
+.vt-note { margin: -6px 0 0; font-size: 12px; line-height: 1.4; color: var(--mist-dim); }
 
 .vt-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .vt-actions-spacer { flex: 1; }

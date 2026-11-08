@@ -34,7 +34,22 @@
 //    - An edit (File.original_hash) has Revert to Original next to Info:
 //      the copies question as Save's, then RevertImage.
 //
+//  Video edit (2026-11-08): the same Edit on a video the device can cut
+//  (EditVideo: MP4, MOV, M4V, 3GP, MKV, WebM, AVI - never MPEG-TS, WMV,
+//  FLV...) opens the post composer's trimmer over the viewer
+//  (VideoEditorView, VideoTrimmerView with TrimmerCut): the two handles,
+//  Play Cut, "Keeping … of …", the cut's small print (the device copies
+//  the streams, so the cut can start a little before the point chosen),
+//  Cancel and Save, for a real cut of at least half a second. It plays
+//  what the viewer plays - the stream URL, or the file it downloaded -
+//  rather than fetching the video again. Everything around the cut is the
+//  photo's: Replace Video or Save as Copy, the copies question, Saving…,
+//  "changed", the video in the photo's place afterwards (a new hash: a new
+//  stream URL and thumbnail), and Revert to Original with the video's
+//  words.
+//
 
+import AVFoundation
 import SwiftUI
 import UIKit
 
@@ -364,6 +379,101 @@ enum PhotoEditRules {
 
     /// The frame's least size on the screen.
     static let minPoints: CGFloat = 40
+
+    /// Revert to Original's question for `item`, the edit of a photo or a
+    /// video held at `copies` paths: all of them or only here for several,
+    /// else what the revert undoes - a cut for a video.
+    static func revertText(for item: PhotoGalleryVM.Item, copies: Int) -> String {
+        if copies > 1 { return S.appPhotosEditRevertCopiesText(count: copies) }
+        return VideoEditRules.isVideo(mime: item.mime, path: item.path) ? S.appPhotosEditVideoRevertText : S.appPhotosEditRevertText
+    }
+}
+
+/// When the viewer offers Edit on a video, and what its Save sends
+/// (EditVideo). What it chooses with is the post composer's trimmer
+/// (TrimRange); what it sends then and its answers are the photo's
+/// (PhotoEditRules.copies, words).
+enum VideoEditRules {
+    /// The types the device cuts (EditVideo): it decides by the container
+    /// itself, these are what is offered.
+    static let cuttableTypes: Set<String> = [
+        "video/mp4", "video/quicktime", "video/x-m4v", "video/3gpp", "video/3gpp2",
+        "video/x-matroska", "video/webm", "video/x-msvideo",
+    ]
+
+    /// The same by name, for a video that came without a type of its own.
+    static let cuttableExtensions: Set<String> = ["mp4", "mov", "m4v", "3gp", "3g2", "mkv", "webm", "avi"]
+
+    /// A type as compared: lower case, without its parameters
+    /// ("video/mp4; codecs=…").
+    private static func bare(_ mime: String) -> String {
+        let type = mime.split(separator: ";", maxSplits: 1, omittingEmptySubsequences: false).first ?? ""
+        return type.trimmingCharacters(in: .whitespaces).lowercased()
+    }
+
+    /// Whether the device can cut a file of this type and name: one of the
+    /// types above, or - with no type, or a generic one - one of their
+    /// names, in any case. Never another video (MPEG-TS, WMV, FLV...), nor
+    /// a photo.
+    static func cuttable(mime: String, path: String) -> Bool {
+        let m = bare(mime)
+        if cuttableTypes.contains(m) { return true }
+        guard m.isEmpty || m == "application/octet-stream" else { return false }
+        return cuttableExtensions.contains((path as NSString).pathExtension.lowercased())
+    }
+
+    /// A video, as Revert to Original's question words it: one by its
+    /// type, or one the device cuts by its name.
+    static func isVideo(mime: String, path: String) -> Bool {
+        bare(mime).hasPrefix("video/") || cuttable(mime: mime, path: path)
+    }
+
+    /// What the cut screen's player opens of those: AVFoundation plays no
+    /// MKV, WebM or AVI, so Edit would open on "This video could not be
+    /// opened".
+    static let unplayableTypes: Set<String> = ["video/x-matroska", "video/webm", "video/x-msvideo"]
+    static let unplayableExtensions: Set<String> = ["mkv", "webm", "avi"]
+
+    /// Whether this phone plays a cuttable video in the cut screen.
+    static func playableHere(mime: String, path: String) -> Bool {
+        let m = bare(mime)
+        if unplayableTypes.contains(m) { return false }
+        guard m.isEmpty || m == "application/octet-stream" else { return true }
+        return !unplayableExtensions.contains((path as NSString).pathExtension.lowercased())
+    }
+
+    /// Edit, for a video of the viewer: one of the owner's own on the
+    /// device (never one only on this phone) that it can cut and this
+    /// phone can play.
+    static func offersEdit(_ item: PhotoGalleryVM.Item) -> Bool {
+        !item.isLocalOnly && !item.path.isEmpty && cuttable(mime: item.mime, path: item.path)
+            && playableHere(mime: item.mime, path: item.path)
+    }
+
+    /// Save, for the part chosen of a video `duration` long: a real cut
+    /// (not the whole video) of at least half a second - the composer's
+    /// Apply.
+    static func canSave(_ cut: TrimRange, duration: Double) -> Bool {
+        cut.isCut(of: duration)
+    }
+
+    /// The EditVideo for `cut` of the video at `path`, `duration` long,
+    /// shown with the content `hash` (the device refuses with "changed" if
+    /// the path holds something else now). An end at the video's end goes
+    /// as 0, "to the end", as the device reads it (the slider's end is
+    /// the length the phone measured, which may not be the device's to the
+    /// frame); every_copy only when replacing.
+    static func request(path: String, hash: String, cut: TrimRange, duration: Double,
+                        asCopy: Bool, everyCopy: Bool) -> Msg_EditVideo {
+        var e = Msg_EditVideo()
+        e.path = path
+        e.hash = hash
+        e.startSecs = max(0, cut.start)
+        e.endSecs = cut.end <= 0 || cut.reachesEnd(of: duration) ? 0 : cut.end
+        e.asCopy = asCopy
+        e.everyCopy = everyCopy && !asCopy
+        return e
+    }
 }
 
 /// The edit applied to a picture on this phone: the viewer shows it in
@@ -445,8 +555,11 @@ extension PhotoGalleryVM {
         openIndex.flatMap { items.indices.contains($0) ? items[$0] : nil }
     }
 
-    /// The viewer has Edit for the open item.
-    var editOffered: Bool { openItem.map(PhotoEditRules.offersEdit) ?? false }
+    /// The viewer has Edit for the open item: a photo to turn and crop, or
+    /// a video to cut.
+    var editOffered: Bool {
+        openItem.map { PhotoEditRules.offersEdit($0) || VideoEditRules.offersEdit($0) } ?? false
+    }
 
     /// The viewer has Revert to Original for the open item.
     var revertOffered: Bool { openItem.map(PhotoEditRules.offersRevert) ?? false }
@@ -470,12 +583,35 @@ extension PhotoGalleryVM {
                   asCopy: Bool, everyCopy: Bool) async -> PhotoEditSaved {
         let req = PhotoEditRules.request(path: item.path, hash: item.hash, edit: edit,
                                          asCopy: asCopy, everyCopy: everyCopy && copies > 1)
-        let resp: Msg_RespEnvelope
-        do {
-            resp = try await photoRequest(.reqEditImage(req), nil)
-        } catch {
-            return .failed(S.appPhotosEditFailed)
+        let resp = try? await photoRequest(.reqEditImage(req), nil)
+        return await editAnswered(resp, of: item, copies: copies, asCopy: asCopy, everyCopy: req.everyCopy) {
+            await PhotoEditRender.preview(of: picture, edit)
         }
+    }
+
+    /// Sends the cut chosen of the video `item`, `duration` long, as
+    /// saveEdit sends a photo's edit, and shows what the device answers the
+    /// same way. With the socket's own time for the answer (30 minutes, as
+    /// a post's publication: no `kind`): the device reads the whole video to
+    /// copy the part kept, a minute or more for a long 4K recording on a Pi.
+    func saveCut(_ cut: TrimRange, duration: Double, of item: Item, copies: Int,
+                 asCopy: Bool, everyCopy: Bool) async -> PhotoEditSaved {
+        let req = VideoEditRules.request(path: item.path, hash: item.hash, cut: cut, duration: duration,
+                                         asCopy: asCopy, everyCopy: everyCopy && copies > 1)
+        let resp = try? await photoRequest(.reqEditVideo(req), nil)
+        // Nothing to draw on the phone for a video: its tile waits for the
+        // device's thumbnail of the cut, as after a revert.
+        return await editAnswered(resp, of: item, copies: copies, asCopy: asCopy, everyCopy: req.everyCopy) { nil }
+    }
+
+    /// The device's answer to an edit of `item` (nil: none came): the edit
+    /// shown in its place (`preview` drawn on the phone meanwhile), or the
+    /// copy said; "changed" closes the viewer and reads its photos again,
+    /// with the device's words in its alert; any other refusal is the
+    /// device's words, else app.photos.edit.failed.
+    private func editAnswered(_ resp: Msg_RespEnvelope?, of item: Item, copies: Int, asCopy: Bool, everyCopy: Bool,
+                              preview: () async -> UIImage?) async -> PhotoEditSaved {
+        guard let resp else { return .failed(S.appPhotosEditFailed) }
         guard !resp.error, case .respFile(let f) = resp.payload else {
             if resp.errorCode == "changed" {
                 say(.editFailed(PhotoEditRules.words(resp)))
@@ -489,10 +625,26 @@ extension PhotoGalleryVM {
         if asCopy {
             copySaved(f)
         } else {
-            let preview = await PhotoEditRender.preview(of: picture, edit)
-            editShown(f, replacing: item, copies: copies, everyCopy: req.everyCopy, preview: preview)
+            let shown = await preview()
+            editShown(f, replacing: item, copies: copies, everyCopy: everyCopy, preview: shown)
         }
         return .saved
+    }
+
+    /// What the viewer plays `item` from while it is the open video: its
+    /// stream URL, the file it downloaded for it, or the phone's own. nil
+    /// until the viewer has it (VideoEditorView waits for it rather than
+    /// fetching the video a second time).
+    func videoSource(of item: Item) -> URL? {
+        guard openItem?.id == item.id, let asset = videoPlayer?.currentItem?.asset as? AVURLAsset else { return nil }
+        return asset.url
+    }
+
+    /// The viewer won't have `item` to play: it couldn't fetch or play it,
+    /// or it doesn't play it as a video at all (fetchHiRes goes by the
+    /// type).
+    func videoUnavailable(_ item: Item) -> Bool {
+        unplayable.contains(item.path) || !item.mime.hasPrefix("video/")
     }
 
     /// Revert to Original tapped: how many paths hold the edit is asked
@@ -1009,5 +1161,119 @@ private struct CropHandles: Shape {
         p.move(to: CGPoint(x: rect.maxX, y: rect.midY - bar / 2))
         p.addLine(to: CGPoint(x: rect.maxX, y: rect.midY + bar / 2))
         return p
+    }
+}
+
+// MARK: - A video's cut
+
+/// Edit on a video, over the viewer (ImageModal): the post composer's
+/// trimmer (VideoTrimmerView with TrimmerCut), playing what the viewer
+/// plays, then Save's questions as the photo editor's.
+struct VideoEditorView: View {
+    @ObservedObject var vm: PhotoGalleryVM
+    let item: PhotoGalleryVM.Item
+    let close: () -> Void
+
+    /// What the trimmer plays: the viewer's own source for the video, taken
+    /// once it has one (it may still be on its way as Edit opens) and kept,
+    /// so the trimmer isn't started again under the finger.
+    @State private var source: URL?
+    /// The part Save was tapped for, and the video's length then.
+    @State private var chosen: (cut: TrimRange, duration: Double)?
+    /// GetEditState or EditVideo is on its way: the screen takes nothing.
+    @State private var saving = false
+    @State private var askSave = false
+    /// The video is at this many paths: all of them, or only here.
+    @State private var askCopies: Int?
+    /// Save was refused: the device's words, or failed.
+    @State private var failure: String?
+
+    var body: some View {
+        VideoTrimmerView(
+            url: source,
+            existing: nil,
+            cut: TrimmerCut(saving: saving, unavailable: vm.videoUnavailable(item)) { cut, duration in
+                chosen = (cut, duration)
+                askSave = true
+            },
+            onApply: { _ in },
+            onCancel: close
+        )
+        .background(Color.black.ignoresSafeArea())
+        // Always dark, as the viewer under it and the photo editor: its
+        // questions too.
+        .environment(\.colorScheme, .dark)
+        .accessibilityAddTraits(.isModal)
+        .onAppear { takeSource() }
+        .onChange(of: vm.videoPlayer) { takeSource() }
+        .confirmationDialog(S.appPhotosEditSaveTitle, isPresented: $askSave, titleVisibility: .visible) {
+            Button(S.appPhotosEditVideoReplace) { replace() }
+            Button(S.appPhotosEditAsCopy) { Task { await send(copies: 1, asCopy: true, everyCopy: false) } }
+            Button(S.commonCancel, role: .cancel) {}
+        } message: {
+            Text(S.appPhotosEditVideoSaveText)
+        }
+        .confirmationDialog(
+            S.appPhotosEditSaveTitle,
+            isPresented: Binding(get: { askCopies != nil }, set: { if !$0 { askCopies = nil } }),
+            titleVisibility: .visible,
+            presenting: askCopies
+        ) { n in
+            Button(S.appPhotosEditCopiesAll(count: n)) { Task { await send(copies: n, asCopy: false, everyCopy: true) } }
+            Button(S.appPhotosEditCopiesOnlyThis) { Task { await send(copies: n, asCopy: false, everyCopy: false) } }
+            Button(S.commonCancel, role: .cancel) {}
+        } message: { n in
+            Text(S.appPhotosEditVideoCopiesText(count: n))
+        }
+        .alert(failure ?? "", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
+            Button(S.commonOk, role: .cancel) {}
+        }
+    }
+
+    /// The viewer's source, once it has one.
+    private func takeSource() {
+        guard source == nil, let url = vm.videoSource(of: item) else { return }
+        source = url
+    }
+
+    /// Replace Video: the copies are asked first; more than one, all of
+    /// them or only here (the screen busy meanwhile).
+    private func replace() {
+        saving = true
+        Announce.polite(S.appPhotosEditSaving)
+        Task {
+            let asked = Date()
+            let copies = await vm.editCopies(of: item.path)
+            guard copies > 1 else {
+                await send(copies: 1, asCopy: false, everyCopy: false)
+                return
+            }
+            // At home the device answers while Save's question is still
+            // going away, and a question presented then can be dropped
+            // unseen (the photo editor's wait).
+            let wait = 0.6 - Date().timeIntervalSince(asked)
+            if wait > 0 { try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000)) }
+            saving = false
+            askCopies = copies
+        }
+    }
+
+    /// EditVideo, the screen waiting; saved, it closes (a copy is said by
+    /// its name over the viewer), refused it stays to try again - unless
+    /// the video changed meanwhile, when the viewer has closed under it.
+    private func send(copies: Int, asCopy: Bool, everyCopy: Bool) async {
+        guard let chosen else { return }
+        if !saving {
+            saving = true
+            Announce.polite(S.appPhotosEditSaving)
+        }
+        let outcome = await vm.saveCut(chosen.cut, duration: chosen.duration, of: item, copies: copies,
+                                       asCopy: asCopy, everyCopy: everyCopy)
+        saving = false
+        switch outcome {
+        // Out of date: the viewer has closed, and the cut with it.
+        case .saved, .outOfDate: close()
+        case .failed(let words): failure = words
+        }
     }
 }

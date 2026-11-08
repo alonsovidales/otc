@@ -1,11 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.gallery
 
+import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.appPhotosEditRevertText
+import cloud.offthe.otc.i18n.appPhotosEditVideoRevertText
 import cloud.offthe.otc.proto.EditCrop
 import cloud.offthe.otc.proto.EditImage
+import cloud.offthe.otc.proto.EditVideo
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.RevertImage
+import cloud.offthe.otc.ui.compose.TRIM_WHOLE_SLACK_SECS
+import cloud.offthe.otc.ui.compose.trimApplies
+import cloud.offthe.otc.ui.compose.trimKeepsWhole
 import cloud.offthe.otc.ui.settings.deviceOr
 import kotlin.math.abs
 import kotlin.math.max
@@ -285,4 +292,85 @@ object PhotoEdit {
 
     // A length between its smallest and the room it has - the room first.
     private fun sized(v: Double, smallest: Double, room: Double): Double = min(room, max(v, min(smallest, room)))
+}
+
+/**
+ * Video edit (the device's EditVideo; RevertImage and GetEditState as for a
+ * photo): a cut by time, which the device makes without re-encoding - it
+ * copies the streams, so the cut starts at the keyframe before the start
+ * chosen (the cut screen's note says so). Which videos the viewer offers
+ * Edit for, what the cut screen lets Save, the request, and Revert to
+ * Original's words for a video. Everything else - the Save and copies
+ * questions, the answers, what the viewer shows after - is the photo
+ * edit's (PhotoEdit): a cut is an edit as a turn or a crop is, with a hash
+ * of its own and the original kept. Pure, for the JVM tests
+ * (PhotoEditTest); the cut screen is VideoEditor.kt, on the composer's
+ * trimmer. iOS and the web follow the same rules.
+ */
+object VideoEdit {
+    // What the device can cut, by MIME type (edit_video.go's cutFormats):
+    // the containers it copies the streams back into. Not MPEG-TS, WMV,
+    // FLV...: it answers "not_editable".
+    private val CUTTABLE_TYPES = setOf(
+        "video/mp4", "video/quicktime", "video/x-m4v", "video/3gpp", "video/3gpp2", "video/x-matroska", "video/webm", "video/x-msvideo",
+    )
+
+    // The same by the name's extension (cutExtFormats), for a file typed as
+    // nothing in particular: no type, or application/octet-stream.
+    private val CUTTABLE_EXTENSIONS = setOf("mp4", "mov", "m4v", "3gp", "3g2", "mkv", "webm", "avi")
+    private val UNTYPED = setOf("", "application/octet-stream")
+
+    // A type without its parameters, in lower case.
+    private fun typeOf(mime: String): String = mime.substringBefore(';').trim().lowercase()
+
+    /**
+     * Whether the viewer offers Edit (the cut) for a file of [mime] at
+     * [path]: a video the device can cut - by its type, or, typed as
+     * nothing in particular, by its name in any case. Never a photo, nor a
+     * video in a format the device can't cut.
+     */
+    fun editable(mime: String, path: String): Boolean {
+        val type = typeOf(mime)
+        if (type in CUTTABLE_TYPES) return true
+        if (type !in UNTYPED) return false
+        val name = path.trimEnd('/').substringAfterLast('/')
+        return name.contains('.') && name.substringAfterLast('.').lowercase() in CUTTABLE_EXTENSIONS
+    }
+
+    /** [editable] for one of the viewer's items. */
+    fun editable(item: PhotoGalleryViewModel.Item): Boolean = editable(item.mime, item.path)
+
+    /** Whether [item] is a video, for the words the edit's questions say and for the viewer to play it: by its type, or as [editable] finds one by its name. */
+    fun isVideo(item: PhotoGalleryViewModel.Item): Boolean = typeOf(item.mime).startsWith("video/") || editable(item)
+
+    /** Revert to Original's question when one path holds the edit: a video's says the cut is undone. */
+    fun revertText(item: PhotoGalleryViewModel.Item): UiText =
+        if (isVideo(item)) S.appPhotosEditVideoRevertText() else S.appPhotosEditRevertText()
+
+    /**
+     * Whether the cut screen's Save is on for the handles at [start]..[end]
+     * seconds of a video [length] long (null: not read yet): a real cut -
+     * not the whole video - that keeps at least half a second, the
+     * trimmer's own rule (less, the device refuses as "too_short").
+     */
+    fun savable(start: Double, end: Double, length: Double?): Boolean = trimApplies(start, end, length)
+
+    /** Whether the handles cut anything: Cancel asks before it is lost (discard_title). */
+    fun changed(start: Double, end: Double, length: Double?): Boolean = !trimKeepsWhole(start, end, length)
+
+    /**
+     * Save's EditVideo for the video at [path], shown with [hash] (the
+     * device refuses it as "changed" if the path holds other content now):
+     * from [start] to [end] seconds of a video [length] long. An end at
+     * the video's end - within the trimmer's slack of it, or the length not
+     * known - goes as 0, "to the end": the device's own length decides,
+     * which a player's may miss by a frame. [asCopy]: a new video next to
+     * it; otherwise [everyCopy] replaces it at every path holding it.
+     */
+    fun request(path: String, hash: String, start: Double, end: Double, length: Double?, asCopy: Boolean, everyCopy: Boolean = false): EditVideo {
+        val toEnd = length == null || end <= 0 || end >= length - TRIM_WHOLE_SLACK_SECS
+        val b = EditVideo.newBuilder().setPath(path).setHash(hash).setStartSecs(max(0.0, start)).setEndSecs(if (toEnd) 0.0 else end).setAsCopy(asCopy)
+        if (!asCopy && everyCopy) b.everyCopy = true
+        return b.build()
+    }
 }

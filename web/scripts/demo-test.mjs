@@ -101,9 +101,11 @@ describe("a change on a demo device", () => {
     // The viewer's heart changes Favourites; asking what it shows doesn't.
     assert.equal(m.demoRequestReply(req("reqSetFavourite"), "refused").errorCode, "demo");
     assert.equal(m.demoRequestReply(req("reqGetFavourites"), "refused"), undefined);
-    // Photo edit: saving an edit and putting the original back change the
-    // device; asking how many copies a photo has doesn't.
+    // Photo and video edit: saving an edit or a cut and putting the
+    // original back change the device; asking how many copies a photo has
+    // doesn't.
     assert.equal(m.demoRequestReply(req("reqEditImage"), "refused").errorCode, "demo");
+    assert.equal(m.demoRequestReply(req("reqEditVideo"), "refused").errorCode, "demo");
     assert.equal(m.demoRequestReply(req("reqRevertImage"), "refused").errorCode, "demo");
     assert.equal(m.demoRequestReply(req("reqGetEditState"), "refused"), undefined);
     const like = m.demoRequestReply(req("reqLikePublication"), "refused");

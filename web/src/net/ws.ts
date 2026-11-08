@@ -56,12 +56,14 @@ const cTransfers = new Set([
 // Work the device finishes before it answers, however long it takes (a
 // post's videos cut and shrunk, an update, the disks set up, a network
 // joined, a folder of thousands of files deleted one by one, a user's
-// database made or dropped): no clock of their own - a dead socket still
-// fails them, found by the requests around them.
+// database made or dropped, a video cut - as long as reading the whole
+// video, a minute or more for a multi-GB recording on a Pi): no clock of
+// their own - a dead socket still fails them, found by the requests around
+// them.
 const cOpenEnded = new Set([
   "reqNewSocialPublication", "reqApplyUpdate", "reqSetupStorage", "reqStartReprocess", "reqRestartDevice",
   "reqEnableBridge", "reqDisableBridge", "reqSetWifi", "reqJoinWifi",
-  "reqDelFile", "reqCreateUser", "reqDeleteUser",
+  "reqDelFile", "reqCreateUser", "reqDeleteUser", "reqEditVideo",
 ]);
 // Small answers the device gives at once: only while every waiting
 // request is one of these does silence say the socket is dead.

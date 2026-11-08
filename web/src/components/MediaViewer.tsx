@@ -12,8 +12,10 @@
 // collection whose Rating is on, the photo's stars and comment (rating.ts,
 // RatingPanel.tsx) - a bar under it, or on a phone a sheet its Rate button
 // opens; and where the caller allows it (the owner's own library), Edit -
-// the photo editor (PhotoEditor.tsx: rotate and crop, saved by the device)
-// - and, for a photo that is an edit, Revert to original (photoEdit.ts).
+// the photo editor (PhotoEditor.tsx: rotate and crop, saved by the device),
+// or for a video the cut (VideoEditor.tsx: the composer's trimmer, cut by
+// the device) - and, for a photo or a video that is an edit, Revert to
+// original (photoEdit.ts, videoEdit.ts).
 // The apps do the same with ImageModal.
 // Loaded when first opened (lazyPart.ts: Images and Files wrap it in a
 // layer's Part); Back closes it.
@@ -49,9 +51,12 @@ import { safeImage, safeVideo } from "./inlineTypes";
 import { lazyPart } from "./lazyPart";
 import Part from "./Part";
 import { canEdit, canRevert, copiesAsk, copiesFrom, editAnswer, editStatePayload, leafOf, refusalOf, revertPayload, type EditDone } from "./photoEdit";
+import { canCut, revertTextKey } from "./videoEdit";
 
-// The editor: a chunk of its own, loaded when Edit is first pressed.
+// The editors: chunks of their own, each loaded when Edit is first pressed
+// on a photo, or on a video.
 const PhotoEditor = lazyPart(() => import("./PhotoEditor"));
+const VideoEditor = lazyPart(() => import("./VideoEditor"));
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
@@ -286,11 +291,12 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   rating?: ViewerRating;
   /** Photo edit, on this device's own library only (Images, Files, On
    *  this day's See all, Places): with it, the header has Edit for a photo
-   *  the device can edit and Revert to original for one that is an edit.
-   *  Called once the device saved an edit or put the original back: for a
-   *  Replace or a Revert the caller shows `done.file` in place of `item`
-   *  in `items`, at the same index - the viewer stays on it and fetches
-   *  its full size - and for a copy adds it where its page lists it; and
+   *  the device can edit or a video it can cut, and Revert to original for
+   *  one that is an edit. Called once the device saved an edit or put the
+   *  original back: for a Replace or a Revert the caller shows `done.file`
+   *  in place of `item` in `items`, at the same index - the viewer stays on
+   *  it and fetches its full size, or streams the video again (a new hash,
+   *  a new stream) - and for a copy adds it where its page lists it; and
    *  it shows the change behind as after a delete (photoEdit.ts' EditDone). */
   onEdited?: (item: ViewerItem, done: EditDone) => void;
   /** The edit or the revert was refused because the photo's path holds
@@ -383,11 +389,11 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   const itemPath = item?.path;
   const thumbStays = itemPath != null && stuck === itemPath;
   // The video on screen's stall watch (issue #106): armed once per element
-  // - one per item, keyed by its path - and pushed back by every sign of
-  // life, its listeners and timer gone with it. The inline callback this
-  // was ran at every render, adding five listeners and another 30 s timer
-  // each time, and a slow video's timer, firing after a step to another
-  // video, failed that one as "stalled".
+  // - one per item, keyed by its path and content - and pushed back by
+  // every sign of life, its listeners and timer gone with it. The inline
+  // callback this was ran at every render, adding five listeners and
+  // another 30 s timer each time, and a slow video's timer, firing after a
+  // step to another video, failed that one as "stalled".
   const itemPathRef = useRef(itemPath);
   itemPathRef.current = itemPath;
   const watchVideo = useCallback((el: HTMLVideoElement | null) => {
@@ -693,12 +699,13 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   };
 
   // Photo edit: Edit opens the editor over the viewer on the photo on
-  // screen (a demo device refuses it first, as Delete); Revert to original,
-  // for a photo that is an edit, asks the device how many paths hold the
-  // edit (its button's spinner meanwhile) and then whether to revert them
-  // all, or only here, or plainly; RevertImage then goes, the dialog's
-  // button saying Reverting… until the device answers. Either way the
-  // caller shows the photo the device answered with in place of this one
+  // screen, or the cut on a video (videoEdit.ts' canCut) - a demo device
+  // refuses it first, as Delete; Revert to original, for a photo or a
+  // video that is an edit, asks the device how many paths hold the edit
+  // (its button's spinner meanwhile) and then whether to revert them all,
+  // or only here, or plainly; RevertImage then goes, the dialog's button
+  // saying Reverting… until the device answers. Either way the caller
+  // shows the file the device answered with in place of this one
   // (onEdited) - for a copy, the viewer stays on this one and says the
   // copy's name. The keys are the editor's or the question's meanwhile.
   const onEditedRef = useRef(onEdited);
@@ -708,11 +715,15 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     onEditChangedRef.current = onEditChanged;
   });
   const [editing, setEditing] = useState<ViewerItem | null>(null);
-  const canEditItem = !!onEdited && !!item && canEdit(item);
+  const canEditItem = !!onEdited && !!item && (canEdit(item) || canCut(item));
   const canRevertItem = !!onEdited && !!item && canRevert(item);
   const startEdit = useCallback(() => {
     const it = items[index];
-    if (canEditItem && it && !refuseOnDemo()) setEditing(it);
+    if (!canEditItem || !it || refuseOnDemo()) return;
+    // The cut plays its own copy of the video: the viewer's stops, or it
+    // would go on playing behind the cut, heard over it.
+    boxRef.current?.querySelector("video")?.pause();
+    setEditing(it);
   }, [canEditItem, items, index]);
   const edited = (it: ViewerItem, done: EditDone) => {
     if (!mountedRef.current) return;
@@ -1210,9 +1221,11 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
             // Issue #106: a video opens as something you can actually
             // play. Until the full file arrives (hiURL), its own
             // thumbnail stands in - the same still the grid shows -
-            // rather than an empty black box.
+            // rather than an empty black box. A cut just saved in its
+            // place has none until the device makes one: no src then,
+            // never an empty one.
             if (isVideoFile(f)) {
-              if (!hiURL) return <img src={thumb} alt={f.path} />;
+              if (!hiURL) return <img src={thumb || undefined} alt={f.path} />;
               if (videoProblem) {
                 return (
                   <div className="pg-video-unplayable">
@@ -1234,9 +1247,12 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
                   </div>
                 );
               }
+              // Keyed by its content too: a cut saved in its place (the
+              // same path, a new hash) is a new element on the new stream,
+              // its stall watch armed afresh.
               return (
                 <video
-                  key={f.path}
+                  key={`${f.path}#${f.hash ?? ""}`}
                   data-path={f.path}
                   src={hiURL}
                   controls
@@ -1481,7 +1497,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
           return (
             <ConfirmDialog
               title={t("web.images.edit.revert_title")}
-              text={q.kind === "copies" ? t("web.images.edit.revert_copies_text", { count: q.count }) : t("web.images.edit.revert_text")}
+              text={q.kind === "copies" ? t("web.images.edit.revert_copies_text", { count: q.count }) : t(revertTextKey(reverting.item))}
               confirm={q.kind === "copies" ? t("web.images.edit.revert_all", { count: q.count }) : t("web.images.edit.revert_button")}
               busyText={t("web.images.edit.reverting")}
               onConfirm={() => confirmRevert(q.kind === "copies")}
@@ -1492,16 +1508,28 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
         })()}
         {/* The editor, over everything of the viewer's, on the picture
             the viewer shows: the full size, or the thumbnail until it
-            comes. */}
+            comes. A video's cut plays what the viewer plays - its stream,
+            or the clip it read - once the viewer has it, never fetching
+            the video again. */}
         {editing && (
           <Part kind="layer" onClose={() => setEditing(null)}>
-            <PhotoEditor
-              item={editing}
-              src={editing.path === item.path ? shownPicture : (editing.thumbURL ?? "")}
-              onCancel={() => setEditing(null)}
-              onSaved={(done) => edited(editing, done)}
-              onChanged={onEditChanged ? (text) => editChanged(editing, text) : undefined}
-            />
+            {canCut(editing) ? (
+              <VideoEditor
+                item={editing}
+                src={editing.path === item.path ? (hiURL ?? "") : ""}
+                onCancel={() => setEditing(null)}
+                onSaved={(done) => edited(editing, done)}
+                onChanged={onEditChanged ? (text) => editChanged(editing, text) : undefined}
+              />
+            ) : (
+              <PhotoEditor
+                item={editing}
+                src={editing.path === item.path ? shownPicture : (editing.thumbURL ?? "")}
+                onCancel={() => setEditing(null)}
+                onSaved={(done) => edited(editing, done)}
+                onChanged={onEditChanged ? (text) => editChanged(editing, text) : undefined}
+              />
+            )}
           </Part>
         )}
         {/* Last of all: see onGuardFocus. */}

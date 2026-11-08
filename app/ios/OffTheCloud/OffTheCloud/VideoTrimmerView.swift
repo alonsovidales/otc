@@ -16,6 +16,11 @@
 //
 //  Mirrors web/src/components/VideoTrimmer.tsx — same two-slider layout,
 //  same "Play cut" preview, same rules about what counts as a real trim.
+//
+//  The viewer's Edit on a video (2026-11-08, PhotoEditor.swift's
+//  VideoEditorView) is this screen too, with TrimmerCut: the device cuts
+//  the video itself (EditVideo), so there the two numbers are the whole
+//  edit as well.
 
 import SwiftUI
 import AVKit
@@ -25,11 +30,43 @@ struct TrimRange: Equatable {
     var end: Double
 
     var length: Double { max(0, end - start) }
+
+    /// How near a clip's end an end still counts as the end: the device's
+    /// own slack (a post's shouldTrimForSocial, a cut's cutRange).
+    static let endSlack: Double = 0.05
+
+    /// Ends at the end of a clip `duration` long.
+    func reachesEnd(of duration: Double) -> Bool { end >= duration - Self.endSlack }
+
+    /// Keeps the whole of a clip `duration` long: the same as no cut at
+    /// all, and sending it anyway would make the device re-encode a post's
+    /// video to change nothing about it (shouldTrimForSocial on the Go
+    /// side) - or copy a whole video into the same video.
+    func isWhole(of duration: Double) -> Bool { start <= 0 && reachesEnd(of: duration) }
+
+    /// What Apply (or the viewer's Save) takes: a real cut of a clip
+    /// `duration` long, of at least cMinTrimSecs.
+    func isCut(of duration: Double) -> Bool { !isWhole(of: duration) && length >= cMinTrimSecs }
 }
 
 /// Below this there's nothing left to watch, and ffmpeg's own output for a
 /// sub-frame cut isn't something worth publishing.
 private let cMinTrimSecs: Double = 0.5
+
+/// The viewer's Edit on a video (VideoEditorView) in place of the post
+/// composer's trim: the same screen, with Save in Apply's place, the cut's
+/// small print under the slider, no Remove Trim, the discard question for
+/// Cancel once a cut is chosen (the photo editor's), and Saving… while the
+/// device cuts.
+struct TrimmerCut {
+    /// The device is saving the cut: the screen takes nothing meanwhile.
+    var saving = false
+    /// The viewer couldn't get the video (VideoEditorView's source): the
+    /// screen says it can't open it rather than reading it for good.
+    var unavailable = false
+    /// Save, on a real cut: the part chosen and the video's length.
+    var save: (TrimRange, Double) -> Void
+}
 
 func formatTimecode(_ secs: Double) -> String {
     let s = secs.isFinite && secs > 0 ? secs : 0
@@ -40,8 +77,13 @@ func formatTimecode(_ secs: Double) -> String {
 }
 
 struct VideoTrimmerView: View {
-    let url: URL
+    /// The clip: a file on the phone (the composer's), or what the viewer
+    /// plays a video from (its stream URL or file, for a cut); nil until
+    /// the viewer has it.
+    let url: URL?
     let existing: TrimRange?
+    /// The viewer's cut in place of the composer's trim; nil in the composer.
+    var cut: TrimmerCut? = nil
     let onApply: (TrimRange?) -> Void
     let onCancel: () -> Void
 
@@ -59,6 +101,9 @@ struct VideoTrimmerView: View {
     /// dead end the web trimmer had before it grew this. Kept as the
     /// reason and worded when shown.
     @State private var loadError: LoadError?
+    /// A cut's Cancel with a part chosen asks first (the photo editor's
+    /// discard question).
+    @State private var askDiscard = false
 
     private enum LoadError {
         case cantOpen, noLength
@@ -73,12 +118,16 @@ struct VideoTrimmerView: View {
 
     private var effectiveEnd: Double { end > 0 ? end : (duration ?? 0) }
     private var cutLength: Double { max(0, effectiveEnd - start) }
-    /// A cut that keeps the whole clip is the same as no cut at all, and
-    /// sending it anyway would make the device re-encode the video to
-    /// change nothing about it (see shouldTrimForSocial on the Go side).
-    private var isWholeClip: Bool {
-        guard let d = duration else { return true }
-        return start <= 0 && effectiveEnd >= d - 0.05
+    private var chosen: TrimRange { TrimRange(start: start, end: effectiveEnd) }
+    /// Apply and Save take a real cut only (TrimRange.isCut).
+    private var canApply: Bool { duration.map { chosen.isCut(of: $0) } ?? false }
+    /// Something other than the whole clip is chosen.
+    private var changed: Bool { duration.map { !chosen.isWhole(of: $0) } ?? false }
+    private var saving: Bool { cut?.saving == true }
+    /// Why nothing can be shown: the clip didn't open, or the viewer never
+    /// had it for a cut.
+    private var shownError: LoadError? {
+        loadError ?? (url == nil && cut?.unavailable == true ? .cantOpen : nil)
     }
 
     var body: some View {
@@ -117,6 +166,17 @@ struct VideoTrimmerView: View {
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
+                    if cut != nil {
+                        // The device copies the video as it is (EditVideo),
+                        // and a copy starts at a keyframe: a moment before
+                        // the start chosen, which this says beforehand.
+                        Text(S.appPhotosEditVideoCutNote)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
                     Button {
                         playCut()
                     } label: {
@@ -124,38 +184,85 @@ struct VideoTrimmerView: View {
                     }
                     .buttonStyle(.bordered)
 
-                    if existing != nil {
+                    // A cut is saved on the device or not at all: there is
+                    // no trim to take back.
+                    if existing != nil && cut == nil {
                         Button(S.appSocialTrimRemove, role: .destructive) { onApply(nil) }
                             .buttonStyle(.bordered)
                     }
-                } else if let loadError {
-                    ContentUnavailableView(S.iosTrimCantTitle, systemImage: "exclamationmark.triangle", description: Text(loadError.text))
+                } else if let shownError {
+                    ContentUnavailableView(S.iosTrimCantTitle, systemImage: "exclamationmark.triangle", description: Text(shownError.text))
                 } else {
                     ProgressView(S.appSocialTrimReading)
                 }
 
                 Spacer(minLength: 0)
             }
+            // While the device saves a cut, nothing here changes it.
+            .disabled(saving)
             .padding()
             .navigationTitle(S.appSocialTrimTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(S.commonCancel) { onCancel() }
+                    Button(S.commonCancel) { cancel() }
+                        .disabled(saving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(S.commonApply) { onApply(TrimRange(start: start, end: effectiveEnd)) }
-                        .disabled(isWholeClip || cutLength < cMinTrimSecs)
+                    if let cut {
+                        if cut.saving {
+                            HStack(spacing: 6) {
+                                ProgressView()
+                                Text(S.appPhotosEditSaving)
+                            }
+                            .accessibilityElement(children: .combine)
+                        } else {
+                            Button(S.commonSave) { save(cut) }
+                                .disabled(!canApply)
+                        }
+                    } else {
+                        Button(S.commonApply) { onApply(chosen) }
+                            .disabled(!canApply)
+                    }
                 }
             }
         }
-        .task { await load() }
+        .confirmationDialog(S.appPhotosEditDiscardTitle, isPresented: $askDiscard, titleVisibility: .visible) {
+            Button(S.appPhotosEditDiscard, role: .destructive) { onCancel() }
+            Button(S.commonCancel, role: .cancel) {}
+        }
+        // Once there is a clip: the viewer's for a cut may come after the
+        // screen opened.
+        .task(id: url) { await load() }
         .onDisappear { teardown() }
     }
 
+    /// Cancel: a cut with a part chosen asks before it is dropped, as the
+    /// photo editor does; the composer's trim never did.
+    private func cancel() {
+        if cut != nil && changed {
+            askDiscard = true
+        } else {
+            onCancel()
+        }
+    }
+
+    /// The cut's Save: the preview stops, and the viewer asks how to save it.
+    private func save(_ cut: TrimmerCut) {
+        guard let duration, canApply else { return }
+        playingCut = false
+        player?.pause()
+        cut.save(chosen, duration)
+    }
+
     private func load() async {
-        let asset = AVURLAsset(url: url)
-        let p = AVPlayer(url: url)
+        guard let url else { return }
+        if player != nil { teardown() }
+        // A stream URL on the home network plays only through its loader
+        // (MediaStream.asset); a file or a bridge URL is a plain asset, as
+        // the composer's always was.
+        let asset = MediaStream.asset(for: url)
+        let p = AVPlayer(playerItem: AVPlayerItem(asset: asset))
         player = p
         // Stopping the preview at the out point is what makes the chosen
         // cut legible — watching it run past the end tells you nothing

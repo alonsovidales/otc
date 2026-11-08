@@ -2079,8 +2079,9 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
     var revertAsking by remember { mutableStateOf(false) }
     val idx = st.openIndex ?: return
     val openItem = st.items.getOrNull(idx)
-    // Photo edit: Edit for a photo the device can edit, Revert to Original
-    // for one that is an edit - beside Info, on top or in the side column.
+    // Photo edit: Edit for a photo the device can edit or a video it can
+    // cut, Revert to Original for one that is an edit - beside Info, on top
+    // or in the side column.
     val editButtons: @Composable () -> Unit = {
         ViewerEditButtons(
             openItem, st.editBusy, onEdit = vm::openEditor,
@@ -2232,8 +2233,12 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
     }
     st.favouriteNote?.let { note -> LaunchedEffect(note) { delay(FAVOURITE_NOTE_MS); vm.favouriteNoteShown() } }
     st.editNote?.let { note -> LaunchedEffect(note) { delay(FAVOURITE_NOTE_MS); vm.editNoteShown() } }
-    // Photo edit (PhotoEditor.kt): the editor over the viewer.
-    if (st.editing && openItem != null && PhotoEdit.editable(openItem)) PhotoEditor(vm, st, openItem)
+    // Photo edit (PhotoEditor.kt): the editor over the viewer - for a
+    // video, the cut screen (VideoEditor.kt).
+    if (st.editing && openItem != null) {
+        if (PhotoEdit.editable(openItem)) PhotoEditor(vm, st, openItem)
+        else if (VideoEdit.editable(openItem)) VideoEditor(vm, st, openItem)
+    }
     // Revert to Original's question: with the edit at several paths, all of
     // them or only here.
     revertAsk?.takeIf { it.path == openItem?.path }?.let { ask ->
@@ -2246,7 +2251,8 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
             ),
             onDismiss = { revertAsk = null }, danger = true,
         ) else ConfirmDialog(
-            title, S.appPhotosEditRevertText().resolve(), S.appPhotosEditRevertButton().resolve(),
+            // A video's says the cut is undone.
+            title, (openItem?.let { VideoEdit.revertText(it) } ?: S.appPhotosEditRevertText()).resolve(), S.appPhotosEditRevertButton().resolve(),
             onConfirm = { revertAsk = null; vm.revertOpen() }, onDismiss = { revertAsk = null },
         )
     }
@@ -2354,16 +2360,17 @@ private fun ViewerInfoButton(vm: PhotoGalleryViewModel) {
 private data class RevertAsk(val path: String, val copies: Int)
 
 /**
- * Photo edit: Edit, for a photo the device can edit (PhotoEdit.editable),
- * and Revert to Original for one that is an edit (File.original_hash) - a
- * spinner named Reverting… while the original is put back ([busy]). Both
- * wait while the device works on either.
+ * Photo edit: Edit, for a photo the device can edit (PhotoEdit.editable) or
+ * a video it can cut (VideoEdit.editable), and Revert to Original for one
+ * that is an edit (File.original_hash) - a spinner named Reverting… while
+ * the original is put back ([busy]). Both wait while the device works on
+ * either.
  */
 @Composable
 private fun ViewerEditButtons(item: PhotoGalleryViewModel.Item?, busy: EditBusy?, onEdit: () -> Unit, onRevert: () -> Unit) {
     if (item == null) return
     val tint = if (busy == null) Color.White else Color.White.copy(alpha = 0.4f)
-    if (PhotoEdit.editable(item)) IconButton(onClick = onEdit, enabled = busy == null) { Icon(Icons.Default.Crop, S.appPhotosEditButton().resolve(), tint = tint) }
+    if (PhotoEdit.editable(item) || VideoEdit.editable(item)) IconButton(onClick = onEdit, enabled = busy == null) { Icon(Icons.Default.Crop, S.appPhotosEditButton().resolve(), tint = tint) }
     if (!PhotoEdit.revertable(item)) return
     if (busy == EditBusy.REVERTING) {
         val label = S.appPhotosEditReverting().resolve()
@@ -2513,6 +2520,8 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
             }
             // Paused when the app leaves the screen, not playing on in the pocket.
             PauseWhenStopped(player)
+            // And while the cut screen (VideoEditor.kt) plays it over the viewer.
+            LaunchedEffect(st.editing) { if (st.editing) player.pause() }
             AndroidView(factory = { PlayerView(it).apply { this.player = player; useController = true } }, modifier = Modifier.fillMaxSize())
             return@Box
         }
