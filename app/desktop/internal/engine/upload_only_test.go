@@ -582,16 +582,16 @@ func TestTwoWayUploadOnlyLiftedBringsFilesBack(t *testing.T) {
 
 func TestBaselinesFor(t *testing.T) {
 	kept := keptOnDevice("abc")
-	if l, r := baselinesFor(kept, &pb.File{Hash: "abc", UploadOnly: true}); l != "" || r != "abc" {
+	if l, r := baselinesFor(kept, &pb.File{Hash: "abc", UploadOnly: true}, ""); l != "" || r != "abc" {
 		t.Fatalf("still upload only: %q %q", l, r)
 	}
-	if l, r := baselinesFor(kept, &pb.File{Hash: "abc"}); l != "" || r != "" {
+	if l, r := baselinesFor(kept, &pb.File{Hash: "abc"}, ""); l != "" || r != "" {
 		t.Fatalf("lifted: %q %q", l, r)
 	}
-	if l, r := baselinesFor(kept, nil); l != "" || r != "abc" {
+	if l, r := baselinesFor(kept, nil, ""); l != "" || r != "abc" {
 		t.Fatalf("gone from the device: %q %q", l, r)
 	}
-	if l, r := baselinesFor("abc", &pb.File{Hash: "abc"}); l != "abc" || r != "abc" {
+	if l, r := baselinesFor("abc", &pb.File{Hash: "abc"}, "abc"); l != "abc" || r != "abc" {
 		t.Fatalf("plain entry: %q %q", l, r)
 	}
 }

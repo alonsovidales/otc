@@ -138,14 +138,17 @@ func judgeRoot(recorded, marker string, record, here map[string]string, unknown 
 	}
 	listed, unchanged := 0, 0
 	for rel, entry := range record {
-		if strings.HasPrefix(entry, keptOnDevicePrefix) {
-			continue // deleted here, kept by the device: not expected here
+		// What the record says is here: not a file deleted here and kept
+		// by the device; a compressed one's original (recordBaselines).
+		expected, _ := recordBaselines(entry)
+		if expected == "" {
+			continue
 		}
 		if unknown != nil && unknown(rel) {
 			continue
 		}
 		listed++
-		if h, ok := here[rel]; ok && h == entry {
+		if h, ok := here[rel]; ok && h == expected {
 			unchanged++
 		}
 	}

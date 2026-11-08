@@ -278,12 +278,16 @@ enum SyncPaths {
     // MARK: The mass-deletion guard
 
     /// The hashes of the device's files at paths the record doesn't have:
-    /// new there, or moved or renamed there. A local delete whose content is
-    /// among them is a move, not a loss, and doesn't count for the guard.
-    static func movedHashes(listed: [String: String], record: [String: String]) -> Set<String> {
+    /// new there, or moved or renamed there - and, of the compressed copies
+    /// among them (`originals`: key -> the original's hash), the originals,
+    /// which the files here hold. A local delete whose content is among them
+    /// is a move, not a loss, and doesn't count for the guard. As otc-sync's
+    /// movedOnDevice.
+    static func movedHashes(listed: [String: String], record: [String: String], originals: [String: String] = [:]) -> Set<String> {
         var moved = Set<String>()
         for (relative, hash) in listed where record[relative] == nil && !hash.isEmpty {
             moved.insert(hash)
+            if let original = originals[relative], !original.isEmpty { moved.insert(original) }
         }
         return moved
     }
@@ -445,9 +449,12 @@ enum SyncPaths {
                           unknown: (String) -> Bool) -> RootVerdict {
         if !recorded.isEmpty, marker == recorded { return RootVerdict(ok: true, token: recorded) }
         var listed = 0, unchanged = 0
-        for (rel, entry) in record where !entry.hasPrefix(keptOnDevicePrefix) && !unknown(rel) {
+        // What the record says is here: not a file deleted here and kept by
+        // the device; a compressed one's original (recordBaselines).
+        for (rel, entry) in record where !unknown(rel) {
+            guard let expected = recordBaselines(entry).local, !expected.isEmpty else { continue }
             listed += 1
-            if let h = here[rel], h == entry { unchanged += 1 }
+            if let h = here[rel], h == expected { unchanged += 1 }
         }
         if listed > 0, unchanged * 2 < listed { return RootVerdict(ok: false) }
         var token = recorded
@@ -462,7 +469,7 @@ enum SyncPaths {
     static func rootEvidence(record: [String: String], present: (String) -> Bool, unknown: (String) -> Bool) -> (listed: Int, present: [String]) {
         var listed = 0
         var here: [String] = []
-        for (rel, entry) in record where !entry.hasPrefix(keptOnDevicePrefix) && !unknown(rel) {
+        for (rel, entry) in record where !(recordBaselines(entry).local ?? "").isEmpty && !unknown(rel) {
             listed += 1
             if present(rel) { here.append(rel) }
         }
@@ -1477,29 +1484,234 @@ enum SyncPaths {
 
     static func keptOnDevice(_ hash: String) -> String { keptOnDevicePrefix + hash }
 
+    /// Marks a two-way sync record entry for a file the device compressed
+    /// (CompressFiles: a video at a lower resolution, a photo saved again
+    /// smaller) and whose original's bytes it deleted: it lists the copy
+    /// with original_removed, and original_hash the hash of the file here.
+    /// The owner's decision (2026-11-08) is that computers keep their
+    /// full-quality originals: the copy is the same file, never downloaded
+    /// over it, and the original is never sent back. The entry is
+    /// "compressed:<hash here>:<hash on the device>" and stands for those
+    /// two baselines (recordBaselines), so while neither side changes the
+    /// file nothing happens, relaunches included; a new version here goes up
+    /// and replaces the copy; the copy changed on the device (an edit of it)
+    /// comes down; deleted on either side, the delete goes to the other. It
+    /// is kept at the file's path here, also when the device saved the copy
+    /// under another name (renamedOriginals). An older version reading the
+    /// record sees a hash that matches neither side and takes it for a
+    /// conflict: the newer version keeps the name, the other is kept as a
+    /// copy. Same marker as otc-sync's compressedPrefix.
+    static let compressedPrefix = "compressed:"
+
+    static func compressed(here: String, device: String) -> String { compressedPrefix + here + ":" + device }
+
     /// What a sync record entry says each side had after the last pass: the
-    /// same hash, or for a file kept on the device, nothing here and its
-    /// hash there.
+    /// same hash; for a file kept on the device, nothing here and its hash
+    /// there; for a compressed one, the original here and the copy there.
     static func recordBaselines(_ entry: String?) -> (local: String?, remote: String?) {
         guard let entry else { return (nil, nil) }
         if entry.hasPrefix(keptOnDevicePrefix) {
             return (nil, String(entry.dropFirst(keptOnDevicePrefix.count)))
         }
+        if entry.hasPrefix(compressedPrefix) {
+            let pair = entry.dropFirst(compressedPrefix.count)
+            // Not one this version wrote: no baseline.
+            guard let colon = pair.firstIndex(of: ":") else { return (nil, nil) }
+            let here = String(pair[..<colon]), device = String(pair[pair.index(after: colon)...])
+            return here.isEmpty || device.isEmpty ? (nil, nil) : (here, device)
+        }
         return (entry, entry)
     }
 
-    /// recordBaselines for a path the device lists with `listedUploadOnly`
-    /// (its File.upload_only; nil when the device doesn't list the path). A
-    /// file kept on the device whose folder is no longer upload only there -
-    /// lifted later from the web or a phone - has no baseline any more: it
-    /// comes back here, which deletes nothing on the device, and both sides
-    /// match again. Sending the old delete instead would delete what the
-    /// lock protected. As otc-sync's baselinesFor.
-    static func baselines(_ entry: String?, listedUploadOnly: Bool?) -> (local: String?, remote: String?) {
-        if let entry, entry.hasPrefix(keptOnDevicePrefix), listedUploadOnly == false {
+    /// The entry that stands for two baselines: recordBaselines the other
+    /// way. As otc-sync's recordEntry.
+    static func recordEntry(local: String?, remote: String?) -> String? {
+        guard let remote, remote != local else { return local }
+        guard let local else { return keptOnDevice(remote) }
+        return compressed(here: local, device: remote)
+    }
+
+    /// The entry is a hash (or nothing), not one of the markers.
+    static func isPlainEntry(_ entry: String?) -> Bool {
+        guard let entry else { return true }
+        return !entry.hasPrefix(keptOnDevicePrefix) && !entry.hasPrefix(compressedPrefix)
+    }
+
+    /// What the device lists at a path, as far as the record's rules go:
+    /// Msg_File's hash, upload_only, original_hash and original_removed.
+    struct ListedFile: Equatable {
+        var hash: String
+        var uploadOnly = false
+        var originalHash = ""
+        var originalRemoved = false
+
+        /// For a compressed copy whose original the device deleted, the
+        /// original's hash; nil for any other. As otc-sync's
+        /// compressedOriginal.
+        var compressedOriginal: String? { originalRemoved && !hash.isEmpty && !originalHash.isEmpty ? originalHash : nil }
+    }
+
+    /// recordBaselines for a path the device lists as `listed` (nil when it
+    /// doesn't) and whose file here has the hash `here` (nil when there is
+    /// none). A file kept on the device whose folder is no longer upload
+    /// only there - lifted later from the web or a phone - has no baseline
+    /// any more: it comes back here, which deletes nothing on the device,
+    /// and both sides match again. Sending the old delete instead would
+    /// delete what the lock protected.
+    ///
+    /// A compressed copy (compressedOriginal) of the file here, or of the
+    /// one the record says was here, is the same file: the baselines are
+    /// that original here and the copy there, so the compress is no change
+    /// on either side and the pass keeps the compressed entry (recordEntry).
+    /// Not once the record holds a compressed entry: a copy other than the
+    /// recorded one is then a change on the device - an edit of the copy -
+    /// and comes down. As otc-sync's baselinesFor.
+    static func baselines(_ entry: String?, listed: ListedFile?, here: String?) -> (local: String?, remote: String?) {
+        if let entry, entry.hasPrefix(keptOnDevicePrefix), let listed, !listed.uploadOnly {
             return (nil, nil)
         }
-        return recordBaselines(entry)
+        let recorded = recordBaselines(entry)
+        if let listed, let original = listed.compressedOriginal, isPlainEntry(entry), here == original || recorded.local == original {
+            return (original, listed.hash)
+        }
+        return recorded
+    }
+
+    /// `key` without its extension, cut as the device cuts a name it renames
+    /// (files_manager's splitExt), by its UTF-8 bytes: "a/IMG_1.HEIC" is
+    /// "a/IMG_1"; a name that is all extension (".profile"), or whose
+    /// extension holds a space, has none. As otc-sync's stemOf.
+    static func stem(_ key: String) -> String {
+        let bytes = Array(key.utf8)
+        let nameStart = (bytes.lastIndex(of: UInt8(ascii: "/")) ?? -1) + 1
+        guard let dot = bytes.lastIndex(of: UInt8(ascii: ".")), dot > nameStart,
+              !bytes[dot...].contains(UInt8(ascii: " ")) else { return key }
+        return String(decoding: bytes[..<dot], as: UTF8.self)
+    }
+
+    /// The stems the name of a file the device renamed, with stem `stem`,
+    /// can come from: itself, and for "<stem> (n)" (n of 2 or more: the
+    /// device's renamedNames tries that once "<stem>" with the new extension
+    /// is taken) that stem too. As otc-sync's originalStems.
+    static func originalStems(_ stem: String) -> [String] {
+        let bytes = Array(stem.utf8)
+        guard bytes.last == UInt8(ascii: ")") else { return [stem] }
+        var i = bytes.count - 2
+        while i >= 0, (UInt8(ascii: "0")...UInt8(ascii: "9")).contains(bytes[i]) { i -= 1 }
+        let digits = bytes[(i + 1)..<(bytes.count - 1)]
+        // " (" before the digits, and something before it.
+        guard i >= 2, bytes[i] == UInt8(ascii: "("), bytes[i - 1] == UInt8(ascii: " "),
+              let first = digits.first, first != UInt8(ascii: "0"), digits.count > 1 || first != UInt8(ascii: "1") else { return [stem] }
+        return [stem, String(decoding: bytes[..<(i - 1)], as: UTF8.self)]
+    }
+
+    /// Of a listing's edits and compressed copies (key -> the hash of the
+    /// photo it was made from), each original by the stems a file here
+    /// holding it can have (originalStems): an edit or a compress that
+    /// renamed the photo (a HEIC become IMG_1.JPG, a PNG saved as x.jpg, or
+    /// "x (2).jpg" next to another x.jpg) is what the IMG_1.HEIC or x.png
+    /// here holds. As otc-sync's originalsByStem.
+    static func originalsByStem(_ originals: [String: String]) -> [String: [String]] {
+        var out: [String: [String]] = [:]
+        for (key, original) in originals where !original.isEmpty {
+            for s in originalStems(stem(key)) { out[s, default: []].append(original) }
+        }
+        return out
+    }
+
+    /// Sorted by their UTF-8 bytes, as otc-sync sorts.
+    private static func byteSorted<S: Sequence>(_ keys: S) -> [String] where S.Element == String {
+        keys.sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
+    }
+
+    /// The device's compressed copies a two-way pass may pair with a file
+    /// here under another name (renamedOriginals): not here, and with no
+    /// record entry of their own. Sorted. As otc-sync's renamedCopies.
+    static func renamedCopies(listed: [String: ListedFile], here: Set<String>, record: [String: String]) -> [String] {
+        byteSorted(listed.filter { $0.value.compressedOriginal != nil && !here.contains($0.key) && record[$0.key] == nil }.keys)
+    }
+
+    /// The stems of the files here that may be the original of a renamed
+    /// copy (renamedCopies): the pass hashes those even when they are new,
+    /// which renamedOriginals needs. As otc-sync's renamedStems.
+    static func renamedStems(listed: [String: ListedFile], here: Set<String>, record: [String: String]) -> Set<String> {
+        Set(renamedCopies(listed: listed, here: here, record: record).flatMap { originalStems(stem($0)) })
+    }
+
+    /// Pairs the copies the device compressed and saved under another name
+    /// - a PNG becomes x.jpg, a 48 MP HEIC a 12 MP x.JPG - with the file here
+    /// they were made from, still under its own name: key here -> key of the
+    /// copy on the device. This Mac keeps its original as it is (the owner's
+    /// decision), so a two-way pass takes the two for one file at the name
+    /// here, which keeps the compressed entry, and leaves the copy's name
+    /// alone: it isn't downloaded, the original isn't deleted here (the
+    /// device no longer lists its name) and nothing is sent. `here` holds the
+    /// files here, `hashes` their hashes as far as the pass took them.
+    ///
+    /// A copy (renamedCopies) pairs with a path in its folder under a name
+    /// it can come from (originalStems), at which the device lists nothing,
+    /// whose record entry is the compressed entry of the copy's content - the
+    /// pair as an earlier pass kept it -, or whose file here is the original,
+    /// or was at the last pass (a plain entry): the best of those, then the
+    /// first by name. A copy changed on the device since (an edit), or
+    /// renamed or moved there, pairs no more: it comes down under its own
+    /// name, and the original here, whose record says the device had the
+    /// copy, goes to the Trash as a file deleted there. As otc-sync's
+    /// renamedOriginals.
+    static func renamedOriginals(listed: [String: ListedFile], here: Set<String>, hashes: [String: String],
+                                 record: [String: String]) -> [String: String] {
+        let copies = renamedCopies(listed: listed, here: here, record: record)
+        guard !copies.isEmpty else { return [:] }
+        var byStem: [String: [String]] = [:]
+        for key in here.union(record.keys) where listed[key] == nil { byStem[stem(key), default: []].append(key) }
+        // How well the file at key matches the copy: 3 the pair as recorded,
+        // 2 the original here, 1 the original at the last pass, 0 not at all.
+        func rank(_ key: String, _ copy: ListedFile) -> Int {
+            let entry = record[key]
+            if let entry, entry.hasPrefix(compressedPrefix) {
+                return recordBaselines(entry).remote == copy.hash ? 3 : 0
+            }
+            guard isPlainEntry(entry), let original = copy.compressedOriginal else { return 0 }
+            if hashes[key] == original { return 2 }
+            return entry == original ? 1 : 0
+        }
+        var pairs: [String: String] = [:]
+        for key in copies {
+            guard let copy = listed[key] else { continue }
+            var best: String?
+            var bestRank = 0
+            for candidate in byteSorted(originalStems(stem(key)).flatMap { byStem[$0] ?? [] }) where pairs[candidate] == nil {
+                let r = rank(candidate, copy)
+                if r > bestRank { (best, bestRank) = (candidate, r) }
+            }
+            if let best { pairs[best] = key }
+        }
+        return pairs
+    }
+
+    /// Of a listing, the device's compressed copies by their original's hash
+    /// (SyncModel.linkCopy): the one at the first key in UTF-8 byte order,
+    /// when there are several. As otc-sync's compressedCopies.
+    static func compressedCopies(_ listed: [String: ListedFile]) -> [String: String] {
+        var out: [String: String] = [:]
+        for key in byteSorted(listed.keys) {
+            guard let file = listed[key], let original = file.compressedOriginal, out[original] == nil else { continue }
+            out[original] = file.hash
+        }
+        return out
+    }
+
+    /// `here`, the hashes of the files here, with those of the device's
+    /// compressed copies of them: such a copy is the file here (baselines),
+    /// so its delete on the device, the file moved here, is no loss for the
+    /// mass-deletion guard (heldDeviceDeletes). As otc-sync's
+    /// withCompressedCopies.
+    static func withCompressedCopies(_ here: Set<String>, listed: [String: ListedFile]) -> Set<String> {
+        var out = here
+        for file in listed.values {
+            if let original = file.compressedOriginal, here.contains(original) { out.insert(file.hash) }
+        }
+        return out
     }
 
     private static func hasHiddenComponent(_ relative: String) -> Bool {

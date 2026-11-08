@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1226,7 +1227,9 @@ func (e *Engine) processChangedPath(path string, f config.Folder) {
 			remotePath = known.path
 		}
 		h, err := e.cachedHashInfo(f.ID, path, fi)
-		if err != nil || (onDevice && h == known.hash) {
+		// As the reconcile: the device's file at its path, or under the
+		// name an edit or a compress gave it, made from this one.
+		if err != nil || (onDevice && (h == known.hash || h == known.original)) {
 			return
 		}
 		// Hashing takes a while: removed, or pointed at another device,
@@ -1328,6 +1331,8 @@ func (e *Engine) reconcile(f config.Folder) {
 	// already on the device is sent to its own path there, a new one to its
 	// NFC name.
 	remoteMap := map[string]remoteEntry{}
+	// The device's compressed copies, for linkCopy.
+	compressed := map[string]*pb.File{}
 	if lof, ok := resp.Payload.(*pb.RespEnvelope_RespListOfFiles); ok {
 		for _, rf := range lof.RespListOfFiles.Files {
 			rel, under := strings.CutPrefix(rf.Path, remotePrefix)
@@ -1339,9 +1344,15 @@ func (e *Engine) reconcile(f config.Folder) {
 				continue // the NFC spelling, when the device has both
 			}
 			remoteMap[key] = remoteEntry{path: rf.Path, hash: rf.Hash, original: rf.OriginalHash}
+			if compressedOriginal(rf) != "" {
+				compressed[key] = rf
+			} else {
+				delete(compressed, key)
+			}
 		}
 	}
-	edited := editedStems(remoteMap)
+	edited := editedOriginals(remoteMap)
+	copies := compressedCopies(compressed)
 
 	// An unreadable subdirectory only means fewer uploads here: a backup
 	// never deletes on the device.
@@ -1388,17 +1399,25 @@ func (e *Engine) reconcile(f config.Folder) {
 			rp = known.path
 			var err error
 			h, err = e.cachedHashInfo(f.ID, p, fi)
-			// Edited on the device: its original is this file, backed up.
+			// Edited on the device, or compressed there (its original's
+			// bytes deleted, File.original_removed): its original is this
+			// file, backed up - this computer keeps the original.
 			if err != nil || known.hash == h || known.original == h {
 				continue
 			}
-		} else if original, ok := edited[strings.TrimSuffix(key, filepath.Ext(key))]; ok {
-			// The device's edit renamed it: this is that edit's original
-			// when the content is - hashed for it, the only new file that
-			// is before its upload.
+		} else if originals := edited[stemOf(key)]; len(originals) > 0 {
+			// The device's edit or compress renamed it: this is that
+			// file's original when the content is - hashed for it, the
+			// only new file that is before its upload. The watcher's
+			// changes see it as the reconcile does (remoteHashes).
 			var err error
 			h, err = e.cachedHashInfo(f.ID, p, fi)
-			if err != nil || h == original {
+			if err != nil {
+				continue
+			}
+			if slices.Contains(originals, h) {
+				remoteMap[key] = remoteEntry{path: rp, original: h}
+
 				continue
 			}
 		}
@@ -1451,14 +1470,24 @@ func (e *Engine) reconcile(f config.Folder) {
 					return
 				}
 			}
-			if err := e.upload(it.path, it.remote, it.hash, it.info); err != nil {
+			// Content the device holds only as a compressed copy: that copy
+			// is linked (linkCopy), as a two-way pass does.
+			sent := remoteEntry{path: it.remote, hash: it.hash}
+			var err error
+			if c, ok := copies[it.hash]; ok {
+				sent = remoteEntry{path: it.remote, hash: c, original: it.hash}
+				err = e.linkCopy(it.path, it.remote, c, it.info, nil)
+			} else {
+				err = e.upload(it.path, it.remote, it.hash, it.info)
+			}
+			if err != nil {
 				if errors.Is(err, errBusyFile) {
 					log.Printf("%s %v", filepath.Base(it.path), err)
 				} else {
 					log.Printf("error syncing %s: %v", filepath.Base(it.path), err)
 				}
 			} else {
-				remoteMap[it.key] = remoteEntry{path: it.remote, hash: it.hash}
+				remoteMap[it.key] = sent
 			}
 			done += it.size
 		}
@@ -1486,25 +1515,25 @@ type remoteEntry struct {
 	path, hash string
 	// original is File.original_hash: the device's edit of the photo this
 	// file was (its viewers turn and crop photos), whose original the
-	// device keeps - a backup holding that original holds this file.
+	// device keeps, or its compressed copy, whose original's bytes it
+	// deleted (File.original_removed) - a backup holding that original
+	// holds this file. An entry with no hash is a file here the device
+	// holds under the name such an edit gave it (reconcile).
 	original string
 }
 
-// editedStems is, of a backup's device listing, each edit's key without
-// its extension, with the photo it was made from: an edit that renamed
-// the photo (a HEIC become IMG_1.JPG) is what the local IMG_1.HEIC holds.
-func editedStems(remote map[string]remoteEntry) map[string]string {
-	var stems map[string]string
+// editedOriginals is, of a backup's device listing, the originals of its
+// edits and compressed copies by the stems a file here holding one can
+// have (originalsByStem).
+func editedOriginals(remote map[string]remoteEntry) map[string][]string {
+	originals := map[string]string{}
 	for key, r := range remote {
-		if r.original == "" {
-			continue
+		if r.original != "" {
+			originals[key] = r.original
 		}
-		if stems == nil {
-			stems = map[string]string{}
-		}
-		stems[strings.TrimSuffix(key, filepath.Ext(key))] = r.original
 	}
-	return stems
+
+	return originalsByStem(originals)
 }
 
 // backupKey is file p's key in the backup of root (pathKey of its path
@@ -1824,8 +1853,11 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	// overwrites or deletes it.
 	localInfo := map[string]os.FileInfo{}
 	// Only here, not on the device and never synced: an upload whatever
-	// its content, hashed when it is sent (see reconcile()).
+	// its content, hashed when it is sent (see reconcile()) - unless it
+	// may be the original of a copy the device compressed under another
+	// name, which only its hash tells (renamedOriginals).
 	newLocal := map[string]bool{}
+	mayBeRenamed := renamedStems(remoteByRel, localByRel, last)
 	// A file that can't be read is left out of the comparison entirely:
 	// treating it as "not here" would fetch (and overwrite) something that
 	// is here, just unreadable - an evicted cloud-drive placeholder, say.
@@ -1850,7 +1882,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			continue // never compared (excludedHere)
 		}
 		if _, onDevice := remoteByRel[key]; !onDevice {
-			if _, synced := last[key]; !synced {
+			if _, synced := last[key]; !synced && !mayBeRenamed[stemOf(key)] {
 				newLocal[key] = true
 
 				continue
@@ -1908,11 +1940,22 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	for k, v := range last {
 		newSynced[k] = v
 	}
+	// The device's compressed copies saved under another name, by the
+	// file here they were made from (renamedOriginals): each pair is
+	// planned as one file, at the name here.
+	renamed := renamedOriginals(remoteByRel, localByRel, localHashes, last)
+	renamedCopy := map[string]bool{}
+	for _, c := range renamed {
+		renamedCopy[c] = true
+	}
 	var actions []action
 	deletesHeld := 0 // waiting for upload only (holdDeletes)
 	for rel := range all {
 		if unreadable[rel] || notSyncedHere[rel] || excludedHere[rel] {
 			continue
+		}
+		if renamedCopy[rel] {
+			continue // planned with its original here
 		}
 		if newLocal[rel] {
 			actions = append(actions, action{rel, actUpload, ""})
@@ -1921,14 +1964,20 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 		localHash, hasLocal := localHashes[rel]
 		remoteFile := remoteByRel[rel]
+		copyKey, renamedThere := renamed[rel]
+		if renamedThere {
+			remoteFile = remoteByRel[copyKey]
+		}
 		remoteHash := ""
 		if remoteFile != nil {
 			remoteHash = remoteFile.Hash
 		}
 		// What each side had after the last pass: the same, except for a
 		// file the device kept when it was deleted here (keptOnDevice) -
-		// and none at all for one whose folder is no longer upload only.
-		lastLocal, lastRemote := baselinesFor(last[rel], remoteFile)
+		// and none at all for one whose folder is no longer upload only -
+		// and for one the device compressed, the original here and the
+		// copy there (compressedEntry).
+		lastLocal, lastRemote := baselinesFor(last[rel], remoteFile, localHash)
 		// Issue #141: listed without a hash means the device has lost
 		// this file's content. A copy here is sent again, which restores
 		// it; with none here there is nothing to fetch - never a download
@@ -1954,8 +2003,11 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		remoteChanged := remoteHash != lastRemote
 		if !localChanged && !remoteChanged {
 			// Deleted here and kept by the device (an upload-only folder),
-			// and neither side changed it since: not downloaded again, nor
-			// the delete sent again. The record keeps saying so.
+			// or compressed there, and neither side changed it since: not
+			// downloaded again, nor the delete or the original sent again.
+			// The record says so.
+			newSynced[rel] = recordEntry(lastLocal, lastRemote)
+
 			continue
 		}
 		remoteWins := remoteChanged
@@ -1996,6 +2048,10 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			if conflict {
 				actions = append(actions, action{rel, actUploadKeepRemote, localHash + "\x00" + remoteHash})
 				newSynced[rel] = localHash
+			} else if hasLocal && renamedThere && holdDeletes {
+				// Its upload deletes the copy the device renamed: it waits
+				// with the deletes, and newSynced keeps its baseline.
+				deletesHeld++
 			} else if hasLocal {
 				actions = append(actions, action{rel, actUpload, localHash})
 				newSynced[rel] = localHash
@@ -2100,7 +2156,10 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		kept := actions[:0]
 		for _, a := range actions {
 			_, here := localByRel[a.relative]
-			if a.kind == actDeleteLocal || a.kind == actDeleteRemote || (a.kind == actDownload && here) {
+			// A new version of a file whose copy the device renamed
+			// deletes that copy (replaceRenamedCopy).
+			_, replaces := renamed[a.relative]
+			if a.kind == actDeleteLocal || a.kind == actDeleteRemote || (a.kind == actDownload && here) || (a.kind == actUpload && replaces) {
 				if prior, ok := last[a.relative]; ok {
 					newSynced[a.relative] = prior
 				} else {
@@ -2127,10 +2186,43 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	// Local deletes first: on a disk that ignores case (Windows, macOS) a
 	// file renamed only in case elsewhere is a download of "A.txt" and a
 	// delete of "a.txt" here - the same file. Downloading first, the delete
-	// then removed what had just been written.
-	sort.SliceStable(actions, func(i, j int) bool {
-		return actions[i].kind == actDeleteLocal && actions[j].kind != actDeleteLocal
-	})
+	// then removed what had just been written. Device deletes last: a file
+	// moved or renamed here goes up while the device still holds its
+	// content under the old name - linked by its hash, nothing sent; the
+	// last copy deleted first, the device dropped the content and the
+	// whole file went up again - and a compressed copy is linked at the
+	// new name (linkCopy) before the old one goes with it.
+	order := func(k actionKind) int {
+		switch k {
+		case actDeleteLocal:
+			return 0
+		case actDeleteRemote:
+			return 2
+		}
+
+		return 1
+	}
+	sort.SliceStable(actions, func(i, j int) bool { return order(actions[i].kind) < order(actions[j].kind) })
+	// Content the device holds only as a compressed copy, its original's
+	// bytes deleted: what goes up with it links the copy (linkCopy), and
+	// the record keeps the pair. Else an upload, as usual.
+	copies := compressedCopies(remoteByRel)
+	send := func(rel, localPath, remotePath, hash string, fi os.FileInfo, check func() error) error {
+		if c, ok := copies[hash]; ok {
+			if err := e.linkCopy(localPath, remotePath, c, fi, check); err != nil {
+				return err
+			}
+			newSynced[rel] = compressedEntry(hash, c)
+
+			return nil
+		}
+		if err := e.uploadChecked(localPath, remotePath, hash, fi, check); err != nil {
+			return err
+		}
+		newSynced[rel] = hash
+
+		return nil
+	}
 
 	// stillAsScanned: the local file is as the plan saw it - same size and
 	// modification time, or still absent. Checked at the last moment before
@@ -2283,6 +2375,13 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		// The device's file must still be what the listing said when an
 		// upload replaces it or a delete removes it (deviceStillAsListed).
 		listed := remoteByRel[a.relative]
+		// A file whose compressed copy the device keeps under another name
+		// (renamedOriginals): a delete here deletes that copy; a new
+		// version goes up at the name here, and replaces it.
+		copyKey, renamedThere := renamed[a.relative]
+		if renamedThere && a.kind == actDeleteRemote {
+			remotePath, listed = remotePathOf(copyKey), remoteByRel[copyKey]
+		}
 		asListed := func() error { return e.deviceStillAsListed(remotePath, listed) }
 		transfer := a.kind != actDeleteLocal && a.kind != actDeleteRemote
 		var err error
@@ -2318,11 +2417,11 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 
 					return
 				}
-				if err == nil {
-					err = e.uploadChecked(localPath, remotePath, a.hash, fi, asListed)
+				if err == nil && renamedThere {
+					err = e.replaceRenamedCopy(f, localPath, copyKey, remoteByRel[copyKey], newSynced)
 				}
 				if err == nil {
-					newSynced[a.relative] = a.hash
+					err = send(a.relative, localPath, remotePath, a.hash, fi, asListed)
 				}
 			}
 		case actDownload:
@@ -2366,7 +2465,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 					fi, err = os.Stat(localPath)
 				}
 				if err == nil {
-					err = e.uploadChecked(localPath, remotePath, localHash, fi, asListed)
+					err = send(a.relative, localPath, remotePath, localHash, fi, asListed)
 				}
 			}
 		case actDeleteRemote:
@@ -2381,6 +2480,15 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			} else if here {
 				err = errChangedHere
 			}
+			// A renamed copy's name too: a file there here now is one the
+			// next pass sees.
+			if err == nil && renamedThere {
+				if here, herr := presentAsNamed(f.LocalPath, copyKey); herr != nil {
+					err = herr
+				} else if here {
+					err = errChangedHere
+				}
+			}
 			if err == nil {
 				err = asListed()
 			}
@@ -2389,8 +2497,13 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			}
 			if errors.Is(err, errKeptOnDevice) {
 				// The folder is upload only on the device: the file stays
-				// there, and stays deleted here (recordBaselines).
-				newSynced[a.relative] = keptOnDevice(a.hash)
+				// there, and stays deleted here (recordBaselines) - a
+				// renamed copy at its own name there.
+				if renamedThere {
+					newSynced[copyKey] = keptOnDevice(a.hash)
+				} else {
+					newSynced[a.relative] = keptOnDevice(a.hash)
+				}
 				err = nil
 			}
 		case actDeleteLocal:
@@ -2505,6 +2618,7 @@ func (e *Engine) holdMassDeviceDeletes(f config.RemoteFolder, actions []action, 
 		}
 		here[h] = true
 	}
+	withCompressedCopies(here, remoteByRel)
 	held := map[string]bool{}
 	for _, a := range actions {
 		if a.kind == actDeleteRemote && !here[a.hash] {
@@ -2703,7 +2817,7 @@ func (e *Engine) identifyFolder(f config.RemoteFolder, local map[string]string, 
 	listed := 0
 	var present []string
 	for rel, entry := range recorded {
-		if strings.HasPrefix(entry, keptOnDevicePrefix) || unknown(rel) {
+		if expected, _ := recordBaselines(entry); expected == "" || unknown(rel) {
 			continue
 		}
 		listed++
@@ -2731,7 +2845,7 @@ func (e *Engine) identifyFolder(f config.RemoteFolder, local map[string]string, 
 		}
 		if h, err := e.cachedHashInfo(f.ID, p, fi); err == nil {
 			here[rel] = h
-			if h == recorded[rel] {
+			if expected, _ := recordBaselines(recorded[rel]); h == expected {
 				unchanged++
 			}
 		}
@@ -2741,12 +2855,17 @@ func (e *Engine) identifyFolder(f config.RemoteFolder, local map[string]string, 
 }
 
 // movedOnDevice: the hashes of the files the device lists at paths the
-// record doesn't have - new there, or a file moved or renamed there.
+// record doesn't have - new there, or a file moved or renamed there - and
+// of the originals of the compressed copies among them, which the files
+// here hold.
 func movedOnDevice(remote map[string]*pb.File, last map[string]string) map[string]bool {
 	moved := map[string]bool{}
 	for rel, rf := range remote {
 		if _, had := last[rel]; !had && rf.Hash != "" {
 			moved[rf.Hash] = true
+			if original := compressedOriginal(rf); original != "" {
+				moved[original] = true
+			}
 		}
 	}
 
@@ -2973,36 +3092,65 @@ func (e *Engine) uploadChecked(path, remotePath, hash string, fi os.FileInfo, ch
 	if err != nil {
 		return err
 	}
-	// Issue #134 (as SyncModel.upload): the file's own dates go with it -
-	// its creation time where the platform has one (times_*.go), its
-	// modification time - so the same file synced down elsewhere gets the
-	// same dates.
-	created, modified := timestamppb.Now(), timestamppb.Now()
-	if fi != nil {
-		created = timestamppb.New(creationTime(path, fi))
-		modified = timestamppb.New(fi.ModTime())
-	}
 	if fe, ok := has.Payload.(*pb.RespEnvelope_RespFileExists); ok && fe.RespFileExists.Exists {
-		if check != nil {
-			if err := check(); err != nil {
-				return err
-			}
-		}
-		resp, err := e.requestWithin(smallRequest, func(r *pb.ReqEnvelope) {
-			r.Payload = &pb.ReqEnvelope_ReqLinkFile{ReqLinkFile: &pb.LinkFile{Hash: hash, Path: remotePath, ForceOverride: true, Created: created, Modified: modified}}
-		})
-		if err != nil {
-			return err
-		}
-
-		return wsclient.RespError(resp, "link rejected") // i18n-ignore: a file's error, only logged
+		return e.linkAt(path, remotePath, hash, fi, check)
 	}
+	created, modified := fileDates(path, fi)
 	err = e.uploadChunked(path, remotePath, hash, fi, created, modified, check)
 	if err == nil {
 		e.noteSent(path)
 	}
 
 	return err
+}
+
+// fileDates is what an upload of the file at path sends as its dates.
+// Issue #134 (as SyncModel.upload): the file's own - its creation time
+// where the platform has one (times_*.go), its modification time - so the
+// same file synced down elsewhere gets the same dates.
+func fileDates(path string, fi os.FileInfo) (created, modified *timestamppb.Timestamp) {
+	if fi == nil {
+		return timestamppb.Now(), timestamppb.Now()
+	}
+
+	return timestamppb.New(creationTime(path, fi)), timestamppb.New(fi.ModTime())
+}
+
+// linkAt makes content the device has (hash) its file at remotePath, for
+// the file at path, after check (uploadChecked).
+func (e *Engine) linkAt(path, remotePath, hash string, fi os.FileInfo, check func() error) error {
+	created, modified := fileDates(path, fi)
+	if check != nil {
+		if err := check(); err != nil {
+			return err
+		}
+	}
+	resp, err := e.requestWithin(smallRequest, func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqLinkFile{ReqLinkFile: &pb.LinkFile{Hash: hash, Path: remotePath, ForceOverride: true, Created: created, Modified: modified}}
+	})
+	if err != nil {
+		return err
+	}
+
+	return wsclient.RespError(resp, "link rejected") // i18n-ignore: a file's error, only logged
+}
+
+// linkCopy is the upload of the file at path, whose content the device
+// holds only as a compressed copy (copyHash: listed with original_removed,
+// its original_hash the file's hash), to remotePath: the copy is linked
+// there. The device deleted the original's bytes, so it has none of the
+// file's own to link, and an upload of the original into the folder that
+// holds the copy is answered with the copy at its own path and stores
+// nothing at this one (the device's editedAlready, for a phone sending a
+// photo again): the next pass took a file renamed or copied here next to
+// it for one deleted on the device. This computer keeps its original, and
+// the record the pair (compressedEntry).
+func (e *Engine) linkCopy(path, remotePath, copyHash string, fi os.FileInfo, check func() error) error {
+	if e.busyWait(path) {
+		return errBusyFile
+	}
+
+	return e.linkAt(path, remotePath, copyHash, fi, check)
 }
 
 // cChunk is how much of a file one message carries each way (the device's

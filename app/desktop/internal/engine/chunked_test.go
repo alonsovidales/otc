@@ -93,6 +93,13 @@ type fakeDevice struct {
 	// beginRefusal, when set, is the device's answer to every BeginUpload
 	// (its storage full, say).
 	beginRefusal string
+	// Compress: the stored files that are compressed copies, by path, with
+	// the hash of the original whose bytes the device deleted - listed
+	// with original_removed and original_hash, as the device lists them.
+	// The LinkFile requests in order; a link of content the device stores
+	// at some path copies it (a copy stays one), anything else is refused.
+	originals map[string]string
+	links     []*pb.LinkFile
 }
 
 // uploadKey is BeginUpload's resume key (issue #205).
@@ -185,7 +192,29 @@ func (d *fakeDevice) answer(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 			}
 		}
 		d.files[d.paths[id]] = d.pending[id].Bytes()
+		delete(d.originals, d.paths[id])
 		resp.Payload = &pb.RespEnvelope_RespFile{RespFile: &pb.File{Path: d.paths[id]}}
+	case *pb.ReqEnvelope_ReqLinkFile:
+		lf := p.ReqLinkFile
+		d.events = append(d.events, "link")
+		d.links = append(d.links, lf)
+		var from string
+		for path, data := range d.files {
+			if sum := sha256.Sum256(data); hex.EncodeToString(sum[:]) == lf.Hash && (from == "" || path < from) {
+				from = path
+			}
+		}
+		if from == "" {
+			resp.Error, resp.ErrorMessage = true, "no such content"
+			break
+		}
+		d.files[lf.Path] = d.files[from]
+		if original, ok := d.originals[from]; ok {
+			d.originals[lf.Path] = original
+		} else {
+			delete(d.originals, lf.Path)
+		}
+		resp.Payload = &pb.RespEnvelope_RespFile{RespFile: &pb.File{Path: lf.Path, Hash: lf.Hash}}
 	case *pb.ReqEnvelope_ReqListFiles:
 		d.events = append(d.events, "list")
 		files := d.list
@@ -197,7 +226,7 @@ func (d *fakeDevice) answer(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 					// Under an upload-only folder, as the device lists it:
 					// the one that refuses deletes.
 					files = append(files, &pb.File{Path: path, Hash: hex.EncodeToString(sum[:]), Size64: int64(len(data)), Modified: d.modTime,
-						UploadOnly: d.delAnswer == "upload_only"})
+						UploadOnly: d.delAnswer == "upload_only", OriginalHash: d.originals[path], OriginalRemoved: d.originals[path] != ""})
 				}
 			}
 		}
@@ -263,11 +292,13 @@ func (d *fakeDevice) answer(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		}
 	case *pb.ReqEnvelope_ReqDelFile:
 		d.deletes = append(d.deletes, p.ReqDelFile.Path)
+		d.events = append(d.events, "delete")
 		if d.delAnswer == "upload_only" {
 			resp.Error, resp.ErrorCode, resp.ErrorMessage = true, "upload_only", "this folder is upload only: nothing in it can be deleted"
 			break
 		}
 		delete(d.files, p.ReqDelFile.Path)
+		delete(d.originals, p.ReqDelFile.Path)
 		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 	case *pb.ReqEnvelope_ReqGetFile:
 		d.reads++

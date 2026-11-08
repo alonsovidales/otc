@@ -1550,7 +1550,9 @@ final class SyncModel: ObservableObject {
             guard let localHash else { return }
             guard folders.contains(where: { $0.id == folderId }), settings?.domain == domainAtStart else { return }
             let known = remoteHashesByFolder[folderId]?[key]
-            guard known?.hash != localHash else { return }
+            // As reconcile(): the device's file at its path, or under the
+            // name an edit or a compress gave it, made from this one.
+            guard known?.hash != localHash, known?.original != localHash else { return }
             let remotePath = known?.path ?? remotePathFor(root) + "/" + key
             do {
                 try await upload(fileURL, to: remotePath, knownHash: localHash, folderId: folderId)
@@ -1636,15 +1638,21 @@ final class SyncModel: ObservableObject {
             // where Dictionary(uniqueKeysWithValues:) trapped at every
             // launch.
             var remoteMap: [String: RemoteEntryHash] = [:]
+            // The device's compressed copies, for linkCopy.
+            var compressed: [String: SyncPaths.ListedFile] = [:]
             if case .respListOfFiles(let lof) = resp.payload {
                 for file in lof.files {
                     guard let relative = SyncPaths.safeRelative(file.path, under: remotePrefix) else { continue }
                     let key = SyncPaths.key(relative)
                     if let current = remoteMap[key], !SyncPaths.prefers(relative, over: current.relative, key: key) { continue }
                     remoteMap[key] = RemoteEntryHash(path: file.path, relative: relative, hash: file.hash, original: file.originalHash)
+                    compressed[key] = file.listed.compressedOriginal == nil ? nil : file.listed
                 }
             }
-            let edited = Self.editedStems(remoteMap)
+            // Of the device's edits and compressed copies, each original by
+            // the stems a file here holding one can have.
+            let edited = SyncPaths.originalsByStem(remoteMap.compactMapValues { $0.original.isEmpty ? nil : $0.original })
+            let copies = SyncPaths.compressedCopies(compressed)
 
             // Upload only: what couldn't be read is simply not sent.
             let (scan, present) = await Task.detached(priority: .utility) { () -> (SyncPaths.FolderScan, Set<String>) in
@@ -1686,11 +1694,14 @@ final class SyncModel: ObservableObject {
                 let size = Int64(check.size ?? 0)
                 folderBytes += size
                 guard let known = remoteMap[key] else {
-                    // The device's edit renamed it: this is that edit's
-                    // original when the content is - hashed for it, the
-                    // only new file that is before its upload.
-                    if let original = edited[(key as NSString).deletingPathExtension],
-                       (try? await cachedHash(for: fileURL, folderId: folder.id)) == original {
+                    // The device's edit or compress renamed it: this is that
+                    // file's original when the content is - hashed for it,
+                    // the only new file that is before its upload. The
+                    // watcher's changes see it as the reconcile does
+                    // (remoteHashesByFolder).
+                    if let originals = edited[SyncPaths.stem(key)], let hash = try? await cachedHash(for: fileURL, folderId: folder.id),
+                       originals.contains(hash) {
+                        remoteMap[key] = RemoteEntryHash(path: remotePrefix + key, relative: key, hash: "", original: hash)
                         continue
                     }
                     toUpload.append((fileURL, key, remotePrefix + key, nil, size))
@@ -1709,7 +1720,9 @@ final class SyncModel: ObservableObject {
                     }
                     localHash = try? await cachedHash(for: fileURL, folderId: folder.id)
                 }
-                // Edited on the device: its original is this file, backed up.
+                // Edited on the device, or compressed there (its original's
+                // bytes deleted, File.original_removed): its original is this
+                // file, backed up - this Mac keeps the original.
                 guard let localHash, known.hash != localHash, known.original != localHash else { continue }
                 toUpload.append((fileURL, key, known.path, localHash, size))
             }
@@ -1761,8 +1774,16 @@ final class SyncModel: ObservableObject {
                             syncLog.info("backup \(remotePrefix, privacy: .public): folder removed or device changed - pass stopped")
                             return
                         }
-                        let sent = try await upload(item.url, to: item.remotePath, knownHash: hash, folderId: folder.id)
-                        remoteMap[item.key] = RemoteEntryHash(path: item.remotePath, relative: item.key, hash: sent)
+                        // Content the device holds only as a compressed copy:
+                        // that copy is linked (linkCopy), as a two-way pass
+                        // does.
+                        if let copy = copies[hash] {
+                            try await linkCopy(item.url, to: item.remotePath, copyHash: copy)
+                            remoteMap[item.key] = RemoteEntryHash(path: item.remotePath, relative: item.key, hash: copy, original: hash)
+                        } else {
+                            let sent = try await upload(item.url, to: item.remotePath, knownHash: hash, folderId: folder.id)
+                            remoteMap[item.key] = RemoteEntryHash(path: item.remotePath, relative: item.key, hash: sent)
+                        }
                     } catch {
                         // Logged and skipped, not fatal to the whole
                         // folder — the next reconcile pass (or another
@@ -1796,19 +1817,11 @@ final class SyncModel: ObservableObject {
         let hash: String
         /// File.original_hash: the device's edit of the photo this file
         /// was (its viewers turn and crop photos), whose original the
-        /// device keeps - a backup holding that original holds this file.
+        /// device keeps, or its compressed copy, whose original's bytes it
+        /// deleted (File.original_removed) - a backup holding that original
+        /// holds this file. An entry with no hash is a file here the device
+        /// holds under the name such an edit gave it (reconcile).
         var original = ""
-    }
-
-    /// Of a backup's device listing, each edit's key without its
-    /// extension, with the photo it was made from: an edit that renamed the
-    /// photo (a HEIC become IMG_1.JPG) is what the local IMG_1.HEIC holds.
-    private static func editedStems(_ remote: [String: RemoteEntryHash]) -> [String: String] {
-        var stems: [String: String] = [:]
-        for (key, entry) in remote where !entry.original.isEmpty {
-            stems[(key as NSString).deletingPathExtension] = entry.original
-        }
-        return stems
     }
 
     /// File `path`'s key in the backup of `root` (SyncPaths.key of its path
@@ -2291,6 +2304,12 @@ final class SyncModel: ObservableObject {
             await pruneHashCache(folder.id, keeping: view.present, under: view.unknownDirs.map { localRoot + "/" + $0 + "/" })
             let localByRelative = view.byRelative
             let lastSynced = last
+            // What the record's rules look at in the listing; and the files
+            // here that may be the original of a copy the device compressed
+            // under another name, which only their hash tells
+            // (SyncPaths.renamedOriginals): hashed even when new.
+            let listedFiles = remoteByRelative.mapValues(\.listed)
+            let mayBeRenamed = SyncPaths.renamedStems(listed: listedFiles, here: Set(localByRelative.keys), record: lastSynced)
 
             // Hashing is the slow part, so only do it for what's actually
             // on disk right now — remote's hash comes for free from the
@@ -2324,7 +2343,7 @@ final class SyncModel: ObservableObject {
                 let relative = item.relative, url = item.check.url
                 if let size = item.check.size { localSizes[relative] = Int64(size) }
                 if excludedHere.contains(relative) { continue } // never compared (excludedHere)
-                if remoteByRelative[relative] == nil && lastSynced[relative] == nil {
+                if remoteByRelative[relative] == nil && lastSynced[relative] == nil && !mayBeRenamed.contains(SyncPaths.stem(relative)) {
                     newLocal.insert(relative)
                     continue
                 }
@@ -2392,22 +2411,31 @@ final class SyncModel: ObservableObject {
             // The folders local deletions emptied: removed after the pass
             // (SyncPaths.removeEmptiedFolders).
             var emptiedFolders = Set<String>()
+            // The device's compressed copies saved under another name, by the
+            // file here they were made from (SyncPaths.renamedOriginals): each
+            // pair is planned as one file, at the name here.
+            let renamed = SyncPaths.renamedOriginals(listed: listedFiles, here: Set(localByRelative.keys), hashes: localHashes, record: lastSynced)
+            let renamedCopies = Set(renamed.values)
 
             for relative in allRelativePaths {
                 if unreadable.contains(relative) || notSyncedHere.contains(relative) || excludedHere.contains(relative) { continue }
+                if renamedCopies.contains(relative) { continue } // planned with its original here
                 if newLocal.contains(relative) {
                     actions.append((relative, .upload, 0, nil))
                     continue
                 }
                 let localHash = localHashes[relative]
-                let remoteFile = remoteByRelative[relative]
+                let copyKey = renamed[relative]
+                let remoteFile = remoteByRelative[copyKey ?? relative]
                 let remoteHash = remoteFile?.hash
                 let last = lastSynced[relative]
                 // What each side had after the last pass: the same, except
                 // for a file the device kept when it was deleted here
                 // (SyncPaths.keptOnDevice) - and none at all for one whose
-                // folder is no longer upload only.
-                let (lastLocal, lastRemote) = SyncPaths.baselines(last, listedUploadOnly: remoteFile?.uploadOnly)
+                // folder is no longer upload only - and for one the device
+                // compressed, the original here and the copy there
+                // (SyncPaths.compressed).
+                let (lastLocal, lastRemote) = SyncPaths.baselines(last, listed: remoteFile?.listed, here: localHash)
 
                 // Issue #141: listed without a hash means the device has
                 // lost this file's content. A copy here is sent again, which
@@ -2434,9 +2462,10 @@ final class SyncModel: ObservableObject {
                 let remoteChanged = remoteHash != lastRemote
                 if !localChanged && !remoteChanged {
                     // Deleted here and kept by the device (an upload-only
-                    // folder), and neither side changed it since: not
-                    // downloaded again, nor the delete sent again. The
-                    // record keeps saying so. As otc-sync.
+                    // folder), or compressed there, and neither side changed
+                    // it since: not downloaded again, nor the delete or the
+                    // original sent again. The record says so. As otc-sync.
+                    if let entry = SyncPaths.recordEntry(local: lastLocal, remote: lastRemote) { newSynced[relative] = entry }
                     continue
                 }
                 // Genuine conflict (both sides moved since the baseline, or
@@ -2480,6 +2509,11 @@ final class SyncModel: ObservableObject {
                     if conflict && bothHaveContent, let localHash, let remoteHash {
                         actions.append((relative, .uploadKeepRemote(remoteHash: remoteHash), 0, localHash))
                         newSynced[relative] = localHash
+                    } else if localHash != nil, copyKey != nil, holdDeletes {
+                        // Its upload deletes the copy the device renamed: it
+                        // waits with the deletes, and newSynced keeps its
+                        // baseline.
+                        deletesHeld += 1
                     } else if let localHash {
                         actions.append((relative, .upload, 0, localHash))
                         newSynced[relative] = localHash
@@ -2507,7 +2541,8 @@ final class SyncModel: ObservableObject {
             // folder moved or renamed there, from the web or a phone - and
             // doesn't count: the guard used to send the old names back next
             // to the new ones (SyncPaths.movedHashes). As otc-sync.
-            let moved = SyncPaths.movedHashes(listed: remoteByRelative.mapValues(\.hash), record: lastSynced)
+            let moved = SyncPaths.movedHashes(listed: remoteByRelative.mapValues(\.hash), record: lastSynced,
+                                              originals: listedFiles.compactMapValues(\.compressedOriginal))
             let localDeletes = actions.filter { $0.kind == .deleteLocal && !moved.contains(localHashes[$0.relative] ?? "") }.count
             var restored = 0
             if SyncPaths.overMassDelete(localDeletes, of: localByRelative.count) {
@@ -2533,7 +2568,8 @@ final class SyncModel: ObservableObject {
                 for key in newLocal {
                     if let url = localByRelative[key], let hash = try? await cachedHash(for: url, folderId: folder.id) { here.insert(hash) }
                 }
-                held = SyncPaths.heldDeviceDeletes(deviceDeletes, deviceFiles: remoteByRelative.count, here: here)
+                held = SyncPaths.heldDeviceDeletes(deviceDeletes, deviceFiles: remoteByRelative.count,
+                                                   here: SyncPaths.withCompressedCopies(here, listed: listedFiles))
             }
             var heldKey = SyncPaths.heldDeletesKey(deviceDeletes, held: held)
             // The owner's "Delete Them on the Device Too…": the set held now
@@ -2565,7 +2601,10 @@ final class SyncModel: ObservableObject {
             if uncertain {
                 var kept: [(relative: String, kind: ActionKind, size: Int, hash: String?)] = []
                 for a in actions {
-                    if a.kind == .deleteLocal || a.kind == .deleteRemote || (a.kind == .download && localByRelative[a.relative] != nil) {
+                    // A new version of a file whose copy the device renamed
+                    // deletes that copy (replaceRenamedCopy).
+                    if a.kind == .deleteLocal || a.kind == .deleteRemote || (a.kind == .download && localByRelative[a.relative] != nil)
+                        || (a.kind == .upload && renamed[a.relative] != nil) {
                         if let prior = lastSynced[a.relative] { newSynced[a.relative] = prior } else { newSynced.removeValue(forKey: a.relative) }
                         waiting += 1
                         continue
@@ -2580,8 +2619,20 @@ final class SyncModel: ObservableObject {
             settleDeleteApproval(folder, approval, approvalSaid, count: approvedCount + held.count, uncertain: uncertain)
             // Local deletes first: a rename on another client that only
             // changes case ("Photo.jpg" -> "photo.jpg") then trashes the
-            // old name before the new one comes down, in one pass.
-            actions = actions.filter { $0.kind == .deleteLocal } + actions.filter { $0.kind != .deleteLocal }
+            // old name before the new one comes down, in one pass. Device
+            // deletes last: a file moved or renamed here goes up while the
+            // device still holds its content under the old name - linked by
+            // its hash, nothing sent; the last copy deleted first, the device
+            // dropped the content and the whole file went up again - and a
+            // compressed copy is linked at the new name (linkCopy) before the
+            // old one goes with it. As otc-sync.
+            actions = actions.filter { $0.kind == .deleteLocal }
+                + actions.filter { $0.kind != .deleteLocal && $0.kind != .deleteRemote }
+                + actions.filter { $0.kind == .deleteRemote }
+            // Content the device holds only as a compressed copy, its
+            // original's bytes deleted: what goes up with it links the copy
+            // (sendForPass).
+            let copies = SyncPaths.compressedCopies(listedFiles)
 
             syncLog.info("two-way \(folder.remotePath, privacy: .public): \(actions.count) action(s) - \(actions.filter { $0.kind == .download }.count) download, \(actions.filter { $0.kind == .upload }.count) upload, \(actions.filter { $0.kind == .deleteLocal }.count) delete local, \(actions.filter { $0.kind == .deleteRemote }.count) delete remote, \(deletesHeld) delete(s) waiting for upload only")
             // What the pass couldn't sync, and the paths it had something to
@@ -2638,7 +2689,13 @@ final class SyncModel: ObservableObject {
                         if let prior = lastSynced[action.relative] { newSynced[action.relative] = prior } else { newSynced.removeValue(forKey: action.relative) }
                         continue
                     }
-                    let listed = remoteByRelative[action.relative]
+                    // A file whose compressed copy the device keeps under
+                    // another name (SyncPaths.renamedOriginals): a delete here
+                    // deletes that copy; a new version goes up at the name
+                    // here, and replaces it.
+                    let copyKey = renamed[action.relative]
+                    let renamedCopy = copyKey.flatMap { remoteByRelative[$0] }
+                    let listed = action.kind == .deleteRemote && renamedCopy != nil ? renamedCopy : remoteByRelative[action.relative]
                     let remotePath = listed?.path ?? remotePrefix + action.relative
                     // The device's file must still be what the listing said
                     // when an upload replaces it or a delete removes it
@@ -2667,7 +2724,11 @@ final class SyncModel: ObservableObject {
                                 syncLog.info("two-way \(folder.remotePath, privacy: .public): folder removed or device changed - pass stopped")
                                 return
                             }
-                            newSynced[action.relative] = try await upload(localURL, to: remotePath, knownHash: hash, folderId: folder.id, check: asListed)
+                            if let copyKey, let renamedCopy,
+                               try await replaceRenamedCopy(localURL, copyKey: copyKey, copy: renamedCopy, root: localRoot) == .keptOnDevice {
+                                newSynced[copyKey] = SyncPaths.keptOnDevice(renamedCopy.hash)
+                            }
+                            newSynced[action.relative] = try await sendForPass(localURL, to: remotePath, hash: hash, copies: copies, folderId: folder.id, check: asListed)
                         case .download:
                             // The plan saw nothing at this name, yet something
                             // is there: a name that differs only by case (APFS
@@ -2705,7 +2766,7 @@ final class SyncModel: ObservableObject {
                                 syncLog.info("two-way \(folder.remotePath, privacy: .public): folder removed or device changed - pass stopped")
                                 return
                             }
-                            newSynced[action.relative] = try await upload(localURL, to: remotePath, knownHash: action.hash, folderId: folder.id, check: asListed)
+                            newSynced[action.relative] = try await sendForPass(localURL, to: remotePath, hash: action.hash, copies: copies, folderId: folder.id, check: asListed)
                         case .deleteRemote:
                             // Still nothing here by that very name, right
                             // before it goes: a file put back during the pass,
@@ -2722,12 +2783,18 @@ final class SyncModel: ObservableObject {
                             if try await Task.detached(priority: .utility, operation: { try SyncPaths.presentAsNamed(root: localRoot, rel: relative) }).value {
                                 throw ChangedHere(description: "something is here at this name again - not deleted on the device") // i18n-ignore: a file's error, only logged
                             }
+                            // A renamed copy's name too: a file there here now
+                            // is one the next pass sees.
+                            if let copyKey, try await Task.detached(priority: .utility, operation: { try SyncPaths.presentAsNamed(root: localRoot, rel: copyKey) }).value {
+                                throw ChangedHere(description: "something is here at the copy's name - not deleted on the device") // i18n-ignore: a file's error, only logged
+                            }
                             try await asListed()
                             if try await delete(remotePath) == .keptOnDevice, let hash = action.hash {
                                 // The folder is upload only on the device:
                                 // the file stays there, and stays deleted
-                                // here (SyncPaths.recordBaselines).
-                                newSynced[action.relative] = SyncPaths.keptOnDevice(hash)
+                                // here (SyncPaths.recordBaselines) - a renamed
+                                // copy at its own name there.
+                                newSynced[copyKey ?? action.relative] = SyncPaths.keptOnDevice(hash)
                             }
                         // To the Trash, not gone: recoverable if a deletion on
                         // the device was a mistake.
@@ -2841,7 +2908,8 @@ final class SyncModel: ObservableObject {
             for ((rel, url), check) in zip(files, checks) {
                 if let hit = check.hit {
                     here[rel] = hit
-                    if hit == recorded[rel] { unchanged += 1 }
+                    // A compressed file's original, not its copy.
+                    if hit == SyncPaths.recordBaselines(recorded[rel]).local { unchanged += 1 }
                 } else {
                     misses.append((rel, url))
                 }
@@ -2856,7 +2924,7 @@ final class SyncModel: ObservableObject {
                 }
                 if let entry = try? await cachedHashEntry(for: url, folderId: folder.id) {
                     here[rel] = entry.hash
-                    if entry.hash == recorded[rel] { unchanged += 1 }
+                    if entry.hash == SyncPaths.recordBaselines(recorded[rel]).local { unchanged += 1 }
                 }
             }
         }
@@ -3383,28 +3451,11 @@ final class SyncModel: ObservableObject {
             hf.hash = hash
             req.payload = .reqHasFile(hf)
         }
-        let dates = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
-        let created = SwiftProtobuf.Google_Protobuf_Timestamp(date: dates?.creationDate ?? Date())
-        // Issue #134: the device keeps this as the file's modified time,
-        // so the same file synced down elsewhere gets the same dates.
-        let modified = SwiftProtobuf.Google_Protobuf_Timestamp(date: dates?.contentModificationDate ?? Date())
-
         if case .respFileExists(let fe) = hasResp.payload, fe.exists {
-            try await check?()
-            let resp = try await ws.request(timeout: Self.smallRequest) { req in
-                var lf = Msg_LinkFile()
-                lf.hash = hash
-                lf.path = remotePath
-                lf.forceOverride = true
-                lf.created = created
-                lf.modified = modified
-                req.payload = .reqLinkFile(lf)
-            }
-            if resp.error {
-                throw NSError(domain: "sync.upload", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "link rejected" : resp.errorMessage])
-            }
+            try await link(url, to: remotePath, hash: hash, check: check)
             return hash
         }
+        let (created, modified) = Self.uploadDates(url)
 
         // Issue #168: the bytes go in 4 MiB chunks (ChunkedUpload:
         // BeginUpload, UploadChunk..., FinishUpload) rather than one
@@ -3438,6 +3489,83 @@ final class SyncModel: ObservableObject {
         }
         busyFiles.removeValue(forKey: url.path)
         return hash
+    }
+
+    /// What an upload of the file at `url` sends as its dates. Issue #134:
+    /// the device keeps them as the file's, so the same file synced down
+    /// elsewhere gets the same dates.
+    private nonisolated static func uploadDates(_ url: URL) -> (created: SwiftProtobuf.Google_Protobuf_Timestamp, modified: SwiftProtobuf.Google_Protobuf_Timestamp) {
+        let dates = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
+        return (SwiftProtobuf.Google_Protobuf_Timestamp(date: dates?.creationDate ?? Date()),
+                SwiftProtobuf.Google_Protobuf_Timestamp(date: dates?.contentModificationDate ?? Date()))
+    }
+
+    /// Makes content the device has (`hash`) its file at `remotePath`, for
+    /// the file at `url`, after `check` (upload).
+    private func link(_ url: URL, to remotePath: String, hash: String, check: (() async throws -> Void)?) async throws {
+        let (created, modified) = Self.uploadDates(url)
+        try await check?()
+        let resp = try await ws.request(timeout: Self.smallRequest) { req in
+            var lf = Msg_LinkFile()
+            lf.hash = hash
+            lf.path = remotePath
+            lf.forceOverride = true
+            lf.created = created
+            lf.modified = modified
+            req.payload = .reqLinkFile(lf)
+        }
+        if resp.error {
+            throw NSError(domain: "sync.upload", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "link rejected" : resp.errorMessage])
+        }
+    }
+
+    /// The upload of the file at `url`, whose content the device holds only
+    /// as a compressed copy (`copyHash`: listed with original_removed, its
+    /// original_hash the file's hash), to `remotePath`: the copy is linked
+    /// there. The device deleted the original's bytes, so it has none of the
+    /// file's own to link, and an upload of the original into the folder
+    /// that holds the copy is answered with the copy at its own path and
+    /// stores nothing at this one (the device's editedAlready, for a phone
+    /// sending a photo again): the next pass took a file renamed or copied
+    /// here next to it for one deleted on the device. This Mac keeps its
+    /// original, and the record the pair (SyncPaths.compressed). As
+    /// otc-sync's linkCopy.
+    private func linkCopy(_ url: URL, to remotePath: String, copyHash: String, check: (() async throws -> Void)? = nil) async throws {
+        if let busy = busyFiles[url.path], busy.until > Date() { throw BusyFile() }
+        try await link(url, to: remotePath, hash: copyHash, check: check)
+    }
+
+    /// A two-way pass's upload of the file at `url` (its hash, when known):
+    /// content the device holds only as a compressed copy (`copies`, by the
+    /// original's hash) links that copy (linkCopy), anything else goes up
+    /// as usual. The record's entry for it: the pair, or the hash sent.
+    private func sendForPass(_ url: URL, to remotePath: String, hash: String?, copies: [String: String], folderId: UUID,
+                             check: @escaping () async throws -> Void) async throws -> String {
+        if let hash, let copy = copies[hash] {
+            try await linkCopy(url, to: remotePath, copyHash: copy, check: check)
+            return SyncPaths.compressed(here: hash, device: copy)
+        }
+        return try await upload(url, to: remotePath, knownHash: hash, folderId: folderId, check: check)
+    }
+
+    /// Deletes the compressed copy the device keeps, under another name
+    /// (SyncPaths.renamedOriginals: `copyKey`, listed as `copy`), of the
+    /// file at `url`, right before a new version of it goes up at its name
+    /// here: the new version replaces the copy, as it would at the same
+    /// name. The copy goes first, so that a copy changed meanwhile (edited
+    /// on a phone) or a failure leaves both as they are for the next pass,
+    /// never the new version next to the old copy, which the next pass
+    /// would bring down. A busy file is left before anything goes. In an
+    /// upload-only folder the device keeps the copy (.keptOnDevice: the
+    /// caller records it at its own name) and the new version goes up all
+    /// the same. As otc-sync's replaceRenamedCopy.
+    private func replaceRenamedCopy(_ url: URL, copyKey: String, copy: Msg_File, root: String) async throws -> DeleteOutcome {
+        if let busy = busyFiles[url.path], busy.until > Date() { throw BusyFile() }
+        if try await Task.detached(priority: .utility, operation: { try SyncPaths.presentAsNamed(root: root, rel: copyKey) }).value {
+            throw ChangedHere(description: "something is here at the copy's name - not deleted on the device") // i18n-ignore: a file's error, only logged
+        }
+        try await deviceStillAsListed(copy.path, copy)
+        return try await delete(copy.path)
     }
 
     // MARK: Busy files
@@ -4172,6 +4300,13 @@ enum FolderProblem: Error, Equatable {
         case .notSyncedHere(let files): return S.deskMainFilesNotSyncedHere(files: files)
         case .request(let failure): return failure.errorDescription ?? ""
         }
+    }
+}
+
+extension Msg_File {
+    /// What the sync record's rules look at in a listed file.
+    var listed: SyncPaths.ListedFile {
+        SyncPaths.ListedFile(hash: hash, uploadOnly: uploadOnly, originalHash: originalHash, originalRemoved: originalRemoved)
     }
 }
 

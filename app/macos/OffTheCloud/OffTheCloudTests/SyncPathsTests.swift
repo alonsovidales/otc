@@ -108,14 +108,241 @@ struct SyncPathsTests {
     @Test func keptOnDeviceAfterUploadOnlyIsLifted() {
         let hash = String(repeating: "cd", count: 32)
         let kept = SyncPaths.keptOnDevice(hash)
-        let still = SyncPaths.baselines(kept, listedUploadOnly: true)
+        let still = SyncPaths.baselines(kept, listed: .init(hash: hash, uploadOnly: true), here: nil)
         #expect(still.local == nil && still.remote == hash)
-        let lifted = SyncPaths.baselines(kept, listedUploadOnly: false)
+        let lifted = SyncPaths.baselines(kept, listed: .init(hash: hash), here: nil)
         #expect(lifted.local == nil && lifted.remote == nil)
-        let gone = SyncPaths.baselines(kept, listedUploadOnly: nil)
+        let gone = SyncPaths.baselines(kept, listed: nil, here: nil)
         #expect(gone.local == nil && gone.remote == hash)
-        let plain = SyncPaths.baselines(hash, listedUploadOnly: false)
+        let plain = SyncPaths.baselines(hash, listed: .init(hash: hash), here: hash)
         #expect(plain.local == hash && plain.remote == hash)
+    }
+
+    // MARK: Compressed on the device
+
+    // Compress (CompressFiles) on the device: a file becomes a smaller copy
+    // and the original's bytes are deleted - the listing says
+    // original_removed, with original_hash the original's hash. Computers
+    // keep their originals (the owner's decision, 2026-11-08). The same
+    // cases, by name, as otc-sync's engine compress_test.go.
+
+    /// A compressed copy of `original` as the device lists it.
+    private func copyOf(_ hash: String, _ original: String) -> SyncPaths.ListedFile {
+        SyncPaths.ListedFile(hash: hash, originalHash: original, originalRemoved: true)
+    }
+
+    /// What a two-way pass does for one path, as SyncModel's
+    /// reconcileRemoteFolder plans it from these rules (the hash here, what
+    /// the device lists, the record's entry): its step, and the entry the
+    /// record keeps when nothing is done.
+    private enum Step: Equatable { case none(keep: String?), upload, download, deleteHere, deleteThere, conflict }
+
+    private func plan(_ entry: String?, listed: SyncPaths.ListedFile?, here: String?) -> Step {
+        if here == listed?.hash { return .none(keep: here) }
+        let (lastLocal, lastRemote) = SyncPaths.baselines(entry, listed: listed, here: here)
+        switch (here != lastLocal, listed?.hash != lastRemote) {
+        case (false, false): return .none(keep: SyncPaths.recordEntry(local: lastLocal, remote: lastRemote))
+        case (false, true): return listed == nil ? .deleteHere : .download
+        case (true, false): return here == nil ? .deleteThere : .upload
+        case (true, true): return .conflict
+        }
+    }
+
+    /// As otc-sync's TestCompressedRecordEntry.
+    @Test func compressedRecordEntry() {
+        #expect(SyncPaths.compressed(here: "O", device: "D") == "compressed:O:D")
+        let pair = SyncPaths.recordBaselines("compressed:O:D")
+        #expect(pair.local == "O" && pair.remote == "D")
+        for bad in ["compressed:O", "compressed::D", "compressed:O:", "compressed:"] {
+            let none = SyncPaths.recordBaselines(bad)
+            #expect(none.local == nil && none.remote == nil, "\(bad)")
+        }
+        #expect(SyncPaths.recordEntry(local: "O", remote: "D") == "compressed:O:D")
+        #expect(SyncPaths.recordEntry(local: "O", remote: "O") == "O")
+        #expect(SyncPaths.recordEntry(local: nil, remote: "D") == SyncPaths.keptOnDevice("D"))
+        #expect(SyncPaths.recordEntry(local: nil, remote: nil) == nil)
+        for (local, remote) in [("O", "D"), ("O", "O")] {
+            let back = SyncPaths.recordBaselines(SyncPaths.recordEntry(local: local, remote: remote))
+            #expect(back.local == local && back.remote == remote)
+        }
+    }
+
+    /// As otc-sync's TestBaselinesForACompressedCopy.
+    @Test func baselinesForACompressedCopy() {
+        let compressed = copyOf("D", "O")
+        let cases: [(name: String, entry: String?, listed: SyncPaths.ListedFile?, here: String?, local: String?, remote: String?)] = [
+            ("compressed since the last pass", "O", compressed, "O", "O", "D"),
+            ("first pass", nil, compressed, "O", "O", "D"),
+            ("the original put back here", "X", compressed, "O", "O", "D"),
+            ("changed here since", "O", compressed, "L2", "O", "D"),
+            ("deleted here since", "O", compressed, nil, "O", "D"),
+            ("new on the device", nil, compressed, nil, nil, nil),
+            ("another file here", "X", compressed, "Y", "X", "X"),
+            ("the pair as recorded", SyncPaths.compressed(here: "O", device: "D"), compressed, "O", "O", "D"),
+            ("the copy edited since", SyncPaths.compressed(here: "O", device: "D"), copyOf("E", "O"), "O", "O", "D"),
+            ("the copy deleted since", SyncPaths.compressed(here: "O", device: "D"), nil, "O", "O", "D"),
+            ("an edit keeps its original", "O", SyncPaths.ListedFile(hash: "E", originalHash: "O"), "O", "O", "O"),
+            ("kept on the device", SyncPaths.keptOnDevice("D"), SyncPaths.ListedFile(hash: "D", uploadOnly: true, originalHash: "O", originalRemoved: true), nil, nil, "D"),
+        ]
+        for c in cases {
+            let got = SyncPaths.baselines(c.entry, listed: c.listed, here: c.here)
+            #expect(got.local == c.local && got.remote == c.remote, "\(c.name)")
+        }
+    }
+
+    /// As otc-sync's TestCompressedStems.
+    @Test func compressedStems() {
+        let stems = ["a/IMG_1.HEIC": "a/IMG_1", "x.tar.gz": "x.tar", ".profile": ".profile", "a/.profile": "a/.profile",
+                     "notes": "notes", "a.b/notes": "a.b/notes", "my file.final version": "my file.final version", "x.": "x"]
+        for (key, want) in stems { #expect(SyncPaths.stem(key) == want, "\(key)") }
+        let originals: [String: [String]] = ["x (2)": ["x (2)", "x"], "a/x (12)": ["a/x (12)", "a/x"], "x (1)": ["x (1)"], "x (02)": ["x (02)"],
+                                             "x ()": ["x ()"], "x (a)": ["x (a)"], " (2)": [" (2)"], "x(2)": ["x(2)"],
+                                             "x (2) (3)": ["x (2) (3)", "x (2)"], "x": ["x"]]
+        for (stem, want) in originals { #expect(SyncPaths.originalStems(stem) == want, "\(stem)") }
+        #expect(SyncPaths.originalsByStem(["a/IMG_1.JPG": "h1", "b (2).jpg": "h2", "c.txt": ""]) == ["a/IMG_1": ["h1"], "b (2)": ["h2"], "b": ["h2"]])
+    }
+
+    /// As otc-sync's TestRenamedOriginals.
+    @Test func renamedOriginals() {
+        let jpg = copyOf("D", "O")
+        let cases: [(name: String, listed: [String: SyncPaths.ListedFile], here: [String: String], record: [String: String], want: [String: String])] = [
+            ("the original here", ["x.jpg": jpg], ["x.png": "O"], [:], ["x.png": "x.jpg"]),
+            ("changed here since", ["x.jpg": jpg], ["x.png": "L2"], ["x.png": "O"], ["x.png": "x.jpg"]),
+            ("deleted here since", ["x.jpg": jpg], [:], ["x.png": "O"], ["x.png": "x.jpg"]),
+            ("the pair as recorded", ["x.jpg": jpg], ["x.png": "L2"], ["x.png": SyncPaths.compressed(here: "O", device: "D")], ["x.png": "x.jpg"]),
+            ("the copy edited since", ["x.jpg": jpg], ["x.png": "O"], ["x.png": SyncPaths.compressed(here: "O", device: "E")], [:]),
+            ("another file here", ["x.jpg": jpg], ["x.png": "Z"], ["x.png": "Z"], [:]),
+            ("its name taken", ["x.jpg": .init(hash: "J"), "x (2).jpg": jpg], ["x.png": "O", "x.jpg": "J"], ["x.jpg": "J"], ["x.png": "x (2).jpg"]),
+            ("the copy here too", ["x.jpg": jpg], ["x.png": "O", "x.jpg": "D"], [:], [:]),
+            ("the copy synced already", ["x.jpg": jpg], ["x.png": "O"], ["x.jpg": "D"], [:]),
+            ("the device has the name too", ["x.jpg": jpg, "x.png": .init(hash: "O")], ["x.png": "O"], [:], [:]),
+            ("another folder", ["b/x.jpg": jpg], ["a/x.png": "O"], [:], [:]),
+            ("kept on the device", ["x.jpg": jpg], [:], ["x.png": SyncPaths.keptOnDevice("O")], [:]),
+            ("an edit, its original kept", ["x.jpg": .init(hash: "D", originalHash: "O")], ["x.png": "O"], [:], [:]),
+            ("the first by name", ["x.jpg": jpg], ["x.webp": "O", "x.png": "O"], [:], ["x.png": "x.jpg"]),
+            ("the best match first", ["x.jpg": jpg], ["x.webp": "O", "x.png": "O"], ["x.webp": SyncPaths.compressed(here: "O", device: "D")], ["x.webp": "x.jpg"]),
+        ]
+        for c in cases {
+            let got = SyncPaths.renamedOriginals(listed: c.listed, here: Set(c.here.keys), hashes: c.here, record: c.record)
+            #expect(got == c.want, "\(c.name)")
+        }
+        // What the pass hashes even when new, for that.
+        #expect(SyncPaths.renamedStems(listed: ["x (2).jpg": jpg, "y.jpg": .init(hash: "Y")], here: [], record: [:]) == ["x (2)", "x"])
+    }
+
+    /// As otc-sync's TestCompressedCopies.
+    @Test func compressedCopies() {
+        let listed: [String: SyncPaths.ListedFile] = ["b.mov": copyOf("D1", "O"), "a.mov": copyOf("D2", "O"), "c.mov": copyOf("D3", "P"),
+                                                      "e.jpg": .init(hash: "E", originalHash: "Q"), "f.txt": .init(hash: "F")]
+        #expect(SyncPaths.compressedCopies(listed) == ["O": "D2", "P": "D3"])
+        #expect(SyncPaths.withCompressedCopies(["O", "Q"], listed: listed) == ["O", "Q", "D1", "D2"])
+        let moved = SyncPaths.movedHashes(listed: ["Archive/a.mov": "D2", "f.txt": "F"], record: ["a.mov": SyncPaths.compressed(here: "O", device: "D2"), "f.txt": "F"],
+                                          originals: ["Archive/a.mov": "O"])
+        #expect(moved == ["D2", "O"])
+    }
+
+    /// What the record says is here is a compressed file's original, not its
+    /// copy: a folder whose files are mostly compressed is still the synced
+    /// one. As otc-sync's TestJudgeRootWithCompressedFiles.
+    @Test func judgeRootWithCompressedFiles() {
+        let record = ["a": SyncPaths.compressed(here: "h1", device: "d1"), "b": "h2", "c": "h3", "k": SyncPaths.keptOnDevice("h4")]
+        let none: (String) -> Bool = { _ in false }
+        #expect(SyncPaths.judgeRoot(recorded: "t", marker: "", record: record, here: ["a": "h1", "b": "h2"], unknown: none).ok)
+        #expect(!SyncPaths.judgeRoot(recorded: "t", marker: "", record: record, here: ["a": "d1", "b": "h2"], unknown: none).ok)
+        #expect(SyncPaths.rootEvidence(record: record, present: { _ in true }, unknown: none).listed == 3)
+    }
+
+    /// As otc-sync's TestTwoWayKeepsTheOriginalOfACompressedFile: nothing is
+    /// downloaded over the original here, nothing is sent, and the record
+    /// keeps the pair, so later passes do nothing either.
+    @Test func compressedCopyIsTheSameFile() {
+        let compressed = copyOf("D", "O")
+        guard case .none(let keep) = plan("O", listed: compressed, here: "O") else { Issue.record("acted"); return }
+        #expect(keep == SyncPaths.compressed(here: "O", device: "D"))
+        #expect(plan(keep, listed: compressed, here: "O") == .none(keep: keep))
+    }
+
+    /// As otc-sync's TestTwoWayCompressedFirstPass.
+    @Test func compressedCopyOnAFirstPass() {
+        #expect(plan(nil, listed: copyOf("D", "O"), here: "O") == .none(keep: SyncPaths.compressed(here: "O", device: "D")))
+    }
+
+    /// As otc-sync's TestTwoWayCompressedLaterChanges.
+    @Test func compressedCopyLaterChanges() {
+        let pair = SyncPaths.compressed(here: "O", device: "D")
+        #expect(plan(pair, listed: copyOf("D", "O"), here: "L2") == .upload)
+        #expect(plan(pair, listed: copyOf("E", "O"), here: "O") == .download)
+        #expect(plan(pair, listed: copyOf("D", "O"), here: nil) == .deleteThere)
+        #expect(plan(pair, listed: nil, here: "O") == .deleteHere)
+        // Before the pair was recorded: changed or deleted here since.
+        #expect(plan("O", listed: copyOf("D", "O"), here: "L2") == .upload)
+        #expect(plan("O", listed: copyOf("D", "O"), here: nil) == .deleteThere)
+    }
+
+    /// The pass's view of a renamed copy: the original's path planned with
+    /// the copy, the copy's own path not at all.
+    private func planRenamed(_ listed: [String: SyncPaths.ListedFile], here: [String: String], record: [String: String]) -> [String: Step] {
+        let renamed = SyncPaths.renamedOriginals(listed: listed, here: Set(here.keys), hashes: here, record: record)
+        var steps: [String: Step] = [:]
+        for key in Set(listed.keys).union(here.keys).union(record.keys) where !renamed.values.contains(key) {
+            steps[key] = plan(record[key], listed: listed[renamed[key] ?? key], here: here[key])
+        }
+        return steps
+    }
+
+    /// As otc-sync's TestTwoWayKeepsTheOriginalOfARenamedCopy: the device
+    /// saved the copy under another name (a PNG as x.jpg; "x (2).jpg" when
+    /// x.jpg is taken). The original keeps its name here, the copy isn't
+    /// downloaded, nothing is sent, and the record keeps the pair at the name
+    /// here.
+    @Test func renamedCopyIsTheSameFile() {
+        let pair = SyncPaths.compressed(here: "O", device: "D")
+        #expect(planRenamed(["x.jpg": copyOf("D", "O")], here: ["x.png": "O"], record: ["x.png": "O"]) == ["x.png": .none(keep: pair)])
+        #expect(planRenamed(["x.jpg": copyOf("D", "O")], here: ["x.png": "O"], record: ["x.png": pair]) == ["x.png": .none(keep: pair)])
+        #expect(planRenamed(["x.jpg": .init(hash: "J"), "x (2).jpg": copyOf("D", "O")], here: ["x.png": "O", "x.jpg": "J"], record: ["x.png": "O", "x.jpg": "J"])
+                == ["x.png": .none(keep: pair), "x.jpg": .none(keep: "J")])
+        // A first pass.
+        #expect(planRenamed(["x.jpg": copyOf("D", "O")], here: ["x.png": "O"], record: [:]) == ["x.png": .none(keep: pair)])
+    }
+
+    /// As otc-sync's TestTwoWayRenamedCopyLaterChanges. Changed here, the
+    /// new version goes up at the name here and the copy is deleted first
+    /// (SyncModel.replaceRenamedCopy); the copy changed or deleted on the
+    /// device pairs no more: it comes down under its own name, and the
+    /// original here goes to the Trash.
+    @Test func renamedCopyLaterChanges() {
+        let pair = SyncPaths.compressed(here: "O", device: "D")
+        #expect(planRenamed(["x.jpg": copyOf("D", "O")], here: ["x.png": "L2"], record: ["x.png": pair]) == ["x.png": .upload])
+        #expect(planRenamed(["x.jpg": copyOf("D", "O")], here: [:], record: ["x.png": pair]) == ["x.png": .deleteThere])
+        #expect(planRenamed(["x.jpg": copyOf("E", "O")], here: ["x.png": "O"], record: ["x.png": pair]) == ["x.png": .deleteHere, "x.jpg": .download])
+        #expect(planRenamed([:], here: ["x.png": "O"], record: ["x.png": pair]) == ["x.png": .deleteHere])
+    }
+
+    /// As otc-sync's TestTwoWayRenamedHereLinksTheCopy: the original renamed
+    /// here goes up as the device's copy (SyncModel.linkCopy, by
+    /// compressedCopies), and the old name is deleted there - the record
+    /// keeps the pair at the new name.
+    @Test func compressedOriginalRenamedHere() {
+        let pair = SyncPaths.compressed(here: "O", device: "D")
+        let listed = ["clip.mov": copyOf("D", "O")]
+        #expect(planRenamed(listed, here: ["holiday.mov": "O"], record: ["clip.mov": pair]) == ["clip.mov": .deleteThere, "holiday.mov": .upload])
+        #expect(SyncPaths.compressedCopies(listed)["O"] == "D")
+        let after = ["holiday.mov": copyOf("D", "O")]
+        #expect(planRenamed(after, here: ["holiday.mov": "O"], record: ["holiday.mov": pair]) == ["holiday.mov": .none(keep: pair)])
+    }
+
+    /// As otc-sync's TestBackupKeepsTheOriginalOfACompressedFile: a backup
+    /// holds a file compressed on the device at its name, or under the name
+    /// the compress gave it ("x (2)" too), and a copy of the original here
+    /// goes up as the device's copy.
+    @Test func backupOfACompressedFile() {
+        let listed: [String: SyncPaths.ListedFile] = ["clip.mov": copyOf("D1", "O1"), "shot.jpg": copyOf("D2", "O2"), "pic.jpg": .init(hash: "P"),
+                                                      "pic (2).jpg": copyOf("D3", "O3")]
+        let edited = SyncPaths.originalsByStem(listed.compactMapValues { $0.originalHash.isEmpty ? nil : $0.originalHash })
+        #expect(edited[SyncPaths.stem("shot.png")] == ["O2"])
+        #expect(edited[SyncPaths.stem("pic.heic")] == ["O3"])
+        #expect(edited[SyncPaths.stem("other.png")] == nil)
+        #expect(SyncPaths.compressedCopies(listed)["O2"] == "D2")
     }
 
     @Test func backupWatcherSkipsWhatReconcileSkips() {
