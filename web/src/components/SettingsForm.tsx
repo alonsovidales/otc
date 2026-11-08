@@ -567,15 +567,6 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
 
       <LanguagePanel />
 
-      {onShowTour && (
-        <section className="sf-section">
-          <h3>{t("web.tour.settings.title")}</h3>
-          <p className="sf-hint">{t("web.tour.settings.hint")}</p>
-          {/* The tour's last step rings it (tourSteps.ts). */}
-          <button type="button" className="sf-btn" data-tour="show-tour" onClick={onShowTour}>{t("web.tour.show")}</button>
-        </section>
-      )}
-
       <UsersPanel />
 
       <section className="sf-section">
@@ -845,6 +836,16 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
           {signingOut ? t("web.settings.session.signing_out") : t("web.settings.session.sign_out")}
         </button>
       </section>
+
+      {/* Last (the owner, 2026-11-08: it matters little once the app is
+          known). The tour's last step rings it (tourSteps.ts). */}
+      {onShowTour && (
+        <section className="sf-section">
+          <h3>{t("web.tour.settings.title")}</h3>
+          <p className="sf-hint">{t("web.tour.settings.hint")}</p>
+          <button type="button" className="sf-btn" data-tour="show-tour" onClick={onShowTour}>{t("web.tour.show")}</button>
+        </section>
+      )}
     </div>
   );
 }

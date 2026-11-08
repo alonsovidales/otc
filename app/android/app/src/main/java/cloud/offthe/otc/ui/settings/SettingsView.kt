@@ -619,11 +619,6 @@ fun SettingsView(secrets: SecretsStore) {
                 }
             }
 
-            // The first-run tour again, from its first page (Tour.kt).
-            Section(S.appTourSettingsTitle().resolve(), S.appTourSettingsFooter().resolve()) {
-                RowLink(S.appTourShow().resolve(), Modifier.tourTarget(TourTarget.SHOW_TOUR)) { TourModel.replay() }
-            }
-
             Section(S.appSettingsStatusTitle().resolve()) { StatusSectionContent(status) }
 
             // Storage (issue #208): a disk that isn't blank, offered for the
@@ -846,6 +841,13 @@ fun SettingsView(secrets: SecretsStore) {
             }
 
             LogsSection { showLogs = true }
+
+            // The first-run tour again, from its first page (Tour.kt); last,
+            // as it matters little once the app is known (the owner,
+            // 2026-11-08).
+            Section(S.appTourSettingsTitle().resolve(), S.appTourSettingsFooter().resolve()) {
+                RowLink(S.appTourShow().resolve(), Modifier.tourTarget(TourTarget.SHOW_TOUR)) { TourModel.replay() }
+            }
             Spacer(Modifier.height(24.dp))
         }
         Toast(dst.toast?.resolve(), Modifier.align(Alignment.TopCenter))

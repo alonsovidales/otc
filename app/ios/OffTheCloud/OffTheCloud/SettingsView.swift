@@ -554,13 +554,6 @@ struct SettingsView: View {
                     }
                 }
 
-                // The first-run tour again, from its first page (Tour.swift).
-                Section(header: Text(S.appTourSettingsTitle), footer: Text(S.appTourSettingsFooter)) {
-                    Button(S.appTourShow) { TourModel.shared.replay() }
-                        .tourTarget(.showTour)
-                        .id(TourTarget.showTour)
-                }
-
                 Section(header: Text(S.appSettingsStatusTitle)) {
                     StatusSectionContent(vm: status)
                 }
@@ -792,6 +785,15 @@ struct SettingsView: View {
                 // The device's logs, live, with Share and "Send to us".
                 // Primary-only - see LogsSection.
                 LogsSection(vm: logs)
+
+                // The first-run tour again, from its first page (Tour.swift);
+                // last, as it matters little once the app is known (the
+                // owner, 2026-11-08).
+                Section(header: Text(S.appTourSettingsTitle), footer: Text(S.appTourSettingsFooter)) {
+                    Button(S.appTourShow) { TourModel.shared.replay() }
+                        .tourTarget(.showTour)
+                        .id(TourTarget.showTour)
+                }
             }
             // No nav title (issue #19): the tab bar already labels this
             // screen "Settings". Still .inline so there's no big empty
