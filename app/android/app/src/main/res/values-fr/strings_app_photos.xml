@@ -104,6 +104,15 @@
     <string name="app_photos_edit_save_title">Enregistrer la modification</string>
     <string name="app_photos_edit_saved_copy">Enregistrée sous \u2068%1$s\u2069</string>
     <string name="app_photos_edit_saving">Enregistrement…</string>
+    <plurals name="app_photos_edit_video_copies_text">
+        <item quantity="one">Cette vidéo se trouve à %1$s endroits sur votre appareil. La remplacer partout, ou seulement ici ?</item>
+        <item quantity="many">Cette vidéo se trouve à %1$s endroits sur votre appareil. La remplacer partout, ou seulement ici ?</item>
+        <item quantity="other">Cette vidéo se trouve à %1$s endroits sur votre appareil. La remplacer partout, ou seulement ici ?</item>
+    </plurals>
+    <string name="app_photos_edit_video_cut_note">Pour garder toute la qualité de la vidéo, la découpe peut commencer un peu avant le point choisi, en général une seconde ou moins.</string>
+    <string name="app_photos_edit_video_replace">Remplacer la vidéo</string>
+    <string name="app_photos_edit_video_revert_text">La découpe est annulée et la vidéo redevient telle qu’elle était avant.</string>
+    <string name="app_photos_edit_video_save_text">Remplacer la vidéo par la découpe, ou enregistrer la découpe comme nouvelle vidéo à côté ? Si vous la remplacez, l’original est conservé pour que vous puissiez y revenir.</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s élément · %2$s</item>
         <item quantity="many">%1$s éléments · %2$s</item>

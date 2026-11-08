@@ -12,6 +12,8 @@
   "dev.files.content_unavailable": {"text": "o conteúdo de {path} está em falta ou ilegível neste dispositivo"},
   "dev.files.content_unreadable": {"text": "o conteúdo de {path} está ilegível neste dispositivo"},
   "dev.files.copy_upload_only": {"text": "há uma cópia na pasta em apenas carregamento {folder}: nenhuma cópia foi eliminada"},
+  "dev.files.cut_failed": {"text": "o dispositivo não conseguiu cortar o vídeo"},
+  "dev.files.cut_too_short": {"text": "o corte tem de manter pelo menos meio segundo do vídeo"},
   "dev.files.delete_failed": {"text": "erro ao tentar eliminar o ficheiro: {detail}"},
   "dev.files.download_failed": {"text": "erro ao tentar transferir o ficheiro: {detail}"},
   "dev.files.edit_failed": {"text": "não foi possível guardar a edição: {reason}"},
@@ -45,6 +47,7 @@
   "dev.files.no_such_job": {"text": "essa tarefa não existe"},
   "dev.files.no_such_link": {"text": "essa ligação não existe"},
   "dev.files.no_such_path": {"text": "ficheiro ou pasta inexistente: {path}"},
+  "dev.files.not_cuttable": {"text": "este vídeo não pode ser cortado: o dispositivo pode cortar vídeos MP4, MOV, M4V, 3GP, MKV, WebM e AVI"},
   "dev.files.not_editable": {"text": "este ficheiro não pode ser editado: só é possível rodar e recortar fotos, não vídeos, ficheiros RAW de câmara nem animações"},
   "dev.files.not_edited": {"text": "esta foto não tem nenhuma edição para anular"},
   "dev.files.not_on_device": {"text": "{path} não está neste dispositivo"},
@@ -101,6 +104,7 @@
   "dev.files.video_no_frames": {"text": "não foi possível extrair nenhum fotograma do vídeo"},
   "dev.files.video_no_frames_extracted": {"text": "nenhum fotograma extraído do vídeo"},
   "dev.files.video_not_cut": {"text": "não foi possível cortar o vídeo, por isso nada foi publicado: tenta novamente ou publica-o sem o cortar"},
+  "dev.files.video_not_edited": {"text": "este vídeo não tem nenhuma edição para anular"},
   "dev.files.video_not_reduced": {"text": "não foi possível reduzir o vídeo para a publicação e, com {size}, é demasiado grande para o partilhar tal como está"},
   "dev.files.whole_library": {"text": "não é possível eliminar toda a biblioteca de uma vez: elimina antes as suas pastas ou ficheiros"}
 }

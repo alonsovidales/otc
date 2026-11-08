@@ -677,6 +677,29 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   - **Revert** puts the original back (its name too, `original_ext`, when free), and the edit
     goes once no path holds it. Turning an edit back to the original's very bytes is a revert,
     with no edit row.
+  - **Videos** (2026-11-08, `files_manager/edit_video.go`; the owner asked for the post
+    composer's cut on videos, and chose a lossless cut over an exact re-encode): `EditVideo
+    {path, hash, start_secs, end_secs, as_copy, every_copy}` (165) -> resp_file; RevertImage and
+    GetEditState as for photos. ffmpeg copies the streams (`-c copy`, `cutArgs`): nothing lost, HDR,
+    rotation, date and place kept (`-map_metadata 0`, `use_metadata_tags`; only the picture and
+    sound tracks, `-map 0:v -map 0:a?`, as a phone's timed-metadata tracks may not go back into
+    the container). A copied stream starts at a keyframe: an MP4 or MOV keeps the frames from the
+    last one before the start behind an edit list (ffmpeg's default timestamps), so players that
+    read it start exactly there and one that doesn't starts at the keyframe with the sound in step
+    (measured with a flash and a beep, ffmpeg 7.1 reading and ignoring edit lists); an MKV, WebM or
+    AVI has none and starts at the keyframe (`-avoid_negative_ts make_zero`). The container stays
+    the video's own (`cutFormats` by type, `cutExtFormats` by extension for an unknown type; MPEG-TS,
+    WMV, FLV... are `not_editable`, `dev.files.not_cuttable`). `cutRange`: an end of 0, past the
+    video's or within 0.05 s of it is the end; under 0.5 s is `too_short` (`dev.files.cut_too_short`);
+    the whole video changes nothing. ffmpeg reads the stored video over the loopback stream in a
+    post transcode's slot (`transcodeSlots`, `jobTranscode`) and writes a plain `.cut-*` into
+    unenc-storage-path (checked for room first; the orphan sweep takes one a power cut left),
+    sealed into the storage a segment at a time (`storeEditFile`) and saved by `saveEdit`, the
+    photo edit's own path (shared since this): a cut keeps its name (`renames` nil), a copy is
+    `<name> (edited).<ext>`, faces are left to the analysis. A failed ffmpeg is
+    `dev.files.edit_failed` with `cut_failed`; a revert with nothing to undo on a video says
+    `dev.files.video_not_edited`. Tests: `edit_video_test.go` and `TestCutAndRevertVideoMySQL`
+    (a real cut with the Mac's ffmpeg against MariaDB, as the photo tests).
   - **Listings:** ListFiles, SearchFiles and SearchPhotos pages set `File.original_hash` (16)
     (`setOriginals`, one query, a failure only logged) for the viewers' Revert to original.
   - **Tests:** `edit_image_test.go` (the maths, EXIF, ICC, formats) and
@@ -1476,7 +1499,7 @@ is what can be written, and Settings > Users' share is of that size. `storagewat
 pushed too (`push.storage.full_*`, no figures), each once until the disk goes 5 points under it
 (`<storage>/.storage-alerted`).
 At every start `sweepOrphanedStorage` removes what interrupted work left at the top
-level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries with no
+level (`.blob-*`/`.upload-*`, `.post-*` and a video cut's `.cut-*`, archives and `shared/<uuid>` galleries with no
 `shared_links` row - none if that query fails): in the background once the listeners are up
 (`AfterListening`, from bin/otc.go), reading the flat folder 4096 entries at a time (unsorted),
 and only what was last modified a minute or more before this process started (`Manager.started`),

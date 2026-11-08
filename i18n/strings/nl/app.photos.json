@@ -312,6 +312,32 @@
     "text": "Opslaan…",
     "en": "Saving…"
   },
+  "app.photos.edit.video_copies_text": {
+    "text": {
+      "one": "Deze video staat op {count} plekken op je apparaat. Overal vervangen of alleen hier?",
+      "other": "Deze video staat op {count} plekken op je apparaat. Overal vervangen of alleen hier?"
+    },
+    "en": {
+      "one": "This video is in {count} places on your device. Replace it in all of them, or only here?",
+      "other": "This video is in {count} places on your device. Replace it in all of them, or only here?"
+    }
+  },
+  "app.photos.edit.video_cut_note": {
+    "text": "Om de volledige kwaliteit van de video te behouden, kan de ingekorte versie iets vóór het gekozen punt beginnen, meestal een seconde of minder.",
+    "en": "To keep the video's full quality, the cut can start a little before the point you chose, usually by a second or less."
+  },
+  "app.photos.edit.video_replace": {
+    "text": "Video vervangen",
+    "en": "Replace Video"
+  },
+  "app.photos.edit.video_revert_text": {
+    "text": "Het inkorten wordt ongedaan gemaakt en de video is weer zoals ervoor.",
+    "en": "The cut is undone and the video is as it was before it was cut."
+  },
+  "app.photos.edit.video_save_text": {
+    "text": "De video vervangen door de ingekorte versie, of die als nieuwe video ernaast opslaan? Bij vervangen blijft het origineel bewaard, zodat je ernaar terug kunt.",
+    "en": "Replace the video with the cut, or save the cut as a new video next to it? A replaced video's original is kept, so you can go back to it."
+  },
   "app.photos.grid.collection_items_span": {
     "text": {
       "one": "{count} item · {span}",

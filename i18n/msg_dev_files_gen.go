@@ -69,6 +69,16 @@ func DevFilesCopyUploadOnly(folder string) Msg {
 	return Msg{Key: "dev.files.copy_upload_only", Args: map[string]any{"folder": folder}}
 }
 
+// DevFilesCutFailed is dev.files.cut_failed: "the device couldn't cut the video".
+func DevFilesCutFailed() Msg {
+	return Msg{Key: "dev.files.cut_failed"}
+}
+
+// DevFilesCutTooShort is dev.files.cut_too_short: "a cut has to keep at least half a second of the video".
+func DevFilesCutTooShort() Msg {
+	return Msg{Key: "dev.files.cut_too_short"}
+}
+
 // DevFilesDeleteFailed is dev.files.delete_failed: "error trying to delete file: {detail}".
 func DevFilesDeleteFailed(detail string) Msg {
 	return Msg{Key: "dev.files.delete_failed", Args: map[string]any{"detail": detail}}
@@ -232,6 +242,11 @@ func DevFilesNoSuchLink() Msg {
 // DevFilesNoSuchPath is dev.files.no_such_path: "no such file or directory: {path}".
 func DevFilesNoSuchPath(path string) Msg {
 	return Msg{Key: "dev.files.no_such_path", Args: map[string]any{"path": path}}
+}
+
+// DevFilesNotCuttable is dev.files.not_cuttable: "this video can't be cut: the device can cut MP4, MOV, M4V, 3GP, MKV, WebM and AV…".
+func DevFilesNotCuttable() Msg {
+	return Msg{Key: "dev.files.not_cuttable"}
 }
 
 // DevFilesNotEditable is dev.files.not_editable: "this file can't be edited: only photos can be turned and cropped, not videos, ca…".
@@ -512,6 +527,11 @@ func DevFilesVideoNoFramesExtracted() Msg {
 // DevFilesVideoNotCut is dev.files.video_not_cut: "the video could not be cut, so nothing was posted: try again, or post it without…".
 func DevFilesVideoNotCut() Msg {
 	return Msg{Key: "dev.files.video_not_cut"}
+}
+
+// DevFilesVideoNotEdited is dev.files.video_not_edited: "this video has no edit to undo".
+func DevFilesVideoNotEdited() Msg {
+	return Msg{Key: "dev.files.video_not_edited"}
 }
 
 // DevFilesVideoNotReduced is dev.files.video_not_reduced: "the video could not be made smaller for the post, and at {size} it is too large …".

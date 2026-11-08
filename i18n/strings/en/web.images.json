@@ -504,6 +504,31 @@
     "note": "Shown while the device saves the edit (it turns and crops the full-size photo: a few seconds). In the web app's photo editor.",
     "max": 24
   },
+  "web.images.edit.video_copies_text": {
+    "text": {
+      "one": "This video is in {count} places on your device. Replace it in all of them, or only here?",
+      "other": "This video is in {count} places on your device. Replace it in all of them, or only here?"
+    },
+    "args": [["count", "count"]],
+    "note": "Asked after video_replace when the device holds the same video at more than one path (the web app's viewer, Edit on a video). {count} is how many, this one included: always 2 or more, so both forms are the plural. As copies_text, for a video."
+  },
+  "web.images.edit.video_cut_note": {
+    "text": "To keep the video's full quality, the cut can start a little before the point you chose, usually by a second or less.",
+    "note": "Small print under the start and end slider when a video is cut (the web app's viewer, Edit on a video): the device copies the video without re-encoding it, so the cut starts at the video's last keyframe before the chosen start. Say it without technical words."
+  },
+  "web.images.edit.video_replace": {
+    "text": "Replace video",
+    "note": "Button of the Save question of a video's cut (the web app's viewer, Edit on a video): the cut takes the video's place, its original kept for Revert. As replace, for a video.",
+    "max": 24
+  },
+  "web.images.edit.video_revert_text": {
+    "text": "The cut is undone and the video is as it was before it was cut.",
+    "note": "Text of the Revert to original question for a cut video (the web app's viewer, Edit on a video; title revert_title, button revert_button). As revert_text, for a video."
+  },
+  "web.images.edit.video_save_text": {
+    "text": "Replace the video with the cut, or save the cut as a new video next to it? A replaced video's original is kept, so you can go back to it.",
+    "note": "Text of the Save question after a video was cut (the web app's viewer, Edit on a video; title save_title). As save_text, for a video: the cut is the part between the start and the end chosen."
+  },
   "web.images.error.unreachable": {
     "text": "Couldn't reach your device. Try again.",
     "note": "Error at the bottom of Images or in a dialog (Add to collection, Delete collection) when the user's device didn't answer a request (making a share link or ZIP, adding to or creating or deleting a collection)."

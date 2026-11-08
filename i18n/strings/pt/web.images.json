@@ -464,6 +464,32 @@
     "text": "A guardar…",
     "en": "Saving…"
   },
+  "web.images.edit.video_copies_text": {
+    "text": {
+      "one": "Este vídeo está em {count} sítios no teu dispositivo. Substituí-lo em todos ou só aqui?",
+      "other": "Este vídeo está em {count} sítios no teu dispositivo. Substituí-lo em todos ou só aqui?"
+    },
+    "en": {
+      "one": "This video is in {count} places on your device. Replace it in all of them, or only here?",
+      "other": "This video is in {count} places on your device. Replace it in all of them, or only here?"
+    }
+  },
+  "web.images.edit.video_cut_note": {
+    "text": "Para manter toda a qualidade do vídeo, o corte pode começar um pouco antes do ponto que escolheste, normalmente um segundo ou menos.",
+    "en": "To keep the video's full quality, the cut can start a little before the point you chose, usually by a second or less."
+  },
+  "web.images.edit.video_replace": {
+    "text": "Substituir vídeo",
+    "en": "Replace video"
+  },
+  "web.images.edit.video_revert_text": {
+    "text": "O corte é anulado e o vídeo volta a estar como antes de ser cortado.",
+    "en": "The cut is undone and the video is as it was before it was cut."
+  },
+  "web.images.edit.video_save_text": {
+    "text": "Substituir o vídeo pelo corte ou guardar o corte como um vídeo novo ao lado? Se o substituíres, o original é guardado para poderes voltar a ele.",
+    "en": "Replace the video with the cut, or save the cut as a new video next to it? A replaced video's original is kept, so you can go back to it."
+  },
   "web.images.error.unreachable": {
     "text": "Não foi possível contactar o teu dispositivo. Tenta novamente.",
     "en": "Couldn't reach your device. Try again."

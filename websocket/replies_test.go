@@ -282,6 +282,10 @@ var headEnglish = []struct {
 	{"dev.files.not_edited", i18n.DevFilesNotEdited(), "this photo has no edit to undo"},
 	{"dev.files.edits_unavailable", i18n.DevFilesEditsUnavailable(), "this device can edit photos once its update has finished: try again in a few minutes"},
 	{"dev.files.edit_failed", i18n.DevFilesEditFailed("x"), "the edit could not be saved: x"},
+	{"dev.files.not_cuttable", i18n.DevFilesNotCuttable(), "this video can't be cut: the device can cut MP4, MOV, M4V, 3GP, MKV, WebM and AVI videos"},
+	{"dev.files.cut_too_short", i18n.DevFilesCutTooShort(), "a cut has to keep at least half a second of the video"},
+	{"dev.files.video_not_edited", i18n.DevFilesVideoNotEdited(), "this video has no edit to undo"},
+	{"dev.files.cut_failed", i18n.DevFilesCutFailed(), "the device couldn't cut the video"},
 	{"dev.files.edited_copy_name", i18n.DevFilesEditedCopyName("IMG_1"), "IMG_1 (edited)"},
 }
 

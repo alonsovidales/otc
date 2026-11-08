@@ -333,6 +333,34 @@ extension S {
     /// Shown while the device saves the edit (it turns and crops the full-size photo: a few seconds). In the phone apps' (iPhone, Android) photo editor.
     static var appPhotosEditSaving: String { L("app.photos.edit.saving", table: "AppPhotos") }
 
+    /// one: This video is in {count} places on your device. Replace it in all of them, or only here?
+    /// other: This video is in {count} places on your device. Replace it in all of them, or only here?
+    ///
+    /// Asked after video_replace when the device holds the same video at more than one path (the phone apps' (iPhone, Android) viewer, Edit on a video). {count} is how many, this one included: always 2 or more, so both forms are the plural. As copies_text, for a video.
+    static func appPhotosEditVideoCopiesText(count: Int) -> String {
+        L("app.photos.edit.video_copies_text", table: "AppPhotos", count)
+    }
+
+    /// To keep the video's full quality, the cut can start a little before the point you chose, usually by a second or less.
+    ///
+    /// Small print under the start and end slider when a video is cut (the phone apps' (iPhone, Android) viewer, Edit on a video): the device copies the video without re-encoding it, so the cut starts at the video's last keyframe before the chosen start. Say it without technical words.
+    static var appPhotosEditVideoCutNote: String { L("app.photos.edit.video_cut_note", table: "AppPhotos") }
+
+    /// Replace Video
+    ///
+    /// Button of the Save question of a video's cut (the phone apps' (iPhone, Android) viewer, Edit on a video): the cut takes the video's place, its original kept for Revert. As replace, for a video.
+    static var appPhotosEditVideoReplace: String { L("app.photos.edit.video_replace", table: "AppPhotos") }
+
+    /// The cut is undone and the video is as it was before it was cut.
+    ///
+    /// Text of the Revert to original question for a cut video (the phone apps' (iPhone, Android) viewer, Edit on a video; title revert_title, button revert_button). As revert_text, for a video.
+    static var appPhotosEditVideoRevertText: String { L("app.photos.edit.video_revert_text", table: "AppPhotos") }
+
+    /// Replace the video with the cut, or save the cut as a new video next to it? A replaced video's original is kept, so you can go back to it.
+    ///
+    /// Text of the Save question after a video was cut (the phone apps' (iPhone, Android) viewer, Edit on a video; title save_title). As save_text, for a video: the cut is the part between the start and the end chosen.
+    static var appPhotosEditVideoSaveText: String { L("app.photos.edit.video_save_text", table: "AppPhotos") }
+
     /// one: {count} item · {span}
     /// other: {count} items · {span}
     ///

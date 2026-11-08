@@ -53,6 +53,14 @@
     "en": "a copy is in the upload-only folder {folder}: no copy was deleted",
     "reviewed": "claude-backtranslation 2026-10-14 #b5c3fec7"
   },
+  "dev.files.cut_failed": {
+    "text": "l’appareil n’a pas pu découper la vidéo",
+    "en": "the device couldn't cut the video"
+  },
+  "dev.files.cut_too_short": {
+    "text": "la découpe doit garder au moins une demi-seconde de la vidéo",
+    "en": "a cut has to keep at least half a second of the video"
+  },
   "dev.files.delete_failed": {
     "text": "erreur lors de la suppression du fichier : {detail}",
     "en": "error trying to delete file: {detail}"
@@ -184,6 +192,10 @@
   "dev.files.no_such_path": {
     "text": "fichier ou dossier introuvable : {path}",
     "en": "no such file or directory: {path}"
+  },
+  "dev.files.not_cuttable": {
+    "text": "cette vidéo ne peut pas être découpée : l’appareil peut découper les vidéos MP4, MOV, M4V, 3GP, MKV, WebM et AVI",
+    "en": "this video can't be cut: the device can cut MP4, MOV, M4V, 3GP, MKV, WebM and AVI videos"
   },
   "dev.files.not_editable": {
     "text": "ce fichier ne peut pas être modifié : seules les photos peuvent être pivotées et recadrées, pas les vidéos, les fichiers RAW d’appareil photo ni les animations",
@@ -409,6 +421,10 @@
   "dev.files.video_not_cut": {
     "text": "la vidéo n’a pas pu être découpée, rien n’a donc été publié : réessayez, ou publiez-la sans la découper",
     "en": "the video could not be cut, so nothing was posted: try again, or post it without cutting it"
+  },
+  "dev.files.video_not_edited": {
+    "text": "cette vidéo n’a aucune modification à annuler",
+    "en": "this video has no edit to undo"
   },
   "dev.files.video_not_reduced": {
     "text": "la vidéo n’a pas pu être réduite pour la publication, et avec {size} elle est trop volumineuse pour être partagée telle quelle",

@@ -12,6 +12,8 @@
   "dev.files.content_unavailable": {"text": "il contenuto di {path} manca o è illeggibile su questo dispositivo"},
   "dev.files.content_unreadable": {"text": "il contenuto di {path} è illeggibile su questo dispositivo"},
   "dev.files.copy_upload_only": {"text": "una copia si trova nella cartella in solo caricamento {folder}: nessuna copia è stata eliminata"},
+  "dev.files.cut_failed": {"text": "il dispositivo non è riuscito a tagliare il video"},
+  "dev.files.cut_too_short": {"text": "il taglio deve mantenere almeno mezzo secondo del video"},
   "dev.files.delete_failed": {"text": "errore durante l’eliminazione del file: {detail}"},
   "dev.files.download_failed": {"text": "errore durante il download del file: {detail}"},
   "dev.files.edit_failed": {"text": "non è stato possibile salvare la modifica: {reason}"},
@@ -45,6 +47,7 @@
   "dev.files.no_such_job": {"text": "operazione inesistente"},
   "dev.files.no_such_link": {"text": "link inesistente"},
   "dev.files.no_such_path": {"text": "file o cartella inesistente: {path}"},
+  "dev.files.not_cuttable": {"text": "questo video non può essere tagliato: il dispositivo può tagliare video MP4, MOV, M4V, 3GP, MKV, WebM e AVI"},
   "dev.files.not_editable": {"text": "questo file non si può modificare: si possono ruotare e ritagliare solo le foto, non i video, i file RAW della fotocamera o le animazioni"},
   "dev.files.not_edited": {"text": "questa foto non ha modifiche da annullare"},
   "dev.files.not_on_device": {"text": "{path} non è su questo dispositivo"},
@@ -101,6 +104,7 @@
   "dev.files.video_no_frames": {"text": "impossibile estrarre fotogrammi dal video"},
   "dev.files.video_no_frames_extracted": {"text": "nessun fotogramma estratto dal video"},
   "dev.files.video_not_cut": {"text": "non è stato possibile tagliare il video, quindi non è stato pubblicato nulla: riprova, o pubblicalo senza tagliarlo"},
+  "dev.files.video_not_edited": {"text": "questo video non ha modifiche da annullare"},
   "dev.files.video_not_reduced": {"text": "non è stato possibile ridurre il video per il post e, con {size}, è troppo grande per condividerlo così com’è"},
   "dev.files.whole_library": {"text": "non si può eliminare l’intera libreria in una volta: elimina invece le sue cartelle o i suoi file"}
 }

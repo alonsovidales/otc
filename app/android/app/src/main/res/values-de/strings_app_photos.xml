@@ -93,6 +93,14 @@
     <string name="app_photos_edit_save_title">Bearbeitung speichern</string>
     <string name="app_photos_edit_saved_copy">Gespeichert als \u2068%1$s\u2069</string>
     <string name="app_photos_edit_saving">Wird gespeichert…</string>
+    <plurals name="app_photos_edit_video_copies_text">
+        <item quantity="one">Dieses Video liegt an %1$s Stellen auf deinem Gerät. Überall ersetzen oder nur hier?</item>
+        <item quantity="other">Dieses Video liegt an %1$s Stellen auf deinem Gerät. Überall ersetzen oder nur hier?</item>
+    </plurals>
+    <string name="app_photos_edit_video_cut_note">Damit die volle Qualität des Videos erhalten bleibt, kann die gekürzte Fassung etwas vor der gewählten Stelle beginnen, meist höchstens eine Sekunde.</string>
+    <string name="app_photos_edit_video_replace">Video ersetzen</string>
+    <string name="app_photos_edit_video_revert_text">Die Kürzung wird rückgängig gemacht und das Video ist wieder so wie vorher.</string>
+    <string name="app_photos_edit_video_save_text">Das Video durch die gekürzte Fassung ersetzen oder sie als neues Video daneben speichern? Beim Ersetzen bleibt das Original erhalten, damit du dorthin zurückkehren kannst.</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s Element · %2$s</item>
         <item quantity="other">%1$s Elemente · %2$s</item>

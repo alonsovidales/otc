@@ -207,6 +207,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqDelFile{}):                   demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqEditImage{}):                 demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqRevertImage{}):               demoRefuse,
+	demoReq(&pb.ReqEnvelope_ReqEditVideo{}):                 demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqSetUploadOnly{}):             demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqSetOutOfImages{}):            demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqRenamePerson{}):              demoRefuse,

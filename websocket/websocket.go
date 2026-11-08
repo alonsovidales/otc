@@ -92,12 +92,15 @@ const (
 	// nothing was deleted, and the client refreshes before asking again.
 	cCodeContentChanged = "changed"
 
-	// Photo edits (EditImage, RevertImage): cCodeNotEditable is content the
-	// device doesn't edit (a video, a camera raw, an animation), or an
-	// update not finished; cCodeNotEdited a revert of content that is no
-	// edit. Nothing was changed; the message says why.
+	// Photo and video edits (EditImage, EditVideo, RevertImage):
+	// cCodeNotEditable is content the device doesn't edit (a camera raw, an
+	// animation; a video in a format it can't cut), or an update not
+	// finished; cCodeNotEdited a revert of content that is no edit;
+	// cCodeTooShort a cut keeping less than half a second. Nothing was
+	// changed; the message says why.
 	cCodeNotEditable = "not_editable"
 	cCodeNotEdited   = "not_edited"
+	cCodeTooShort    = "too_short"
 
 	// Bridge connection pool. A connection is consumed for as long as the
 	// bridge-side client that picked it up keeps its socket open — see
@@ -3012,6 +3015,16 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqEditImage:
 		log.Debug("Edit image:", p.ReqEditImage.Path, "turns:", p.ReqEditImage.QuarterTurns, "copy:", p.ReqEditImage.AsCopy, "every copy:", p.ReqEditImage.EveryCopy)
 		file, err := ch.mg.filesManager.EditImage(ses, p.ReqEditImage, lang)
+		if err != nil {
+			editError(resp, lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespFile{RespFile: file}
+		}
+
+	// Video edits: a cut by time, copied as it is (files_manager/edit_video.go).
+	case *pb.ReqEnvelope_ReqEditVideo:
+		log.Debug("Edit video:", p.ReqEditVideo.Path, "from:", p.ReqEditVideo.StartSecs, "to:", p.ReqEditVideo.EndSecs, "copy:", p.ReqEditVideo.AsCopy, "every copy:", p.ReqEditVideo.EveryCopy)
+		file, err := ch.mg.filesManager.EditVideo(ses, p.ReqEditVideo, lang)
 		if err != nil {
 			editError(resp, lang, err)
 		} else {

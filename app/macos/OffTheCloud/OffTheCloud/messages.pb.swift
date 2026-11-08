@@ -1209,12 +1209,67 @@ public nonisolated struct Msg_EditCrop: Sendable {
   public init() {}
 }
 
-/// Photo edit: puts the original back (File.original_hash) at path - or,
-/// with every_copy, at every path holding the same edit - with its own name
-/// back when the edit changed it and that name is free. The edit itself is
-/// deleted once no path holds it, and its collections and ratings go back
-/// to the original. Answers with the file at path (resp_file); error_code
-/// "changed" as EditImage's, "not_edited" when path holds no edit.
+/// Video edit: cuts a video down to the part from start_secs to end_secs
+/// on the device (the viewers' Edit on a video, with the post composer's
+/// trimmer). The streams are copied, never re-encoded: nothing of the
+/// picture or the sound is lost, an HDR recording stays HDR, its date, place
+/// and rotation stay, and a long 4K recording is cut in seconds. A copied
+/// stream begins at a keyframe, so the cut keeps the frames from the last
+/// one at or before start_secs: an MP4 or MOV hides them behind an edit list
+/// (players that read it start at start_secs exactly; one that doesn't
+/// starts at the keyframe, the sound in step), an MKV, WebM or AVI starts
+/// at the keyframe - a moment earlier, a second or less on a phone's
+/// recording. It ends at end_secs. MP4, MOV, M4V, 3GP, MKV, WebM and AVI can
+/// be cut.
+///
+/// Otherwise as EditImage: the cut is new content with a hash of its own and
+/// the original is kept hidden (File.original_hash; RevertImage puts it
+/// back, for a video as for a photo); as_copy saves it next to the video as
+/// "<name> (edited).mp4", with the video's extension and date; every_copy
+/// replaces it at every path holding the same content. Ask GetEditState
+/// first, as for a photo. A cut that keeps the whole video changes nothing
+/// and answers with the file as it is.
+///
+/// Answers with the edited file (resp_file), or an error: error_code
+/// "changed" as EditImage's, "not_editable" for a video in another format
+/// or a file that isn't a video, "too_short" when the cut keeps less than
+/// half a second (or starts past the end), "storage_full" when there is no
+/// room; the message says so in the owner's language. Devices before it
+/// answer "unknown_payload".
+public nonisolated struct Msg_EditVideo: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var path: String = String()
+
+  /// As EditImage.hash.
+  public var hash: String = String()
+
+  /// Seconds from the video's start.
+  public var startSecs: Double = 0
+
+  /// The end, in seconds from the video's start; zero, or past the video's
+  /// end, cuts to the end.
+  public var endSecs: Double = 0
+
+  public var asCopy: Bool = false
+
+  /// With as_copy false: every path holding this content, not only path.
+  public var everyCopy: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Photo and video edit: puts the original back (File.original_hash) at
+/// path - or, with every_copy, at every path holding the same edit - with
+/// its own name back when the edit changed it and that name is free. The
+/// edit itself is deleted once no path holds it, and its collections and
+/// ratings go back to the original. Answers with the file at path
+/// (resp_file); error_code "changed" as EditImage's, "not_edited" when path
+/// holds no edit.
 public nonisolated struct Msg_RevertImage: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1231,10 +1286,10 @@ public nonisolated struct Msg_RevertImage: Sendable {
   public init() {}
 }
 
-/// Photo edit: what the edit's Save asks before it is sent - how many paths
-/// hold the content at path (copies, at least 1: the "all N copies or only
-/// this one" question), and whether it is an edit (edited: Revert to
-/// original). Answers with EditState.
+/// Photo and video edit: what the edit's Save asks before it is sent - how
+/// many paths hold the content at path (copies, at least 1: the "all N
+/// copies or only this one" question), and whether it is an edit (edited:
+/// Revert to original). Answers with EditState.
 public nonisolated struct Msg_GetEditState: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -7862,6 +7917,16 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqGetEditState(newValue)}
   }
 
+  /// Video edit: answers with resp_file. Devices before it answer
+  /// "unknown_payload".
+  public var reqEditVideo: Msg_EditVideo {
+    get {
+      if case .reqEditVideo(let v)? = payload {return v}
+      return Msg_EditVideo()
+    }
+    set {payload = .reqEditVideo(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -8144,6 +8209,9 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     case reqEditImage(Msg_EditImage)
     case reqRevertImage(Msg_RevertImage)
     case reqGetEditState(Msg_GetEditState)
+    /// Video edit: answers with resp_file. Devices before it answer
+    /// "unknown_payload".
+    case reqEditVideo(Msg_EditVideo)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -10131,6 +10199,61 @@ nonisolated extension Msg_EditCrop: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if lhs.y != rhs.y {return false}
     if lhs.width != rhs.width {return false}
     if lhs.height != rhs.height {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_EditVideo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".EditVideo"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}hash\0\u{3}start_secs\0\u{3}end_secs\0\u{3}as_copy\0\u{3}every_copy\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.hash) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.startSecs) }()
+      case 4: try { try decoder.decodeSingularDoubleField(value: &self.endSecs) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.asCopy) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.everyCopy) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    if !self.hash.isEmpty {
+      try visitor.visitSingularStringField(value: self.hash, fieldNumber: 2)
+    }
+    if self.startSecs.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.startSecs, fieldNumber: 3)
+    }
+    if self.endSecs.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.endSecs, fieldNumber: 4)
+    }
+    if self.asCopy != false {
+      try visitor.visitSingularBoolField(value: self.asCopy, fieldNumber: 5)
+    }
+    if self.everyCopy != false {
+      try visitor.visitSingularBoolField(value: self.everyCopy, fieldNumber: 6)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_EditVideo, rhs: Msg_EditVideo) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.hash != rhs.hash {return false}
+    if lhs.startSecs != rhs.startSecs {return false}
+    if lhs.endSecs != rhs.endSecs {return false}
+    if lhs.asCopy != rhs.asCopy {return false}
+    if lhs.everyCopy != rhs.everyCopy {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -18967,7 +19090,7 @@ nonisolated extension Msg_LocalEndpoint: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0\u{3}req_set_places_enabled\0\u{3}req_get_memories\0\u{3}req_hide_memory\0\u{3}req_set_memories_enabled\0\u{3}req_set_smart_search_enabled\0\u{3}req_get_favourites\0\u{3}req_set_favourite\0\u{3}req_set_person_cover\0\u{3}req_get_photo_faces\0\u{3}req_set_image_group_rating\0\u{3}req_set_photo_rating\0\u{3}req_rate_shared_gallery_item\0\u{3}req_shut_down_device\0\u{3}req_random_photos\0\u{3}req_edit_image\0\u{3}req_revert_image\0\u{3}req_get_edit_state\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0\u{3}req_set_places_enabled\0\u{3}req_get_memories\0\u{3}req_hide_memory\0\u{3}req_set_memories_enabled\0\u{3}req_set_smart_search_enabled\0\u{3}req_get_favourites\0\u{3}req_set_favourite\0\u{3}req_set_person_cover\0\u{3}req_get_photo_faces\0\u{3}req_set_image_group_rating\0\u{3}req_set_photo_rating\0\u{3}req_rate_shared_gallery_item\0\u{3}req_shut_down_device\0\u{3}req_random_photos\0\u{3}req_edit_image\0\u{3}req_revert_image\0\u{3}req_get_edit_state\0\u{3}req_edit_video\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -20953,6 +21076,19 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqGetEditState(v)
         }
       }()
+      case 165: try {
+        var v: Msg_EditVideo?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqEditVideo(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqEditVideo(v)
+        }
+      }()
       default: break
       }
     }
@@ -21577,6 +21713,10 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
     case .reqGetEditState?: try {
       guard case .reqGetEditState(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 164)
+    }()
+    case .reqEditVideo?: try {
+      guard case .reqEditVideo(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 165)
     }()
     case nil: break
     }

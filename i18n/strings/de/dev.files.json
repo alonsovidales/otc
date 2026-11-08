@@ -53,6 +53,14 @@
     "en": "a copy is in the upload-only folder {folder}: no copy was deleted",
     "reviewed": "claude-backtranslation 2026-10-14 #daab1a33"
   },
+  "dev.files.cut_failed": {
+    "text": "das Gerät konnte das Video nicht kürzen",
+    "en": "the device couldn't cut the video"
+  },
+  "dev.files.cut_too_short": {
+    "text": "die gekürzte Fassung muss mindestens eine halbe Sekunde des Videos behalten",
+    "en": "a cut has to keep at least half a second of the video"
+  },
   "dev.files.delete_failed": {
     "text": "Fehler beim Löschen der Datei: {detail}",
     "en": "error trying to delete file: {detail}"
@@ -184,6 +192,10 @@
   "dev.files.no_such_path": {
     "text": "Datei oder Ordner nicht vorhanden: {path}",
     "en": "no such file or directory: {path}"
+  },
+  "dev.files.not_cuttable": {
+    "text": "dieses Video kann nicht gekürzt werden: das Gerät kann MP4-, MOV-, M4V-, 3GP-, MKV-, WebM- und AVI-Videos kürzen",
+    "en": "this video can't be cut: the device can cut MP4, MOV, M4V, 3GP, MKV, WebM and AVI videos"
   },
   "dev.files.not_editable": {
     "text": "diese Datei kann nicht bearbeitet werden: Nur Fotos lassen sich drehen und zuschneiden, keine Videos, Kamera-RAW-Dateien oder Animationen",
@@ -409,6 +421,10 @@
   "dev.files.video_not_cut": {
     "text": "das Video konnte nicht gekürzt werden, deshalb wurde nichts veröffentlicht: Versuche es erneut oder veröffentliche es, ohne es zu kürzen",
     "en": "the video could not be cut, so nothing was posted: try again, or post it without cutting it"
+  },
+  "dev.files.video_not_edited": {
+    "text": "dieses Video hat keine Bearbeitung, die rückgängig gemacht werden kann",
+    "en": "this video has no edit to undo"
   },
   "dev.files.video_not_reduced": {
     "text": "das Video konnte für den Beitrag nicht verkleinert werden, und mit {size} ist es zu groß, um es so zu teilen",

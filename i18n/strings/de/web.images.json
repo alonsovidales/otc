@@ -464,6 +464,32 @@
     "text": "Wird gespeichert…",
     "en": "Saving…"
   },
+  "web.images.edit.video_copies_text": {
+    "text": {
+      "one": "Dieses Video liegt an {count} Stellen auf deinem Gerät. Überall ersetzen oder nur hier?",
+      "other": "Dieses Video liegt an {count} Stellen auf deinem Gerät. Überall ersetzen oder nur hier?"
+    },
+    "en": {
+      "one": "This video is in {count} places on your device. Replace it in all of them, or only here?",
+      "other": "This video is in {count} places on your device. Replace it in all of them, or only here?"
+    }
+  },
+  "web.images.edit.video_cut_note": {
+    "text": "Damit die volle Qualität des Videos erhalten bleibt, kann die gekürzte Fassung etwas vor der gewählten Stelle beginnen, meist höchstens eine Sekunde.",
+    "en": "To keep the video's full quality, the cut can start a little before the point you chose, usually by a second or less."
+  },
+  "web.images.edit.video_replace": {
+    "text": "Video ersetzen",
+    "en": "Replace video"
+  },
+  "web.images.edit.video_revert_text": {
+    "text": "Die Kürzung wird rückgängig gemacht und das Video ist wieder so wie vorher.",
+    "en": "The cut is undone and the video is as it was before it was cut."
+  },
+  "web.images.edit.video_save_text": {
+    "text": "Das Video durch die gekürzte Fassung ersetzen oder sie als neues Video daneben speichern? Beim Ersetzen bleibt das Original erhalten, damit du dorthin zurückkehren kannst.",
+    "en": "Replace the video with the cut, or save the cut as a new video next to it? A replaced video's original is kept, so you can go back to it."
+  },
   "web.images.error.unreachable": {
     "text": "Dein Gerät war nicht erreichbar. Versuche es erneut.",
     "en": "Couldn't reach your device. Try again."

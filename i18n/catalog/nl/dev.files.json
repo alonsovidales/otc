@@ -12,6 +12,8 @@
   "dev.files.content_unavailable": {"text": "de inhoud van {path} ontbreekt of is onleesbaar op dit apparaat"},
   "dev.files.content_unreadable": {"text": "de inhoud van {path} is onleesbaar op dit apparaat"},
   "dev.files.copy_upload_only": {"text": "er staat een kopie in de map {folder} met “Alleen uploaden”: er is geen kopie verwijderd"},
+  "dev.files.cut_failed": {"text": "het apparaat kon de video niet inkorten"},
+  "dev.files.cut_too_short": {"text": "de ingekorte video moet minstens een halve seconde lang zijn"},
   "dev.files.delete_failed": {"text": "fout bij het verwijderen van het bestand: {detail}"},
   "dev.files.download_failed": {"text": "fout bij het downloaden van het bestand: {detail}"},
   "dev.files.edit_failed": {"text": "de bewerking kon niet worden opgeslagen: {reason}"},
@@ -45,6 +47,7 @@
   "dev.files.no_such_job": {"text": "onbekende taak"},
   "dev.files.no_such_link": {"text": "deze link bestaat niet"},
   "dev.files.no_such_path": {"text": "bestand of map bestaat niet: {path}"},
+  "dev.files.not_cuttable": {"text": "deze video kan niet worden ingekort: het apparaat kan MP4-, MOV-, M4V-, 3GP-, MKV-, WebM- en AVI-video's inkorten"},
   "dev.files.not_editable": {"text": "dit bestand kan niet worden bewerkt: alleen foto’s kunnen worden gedraaid en bijgesneden, geen video’s, camera-RAW-bestanden of animaties"},
   "dev.files.not_edited": {"text": "deze foto heeft geen bewerking om ongedaan te maken"},
   "dev.files.not_on_device": {"text": "{path} staat niet op dit apparaat"},
@@ -101,6 +104,7 @@
   "dev.files.video_no_frames": {"text": "kan geen beelden uit de video halen"},
   "dev.files.video_no_frames_extracted": {"text": "geen beelden uit de video gehaald"},
   "dev.files.video_not_cut": {"text": "de video kon niet worden ingekort, dus er is niets geplaatst: probeer het opnieuw, of plaats hem zonder hem in te korten"},
+  "dev.files.video_not_edited": {"text": "deze video heeft geen bewerking om ongedaan te maken"},
   "dev.files.video_not_reduced": {"text": "de video kon niet kleiner worden gemaakt voor het bericht, en met {size} is hij te groot om zo te delen"},
   "dev.files.whole_library": {"text": "de hele bibliotheek kan niet in één keer worden verwijderd: verwijder in plaats daarvan de mappen of bestanden"}
 }

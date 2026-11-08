@@ -413,22 +413,64 @@ message EditCrop {
   double height = 4;
 }
 
-// Photo edit: puts the original back (File.original_hash) at path - or,
-// with every_copy, at every path holding the same edit - with its own name
-// back when the edit changed it and that name is free. The edit itself is
-// deleted once no path holds it, and its collections and ratings go back
-// to the original. Answers with the file at path (resp_file); error_code
-// "changed" as EditImage's, "not_edited" when path holds no edit.
+// Video edit: cuts a video down to the part from start_secs to end_secs
+// on the device (the viewers' Edit on a video, with the post composer's
+// trimmer). The streams are copied, never re-encoded: nothing of the
+// picture or the sound is lost, an HDR recording stays HDR, its date, place
+// and rotation stay, and a long 4K recording is cut in seconds. A copied
+// stream begins at a keyframe, so the cut keeps the frames from the last
+// one at or before start_secs: an MP4 or MOV hides them behind an edit list
+// (players that read it start at start_secs exactly; one that doesn't
+// starts at the keyframe, the sound in step), an MKV, WebM or AVI starts
+// at the keyframe - a moment earlier, a second or less on a phone's
+// recording. It ends at end_secs. MP4, MOV, M4V, 3GP, MKV, WebM and AVI can
+// be cut.
+//
+// Otherwise as EditImage: the cut is new content with a hash of its own and
+// the original is kept hidden (File.original_hash; RevertImage puts it
+// back, for a video as for a photo); as_copy saves it next to the video as
+// "<name> (edited).mp4", with the video's extension and date; every_copy
+// replaces it at every path holding the same content. Ask GetEditState
+// first, as for a photo. A cut that keeps the whole video changes nothing
+// and answers with the file as it is.
+//
+// Answers with the edited file (resp_file), or an error: error_code
+// "changed" as EditImage's, "not_editable" for a video in another format
+// or a file that isn't a video, "too_short" when the cut keeps less than
+// half a second (or starts past the end), "storage_full" when there is no
+// room; the message says so in the owner's language. Devices before it
+// answer "unknown_payload".
+message EditVideo {
+  string path = 1;
+  // As EditImage.hash.
+  string hash = 2;
+  // Seconds from the video's start.
+  double start_secs = 3;
+  // The end, in seconds from the video's start; zero, or past the video's
+  // end, cuts to the end.
+  double end_secs = 4;
+  bool as_copy = 5;
+  // With as_copy false: every path holding this content, not only path.
+  bool every_copy = 6;
+}
+
+// Photo and video edit: puts the original back (File.original_hash) at
+// path - or, with every_copy, at every path holding the same edit - with
+// its own name back when the edit changed it and that name is free. The
+// edit itself is deleted once no path holds it, and its collections and
+// ratings go back to the original. Answers with the file at path
+// (resp_file); error_code "changed" as EditImage's, "not_edited" when path
+// holds no edit.
 message RevertImage {
   string path = 1;
   string hash = 2;
   bool every_copy = 3;
 }
 
-// Photo edit: what the edit's Save asks before it is sent - how many paths
-// hold the content at path (copies, at least 1: the "all N copies or only
-// this one" question), and whether it is an edit (edited: Revert to
-// original). Answers with EditState.
+// Photo and video edit: what the edit's Save asks before it is sent - how
+// many paths hold the content at path (copies, at least 1: the "all N
+// copies or only this one" question), and whether it is an edit (edited:
+// Revert to original). Answers with EditState.
 message GetEditState {
   string path = 1;
 }
@@ -3287,6 +3329,9 @@ message ReqEnvelope {
     EditImage req_edit_image = 162;
     RevertImage req_revert_image = 163;
     GetEditState req_get_edit_state = 164;
+    // Video edit: answers with resp_file. Devices before it answer
+    // "unknown_payload".
+    EditVideo req_edit_video = 165;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

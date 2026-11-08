@@ -150,6 +150,15 @@
   "web.images.edit.save_title": "Bearbeitung speichern",
   "web.images.edit.saved_copy": "Gespeichert als \u2068{name}\u2069",
   "web.images.edit.saving": "Wird gespeichert…",
+  "web.images.edit.video_copies_text": {
+    "one": "Dieses Video liegt an {count} Stellen auf deinem Gerät. Überall ersetzen oder nur hier?",
+    "other": "Dieses Video liegt an {count} Stellen auf deinem Gerät. Überall ersetzen oder nur hier?",
+    "arg": "count"
+  },
+  "web.images.edit.video_cut_note": "Damit die volle Qualität des Videos erhalten bleibt, kann die gekürzte Fassung etwas vor der gewählten Stelle beginnen, meist höchstens eine Sekunde.",
+  "web.images.edit.video_replace": "Video ersetzen",
+  "web.images.edit.video_revert_text": "Die Kürzung wird rückgängig gemacht und das Video ist wieder so wie vorher.",
+  "web.images.edit.video_save_text": "Das Video durch die gekürzte Fassung ersetzen oder sie als neues Video daneben speichern? Beim Ersetzen bleibt das Original erhalten, damit du dorthin zurückkehren kannst.",
   "web.images.error.unreachable": "Dein Gerät war nicht erreichbar. Versuche es erneut.",
   "web.images.grid.clear_search": "Suche löschen",
   "web.images.grid.date": "{day}. {month} {year}",

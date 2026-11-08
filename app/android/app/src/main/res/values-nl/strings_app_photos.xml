@@ -93,6 +93,14 @@
     <string name="app_photos_edit_save_title">Bewerking opslaan</string>
     <string name="app_photos_edit_saved_copy">Opgeslagen als \u2068%1$s\u2069</string>
     <string name="app_photos_edit_saving">Opslaan…</string>
+    <plurals name="app_photos_edit_video_copies_text">
+        <item quantity="one">Deze video staat op %1$s plekken op je apparaat. Overal vervangen of alleen hier?</item>
+        <item quantity="other">Deze video staat op %1$s plekken op je apparaat. Overal vervangen of alleen hier?</item>
+    </plurals>
+    <string name="app_photos_edit_video_cut_note">Om de volledige kwaliteit van de video te behouden, kan de ingekorte versie iets vóór het gekozen punt beginnen, meestal een seconde of minder.</string>
+    <string name="app_photos_edit_video_replace">Video vervangen</string>
+    <string name="app_photos_edit_video_revert_text">Het inkorten wordt ongedaan gemaakt en de video is weer zoals ervoor.</string>
+    <string name="app_photos_edit_video_save_text">De video vervangen door de ingekorte versie, of die als nieuwe video ernaast opslaan? Bij vervangen blijft het origineel bewaard, zodat je ernaar terug kunt.</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s item · %2$s</item>
         <item quantity="other">%1$s items · %2$s</item>

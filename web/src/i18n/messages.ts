@@ -349,6 +349,11 @@ export type MessageKey =
   | "web.images.edit.save_title"
   | "web.images.edit.saved_copy"
   | "web.images.edit.saving"
+  | "web.images.edit.video_copies_text"
+  | "web.images.edit.video_cut_note"
+  | "web.images.edit.video_replace"
+  | "web.images.edit.video_revert_text"
+  | "web.images.edit.video_save_text"
   | "web.images.error.unreachable"
   | "web.images.grid.clear_search"
   | "web.images.grid.date"
@@ -1595,6 +1600,11 @@ export interface MessageArgs {
   "web.images.edit.save_title": undefined;
   "web.images.edit.saved_copy": { name: string };
   "web.images.edit.saving": undefined;
+  "web.images.edit.video_copies_text": { count: number };
+  "web.images.edit.video_cut_note": undefined;
+  "web.images.edit.video_replace": undefined;
+  "web.images.edit.video_revert_text": undefined;
+  "web.images.edit.video_save_text": undefined;
   "web.images.error.unreachable": undefined;
   "web.images.grid.clear_search": undefined;
   "web.images.grid.date": { day: string; month: string; year: string };

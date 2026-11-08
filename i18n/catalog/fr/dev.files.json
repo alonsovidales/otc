@@ -12,6 +12,8 @@
   "dev.files.content_unavailable": {"text": "le contenu de {path} est absent ou illisible sur cet appareil"},
   "dev.files.content_unreadable": {"text": "le contenu de {path} est illisible sur cet appareil"},
   "dev.files.copy_upload_only": {"text": "une copie se trouve dans le dossier en envoi uniquement {folder} : aucune copie n’a été supprimée"},
+  "dev.files.cut_failed": {"text": "l’appareil n’a pas pu découper la vidéo"},
+  "dev.files.cut_too_short": {"text": "la découpe doit garder au moins une demi-seconde de la vidéo"},
   "dev.files.delete_failed": {"text": "erreur lors de la suppression du fichier : {detail}"},
   "dev.files.download_failed": {"text": "erreur lors du téléchargement du fichier : {detail}"},
   "dev.files.edit_failed": {"text": "la modification n’a pas pu être enregistrée : {reason}"},
@@ -45,6 +47,7 @@
   "dev.files.no_such_job": {"text": "tâche introuvable"},
   "dev.files.no_such_link": {"text": "lien introuvable"},
   "dev.files.no_such_path": {"text": "fichier ou dossier introuvable : {path}"},
+  "dev.files.not_cuttable": {"text": "cette vidéo ne peut pas être découpée : l’appareil peut découper les vidéos MP4, MOV, M4V, 3GP, MKV, WebM et AVI"},
   "dev.files.not_editable": {"text": "ce fichier ne peut pas être modifié : seules les photos peuvent être pivotées et recadrées, pas les vidéos, les fichiers RAW d’appareil photo ni les animations"},
   "dev.files.not_edited": {"text": "cette photo n’a aucune modification à annuler"},
   "dev.files.not_on_device": {"text": "{path} n’est pas sur cet appareil"},
@@ -101,6 +104,7 @@
   "dev.files.video_no_frames": {"text": "impossible d’extraire une image de la vidéo"},
   "dev.files.video_no_frames_extracted": {"text": "aucune image extraite de la vidéo"},
   "dev.files.video_not_cut": {"text": "la vidéo n’a pas pu être découpée, rien n’a donc été publié : réessayez, ou publiez-la sans la découper"},
+  "dev.files.video_not_edited": {"text": "cette vidéo n’a aucune modification à annuler"},
   "dev.files.video_not_reduced": {"text": "la vidéo n’a pas pu être réduite pour la publication, et avec {size} elle est trop volumineuse pour être partagée telle quelle"},
   "dev.files.whole_library": {"text": "la bibliothèque entière ne peut pas être supprimée d’un coup : supprimez plutôt ses dossiers ou ses fichiers"}
 }

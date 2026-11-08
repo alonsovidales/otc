@@ -150,6 +150,15 @@
   "web.images.edit.save_title": "Bewerking opslaan",
   "web.images.edit.saved_copy": "Opgeslagen als \u2068{name}\u2069",
   "web.images.edit.saving": "Opslaan…",
+  "web.images.edit.video_copies_text": {
+    "one": "Deze video staat op {count} plekken op je apparaat. Overal vervangen of alleen hier?",
+    "other": "Deze video staat op {count} plekken op je apparaat. Overal vervangen of alleen hier?",
+    "arg": "count"
+  },
+  "web.images.edit.video_cut_note": "Om de volledige kwaliteit van de video te behouden, kan de ingekorte versie iets vóór het gekozen punt beginnen, meestal een seconde of minder.",
+  "web.images.edit.video_replace": "Video vervangen",
+  "web.images.edit.video_revert_text": "Het inkorten wordt ongedaan gemaakt en de video is weer zoals ervoor.",
+  "web.images.edit.video_save_text": "De video vervangen door de ingekorte versie, of die als nieuwe video ernaast opslaan? Bij vervangen blijft het origineel bewaard, zodat je ernaar terug kunt.",
   "web.images.error.unreachable": "Kan je apparaat niet bereiken. Probeer het opnieuw.",
   "web.images.grid.clear_search": "Zoekopdracht wissen",
   "web.images.grid.date": "{day} {month} {year}",

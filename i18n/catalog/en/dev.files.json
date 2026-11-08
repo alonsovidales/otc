@@ -12,6 +12,8 @@
   "dev.files.content_unavailable": {"text": "the content of {path} is missing or unreadable on this device", "args": [["path", "user"]]},
   "dev.files.content_unreadable": {"text": "the content of {path} is unreadable on this device", "args": [["path", "user"]]},
   "dev.files.copy_upload_only": {"text": "a copy is in the upload-only folder {folder}: no copy was deleted", "args": [["folder", "user"]]},
+  "dev.files.cut_failed": {"text": "the device couldn't cut the video"},
+  "dev.files.cut_too_short": {"text": "a cut has to keep at least half a second of the video"},
   "dev.files.delete_failed": {"text": "error trying to delete file: {detail}", "args": [["detail", "text"]]},
   "dev.files.download_failed": {"text": "error trying to download file: {detail}", "args": [["detail", "text"]]},
   "dev.files.edit_failed": {"text": "the edit could not be saved: {reason}", "args": [["reason", "text"]]},
@@ -45,6 +47,7 @@
   "dev.files.no_such_job": {"text": "no such job"},
   "dev.files.no_such_link": {"text": "no such link"},
   "dev.files.no_such_path": {"text": "no such file or directory: {path}", "args": [["path", "user"]]},
+  "dev.files.not_cuttable": {"text": "this video can't be cut: the device can cut MP4, MOV, M4V, 3GP, MKV, WebM and AVI videos"},
   "dev.files.not_editable": {"text": "this file can't be edited: only photos can be turned and cropped, not videos, camera raws or animations"},
   "dev.files.not_edited": {"text": "this photo has no edit to undo"},
   "dev.files.not_on_device": {"text": "{path} is not on this device", "args": [["path", "user"]]},
@@ -101,6 +104,7 @@
   "dev.files.video_no_frames": {"text": "could not extract any frames from video"},
   "dev.files.video_no_frames_extracted": {"text": "no frames extracted from video"},
   "dev.files.video_not_cut": {"text": "the video could not be cut, so nothing was posted: try again, or post it without cutting it"},
+  "dev.files.video_not_edited": {"text": "this video has no edit to undo"},
   "dev.files.video_not_reduced": {"text": "the video could not be made smaller for the post, and at {size} it is too large to share as it is", "args": [["size", "bytes"]]},
   "dev.files.whole_library": {"text": "the whole library can't be deleted at once: delete its folders or files instead"}
 }

@@ -53,6 +53,14 @@
     "en": "a copy is in the upload-only folder {folder}: no copy was deleted",
     "reviewed": "claude-backtranslation 2026-10-14 #daa84c3d"
   },
+  "dev.files.cut_failed": {
+    "text": "el dispositivo no ha podido recortar el vídeo",
+    "en": "the device couldn't cut the video"
+  },
+  "dev.files.cut_too_short": {
+    "text": "el recorte tiene que conservar al menos medio segundo del vídeo",
+    "en": "a cut has to keep at least half a second of the video"
+  },
   "dev.files.delete_failed": {
     "text": "error al intentar eliminar el archivo: {detail}",
     "en": "error trying to delete file: {detail}"
@@ -184,6 +192,10 @@
   "dev.files.no_such_path": {
     "text": "no existe el archivo o la carpeta: {path}",
     "en": "no such file or directory: {path}"
+  },
+  "dev.files.not_cuttable": {
+    "text": "este vídeo no se puede recortar: el dispositivo puede recortar vídeos MP4, MOV, M4V, 3GP, MKV, WebM y AVI",
+    "en": "this video can't be cut: the device can cut MP4, MOV, M4V, 3GP, MKV, WebM and AVI videos"
   },
   "dev.files.not_editable": {
     "text": "este archivo no se puede editar: solo se pueden girar y recortar fotos, no vídeos, archivos RAW de cámara ni animaciones",
@@ -409,6 +421,10 @@
   "dev.files.video_not_cut": {
     "text": "no se ha podido recortar el vídeo, así que no se ha publicado nada: inténtalo de nuevo o publícalo sin recortarlo",
     "en": "the video could not be cut, so nothing was posted: try again, or post it without cutting it"
+  },
+  "dev.files.video_not_edited": {
+    "text": "este vídeo no tiene ninguna edición que deshacer",
+    "en": "this video has no edit to undo"
   },
   "dev.files.video_not_reduced": {
     "text": "no se ha podido reducir el vídeo para la publicación y, con {size}, es demasiado grande para compartirlo tal cual",

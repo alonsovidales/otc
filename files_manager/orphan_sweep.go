@@ -151,9 +151,10 @@ func sweepOrphans(storage, unenc string, links map[string]bool, before time.Time
 		})
 	}
 	if unenc != "" {
-		// A post's video copies being written (post_export.go).
+		// A post's video copies being written (post_export.go), and a
+		// video's cut (edit_video.go).
 		eachEntry(unenc, "posts' folder", func(e fs.DirEntry) { // i18n-ignore: names a folder in the log
-			if !e.Type().IsRegular() || !strings.HasPrefix(e.Name(), ".post-") {
+			if !e.Type().IsRegular() || !(strings.HasPrefix(e.Name(), ".post-") || strings.HasPrefix(e.Name(), ".cut-")) {
 				return
 			}
 			if size, ok := old(e); ok {

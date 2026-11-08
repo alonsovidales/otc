@@ -104,6 +104,15 @@
     <string name="app_photos_edit_save_title">Guardar a edição</string>
     <string name="app_photos_edit_saved_copy">Guardada como \u2068%1$s\u2069</string>
     <string name="app_photos_edit_saving">A guardar…</string>
+    <plurals name="app_photos_edit_video_copies_text">
+        <item quantity="one">Este vídeo está em %1$s sítios no teu dispositivo. Substituí-lo em todos ou só aqui?</item>
+        <item quantity="many">Este vídeo está em %1$s sítios no teu dispositivo. Substituí-lo em todos ou só aqui?</item>
+        <item quantity="other">Este vídeo está em %1$s sítios no teu dispositivo. Substituí-lo em todos ou só aqui?</item>
+    </plurals>
+    <string name="app_photos_edit_video_cut_note">Para manter toda a qualidade do vídeo, o corte pode começar um pouco antes do ponto que escolheste, normalmente um segundo ou menos.</string>
+    <string name="app_photos_edit_video_replace">Substituir vídeo</string>
+    <string name="app_photos_edit_video_revert_text">O corte é anulado e o vídeo volta a estar como antes de ser cortado.</string>
+    <string name="app_photos_edit_video_save_text">Substituir o vídeo pelo corte ou guardar o corte como um vídeo novo ao lado? Se o substituíres, o original é guardado para poderes voltar a ele.</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s item · %2$s</item>
         <item quantity="many">%1$s itens · %2$s</item>

@@ -39,22 +39,24 @@ func contentCode(resp *pb.RespEnvelope, err error) {
 }
 
 // editError fills resp with an edit's or a revert's refusal (EditImage,
-// RevertImage): its code, and its message in lang.
+// EditVideo, RevertImage): its code, and its message in lang.
 func editError(resp *pb.RespEnvelope, lang string, err error) {
 	var changed *filesmanager.ContentChangedError
 	resp.Error = true
 	resp.ErrorMessage = devtext.Text(lang, err)
 	switch {
 	case errors.As(err, &changed):
-		log.Info("a photo edit was refused: the path holds other content than the client showed")
+		log.Info("an edit was refused: the path holds other content than the client showed")
 		resp.ErrorCode = cCodeContentChanged
 	case filesmanager.IsNotEditable(err):
-		log.Info("a photo edit was refused: the content can't be edited")
+		log.Info("an edit was refused: the content can't be edited")
 		resp.ErrorCode = cCodeNotEditable
-	case errors.Is(err, filesmanager.ErrNotEdited):
+	case filesmanager.IsNotEdited(err):
 		resp.ErrorCode = cCodeNotEdited
+	case filesmanager.IsCutTooShort(err):
+		resp.ErrorCode = cCodeTooShort
 	default:
-		log.Error("a photo edit failed:", err)
+		log.Error("an edit failed:", err)
 		contentCode(resp, err)
 	}
 }

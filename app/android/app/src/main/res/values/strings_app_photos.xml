@@ -92,6 +92,14 @@
     <string name="app_photos_edit_save_title">Save the Edit</string>
     <string name="app_photos_edit_saved_copy">Saved as \u2068%1$s\u2069</string>
     <string name="app_photos_edit_saving">Saving…</string>
+    <plurals name="app_photos_edit_video_copies_text">
+        <item quantity="one">This video is in %1$s places on your device. Replace it in all of them, or only here?</item>
+        <item quantity="other">This video is in %1$s places on your device. Replace it in all of them, or only here?</item>
+    </plurals>
+    <string name="app_photos_edit_video_cut_note">To keep the video\'s full quality, the cut can start a little before the point you chose, usually by a second or less.</string>
+    <string name="app_photos_edit_video_replace">Replace Video</string>
+    <string name="app_photos_edit_video_revert_text">The cut is undone and the video is as it was before it was cut.</string>
+    <string name="app_photos_edit_video_save_text">Replace the video with the cut, or save the cut as a new video next to it? A replaced video\'s original is kept, so you can go back to it.</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s item · %2$s</item>
         <item quantity="other">%1$s items · %2$s</item>

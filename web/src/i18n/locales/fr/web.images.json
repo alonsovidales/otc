@@ -150,6 +150,15 @@
   "web.images.edit.save_title": "Enregistrer la modification",
   "web.images.edit.saved_copy": "Enregistrée sous \u2068{name}\u2069",
   "web.images.edit.saving": "Enregistrement…",
+  "web.images.edit.video_copies_text": {
+    "one": "Cette vidéo se trouve à {count} endroits sur votre appareil. La remplacer partout, ou seulement ici ?",
+    "other": "Cette vidéo se trouve à {count} endroits sur votre appareil. La remplacer partout, ou seulement ici ?",
+    "arg": "count"
+  },
+  "web.images.edit.video_cut_note": "Pour garder toute la qualité de la vidéo, la découpe peut commencer un peu avant le point choisi, en général une seconde ou moins.",
+  "web.images.edit.video_replace": "Remplacer la vidéo",
+  "web.images.edit.video_revert_text": "La découpe est annulée et la vidéo redevient telle qu’elle était avant.",
+  "web.images.edit.video_save_text": "Remplacer la vidéo par la découpe, ou enregistrer la découpe comme nouvelle vidéo à côté ? Si vous la remplacez, l’original est conservé pour que vous puissiez y revenir.",
   "web.images.error.unreachable": "Impossible de joindre votre appareil. Réessayez.",
   "web.images.grid.clear_search": "Effacer la recherche",
   "web.images.grid.date": "{day} {month} {year}",

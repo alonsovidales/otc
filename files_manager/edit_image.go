@@ -62,7 +62,7 @@ var errEditsUnavailable = devtext.New(i18n.DevFilesEditsUnavailable())
 // IsNotEditable is whether err is a refusal to edit (error_code
 // "not_editable").
 func IsNotEditable(err error) bool {
-	return errors.Is(err, ErrNotEditable) || errors.Is(err, errEditsUnavailable)
+	return errors.Is(err, ErrNotEditable) || errors.Is(err, errEditsUnavailable) || errors.Is(err, errNotCuttable)
 }
 
 // cEditQuality is the JPEG quality an edit is written at: near the camera's
@@ -458,6 +458,39 @@ func (mg *Manager) EditImage(ses *session.Session, req *pb.EditImage, lang strin
 	sum := sha256.Sum256(r.content)
 	edited := &pb.File{Hash: hex.EncodeToString(sum[:]), Mime: r.mime}
 	dao.SetFileSize(edited, int64(len(r.content)))
+	result, err := mg.saveEdit(ses, file, editOut{
+		edited:  edited,
+		ext:     r.ext,
+		store:   func() error { return mg.storeEditContent(ses, edited.Hash, r.content) },
+		renames: func(p string) func(int) string { return renamedNames(p, r.mime, r.ext) },
+		move:    r.moveFace,
+	}, req.AsCopy, req.EveryCopy, lang)
+	if err != nil {
+		return nil, err
+	}
+	log.Info("edited a photo: turns", turns, "copy", req.AsCopy, "every copy", req.EveryCopy)
+	return result, nil
+}
+
+// editOut is what an edit saves: the edited content (its File: hash, mime,
+// size), the extension a copy's name takes, how the content gets to the
+// disk, the names a path holding it tries when it is renamed (nil: it
+// keeps its own), and how a face's box moves with it (nil: its faces are
+// found again by the analysis).
+type editOut struct {
+	edited  *pb.File
+	ext     string
+	store   func() error
+	renames func(p string) func(n int) string
+	move    func(dao.FaceBox) (dao.FaceBox, bool)
+}
+
+// saveEdit stores an edit of file and gives it its paths - file's own and,
+// every, every other path holding the same content, or, asCopy, a copy
+// next to it - and answers the edited file, with its original_hash. An
+// edit that is the content itself changes nothing.
+func (mg *Manager) saveEdit(ses *session.Session, file *pb.File, out editOut, asCopy, every bool, lang string) (*pb.File, error) {
+	edited := out.edited
 	if edited.Hash == file.Hash {
 		return file, nil // nothing changed
 	}
@@ -469,16 +502,14 @@ func (mg *Manager) EditImage(ses *session.Session, req *pb.EditImage, lang strin
 	} else if prev != nil {
 		edit.Original, edit.OriginalMime, edit.OriginalSize, edit.OriginalExt = prev.Original, prev.OriginalMime, prev.OriginalSize, prev.OriginalExt
 	}
-	if edit.OriginalExt == "" && !req.AsCopy {
-		if _, ext := splitExt(file.Path); !fits(ext, r.mime) {
-			edit.OriginalExt = ext
-		}
+	if edit.OriginalExt == "" && !asCopy && out.renames(file.Path) != nil {
+		_, edit.OriginalExt = splitExt(file.Path)
 	}
 	if edited.Hash == edit.Original {
 		edit = nil // turned back as it was: the original itself, no edit
 	}
 
-	if err := mg.storeEditContent(ses, edited.Hash, r.content); err != nil {
+	if err := out.store(); err != nil {
 		return nil, err
 	}
 	known := mg.contentKnown(edited.Hash)
@@ -486,15 +517,15 @@ func (mg *Manager) EditImage(ses *session.Session, req *pb.EditImage, lang strin
 	defer mg.memories.changed()
 
 	var result *pb.File
-	err = mg.withBlob(edited.Hash, func() (err error) {
-		if req.AsCopy {
+	err := mg.withBlob(edited.Hash, func() (err error) {
+		if asCopy {
 			cp := &pb.File{Hash: edited.Hash, Mime: edited.Mime, Created: file.Created, Modified: timestamppb.Now()}
 			dao.SetFileSize(cp, dao.FileSize(edited))
-			result, err = mg.dao.AddEditCopy(cp, copyNames(file.Path, r.ext, lang), edit)
+			result, err = mg.dao.AddEditCopy(cp, copyNames(file.Path, out.ext, lang), edit)
 			return err
 		}
 		paths := []string{file.Path}
-		if req.EveryCopy {
+		if every {
 			all, err := mg.dao.PathsOfHash(file.Hash)
 			if err != nil {
 				return err
@@ -503,7 +534,7 @@ func (mg *Manager) EditImage(ses *session.Session, req *pb.EditImage, lang strin
 		}
 		targets := make([]dao.EditTarget, 0, len(paths))
 		for _, p := range paths {
-			targets = append(targets, dao.EditTarget{Path: p, Names: renamedNames(p, r.mime, r.ext)})
+			targets = append(targets, dao.EditTarget{Path: p, Names: out.renames(p)})
 		}
 		done, err := mg.dao.ApplyEdit(targets, file.Hash, edited, edit)
 		if err == nil {
@@ -529,10 +560,12 @@ func (mg *Manager) EditImage(ses *session.Session, req *pb.EditImage, lang strin
 
 	// Who is in it: the original's faces, moved with the edit - before its
 	// analysis, which then finds them there and leaves them.
-	if _, err := mg.dao.CopyFaces(file.Hash, edited.Hash, r.moveFace, func() string { return uuid.New().String() }); err != nil {
-		log.Error("could not give an edit its photo's faces:", err)
+	if out.move != nil {
+		if _, err := mg.dao.CopyFaces(file.Hash, edited.Hash, out.move, func() string { return uuid.New().String() }); err != nil {
+			log.Error("could not give an edit its photo's faces:", err)
+		}
 	}
-	if !req.AsCopy {
+	if !asCopy {
 		// The photo, when nothing holds it any more - an edit edited again
 		// goes; an original stays, kept by its edit.
 		if err := mg.removeBlobIfUnused(file.Hash); err != nil {
@@ -543,7 +576,6 @@ func (mg *Manager) EditImage(ses *session.Session, req *pb.EditImage, lang strin
 	if !(known && mg.hasThumbnail(edited.Hash)) {
 		mg.enqueueMedia(ses, result)
 	}
-	log.Info("edited a photo: turns", turns, "copy", req.AsCopy, "every copy", req.EveryCopy)
 	return result, nil
 }
 
@@ -562,6 +594,9 @@ func (mg *Manager) RevertImage(ses *session.Session, p, shown string, everyCopy 
 		return nil, err
 	}
 	if edit == nil {
+		if strings.HasPrefix(file.Mime, "video/") {
+			return nil, errVideoNotEdited
+		}
 		return nil, ErrNotEdited
 	}
 	if !mg.hasBlob(edit.Original) {
@@ -606,7 +641,7 @@ func (mg *Manager) RevertImage(ses *session.Session, p, shown string, everyCopy 
 		log.Error("could not remove a reverted edit", file.Hash, ":", err)
 	}
 	mg.reconcileAnalysis(ses, []string{file.Hash, edit.Original})
-	log.Info("reverted a photo edit: every copy", everyCopy)
+	log.Info("reverted an edit: every copy", everyCopy)
 	return done[0], nil
 }
 

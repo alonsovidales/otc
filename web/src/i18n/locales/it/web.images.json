@@ -150,6 +150,15 @@
   "web.images.edit.save_title": "Salva la modifica",
   "web.images.edit.saved_copy": "Salvata come \u2068{name}\u2069",
   "web.images.edit.saving": "Salvataggio…",
+  "web.images.edit.video_copies_text": {
+    "one": "Questo video si trova in {count} posti sul tuo dispositivo. Sostituirlo ovunque o solo qui?",
+    "other": "Questo video si trova in {count} posti sul tuo dispositivo. Sostituirlo ovunque o solo qui?",
+    "arg": "count"
+  },
+  "web.images.edit.video_cut_note": "Per mantenere tutta la qualità del video, il taglio può iniziare poco prima del punto scelto, di solito un secondo o meno.",
+  "web.images.edit.video_replace": "Sostituisci video",
+  "web.images.edit.video_revert_text": "Il taglio viene annullato e il video torna com’era prima.",
+  "web.images.edit.video_save_text": "Sostituire il video con il taglio o salvare il taglio come nuovo video accanto? Se lo sostituisci, l’originale viene conservato e puoi tornarci.",
   "web.images.error.unreachable": "Impossibile raggiungere il tuo dispositivo. Riprova.",
   "web.images.grid.clear_search": "Cancella ricerca",
   "web.images.grid.date": "{day} {month} {year}",

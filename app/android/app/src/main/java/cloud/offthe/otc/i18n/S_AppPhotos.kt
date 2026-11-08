@@ -238,6 +238,26 @@ fun S.appPhotosEditSavedCopy(name: String): UiText =
 fun S.appPhotosEditSaving(): UiText =
     UiText.Res(R.string.app_photos_edit_saving)
 
+/** "This video is in {count} places on your device. Replace it in all of them, or only here?" (one: "This video is in {count} places on your device. Replace it in all of them, or only here?"): Asked after video_replace when the device holds the same video at more than one path (the phone apps' (iPhone, Android) viewer, Edit on a video). {count} is how many, this one included: always 2 or more, so both forms are the plural. As copies_text, for a video. */
+fun S.appPhotosEditVideoCopiesText(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_edit_video_copies_text, count, listOf(count))
+
+/** "To keep the video's full quality, the cut can start a little before the point you chose, usually by a second or less.": Small print under the start and end slider when a video is cut (the phone apps' (iPhone, Android) viewer, Edit on a video): the device copies the video without re-encoding it, so the cut starts at the video's last keyframe before the chosen start. Say it without technical words. */
+fun S.appPhotosEditVideoCutNote(): UiText =
+    UiText.Res(R.string.app_photos_edit_video_cut_note)
+
+/** "Replace Video": Button of the Save question of a video's cut (the phone apps' (iPhone, Android) viewer, Edit on a video): the cut takes the video's place, its original kept for Revert. As replace, for a video. */
+fun S.appPhotosEditVideoReplace(): UiText =
+    UiText.Res(R.string.app_photos_edit_video_replace)
+
+/** "The cut is undone and the video is as it was before it was cut.": Text of the Revert to original question for a cut video (the phone apps' (iPhone, Android) viewer, Edit on a video; title revert_title, button revert_button). As revert_text, for a video. */
+fun S.appPhotosEditVideoRevertText(): UiText =
+    UiText.Res(R.string.app_photos_edit_video_revert_text)
+
+/** "Replace the video with the cut, or save the cut as a new video next to it? A replaced video's original is kept, so you can go back to it.": Text of the Save question after a video was cut (the phone apps' (iPhone, Android) viewer, Edit on a video; title save_title). As save_text, for a video: the cut is the part between the start and the end chosen. */
+fun S.appPhotosEditVideoSaveText(): UiText =
+    UiText.Res(R.string.app_photos_edit_video_save_text)
+
 /** "{count} items · {span}" (one: "{count} item · {span}"): Under an open collection's name, over its photos in Images: how many photos and videos it holds, then the months they span (app.photos.months.short_title, range_in_year or range). Without the months it is app.shell.collection_items. */
 fun S.appPhotosGridCollectionItemsSpan(count: Int, span: String): UiText =
     UiText.Plural(R.plurals.app_photos_grid_collection_items_span, count, listOf(count, span))

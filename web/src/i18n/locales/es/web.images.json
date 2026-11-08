@@ -150,6 +150,15 @@
   "web.images.edit.save_title": "Guardar la edición",
   "web.images.edit.saved_copy": "Guardada como \u2068{name}\u2069",
   "web.images.edit.saving": "Guardando…",
+  "web.images.edit.video_copies_text": {
+    "one": "Este vídeo está en {count} lugares de tu dispositivo. ¿Sustituirlo en todos o solo aquí?",
+    "other": "Este vídeo está en {count} lugares de tu dispositivo. ¿Sustituirlo en todos o solo aquí?",
+    "arg": "count"
+  },
+  "web.images.edit.video_cut_note": "Para conservar toda la calidad del vídeo, el recorte puede empezar un poco antes del punto que has elegido, normalmente un segundo o menos.",
+  "web.images.edit.video_replace": "Sustituir vídeo",
+  "web.images.edit.video_revert_text": "Se deshace el recorte y el vídeo vuelve a estar como antes de recortarlo.",
+  "web.images.edit.video_save_text": "¿Sustituir el vídeo por el recorte o guardar el recorte como un vídeo nuevo junto a él? Si lo sustituyes, se guarda el original para que puedas volver a él.",
   "web.images.error.unreachable": "No se ha podido contactar con tu dispositivo. Vuelve a intentarlo.",
   "web.images.grid.clear_search": "Borrar búsqueda",
   "web.images.grid.date": "{day} de {month} de {year}",

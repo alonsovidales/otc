@@ -53,6 +53,14 @@
     "en": "a copy is in the upload-only folder {folder}: no copy was deleted",
     "reviewed": "claude-backtranslation 2026-10-14 #2d9428b6"
   },
+  "dev.files.cut_failed": {
+    "text": "het apparaat kon de video niet inkorten",
+    "en": "the device couldn't cut the video"
+  },
+  "dev.files.cut_too_short": {
+    "text": "de ingekorte video moet minstens een halve seconde lang zijn",
+    "en": "a cut has to keep at least half a second of the video"
+  },
   "dev.files.delete_failed": {
     "text": "fout bij het verwijderen van het bestand: {detail}",
     "en": "error trying to delete file: {detail}"
@@ -184,6 +192,10 @@
   "dev.files.no_such_path": {
     "text": "bestand of map bestaat niet: {path}",
     "en": "no such file or directory: {path}"
+  },
+  "dev.files.not_cuttable": {
+    "text": "deze video kan niet worden ingekort: het apparaat kan MP4-, MOV-, M4V-, 3GP-, MKV-, WebM- en AVI-video's inkorten",
+    "en": "this video can't be cut: the device can cut MP4, MOV, M4V, 3GP, MKV, WebM and AVI videos"
   },
   "dev.files.not_editable": {
     "text": "dit bestand kan niet worden bewerkt: alleen foto’s kunnen worden gedraaid en bijgesneden, geen video’s, camera-RAW-bestanden of animaties",
@@ -409,6 +421,10 @@
   "dev.files.video_not_cut": {
     "text": "de video kon niet worden ingekort, dus er is niets geplaatst: probeer het opnieuw, of plaats hem zonder hem in te korten",
     "en": "the video could not be cut, so nothing was posted: try again, or post it without cutting it"
+  },
+  "dev.files.video_not_edited": {
+    "text": "deze video heeft geen bewerking om ongedaan te maken",
+    "en": "this video has no edit to undo"
   },
   "dev.files.video_not_reduced": {
     "text": "de video kon niet kleiner worden gemaakt voor het bericht, en met {size} is hij te groot om zo te delen",

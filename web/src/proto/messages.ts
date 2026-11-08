@@ -657,12 +657,58 @@ export interface EditCrop {
 }
 
 /**
- * Photo edit: puts the original back (File.original_hash) at path - or,
- * with every_copy, at every path holding the same edit - with its own name
- * back when the edit changed it and that name is free. The edit itself is
- * deleted once no path holds it, and its collections and ratings go back
- * to the original. Answers with the file at path (resp_file); error_code
- * "changed" as EditImage's, "not_edited" when path holds no edit.
+ * Video edit: cuts a video down to the part from start_secs to end_secs
+ * on the device (the viewers' Edit on a video, with the post composer's
+ * trimmer). The streams are copied, never re-encoded: nothing of the
+ * picture or the sound is lost, an HDR recording stays HDR, its date, place
+ * and rotation stay, and a long 4K recording is cut in seconds. A copied
+ * stream begins at a keyframe, so the cut keeps the frames from the last
+ * one at or before start_secs: an MP4 or MOV hides them behind an edit list
+ * (players that read it start at start_secs exactly; one that doesn't
+ * starts at the keyframe, the sound in step), an MKV, WebM or AVI starts
+ * at the keyframe - a moment earlier, a second or less on a phone's
+ * recording. It ends at end_secs. MP4, MOV, M4V, 3GP, MKV, WebM and AVI can
+ * be cut.
+ *
+ * Otherwise as EditImage: the cut is new content with a hash of its own and
+ * the original is kept hidden (File.original_hash; RevertImage puts it
+ * back, for a video as for a photo); as_copy saves it next to the video as
+ * "<name> (edited).mp4", with the video's extension and date; every_copy
+ * replaces it at every path holding the same content. Ask GetEditState
+ * first, as for a photo. A cut that keeps the whole video changes nothing
+ * and answers with the file as it is.
+ *
+ * Answers with the edited file (resp_file), or an error: error_code
+ * "changed" as EditImage's, "not_editable" for a video in another format
+ * or a file that isn't a video, "too_short" when the cut keeps less than
+ * half a second (or starts past the end), "storage_full" when there is no
+ * room; the message says so in the owner's language. Devices before it
+ * answer "unknown_payload".
+ */
+export interface EditVideo {
+  path: string;
+  /** As EditImage.hash. */
+  hash: string;
+  /** Seconds from the video's start. */
+  startSecs: number;
+  /**
+   * The end, in seconds from the video's start; zero, or past the video's
+   * end, cuts to the end.
+   */
+  endSecs: number;
+  asCopy: boolean;
+  /** With as_copy false: every path holding this content, not only path. */
+  everyCopy: boolean;
+}
+
+/**
+ * Photo and video edit: puts the original back (File.original_hash) at
+ * path - or, with every_copy, at every path holding the same edit - with
+ * its own name back when the edit changed it and that name is free. The
+ * edit itself is deleted once no path holds it, and its collections and
+ * ratings go back to the original. Answers with the file at path
+ * (resp_file); error_code "changed" as EditImage's, "not_edited" when path
+ * holds no edit.
  */
 export interface RevertImage {
   path: string;
@@ -671,10 +717,10 @@ export interface RevertImage {
 }
 
 /**
- * Photo edit: what the edit's Save asks before it is sent - how many paths
- * hold the content at path (copies, at least 1: the "all N copies or only
- * this one" question), and whether it is an edit (edited: Revert to
- * original). Answers with EditState.
+ * Photo and video edit: what the edit's Save asks before it is sent - how
+ * many paths hold the content at path (copies, at least 1: the "all N
+ * copies or only this one" question), and whether it is an edit (edited:
+ * Revert to original). Answers with EditState.
  */
 export interface GetEditState {
   path: string;
@@ -4119,6 +4165,12 @@ export interface ReqEnvelope {
     | { $case: "reqRevertImage"; reqRevertImage: RevertImage }
     | { $case: "reqGetEditState"; reqGetEditState: GetEditState }
     | //
+    /**
+     * Video edit: answers with resp_file. Devices before it answer
+     * "unknown_payload".
+     */
+    { $case: "reqEditVideo"; reqEditVideo: EditVideo }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -6345,6 +6397,112 @@ export const EditCrop: MessageFns<EditCrop> = {
     message.y = object.y ?? 0;
     message.width = object.width ?? 0;
     message.height = object.height ?? 0;
+    return message;
+  },
+};
+
+function createBaseEditVideo(): EditVideo {
+  return { path: "", hash: "", startSecs: 0, endSecs: 0, asCopy: false, everyCopy: false };
+}
+
+export const EditVideo: MessageFns<EditVideo> = {
+  encode(message: EditVideo, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.hash !== "") {
+      writer.uint32(18).string(message.hash);
+    }
+    if (message.startSecs !== 0) {
+      writer.uint32(25).double(message.startSecs);
+    }
+    if (message.endSecs !== 0) {
+      writer.uint32(33).double(message.endSecs);
+    }
+    if (message.asCopy !== false) {
+      writer.uint32(40).bool(message.asCopy);
+    }
+    if (message.everyCopy !== false) {
+      writer.uint32(48).bool(message.everyCopy);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): EditVideo {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseEditVideo();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 25) {
+            break;
+          }
+
+          message.startSecs = reader.double();
+          continue;
+        }
+        case 4: {
+          if (tag !== 33) {
+            break;
+          }
+
+          message.endSecs = reader.double();
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.asCopy = reader.bool();
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.everyCopy = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<EditVideo>, I>>(base?: I): EditVideo {
+    return EditVideo.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<EditVideo>, I>>(object: I): EditVideo {
+    const message = createBaseEditVideo();
+    message.path = object.path ?? "";
+    message.hash = object.hash ?? "";
+    message.startSecs = object.startSecs ?? 0;
+    message.endSecs = object.endSecs ?? 0;
+    message.asCopy = object.asCopy ?? false;
+    message.everyCopy = object.everyCopy ?? false;
     return message;
   },
 };
@@ -22150,6 +22308,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetEditState":
         GetEditState.encode(message.payload.reqGetEditState, writer.uint32(1314).fork()).join();
         break;
+      case "reqEditVideo":
+        EditVideo.encode(message.payload.reqEditVideo, writer.uint32(1322).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -23640,6 +23801,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqGetEditState", reqGetEditState: GetEditState.decode(reader, reader.uint32()) };
           continue;
         }
+        case 165: {
+          if (tag !== 1322) {
+            break;
+          }
+
+          message.payload = { $case: "reqEditVideo", reqEditVideo: EditVideo.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -25018,6 +25187,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
             $case: "reqGetEditState",
             reqGetEditState: GetEditState.fromPartial(object.payload.reqGetEditState),
           };
+        }
+        break;
+      }
+      case "reqEditVideo": {
+        if (object.payload?.reqEditVideo !== undefined && object.payload?.reqEditVideo !== null) {
+          message.payload = { $case: "reqEditVideo", reqEditVideo: EditVideo.fromPartial(object.payload.reqEditVideo) };
         }
         break;
       }
