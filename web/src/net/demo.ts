@@ -68,7 +68,7 @@ export function subscribeDemoRefusals(fn: () => void): () => void {
 // device refuses them all (websocket/demo.go); ws.ts answers them here
 // instead of sending them.
 const cChanges = new Set([
-  "reqDelFile", "reqEditImage", "reqEditVideo", "reqRevertImage", "reqUploadFile", "reqBeginUpload", "reqUploadChunk", "reqFinishUpload", "reqLinkFile",
+  "reqDelFile", "reqEditImage", "reqEditVideo", "reqRevertImage", "reqCompressFiles", "reqUploadFile", "reqBeginUpload", "reqUploadChunk", "reqFinishUpload", "reqLinkFile",
   "reqSetUploadOnly", "reqSetOutOfImages", "reqRenamePerson", "reqDeletePerson", "reqMergePeople", "reqRemoveFromPerson",
   "reqSetPersonCover", "reqStartReprocess", "reqStopReprocess", "reqCreateImageGroup", "reqAddToImageGroup", "reqRemoveFromImageGroup", "reqRenameImageGroup",
   "reqDeleteImageGroup", "reqSetFavourite", "reqSetImageGroupRating", "reqSetPhotoRating", "reqRateSharedGalleryItem", "reqNewSocialPublication", "reqNewSocialComment", "reqDelSocialPublication",

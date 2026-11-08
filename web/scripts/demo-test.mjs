@@ -108,6 +108,12 @@ describe("a change on a demo device", () => {
     assert.equal(m.demoRequestReply(req("reqEditVideo"), "refused").errorCode, "demo");
     assert.equal(m.demoRequestReply(req("reqRevertImage"), "refused").errorCode, "demo");
     assert.equal(m.demoRequestReply(req("reqGetEditState"), "refused"), undefined);
+    // Compressing changes the device; the list of largest files, what each
+    // file could become and how a job is going don't.
+    assert.equal(m.demoRequestReply(req("reqCompressFiles"), "refused").errorCode, "demo");
+    for (const kind of ["reqListLargestFiles", "reqGetCompressOptions", "reqGetCompressJob"]) {
+      assert.equal(m.demoRequestReply(req(kind), "refused"), undefined, kind);
+    }
     const like = m.demoRequestReply(req("reqLikePublication"), "refused");
     assert.equal(like.error, false);
     assert.equal(like.payload.respAck.ok, true);

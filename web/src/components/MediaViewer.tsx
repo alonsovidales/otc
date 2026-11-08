@@ -52,6 +52,7 @@ import { lazyPart } from "./lazyPart";
 import Part from "./Part";
 import { canEdit, canRevert, copiesAsk, copiesFrom, editAnswer, editStatePayload, leafOf, refusalOf, revertPayload, type EditDone } from "./photoEdit";
 import { canCut, revertTextKey } from "./videoEdit";
+import { compressedNote } from "./compress";
 
 // The editors: chunks of their own, each loaded when Edit is first pressed
 // on a photo, or on a video.
@@ -78,7 +79,9 @@ const hasInnerStops = (el: Element) => el instanceof HTMLVideoElement || el inst
  *  device didn't say). In a collection with Rating on, its stars and
  *  comment as the grid's page said (File.rating). A photo edited on the
  *  device: the hash of the photo it was made from (File.original_hash),
- *  for Revert to original. */
+ *  for Revert to original - and one compressed on the device, whose
+ *  original was deleted (File.original_removed): no Revert, and Info says
+ *  so (compress.ts). */
 export type ViewerItem = {
   path: string;
   mime?: string;
@@ -88,6 +91,7 @@ export type ViewerItem = {
   copies?: number;
   rating?: ShownRating;
   originalHash?: string;
+  originalRemoved?: boolean;
 };
 
 /** A collection's Rating, for the viewer's stars and comment box: the
@@ -1329,6 +1333,10 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
               <span>{t("web.images.viewer.more_info")}</span>
               <button ref={infoCloseRef} className="pg-info-close" aria-label={t("common.close")} data-tip={t("common.close")} onClick={closeInfo}>×</button>
             </div>
+            {/* Compressed on the device: in place of Revert to original,
+                which has nothing to go back to. Known from the item, so it
+                is there before the details come. */}
+            {compressedNote(item) && <p className="pg-info-note">{t("web.files.compress.compressed_note")}</p>}
             {infoLoading ? (
               <div className="pg-info-loading">{t("common.loading")}</div>
             ) : !infoData ? (

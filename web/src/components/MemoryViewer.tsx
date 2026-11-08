@@ -239,7 +239,7 @@ export default function MemoryViewer({ memories, index, startPaused = false, onC
   };
 
   const viewerItems = useMemo(
-    () => files.map((f) => ({ path: f.path, mime: f.mime, hash: f.hash, copies: f.copies, originalHash: f.originalHash || undefined, thumbURL: thumbFor(f.path, true) || thumbFor(f.path, false) || undefined })),
+    () => files.map((f) => ({ path: f.path, mime: f.mime, hash: f.hash, copies: f.copies, originalHash: f.originalHash || undefined, originalRemoved: f.originalRemoved || undefined, thumbURL: thumbFor(f.path, true) || thumbFor(f.path, false) || undefined })),
     // thumbFor reads the module's cache; the version re-renders.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [files, viewing],

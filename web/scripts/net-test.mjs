@@ -96,6 +96,11 @@ describe("ws.ts: how long a request waits", () => {
     assert.equal(ws.answerTimeoutMs("reqNewSocialPublication"), 0);
     // A video cut takes as long as the device reads the whole video.
     assert.equal(ws.answerTimeoutMs("reqEditVideo"), 0);
+    // Compressing is a job the device answers at once and then follows:
+    // none of its requests waits on the work itself.
+    for (const kind of ["reqListLargestFiles", "reqGetCompressOptions", "reqCompressFiles", "reqGetCompressJob"]) {
+      assert.equal(ws.answerTimeoutMs(kind), 60_000, kind);
+    }
   });
 
   test("an answer in time resolves; one past its time fails with NoAnswer, the socket kept when frames came", async () => {

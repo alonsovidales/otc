@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { encryptForConnection } from "../net/pwCrypto";
 import { signOut } from "../net/signOut";
@@ -38,6 +38,11 @@ import "./SettingsForm.css";
 import { refuseOnDemo } from "../net/demo";
 import { isBridgeAnswer } from "../net/deviceStatus";
 import { useDeviceBack } from "./useDeviceBack";
+import { lazyPart } from "./lazyPart";
+import Part from "./Part";
+
+// Settings › Largest files' screen, loaded when first opened.
+const LargestFiles = lazyPart(() => import("./LargestFiles"));
 
 // Rounded, clamped to [0, 100] - total can be 0 right when a run has just
 // started and the very first status poll hasn't landed yet.
@@ -55,6 +60,27 @@ const usedGB = (t: TFunction, bytes: number) => unitText(t, Number((bytes / 1024
 export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }) {
   const t = useT();
   const demo = useDemo();
+
+  // Largest files: a screen of its own over the sections, which stay as
+  // they were, hidden (their polls and lists too); closed - its button, or
+  // Back - the page is where it was, the focus on the section's button.
+  const [largest, setLargest] = useState(false);
+  const largestBtnRef = useRef<HTMLButtonElement>(null);
+  const scrollBackRef = useRef<number | null>(null);
+  const openLargest = () => {
+    scrollBackRef.current = window.scrollY;
+    setLargest(true);
+  };
+  const closeLargest = useCallback(() => setLargest(false), []);
+  useLayoutEffect(() => {
+    if (largest) {
+      window.scrollTo(0, 0);
+    } else if (scrollBackRef.current != null) {
+      window.scrollTo(0, scrollBackRef.current);
+      scrollBackRef.current = null;
+      largestBtnRef.current?.focus({ preventScroll: true });
+    }
+  }, [largest]);
   // Loaded settings
 
   // Domain form
@@ -524,7 +550,9 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   };
 
   return (
-    <div className="sf-wrap">
+    <>
+    {largest && <Part><LargestFiles onClose={closeLargest} /></Part>}
+    <div className="sf-wrap" hidden={largest}>
       {/* The result of a change (password, notifications, faces, tagging,
           reprocess), fixed at the foot of the window where it is seen
           whatever was scrolled to - it used to be at the top of Settings,
@@ -564,6 +592,16 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
           how far it is, from the Status the panel above polls; nothing
           shows while there is none. */}
       <BackgroundWorkPanel />
+
+      {/* Every file on the device, largest first, on a screen of its own
+          (LargestFiles.tsx), where photos and videos can be compressed.
+          Shown for an older device too: the screen says it needs an
+          update. */}
+      <section className="sf-section">
+        <h3>{t("web.settings.largest.title")}</h3>
+        <p className="sf-hint">{t("web.settings.largest.hint")}</p>
+        <button ref={largestBtnRef} type="button" className="sf-btn" onClick={openLargest}>{t("web.settings.largest.open")}</button>
+      </section>
 
       <LanguagePanel />
 
@@ -847,6 +885,7 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
         </section>
       )}
     </div>
+    </>
   );
 }
 

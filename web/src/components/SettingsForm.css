@@ -1,4 +1,6 @@
 .sf-wrap { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+/* Under Largest files' screen (LargestFiles.tsx): kept, not shown. */
+.sf-wrap[hidden] { display: none; }
 .sf-section { padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 /* The field's column may shrink below its input's natural width: a row
    wider than a phone widens the whole page, top bar and all. */

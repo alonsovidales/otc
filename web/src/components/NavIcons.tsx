@@ -70,3 +70,9 @@ export const StorageIcon = ({ size }: P) => (
 
 // Points down: a section that opens below its row.
 export const ChevronIcon = ({ size }: P) => <Svg size={size}><path d="m7 10 5 5 5-5" /></Svg>;
+
+// Two arrows pressing a line between them: the selection bars' Compress
+// (Images, Settings › Largest files).
+export const CompressIcon = ({ size }: P) => (
+  <Svg size={size}><path d="M12 3.5v6M9 6.5l3 3 3-3M12 20.5v-6M9 17.5l3-3 3 3M4.5 12h15" /></Svg>
+);

@@ -40,6 +40,7 @@ import { openWaitingTab } from "./zipTab";
 import { SelectField } from "./SortBy";
 import { canOpenInline, safeToOpen } from "./inlineTypes";
 import { readPieces, type PiecesResult } from "./mediaDownload";
+import { blobURL, downloadBytes, showInTab } from "./fileOpen";
 import { filesUploads, useUploadRows } from "./filesUploads";
 import { useDeviceBack } from "./useDeviceBack";
 import { useToasts } from "./useToasts";
@@ -92,7 +93,7 @@ let noFolderUsage = false;
 // folder holding only older versions).
 const cNoFile: PbFile = {
   hash: "", mime: "", created: undefined, modified: undefined, path: "", size: 0, content: undefined,
-  uploadOnly: false, versions: 0, size64: 0n, outOfImages: false, originalHash: "",
+  uploadOnly: false, versions: 0, size64: 0n, outOfImages: false, originalHash: "", originalRemoved: false,
 };
 // The way up, the first row of every folder but the root's.
 const cUpEntry: PbFile = { ...cNoFile, mime: "inode/directory", path: ".." };
@@ -205,42 +206,11 @@ function SortArrow({ dir }: { dir: "asc" | "desc" }) {
 
 // Only types that can't run script are opened; everything else is
 // downloaded - never rendered (inlineTypes.ts, the security advisory).
-
-// How long a download's blob: URL is kept after its click: the browser may
-// start reading it later than the click (Safari), and one revoked at once
-// saved nothing (mediaDownload.ts keeps them as long).
-const cBlobKeepMs = 40_000;
-
-function saveURL(url: string, name: string) {
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), cBlobKeepMs);
-}
-
-function downloadBytes(parts: Uint8Array[], name: string) {
-  // octet-stream: saved, never rendered, whatever the file is.
-  saveURL(blobURL(parts, "application/octet-stream"), name);
-}
+// Saving and showing in a tab are fileOpen.ts', which Settings › Largest
+// files opens its documents with too.
 
 function bytesToURL(bytes: Uint8Array, mime = "application/octet-stream") {
   return blobURL([bytes], mime);
-}
-
-function blobURL(parts: Uint8Array[], type: string) {
-  return URL.createObjectURL(new Blob(parts as BlobPart[], { type }));
-}
-
-// Points a tab opened for the click at the file. The tab keeps using the
-// URL after it loads (a reload, the PDF viewer's own Save), so it is
-// released once the tab is closed rather than after a set time.
-function showInTab(tab: Window, parts: Uint8Array[], mime: string) {
-  const url = blobURL(parts, mime);
-  tab.location.href = url;
-  const t = window.setInterval(() => {
-    if (tab.closed) { URL.revokeObjectURL(url); window.clearInterval(t); }
-  }, 5000);
 }
 
 // A file in pieces of at most 4 MB (ReadFile), as the sync clients read
@@ -1430,7 +1400,7 @@ function FilesExplorerView({
     const media = rows.map(r => r.file).filter(x => !isDir(x) && isMedia(x));
     const items: ViewerItem[] = media.map(x => {
       const full = fullPathOf(x);
-      return { path: full, mime: x.mime, thumbURL: thumbs[full] || undefined, hash: x.hash, originalHash: x.originalHash || undefined };
+      return { path: full, mime: x.mime, thumbURL: thumbs[full] || undefined, hash: x.hash, originalHash: x.originalHash || undefined, originalRemoved: x.originalRemoved || undefined };
     });
     const index = Math.max(0, media.findIndex(x => x.path === f.path));
     showViewer({ items, index });
@@ -1535,7 +1505,7 @@ function FilesExplorerView({
       // In the order on screen (issue #196).
       const media = found.filter(x => x.media).map(x => x.file);
       showViewer({
-        items: media.map(x => ({ path: x.path, mime: x.mime, thumbURL: thumbs[x.path] || undefined, hash: x.hash, originalHash: x.originalHash || undefined })),
+        items: media.map(x => ({ path: x.path, mime: x.mime, thumbURL: thumbs[x.path] || undefined, hash: x.hash, originalHash: x.originalHash || undefined, originalRemoved: x.originalRemoved || undefined })),
         index: Math.max(0, media.findIndex(x => x.path === f.path)),
       });
       return;
@@ -1589,8 +1559,8 @@ function FilesExplorerView({
     const index = media.findIndex(x => full(x) === want.file.path);
     // Not in the listing (it failed, or the file went): the file alone.
     const items: ViewerItem[] = index >= 0
-      ? media.map(x => ({ path: full(x), mime: x.mime, thumbURL: thumbsRef.current[full(x)] || undefined, hash: x.hash, originalHash: x.originalHash || undefined }))
-      : [{ path: want.file.path, mime: want.file.mime, hash: want.file.hash, originalHash: want.file.originalHash || undefined }];
+      ? media.map(x => ({ path: full(x), mime: x.mime, thumbURL: thumbsRef.current[full(x)] || undefined, hash: x.hash, originalHash: x.originalHash || undefined, originalRemoved: x.originalRemoved || undefined }))
+      : [{ path: want.file.path, mime: want.file.mime, hash: want.file.hash, originalHash: want.file.originalHash || undefined, originalRemoved: want.file.originalRemoved || undefined }];
     viewerOpener.current = null;
     setMediaViewer({ items, index: Math.max(0, index) });
   }, [listed, rows]);
@@ -1668,7 +1638,7 @@ function FilesExplorerView({
       return next;
     });
     if (done.kind !== "copy") {
-      const now: ViewerItem = { path: f.path, mime: f.mime, hash: f.hash, originalHash: f.originalHash || undefined };
+      const now: ViewerItem = { path: f.path, mime: f.mime, hash: f.hash, originalHash: f.originalHash || undefined, originalRemoved: f.originalRemoved || undefined };
       setMediaViewer(v => (v ? { ...v, items: v.items.map(x => (x.path === it.path ? now : x)) } : v));
       setResults(r => (r?.files.some(x => x.path === it.path) ? { ...r, files: r.files.map(x => (x.path === it.path ? shownAfter(x, done) : x)) } : r));
     }

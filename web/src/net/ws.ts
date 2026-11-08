@@ -59,7 +59,9 @@ const cTransfers = new Set([
 // database made or dropped, a video cut - as long as reading the whole
 // video, a minute or more for a multi-GB recording on a Pi): no clock of
 // their own - a dead socket still fails them, found by the requests around
-// them.
+// them. Compressing isn't one: CompressFiles answers with its job at once
+// and GetCompressJob follows it, and GetCompressOptions (a few seconds for
+// hundreds of files) and ListLargestFiles have the normal clock.
 const cOpenEnded = new Set([
   "reqNewSocialPublication", "reqApplyUpdate", "reqSetupStorage", "reqStartReprocess", "reqRestartDevice",
   "reqEnableBridge", "reqDisableBridge", "reqSetWifi", "reqJoinWifi",
@@ -73,7 +75,7 @@ const cQuick = new Set([
   "reqMarkNotificationsAcknowledged", "reqLikePublication", "reqLikeComment", "reqSetLanguage",
   "reqGetBridgeAccess", "reqGetTailscaleStatus", "reqGetWifiStatus", "reqGetSharedGalleryJob",
   "reqGetSharedGalleryStream", "reqGetVapidPublicKey", "reqGetInstanceRole",
-  "reqSetImageGroupRating", "reqSetPhotoRating",
+  "reqSetImageGroupRating", "reqSetPhotoRating", "reqGetCompressJob",
 ]);
 
 /** What a request may wait for its answer: 0 for no limit. */

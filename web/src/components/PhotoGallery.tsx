@@ -41,7 +41,7 @@ import { useToasts } from "./useToasts";
 import ToastView from "./ToastView";
 import { ErrorBoundary } from "./ErrorBoundary";
 import DateScrubber, { type ScrubBucket } from "./DateScrubber";
-import { CollectionsIcon, FavouritesIcon, ImagesIcon } from "./NavIcons";
+import { CollectionsIcon, CompressIcon, FavouritesIcon, ImagesIcon } from "./NavIcons";
 import { useObjectURLs } from "./useObjectURLs";
 import { useDragSelect } from "./useDragSelect";
 import { usePageRetry } from "./usePageRetry";
@@ -70,6 +70,8 @@ import { coverImageFits, faceHash, type CoverChoice } from "./personCover";
 import PhotoCropDialog from "./PhotoCropDialog";
 import { copiesChoice, delFileFields, deleteNotice, deleteNoticeText, deleteOutcome, refusedText, type DeleteResult } from "./photoCopies";
 import { leftOthers, shownAfter, type EditDone } from "./photoEdit";
+import { compressedFile } from "./compress";
+import { useCompressed, type Compressed } from "./compressJob";
 import {
   cUpReach, cUpStart, deviceIgnoresNewerThan, nearTop, notShown, readUpward, scrollArmsUp, shiftIndex, topReserve, upwardApplies, upwardRequest, viewerAsksUp,
   type ScrollAt, type UpCursor,
@@ -77,6 +79,8 @@ import {
 
 // The viewer, loaded when first opened (lazyPart.ts).
 const MediaViewer = lazyPart(() => import("./MediaViewer"));
+// The Compress dialog, loaded when Compress is first pressed.
+const CompressDialog = lazyPart(() => import("./CompressDialog"));
 
 // A search's first page asks for only this many photos (SearchPhotos.limit):
 // a full page of ~30 thumbnails took 5-45 s over a slow home upload, and the
@@ -353,6 +357,17 @@ function useMedia(query: string): boolean {
   return matches;
 }
 
+// The window below which the selection bar shows its actions as icons with
+// tooltips, by how many it has beyond its four (`crowd`): measured with the
+// longest labels (German). PhotoGallery.css' .pg-selbar[data-crowd] rules
+// follow the same widths.
+function crowdWidth(crowd: number): string {
+  if (crowd >= 5) return "(max-width: 1839px)";
+  if (crowd >= 3) return "(max-width: 1599px)";
+  if (crowd === 2) return "(max-width: 1239px)";
+  return "(max-width: 1023px)";
+}
+
 // ===========================================================================
 
 type PhotoGalleryProps = {
@@ -371,6 +386,8 @@ type DialogState =
   // Not this person, and Someone else… (personFix.tsx).
   | { kind: "notPerson" }
   | { kind: "movePerson" }
+  // Compress (CompressDialog.tsx).
+  | { kind: "compress" }
   // The share link, when the clipboard refused it (a browser that only
   // allows a copy right after a click, and making the link took longer).
   | { kind: "link"; link: string };
@@ -408,13 +425,13 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
   // take photos off them, or move them to someone else (personFix.tsx).
   const onePerson = personIds.length === 1 ? personIds[0] : null;
   // The bar's actions beyond its four (Post, Add to Collection, Share,
-  // Delete): Remove from Collection in a collection, and for one person
-  // those two and Use this face - counted while one photo isn't picked
-  // too, so the bar doesn't change from labels to icons as the second is.
-  // With more, its labels give way to icons on wider windows too
-  // (PhotoGallery.css, .pg-selbar[data-crowd]).
-  const crowd = (group ? 1 : 0) + (onePerson ? 3 : 0);
-  const barCompact = useMedia(crowd >= 4 ? "(max-width: 1679px)" : crowd === 3 ? "(max-width: 1439px)" : "(max-width: 899px)");
+  // Delete): Compress always, Remove from Collection in a collection, and
+  // for one person those two and Use this face - counted while one photo
+  // isn't picked too, so the bar doesn't change from labels to icons as
+  // the second is. With more, its labels give way to icons on wider
+  // windows too (PhotoGallery.css, .pg-selbar[data-crowd]).
+  const crowd = 1 + (group ? 1 : 0) + (onePerson ? 3 : 0);
+  const barCompact = useMedia(crowdWidth(crowd));
 
   // -------- data & paging ---------------------------------------------------
   const [items, setItems] = useState<MsgFile[]>([]);
@@ -988,7 +1005,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
   // In a rated collection, with what its page said of its stars.
   const viewerItems = useMemo(
     () => (viewerOpen
-      ? items.map((f) => ({ path: f.path, mime: f.mime, thumbURL: thumbFor(f), hash: f.hash, copies: f.copies, originalHash: f.originalHash || undefined, ...(rated ? { rating: listedRating(f.rating) } : {}) }))
+      ? items.map((f) => ({ path: f.path, mime: f.mime, thumbURL: thumbFor(f), hash: f.hash, copies: f.copies, originalHash: f.originalHash || undefined, originalRemoved: f.originalRemoved || undefined, ...(rated ? { rating: listedRating(f.rating) } : {}) }))
       : []),
     [viewerOpen, items, thumbFor, rated]
   );
@@ -1346,6 +1363,32 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
     void loadDateBuckets();
     groupsChanged();
   };
+
+  // Compress (compress.ts, compressJob.ts): each file the job compressed -
+  // while it runs, the dialog open or closed - is the device's answer in
+  // its tile's place: a new hash, maybe a new name (a PNG becomes .jpg).
+  // The tile keeps its thumbnail (the same picture) until the grid next
+  // loads. Every copy changed and its collections, Favourites and ratings
+  // went with it, so nothing is loaded again; the collections' covers are.
+  const putCompressed = (done: Compressed) => {
+    const swapped = new Map<string, MsgFile>();
+    for (const r of done) {
+      const old = itemsRef.current.find((f) => f.path === r.path);
+      if (!old) continue;
+      const now = compressedFile(old, r);
+      const bytes = old.content;
+      const blob = thumbBlobs.get(old) ?? (bytes?.byteLength ? new Blob([bytes as BlobPart], { type: "image/jpeg" }) : undefined);
+      if (blob) thumbBlobs.set(now, blob);
+      swapped.set(old.path, now);
+    }
+    if (!swapped.size) return;
+    const swap = (f: MsgFile) => swapped.get(f.path) ?? f;
+    setItems((prev) => prev.map(swap));
+    setSel((prev) => (prev.some((f) => swapped.has(f.path)) ? prev.map(swap) : prev));
+    for (const m of [mapRef.current, upMapRef.current]) for (const [k, f] of m) if (swapped.has(f.path)) m.set(k, swap(f));
+    groupsChanged();
+  };
+  useCompressed(putCompressed);
 
   // The viewer's photo (and any other tile of it) left the grid.
   const viewerDropped = (gone: Set<string>) => {
@@ -1892,7 +1935,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
       {/* First, though it is drawn over the top bar: Tab reaches it before
           the photos, as it would the top bar it covers. */}
       {selecting && (
-        <div className="pg-selbar" role="toolbar" aria-label={t("web.images.select.label")} data-crowd={crowd >= 2 ? crowd : undefined}>
+        <div className="pg-selbar" role="toolbar" aria-label={t("web.images.select.label")} data-crowd={crowd}>
           <button
             type="button"
             className="pg-icon-btn"
@@ -1964,6 +2007,12 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
                 />
               )}
             </div>
+            <BarButton
+              compact={barCompact}
+              label={t("web.files.compress.button")}
+              icon={<CompressIcon size={22} />}
+              onClick={() => openDialog({ kind: "compress" })}
+            />
             <BarButton compact={barCompact} danger label={t("common.delete")} icon={<TrashIcon size={22} />} onClick={() => openDialog({ kind: "delete" })} />
           </div>
         </div>
@@ -2107,6 +2156,14 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
       )}
       {dialog?.kind === "movePerson" && onePerson && (
         <MoveToPersonDialog personId={onePerson} hashes={uniqueHashes(sel)} onCancel={closeDialog} onDone={onPersonFixed} />
+      )}
+      {/* Compress: once the device has the tasks the selection is let go
+          (the dialog keeps the files it was opened with), and each file
+          compressed takes its tile's place (putCompressed). */}
+      {dialog?.kind === "compress" && (
+        <Part kind="layer" onClose={closeDialog}>
+          <CompressDialog picks={sel} onClose={closeDialog} onStarted={clearSel} />
+        </Part>
       )}
 
       <ToastView toast={toast} onDismiss={dismissToast} beforeAction={swallowSecondClick} />

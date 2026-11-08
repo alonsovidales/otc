@@ -1,0 +1,57 @@
+/* The Compress dialog (CompressDialog.tsx), a .pg-dlg card (PhotoGallery.css):
+   the videos' radio and the photos' switches, each with its sums under it,
+   the files it can't make smaller, the total and the warning, then the job. */
+.cz-dlg { gap: 14px; }
+.cz-wait { display: flex; align-items: center; gap: 10px; min-height: 40px; color: var(--mist-dim); font-size: 14px; }
+
+.cz-group { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cz-head { padding: 0; margin: 0 0 4px; font-size: 13px; font-weight: 600; line-height: 16px; color: var(--mist-dim); }
+.cz-choice { display: flex; align-items: flex-start; gap: 12px; padding: 6px 0; cursor: pointer; }
+.cz-choice input { flex: none; margin: 2px 0 0; width: 18px; height: 18px; accent-color: var(--ember); cursor: pointer; }
+.cz-choice input:disabled { cursor: default; }
+.cz-choice-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cz-label { font-size: 14px; line-height: 20px; color: var(--mist); }
+.cz-row { font-size: 13px; line-height: 18px; color: var(--mist-dim); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* A photo preset: a switch, as Share as gallery's Rating. */
+.cz-switch input {
+  appearance: none; -webkit-appearance: none; position: relative;
+  width: 36px; height: 20px; margin: 0; border-radius: 999px;
+  background: var(--line); transition: background-color .15s ease;
+}
+.cz-switch input::before {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--mist); transition: transform .15s ease;
+}
+.cz-switch input:checked { background: var(--ember); }
+.cz-switch input:checked::before { transform: translateX(16px); background: var(--ember-ink); }
+.cz-switch input:focus-visible, .cz-choice input[type="radio"]:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .cz-switch input, .cz-switch input::before { transition: none; }
+}
+
+/* The files it can't make smaller, or couldn't: open to read each one's why. */
+.cz-list { font-size: 14px; line-height: 20px; }
+.cz-list summary { cursor: pointer; color: var(--mist); padding: 2px 0; }
+.cz-list summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+.cz-list ul { list-style: none; margin: 8px 0 0; padding: 0 0 0 18px; display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow: auto; }
+.cz-list li { display: flex; flex-direction: column; min-width: 0; }
+.cz-name { color: var(--mist); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cz-why { color: var(--mist-dim); font-size: 13px; line-height: 18px; overflow-wrap: anywhere; }
+
+.cz-foot { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.cz-foot p { margin: 0; font-size: 14px; line-height: 20px; }
+.cz-total { font-weight: 600; color: var(--mist); }
+.cz-warning { color: var(--danger); }
+.cz-note { color: var(--mist-dim); }
+
+.cz-job { display: flex; flex-direction: column; gap: 8px; }
+.cz-job p { margin: 0; font-size: 14px; line-height: 20px; }
+.cz-progress-text { color: var(--mist); font-variant-numeric: tabular-nums; }
+.cz-done { color: var(--mist); font-weight: 600; }
+/* Settings' bar (SettingsForm.css), whose chunk Images doesn't load. */
+.cz-track { height: 8px; border-radius: 999px; background: var(--ink-3); overflow: hidden; }
+.cz-fill { height: 100%; background: var(--ember); border-radius: 999px; transition: width .3s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .cz-fill { transition: none; }
+}

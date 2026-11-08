@@ -21,6 +21,7 @@ import { usePlacesOn, watchPlaces } from "./components/places";
 import { watchMemories } from "./components/memories";
 import { watchSmartSearch } from "./components/smartSearch";
 import { watchUploads } from "./components/filesUploads";
+import { watchCompress } from "./components/compressJob";
 import { leaveFilesSearch } from "./components/filesNav";
 import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
@@ -246,6 +247,9 @@ function App() {
   // Files' uploads (filesUploads.ts) go on in any section; the end of the
   // sign-in forgets them, so none goes into the next one's folders.
   useEffect(() => (authenticated ? watchUploads() : undefined), [authenticated]);
+  // The compress job followed (compressJob.ts): the end of the sign-in
+  // forgets it, so the next one never follows another's.
+  useEffect(() => (authenticated ? watchCompress() : undefined), [authenticated]);
 
   // The page's own host, but on the developer's Vite servers (npm run dev,
   // vite preview), where VITE_DEVICE=pit.off-the.cloud picks the device and

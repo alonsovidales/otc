@@ -1,0 +1,58 @@
+/* Settings › Largest files (LargestFiles.tsx): a screen of Settings' own, a
+   list of rows - a checkbox, the thumbnail or type icon, the name over its
+   folder, the size. The selection bar is Images' (.pg-selbar). */
+.lf-root {
+  /* Images' hover and press fills, for its bar and buttons here too. */
+  --pg-hover: rgba(234, 242, 239, 0.08);
+  --pg-press: rgba(234, 242, 239, 0.14);
+  max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px;
+}
+.lf-head { display: flex; align-items: center; gap: 8px; margin-left: -6px; }
+.lf-title { margin: 0; font-size: 22px; font-weight: 600; line-height: 28px; }
+.lf-intro { margin: 0 0 8px; font-size: 14px; line-height: 20px; color: var(--mist-dim); }
+
+.lf-list {
+  list-style: none; margin: 0; padding: 0;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+  overflow: hidden;
+}
+.lf-list:focus { outline: none; }
+.lf-row { display: flex; align-items: center; gap: 4px; padding: 0 8px 0 12px; }
+.lf-row + .lf-row { border-top: 1px solid var(--line); }
+.lf-row.picked { background: rgba(255, 107, 74, 0.1); }
+.lf-check { flex: none; width: 18px; height: 18px; margin: 0 6px 0 0; accent-color: var(--ember); cursor: pointer; }
+
+/* index.css draws every button as an ember pill: this one starts from nothing. */
+.lf-open {
+  flex: 1; min-width: 0; margin: 0; padding: 8px 4px; border: 0; border-radius: 8px;
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  -webkit-tap-highlight-color: transparent;
+  /* A long press picks the row: no text selection or picture callout. */
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.lf-open:hover { filter: none; background: var(--pg-hover); }
+.lf-open:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.lf-art { width: 48px; height: 48px; border-radius: 8px; overflow: hidden; display: grid; place-items: center; background: var(--ink-3); }
+.lf-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lf-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lf-name { font-size: 15px; line-height: 20px; color: var(--mist); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lf-where { display: flex; gap: 8px; min-width: 0; font-size: 13px; line-height: 18px; color: var(--mist-dim); }
+.lf-folder { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lf-places { flex: none; white-space: nowrap; }
+.lf-size { font-size: 14px; line-height: 20px; color: var(--mist); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lf-size .spinner { width: 16px; height: 16px; }
+
+.lf-state { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 0; padding: 32px 16px; text-align: center; color: var(--mist-dim); font-size: 14px; }
+.lf-state p { margin: 0; }
+.lf-foot { min-height: 56px; display: grid; place-items: center; }
+
+@media (max-width: 599px) {
+  /* Settings' sections go from edge to edge on a phone; the words keep
+     their padding's room. */
+  .lf-head { margin-left: 0; }
+  .lf-intro { padding: 0 12px; }
+  .lf-row { padding: 0 4px 0 8px; }
+  .lf-open { grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; }
+  .lf-art { width: 40px; height: 40px; }
+}

@@ -217,7 +217,7 @@ function PlacesMap({ onOpenPhotos }: { onOpenPhotos: () => void }) {
     if (done.kind !== "copy") {
       const f = done.file;
       photoEdited(it.path, f.path, done.thumb);
-      setViewing({ path: f.path, mime: f.mime, hash: f.hash, originalHash: f.originalHash || undefined, thumbURL: thumbOf(f.path) || undefined });
+      setViewing({ path: f.path, mime: f.mime, hash: f.hash, originalHash: f.originalHash || undefined, originalRemoved: f.originalRemoved || undefined, thumbURL: thumbOf(f.path) || undefined });
     }
     dropPlaces();
   };

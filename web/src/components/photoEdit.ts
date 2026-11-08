@@ -15,7 +15,9 @@
 // Edit is the cut: videoEdit.ts), a GIF, a camera raw, a TIFF or an SVG,
 // which the device refuses as "not_editable".
 // Revert to original is offered for a photo that is an edit
-// (File.original_hash, from ListFiles and SearchPhotos answers).
+// (File.original_hash, from ListFiles and SearchPhotos answers) - never for
+// one compressed on the device (File.original_removed), whose original is
+// gone.
 //
 // Saving either replaces the photo with the edit (in place, or - every
 // copy - at every path holding it) or saves it as "<name> (edited).jpg"
@@ -44,8 +46,10 @@ export function canEdit(f: { path: string; mime?: string }): boolean {
   return cEditableTypes.has(mime) || cHeifName.test(f.path);
 }
 
-/** Whether the viewer offers Revert to original: the photo is an edit. */
-export const canRevert = (f: { originalHash?: string }): boolean => !!f.originalHash;
+/** Whether the viewer offers Revert to original: the photo is an edit,
+ *  and not a compressed copy whose original the device deleted
+ *  (File.original_removed: nothing to go back to - compress.ts). */
+export const canRevert = (f: { originalHash?: string; originalRemoved?: boolean }): boolean => !!f.originalHash && !f.originalRemoved;
 
 /** How an edit is saved: as a copy next to the photo, or in its place -
  *  `every`: at every path holding the photo (the copies question's "all"). */

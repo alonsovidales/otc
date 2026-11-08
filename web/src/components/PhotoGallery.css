@@ -649,25 +649,36 @@
   .pg-selbar-count { font-size: 16px; }
   .pg-selbar-actions { gap: 0; }
 }
-/* More actions than the bar has room for with their labels (data-crowd:
-   Not this person, Someone else… and Use this face among one person's
-   photos, 3, and Remove from Collection too, 4): icons with tooltips on
-   wider windows (PhotoGallery.tsx's barCompact follows the same widths),
-   and narrower buttons on a phone, so the count keeps some room. */
-@media (max-width: 1439px) {
+/* More actions than the bar has room for with their labels (data-crowd,
+   those beyond Post, Add to Collection, Share and Delete: Compress, 1;
+   Remove from Collection too in a collection, 2; Not this person, Someone
+   else… and Use this face among one person's photos, 4, and in a
+   collection 5): icons with tooltips on wider windows, each width the
+   bar's with German's labels, the longest (PhotoGallery.tsx's crowdWidth
+   follows the same widths), and narrower buttons on a phone from 2, so
+   the count keeps some room. */
+@media (max-width: 1023px) {
   .pg-selbar[data-crowd] .pg-bar-btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
   .pg-selbar[data-crowd] .pg-bar-label { display: none; }
 }
-@media (max-width: 1679px) {
-  .pg-selbar[data-crowd="4"] .pg-bar-btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
-  .pg-selbar[data-crowd="4"] .pg-bar-label { display: none; }
+@media (max-width: 1239px) {
+  .pg-selbar[data-crowd]:not([data-crowd="1"]) .pg-bar-btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .pg-selbar[data-crowd]:not([data-crowd="1"]) .pg-bar-label { display: none; }
+}
+@media (max-width: 1599px) {
+  .pg-selbar:is([data-crowd="4"], [data-crowd="5"]) .pg-bar-btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .pg-selbar:is([data-crowd="4"], [data-crowd="5"]) .pg-bar-label { display: none; }
+}
+@media (max-width: 1839px) {
+  .pg-selbar[data-crowd="5"] .pg-bar-btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .pg-selbar[data-crowd="5"] .pg-bar-label { display: none; }
 }
 @media (max-width: 599px) {
-  .pg-selbar[data-crowd] .pg-bar-btn { width: 40px; }
+  .pg-selbar[data-crowd]:not([data-crowd="1"]) .pg-bar-btn { width: 40px; }
 }
 @media (max-width: 379px) {
-  .pg-selbar[data-crowd] .pg-bar-btn { width: 36px; }
-  .pg-selbar[data-crowd] > .pg-icon-btn { width: 40px; }
+  .pg-selbar[data-crowd]:not([data-crowd="1"]) .pg-bar-btn { width: 36px; }
+  .pg-selbar[data-crowd]:not([data-crowd="1"]) > .pg-icon-btn { width: 40px; }
 }
 
 /* The share menu, under its button. The catcher covers the window under
@@ -1188,6 +1199,8 @@
 .pg-info-hdr { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); font-weight: 600; }
 .pg-info-close { border: 0; background: transparent; color: var(--mist); font-size: 18px; cursor: pointer; }
 .pg-info-loading { padding: 14px; color: var(--mist-dim); }
+/* Compressed on the device (compress.ts): first, under the header. */
+.pg-info-note { margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 18px; color: var(--mist-dim); }
 .pg-info-body { padding: 10px 14px; display: flex; flex-direction: column; gap: 10px; }
 .pg-info-row { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
 .pg-info-label { color: var(--mist-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
