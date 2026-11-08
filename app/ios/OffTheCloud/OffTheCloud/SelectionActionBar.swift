@@ -4,7 +4,8 @@
 //  SelectionActionBar.swift
 //  OffTheCloud
 //
-//  What Images and Files both show once something is selected.
+//  What Images and Files both show once something is selected - and
+//  Settings › Largest files, whose bar has Compress alone.
 //
 //  Shared on purpose: the two screens had drifted into different bars with
 //  different actions - Images had five text buttons that wrapped onto two
@@ -45,9 +46,11 @@ struct SelectionActionBar: View {
     /// Swaps that action's icon for a spinner and holds the bar until it
     /// finishes, so a slow link can't be tapped twice.
     var busy: SelectionActionTask?
-    let onShare: () -> Void
-    let onDownload: () -> Void
-    let onDelete: () -> Void
+    /// Images' and Files' own three; the Largest files list has none of
+    /// them (its rows open in the viewer, which has them).
+    var onShare: (() -> Void)? = nil
+    var onDownload: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
     /// The x at the start of the count pill: the way out of selecting
     /// (Google Photos' way, on every platform) - the screen's own clear,
     /// which ends a drag selection under way too. Otherwise each pick had
@@ -84,6 +87,12 @@ struct SelectionActionBar: View {
     /// out now). Once the long-press menu's; Android's bar has it too.
     var onOutOfImages: (() -> Void)? = nil
     var keptOutOfImages = false
+    /// "Compress": Images and the Largest files list - the picked photos
+    /// and videos made smaller on the device (Compress.swift), the dialog
+    /// first. `compressEnabled`: a photo or video the device holds is
+    /// among them.
+    var onCompress: (() -> Void)? = nil
+    var compressEnabled = true
 
     /// The labels' sizes where a word doesn't fit at the usual one (six
     /// items, Files with one folder picked: "In „Bilder“ ausblenden",
@@ -97,8 +106,9 @@ struct SelectionActionBar: View {
 
     /// How many items the bar has.
     private var itemCount: Int {
-        3 + [onUpload != nil, onGallery != nil, onOutOfImages != nil, onGroup != nil, onRemoveFromGroup != nil,
-             onUseFace != nil, onNotThisPerson != nil, onMoveToPerson != nil].filter { $0 }.count
+        [onShare != nil, onDownload != nil, onDelete != nil, onUpload != nil, onGallery != nil, onOutOfImages != nil,
+         onGroup != nil, onRemoveFromGroup != nil, onUseFace != nil, onNotThisPerson != nil, onMoveToPerson != nil,
+         onCompress != nil].filter { $0 }.count
     }
 
     /// Six items or more (Files with one folder picked, Images in an open
@@ -138,8 +148,10 @@ struct SelectionActionBar: View {
                     item(S.commonUpload, symbol: "square.and.arrow.down.on.square", action: onUpload)
                         .tourTarget(.upload)
                 }
-                item(S.commonShare, symbol: "square.and.arrow.up", busy: busy == .share, action: onShare)
-                    .disabled(count == 0)
+                if let onShare {
+                    item(S.commonShare, symbol: "square.and.arrow.up", busy: busy == .share, action: onShare)
+                        .disabled(count == 0)
+                }
                 if let onGallery {
                     item(S.appShellShareAsGallery, symbol: "photo.on.rectangle.angled", action: onGallery)
                         .disabled(count == 0)
@@ -150,8 +162,10 @@ struct SelectionActionBar: View {
                          busy: busy == .outOfImages, action: onOutOfImages)
                         .disabled(count == 0)
                 }
-                item(S.commonDownload, symbol: "arrow.down.circle", busy: busy == .download, action: onDownload)
-                    .disabled(count == 0)
+                if let onDownload {
+                    item(S.commonDownload, symbol: "arrow.down.circle", busy: busy == .download, action: onDownload)
+                        .disabled(count == 0)
+                }
                 if let onGroup {
                     // The web's own drawing: a collection with a plus.
                     item(S.appShellAddToCollection, symbol: "", icon: .addToCollection, action: onGroup)
@@ -180,8 +194,16 @@ struct SelectionActionBar: View {
                          busy: busy == .moveToPerson, action: onMoveToPerson)
                         .disabled(count == 0)
                 }
-                item(S.commonDelete, symbol: "trash", tint: .red, busy: busy == .delete, action: onDelete)
-                    .disabled(count == 0)
+                if let onCompress {
+                    // Next to Delete: it changes the files on the device
+                    // too, for good.
+                    item(S.appFilesCompressButton, symbol: "arrow.down.right.and.arrow.up.left", action: onCompress)
+                        .disabled(count == 0 || !compressEnabled)
+                }
+                if let onDelete {
+                    item(S.commonDelete, symbol: "trash", tint: .red, busy: busy == .delete, action: onDelete)
+                        .disabled(count == 0)
+                }
             }
             .padding(.vertical, 10)
             .padding(.horizontal, crowded ? 4 : 8)

@@ -317,9 +317,10 @@ enum PhotoEditRules {
     }
 
     /// Revert to Original: the item is an edit the device keeps the
-    /// original of (File.original_hash).
+    /// original of (File.original_hash) - not a compressed file, whose
+    /// original the device deleted (File.original_removed, Compress.swift).
     static func offersRevert(_ item: PhotoGalleryVM.Item) -> Bool {
-        !item.isLocalOnly && !item.path.isEmpty && !item.originalHash.isEmpty
+        !item.isLocalOnly && !item.path.isEmpty && !item.originalHash.isEmpty && !item.originalRemoved
     }
 
     /// The EditImage for `edit` of the photo at `path`, shown with the
@@ -713,7 +714,10 @@ extension PhotoGalleryVM {
             copies: everyCopy && copies > 1 ? copies : nil,
             up: old.up,
             rating: old.rating,
-            originalHash: f.originalHash
+            originalHash: f.originalHash,
+            // An edit of a compressed file is one too: still nothing to
+            // revert to.
+            originalRemoved: f.originalRemoved
         )
         // Another copy of the photo kept the content it had, or the
         // content is in the grid already (an original put back next to a

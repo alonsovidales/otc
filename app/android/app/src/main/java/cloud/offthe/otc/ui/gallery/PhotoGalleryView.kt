@@ -221,7 +221,15 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.compose.ui.platform.LocalResources
+import cloud.offthe.otc.proto.CompressItem
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.awaitCancellation
+import cloud.offthe.otc.ui.files.CompressDialog
+import cloud.offthe.otc.ui.files.CompressModel
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.appFilesCompressCompressedNote
 import cloud.offthe.otc.ui.TourTarget
 import cloud.offthe.otc.ui.tourTarget
 import cloud.offthe.otc.i18n.androidPhotosOpenInMaps
@@ -393,6 +401,8 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     val st by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    // The selection's Compress: its dialog's model, kept through a rotation.
+    val compress: CompressModel = viewModel(key = "compress-images") { CompressModel() }
     // Narrow: Collections is the sheet of collections over the photos.
     val showGroups = page == GalleryPage.COLLECTIONS && !wide
     var showGroupPicker by remember { mutableStateOf(false) }
@@ -958,6 +968,8 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         onGallery = { gallerySource = SharedGallerySource.newBuilder().addAllPaths(st.selected.sorted()).build() },
                         // Out of selection mode: a tap opens a photo again.
                         onClear = { vm.clearSelection() },
+                        // The picked photos and videos as their tiles show them.
+                        onCompress = { compress.open(vm.pickedItems().map { CompressItem.newBuilder().setPath(it.path).setHash(it.hash).build() }) },
                     )
                 }
             }
@@ -1125,6 +1137,25 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     }
 
     st.needsUpdate?.let { DeviceNeedsUpdateDialog(it, onDismiss = { vm.dismissNeedsUpdate() }) }
+
+    // Compress (CompressDialog.kt): taken, the selection goes; what it
+    // compressed takes its tiles' places, as an edit does - with the
+    // dialog closed too, while Images is in front (the job followed).
+    CompressDialog(compress, onSent = { vm.clearSelection() })
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            compress.follow()
+            try { awaitCancellation() } finally { compress.unfollow() }
+        }
+    }
+    val compressed by compress.state.collectAsState()
+    LaunchedEffect(compressed.landed) {
+        val landed = compressed.landed
+        if (landed.isEmpty()) return@LaunchedEffect
+        vm.compressed(landed)
+        compress.taken(landed)
+    }
 
     if (st.openIndex != null) ImageModal(vm, st)
 }
@@ -2290,7 +2321,7 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
         FileInfoView(
-            st.infoLoading, st.infoData, infoFaces, busy = st.preparing != null,
+            st.infoLoading, st.infoData, infoFaces, busy = st.preparing != null, compressed = PhotoEdit.compressedNote(openItem),
             onShowPerson = { f -> vm.closeInfo(); vm.closeModal(); PersonNav.show(f.personId) },
             onRemoveFace = { f -> confirmFace = f },
         )
@@ -2620,15 +2651,21 @@ private fun InfoRow(label: String, value: String) {
  * The viewer's Info: the photo's details ([info], [loading] while they
  * come), and under them its People ([faces], PhotoFacesSection) once the
  * details are in. [busy]: a change is on its way (a face's × waits).
+ * [compressed]: the device compressed it and deleted its original
+ * (File.original_removed) - said first, where Revert to Original would be.
  */
 @Composable
 private fun FileInfoView(
-    loading: Boolean, info: FileExifInfo?, faces: PhotoFacesInfo?, busy: Boolean,
+    loading: Boolean, info: FileExifInfo?, faces: PhotoFacesInfo?, busy: Boolean, compressed: Boolean,
     onShowPerson: (PhotoFace) -> Unit, onRemoveFace: (PhotoFace) -> Unit,
 ) {
     val context = LocalContext.current
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text(S.appPhotosViewerInfoTitle().resolve(), style = MaterialTheme.typography.titleMedium)
+        if (compressed) Text(
+            S.appFilesCompressCompressedNote().resolve(), style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp),
+        )
         Spacer(Modifier.height(12.dp))
         when {
             loading -> CircularProgressIndicator()

@@ -672,7 +672,8 @@ final class FilesExplorerViewModel: ObservableObject {
                 isLocalOnly: false,
                 thumbImage: thumb?.image,
                 hash: f.hash,
-                originalHash: f.originalHash
+                originalHash: f.originalHash,
+                originalRemoved: f.originalRemoved
             )
         }
     }
@@ -884,7 +885,8 @@ final class FilesExplorerViewModel: ObservableObject {
                 isLocalOnly: false,
                 thumbImage: thumb?.image,
                 hash: row.raw.hash,
-                originalHash: row.raw.originalHash
+                originalHash: row.raw.originalHash,
+                originalRemoved: row.raw.originalRemoved
             )
         }
     }
@@ -1970,7 +1972,7 @@ struct FilesExplorerView: View {
                     viewer.showFiles([PhotoGalleryVM.Item(
                         id: "\(file.path)#\(file.hash)", path: file.path, mime: file.mime,
                         size: Int(file.fileSize), thumbData: nil, localURL: nil, isLocalOnly: false,
-                        hash: file.hash, originalHash: file.originalHash
+                        hash: file.hash, originalHash: file.originalHash, originalRemoved: file.originalRemoved
                     )], startAt: 0)
                 }
             }
@@ -2483,9 +2485,9 @@ private struct GridTileAccess: ViewModifier {
     }
 }
 
-/// The viewer's alert (PhotoGalleryVM.notice) over Files, as Images shows
-/// its own.
-private struct ViewerNotice: ViewModifier {
+/// The viewer's alert (PhotoGalleryVM.notice) over Files (and the Largest
+/// files list), as Images shows its own.
+struct ViewerNotice: ViewModifier {
     @ObservedObject var viewer: PhotoGalleryVM
 
     func body(content: Content) -> some View {
@@ -2582,7 +2584,7 @@ extension Notification.Name {
 /// Wrapping it here, plus an explicit Done item wired to onDismiss rather
 /// than relying on that auto-detection alone, makes sure the button is
 /// always there regardless.
-private struct QuickLookView: UIViewControllerRepresentable {
+struct QuickLookView: UIViewControllerRepresentable {
     let url: URL
     let onDismiss: () -> Void
 

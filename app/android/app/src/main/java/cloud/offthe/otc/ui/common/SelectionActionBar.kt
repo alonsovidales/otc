@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.HideImage
@@ -53,6 +54,7 @@ import androidx.compose.ui.zIndex
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.ui.TourTarget
 import cloud.offthe.otc.ui.tourTarget
+import cloud.offthe.otc.i18n.appFilesCompressButton
 import cloud.offthe.otc.i18n.appPhotosPersonCoverUse
 import cloud.offthe.otc.i18n.appShellAddToCollection
 import cloud.offthe.otc.i18n.appShellClearSelection
@@ -83,13 +85,15 @@ private class BarItem(
 
 // Port of SelectionActionBar.swift: what Images and Files both show once
 // something is selected - a floating pill with icon-over-label items.
+// Settings › Largest files shows it too, with Compress alone (no Share,
+// Download nor Delete: null leaves an item out).
 @Composable
 fun SelectionActionBar(
     count: Int,
     busy: SelectionActionTask? = null,
-    onShare: () -> Unit,
-    onDownload: () -> Unit,
-    onDelete: () -> Unit,
+    onShare: (() -> Unit)?,
+    onDownload: (() -> Unit)?,
+    onDelete: (() -> Unit)?,
     onGroup: (() -> Unit)? = null,
     // Remove from collection: the picked photos out of the collection open
     // in Images - only there.
@@ -112,17 +116,22 @@ fun SelectionActionBar(
     // The "N selected" pill's ×: everything unpicked, selection mode left
     // (the screen's own clear, which ends a drag to select too).
     onClear: (() -> Unit)? = null,
+    // Compress (Compress.kt): the dialog for the picked photos and videos -
+    // Images and Largest files; on only while [canCompress] (a photo or
+    // video is among them).
+    onCompress: (() -> Unit)? = null,
+    canCompress: Boolean = true,
 ) {
     val items = buildList {
         if (onUpload != null) add(BarItem(S.commonUpload().resolve(), Icons.Default.Upload, busy == null, onUpload))
-        add(BarItem(S.commonShare().resolve(), Icons.Default.Share, count > 0 && busy == null, onShare, busy = busy == SelectionActionTask.SHARE))
+        if (onShare != null) add(BarItem(S.commonShare().resolve(), Icons.Default.Share, count > 0 && busy == null, onShare, busy = busy == SelectionActionTask.SHARE))
         if (onGallery != null) add(BarItem(S.appShellShareAsGallery().resolve(), Icons.Default.PhotoLibrary, busy == null, onGallery))
         if (onOutOfImages != null) add(BarItem(
             (if (keptOutOfImages) S.appShellShowInImages() else S.appShellKeepOutOfImages()).resolve(),
             if (keptOutOfImages) Icons.Default.Image else Icons.Default.HideImage,
             busy == null, onOutOfImages, busy = busy == SelectionActionTask.OUT_OF_IMAGES,
         ))
-        add(BarItem(S.commonDownload().resolve(), Icons.Default.Download, count > 0 && busy == null, onDownload, busy = busy == SelectionActionTask.DOWNLOAD))
+        if (onDownload != null) add(BarItem(S.commonDownload().resolve(), Icons.Default.Download, count > 0 && busy == null, onDownload, busy = busy == SelectionActionTask.DOWNLOAD))
         if (onGroup != null) add(BarItem(S.appShellAddToCollection().resolve(), NavIcons.AddToCollection, count > 0 && busy == null, onGroup))
         if (onUncollect != null) add(BarItem(
             S.appShellRemoveFromCollection().resolve(), NavIcons.RemoveFromCollection, count > 0 && busy == null, onUncollect,
@@ -140,7 +149,9 @@ fun SelectionActionBar(
             S.appShellMoveToPerson().resolve(), NavIcons.MoveToPerson, count > 0 && busy == null, onMoveToPerson,
             busy = busy == SelectionActionTask.MOVE_PERSON,
         ))
-        add(BarItem(
+        // Next to Delete: it changes the files too, for good.
+        if (onCompress != null) add(BarItem(S.appFilesCompressButton().resolve(), Icons.Default.Compress, count > 0 && busy == null && canCompress, onCompress))
+        if (onDelete != null) add(BarItem(
             S.commonDelete().resolve(), Icons.Default.Delete, count > 0 && busy == null, onDelete,
             busy = busy == SelectionActionTask.DELETE, tint = MaterialTheme.colorScheme.error,
         ))

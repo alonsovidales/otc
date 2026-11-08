@@ -317,6 +317,7 @@ internal fun PlacesMapView(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.
                 PhotoGalleryViewModel.Item(
                     "${f.path}#${f.hash}#${f.byteSize}", f.path, f.mime, f.byteSize, places.state.value.thumbKeys[f.path]?.ifEmpty { null },
                     created = if (f.hasCreated()) f.created.seconds * 1000 else null, hash = f.hash, originalHash = f.originalHash,
+                    originalRemoved = f.originalRemoved,
                 ),
             ),
             0,

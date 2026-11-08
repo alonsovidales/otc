@@ -73,6 +73,10 @@ final class PhotoGalleryVM: ObservableObject {
         /// (PhotoEditor.swift). "" for content that isn't an edit, and from
         /// devices before photo edits.
         var originalHash: String = ""
+        /// Compressed on the device, which deleted the original
+        /// (File.original_removed, Compress.swift): nothing to revert to,
+        /// and Info says so.
+        var originalRemoved = false
     }
 
     // Shared, already-authenticated connection (see OTCConnection.swift)
@@ -667,6 +671,12 @@ final class PhotoGalleryVM: ObservableObject {
     /// asked again as the viewer closes (not under it, where the viewer's
     /// own list would change).
     var editReloadOnClose = false
+
+    // MARK: Compress (Compress.swift)
+    /// The compress job Images started, followed until it is over (every
+    /// 10 s once its dialog has closed): each file compressed takes its old
+    /// one's place in the grid.
+    var compressFollow: CompressModel?
 
     /// Whether the alert (`notice`, `needsUpdate`) shows `overViewer`
     /// (ImageModal) or over the screen under it (Images, Files): over the
@@ -2293,7 +2303,8 @@ final class PhotoGalleryVM: ObservableObject {
                 copies: f.hasCopies ? Int(f.copies) : nil,
                 up: true,
                 rating: f.hasRating ? RatingMark(f.rating) : .none,
-                originalHash: f.originalHash
+                originalHash: f.originalHash,
+                originalRemoved: f.originalRemoved
             )
         }
         upHidden += PhotoPaging.hidden(lof.files, own: own, added: new.count)
@@ -2615,7 +2626,8 @@ final class PhotoGalleryVM: ObservableObject {
                 hash: f.hash,
                 copies: f.hasCopies ? Int(f.copies) : nil,
                 rating: f.hasRating ? RatingMark(f.rating) : .none,
-                originalHash: f.originalHash
+                originalHash: f.originalHash,
+                originalRemoved: f.originalRemoved
             )
         }
         downHidden += PhotoPaging.hidden(lof.files, own: own, added: filtered.count)
@@ -3570,7 +3582,7 @@ final class PhotoGalleryVM: ObservableObject {
     /// The picked photos by path: as the grid shows them now (a page that
     /// brought one back after a reload: its content now), else as they
     /// were last shown.
-    private func pickedItems() -> [String: Item] {
+    func pickedItems() -> [String: Item] {
         var picked: [String: Item] = [:]
         for it in items where selected.contains(it.path) && picked[it.path] == nil { picked[it.path] = it }
         for (path, it) in pickedAway where picked[path] == nil && selected.contains(path) { picked[path] = it }
@@ -3863,6 +3875,8 @@ struct PhotoGalleryView: View {
     /// trouble), growing with the text size as it does.
     @ScaledMetric(relativeTo: .caption) private var chipIconSize: CGFloat = 14.5
     @State private var groupsSheetGallerySource: Msg_SharedGallerySource?
+    /// The selection bar's Compress dialog (Compress.swift) while it shows.
+    @State private var compressing: CompressModel?
     // Issue #123: as many columns as fit, so the grid uses the whole width
     // on an iPad instead of the fixed three that only ever made sense on a
     // phone - and still exactly three on a phone. The sizes are the web's
@@ -4112,7 +4126,12 @@ struct PhotoGalleryView: View {
                             },
                             // Issue #180: the selected photos, as a gallery -
                             // no group needed.
-                            onGallery: { gallerySource = .paths(Array(vm.selected).sorted()) }
+                            onGallery: { gallerySource = .paths(Array(vm.selected).sorted()) },
+                            // Made smaller on the device (Compress.swift) -
+                            // not among one person's photos, where the
+                            // person's three tools fill the bar already (a
+                            // ninth item cut the German labels short).
+                            onCompress: vm.personInFilter != nil ? nil : { compressing = vm.compressModel() }
                         )
                         .transition(.move(edge: .bottom))
                         .sheet(isPresented: Binding(
@@ -4194,6 +4213,7 @@ struct PhotoGalleryView: View {
             Text(S.appPhotosCollectionsDeleteMessage)
         }
         .sharedGalleryShareFlow(source: $gallerySource)
+        .sheet(item: $compressing) { CompressSheet(model: $0) }
         .sheet(item: $wallpaperTarget) { t in
             WallpaperView(target: t) { wallpaperTarget = nil }
         }
@@ -5951,14 +5971,23 @@ private struct FileInfoView: View {
 
     var body: some View {
         let faces = vm.infoFaces.rows
+        // Compressed on the device: said in place of Revert to Original.
+        let compressed = vm.openItem.map(CompressRules.compressedNote) ?? false
         NavigationStack {
             Group {
                 if vm.infoLoading {
                     ProgressView()
-                } else if vm.infoData == nil && faces.isEmpty {
+                } else if vm.infoData == nil && faces.isEmpty && !compressed {
                     Text(S.appPhotosViewerInfoNone).foregroundColor(.secondary)
                 } else {
                     List {
+                        if compressed {
+                            Section {
+                                Text(S.appFilesCompressCompressedNote)
+                                    .foregroundColor(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
                         Section {
                             if let info = vm.infoData {
                                 details(info)

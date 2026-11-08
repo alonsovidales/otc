@@ -572,6 +572,12 @@ struct SettingsView: View {
                 // something.
                 InProgressSection(upload: upload, items: BackgroundWork.items(status.status))
 
+                // Everything on the device, largest first, to see what
+                // takes the space - and compress photos and videos there
+                // (LargestFiles.swift). Shown for an older device too: the
+                // list says it needs an update.
+                LargestFilesSection()
+
                 // The device's accounts, right under its status (the
                 // owner's most used part of Settings).
                 UsersManagementSection(vm: users)

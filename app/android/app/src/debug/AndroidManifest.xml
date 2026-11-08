@@ -76,5 +76,13 @@
             android:name=".PhotoEditPreviewActivity"
             android:exported="true"
             android:theme="@style/Theme.OffTheCloud" />
+        <!-- Settings > Largest files, its list, the viewer over it and the
+             Compress dialog with a pretend job, on sample data (adb shell am
+             start -n cloud.offthe.otc/.CompressPreviewActivity [- -es show
+             largest|compress|bar] [- -es device demo|old|slow]). -->
+        <activity
+            android:name=".CompressPreviewActivity"
+            android:exported="true"
+            android:theme="@style/Theme.OffTheCloud" />
     </application>
 </manifest>

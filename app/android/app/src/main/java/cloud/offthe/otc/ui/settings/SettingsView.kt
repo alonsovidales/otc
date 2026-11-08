@@ -195,6 +195,9 @@ import cloud.offthe.otc.i18n.appSettingsMemoriesTitle
 import cloud.offthe.otc.i18n.appSettingsMemoriesToggle
 import cloud.offthe.otc.i18n.appSettingsFacesToggle
 import cloud.offthe.otc.i18n.appSettingsLanguage
+import cloud.offthe.otc.i18n.appSettingsLargestHint
+import cloud.offthe.otc.i18n.appSettingsLargestOpen
+import cloud.offthe.otc.i18n.appSettingsLargestTitle
 import cloud.offthe.otc.i18n.appSettingsLinksTitle
 import cloud.offthe.otc.i18n.appSettingsLogsTitle
 import cloud.offthe.otc.i18n.appSettingsPasswordChange
@@ -376,6 +379,7 @@ import cloud.offthe.otc.sync.AssetSyncCache
 import cloud.offthe.otc.sync.SyncScheduler
 import cloud.offthe.otc.ui.social.SocialFeedViewModel
 import cloud.offthe.otc.ui.common.FitText
+import cloud.offthe.otc.ui.files.LargestFilesView
 
 // Port of SettingsView.swift and its sections: Profile (issue #84),
 // Users (#82), bridge secret (#40), face recognition (#52), reprocess
@@ -448,6 +452,19 @@ private fun LogsSection(onOpen: () -> Unit) {
     if (!st.isPrimary) return
     Section(S.appSettingsLogsTitle().resolve(), S.androidSettingsLogsFooter().resolve()) {
         RowLink(S.appSettingsLogsTitle().resolve()) { onOpen() }
+    }
+}
+
+/**
+ * Settings › Largest files (owner, 2026-11-08): its heading, what it is for
+ * and the link to the list of every file on the device, largest first,
+ * where photos and videos can be compressed (LargestFilesView.kt). Shown
+ * for an older device too: the list then says it needs an update.
+ */
+@Composable
+internal fun LargestFilesSection(onOpen: () -> Unit) {
+    Section(S.appSettingsLargestTitle().resolve(), S.appSettingsLargestHint().resolve()) {
+        RowLink(S.appSettingsLargestOpen().resolve()) { onOpen() }
     }
 }
 
@@ -532,6 +549,9 @@ fun SettingsView(secrets: SecretsStore) {
     var showSharedLinks by remember { mutableStateOf(false) }
     // Settings > Logs (LogsView.kt), primary instance only like Tailscale and Users.
     var showLogs by remember { mutableStateOf(false) }
+    // Settings > Largest files (LargestFilesView.kt): saveable, so the list
+    // stays open through a rotation (its model keeps the rows).
+    var showLargest by rememberSaveable { mutableStateOf(false) }
     // Settings > Language (LanguageView.kt): saveable, since picking one
     // recreates the Activity and the screen stays open through it.
     var showLanguage by rememberSaveable { mutableStateOf(false) }
@@ -632,6 +652,9 @@ fun SettingsView(secrets: SecretsStore) {
             // every 5 s while in front. Only while there is something.
             val statusNow by status.state.collectAsState()
             InProgressSection(upload, BackgroundWork.tasks(statusNow.status))
+
+            // Largest files, after what is under way.
+            LargestFilesSection { showLargest = true }
 
             // The device's accounts, right under its status.
             UsersManagementSection()
@@ -857,6 +880,7 @@ fun SettingsView(secrets: SecretsStore) {
     if (showFolders) FoldersView(secrets, onClose = { showFolders = false })
     if (showSharedLinks) SharedLinksView(onClose = { showSharedLinks = false })
     if (showLogs) LogsView(onClose = { showLogs = false })
+    if (showLargest) LargestFilesView(onClose = { showLargest = false })
     if (confirmLogout) {
         AlertDialog(
             onDismissRequest = { confirmLogout = false },

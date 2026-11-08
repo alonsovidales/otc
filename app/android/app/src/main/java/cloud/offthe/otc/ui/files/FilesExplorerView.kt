@@ -312,10 +312,38 @@ private fun isMediaFile(f: PbFile) = !isDir(f) && (isImg(f) || isVideo(f) || f.p
  * A photo or video SearchFiles or the Images search found, as the viewer
  * takes it: [preview] (its result's thumbnail) until the full size comes,
  * and its original_hash - SearchFiles sets it as ListFiles does - so an
- * edit opened from the results offers Revert to Original.
+ * edit opened from the results offers Revert to Original (not a compressed
+ * file's, whose original is gone: original_removed).
  */
 internal fun foundViewerItem(f: PbFile, preview: Bitmap?): PhotoGalleryViewModel.Item =
-    PhotoGalleryViewModel.Item("${f.path}#${f.hash}#${f.byteSize}", f.path, f.mime, f.byteSize, null, preview, hash = f.hash, originalHash = f.originalHash)
+    PhotoGalleryViewModel.Item(
+        "${f.path}#${f.hash}#${f.byteSize}", f.path, f.mime, f.byteSize, null, preview, hash = f.hash, originalHash = f.originalHash,
+        originalRemoved = f.originalRemoved,
+    )
+/**
+ * The file at [path] (or its version [hash], "" for the file itself) written
+ * to the cache under its own name, with its mime - what Files and Settings ›
+ * Largest files hand the phone's apps to open it. In pieces
+ * (ChunkedDownload), except a HEIC ([mime] or its name): GetFile hands
+ * viewers a JPEG of it, as before. Refused: the device said no.
+ */
+internal suspend fun fetchToPreview(context: Context, path: String, mime: String, hash: String = ""): Pair<File, String?> {
+    // Under its own name, for the app it opens in; the file opened before
+    // goes now (that app has it open, or is done with it), and what is
+    // left goes at the next start (TempFiles).
+    withContext(Dispatchers.IO) { TempFiles.clear(context.cacheDir, TempFiles.Kind.PREVIEW) }
+    val tmp = TempFiles.named(context.cacheDir, TempFiles.Kind.PREVIEW, leafName(path))
+    if (leafName(path).endsWith(".heic", ignoreCase = true) || mime.equals("image/heic", ignoreCase = true)) {
+        val resp = OTCConnection.request { it.setReqGetFile(GetFile.newBuilder().setPath(path).setHash(hash)) }
+        if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE) throw ChunkedDownload.Refused(resp.errorMessage)
+        val f = resp.respFile
+        withContext(Dispatchers.IO) { tmp.writeBytes(f.content.toByteArray()) }
+        return tmp to f.mime.ifEmpty { null }
+    }
+    val meta = ChunkedDownload.download(path, hash, tmp)
+    return tmp to meta.mime.ifEmpty { null }
+}
+
 /** A folder's listing as rows: ".." first below the root, each with its marks (issues #132, #192). */
 internal fun listingRows(lof: ListOfFiles, path: String): List<FileRow> {
     val files = lof.filesList.toMutableList()
@@ -1143,22 +1171,8 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
      * name, with its mime. In pieces (ChunkedDownload), except a HEIC: GetFile
      * hands viewers a JPEG of it, as before. Refused: the device said no.
      */
-    private suspend fun fetchToCache(context: Context, row: FileRow, hash: String): Pair<File, String?> {
-        // Under its own name, for the app it opens in; the file opened before
-        // goes now (that app has it open, or is done with it), and what is
-        // left goes at the next start (TempFiles).
-        withContext(Dispatchers.IO) { TempFiles.clear(context.cacheDir, TempFiles.Kind.PREVIEW) }
-        val tmp = TempFiles.named(context.cacheDir, TempFiles.Kind.PREVIEW, leafName(row.path))
-        if (row.name.endsWith(".heic", ignoreCase = true) || row.raw.mime.equals("image/heic", ignoreCase = true)) {
-            val resp = OTCConnection.request { it.setReqGetFile(GetFile.newBuilder().setPath(fullPath(row)).setHash(hash)) }
-            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE) throw ChunkedDownload.Refused(resp.errorMessage)
-            val f = resp.respFile
-            withContext(Dispatchers.IO) { tmp.writeBytes(f.content.toByteArray()) }
-            return tmp to f.mime.ifEmpty { null }
-        }
-        val meta = ChunkedDownload.download(fullPath(row), hash, tmp)
-        return tmp to meta.mime.ifEmpty { null }
-    }
+    private suspend fun fetchToCache(context: Context, row: FileRow, hash: String): Pair<File, String?> =
+        fetchToPreview(context, fullPath(row), row.raw.mime, hash)
 
     /** Issue #132: the selection touches an upload-only folder - the device refuses those deletes. */
     val selectionUploadOnly: Boolean get() = _state.value.rows.any { it.path in _state.value.selected && it.uploadOnly }
@@ -1473,7 +1487,7 @@ fun FilesExplorerView(initialPath: String) {
             val full = vm.fullPath(r)
             PhotoGalleryViewModel.Item(
                 "$full#${r.raw.hash}#${r.size}", full, r.raw.mime, r.size, null, st.thumbs[vm.thumbKey(r)]?.asAndroidBitmap(), hash = r.raw.hash,
-                originalHash = r.raw.originalHash,
+                originalHash = r.raw.originalHash, originalRemoved = r.raw.originalRemoved,
             )
         }
         viewer.showFiles(items, media.indexOf(row)) { vm.launchLoad() }

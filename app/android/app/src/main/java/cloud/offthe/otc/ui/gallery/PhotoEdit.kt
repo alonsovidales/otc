@@ -94,8 +94,15 @@ object PhotoEdit {
     /** [editable] for one of the viewer's items. */
     fun editable(item: PhotoGalleryViewModel.Item): Boolean = editable(item.mime, item.path)
 
-    /** Whether the viewer offers Revert to Original: the content is an edit the device keeps the original of (File.original_hash). */
-    fun revertable(item: PhotoGalleryViewModel.Item): Boolean = item.originalHash.isNotEmpty()
+    /**
+     * Whether the viewer offers Revert to Original: the content is an edit
+     * the device keeps the original of (File.original_hash) - not a
+     * compressed one, whose original it deleted (File.original_removed).
+     */
+    fun revertable(item: PhotoGalleryViewModel.Item): Boolean = item.originalHash.isNotEmpty() && !item.originalRemoved
+
+    /** Whether Info says the photo was compressed and its original deleted (File.original_removed; compress.compressed_note). */
+    fun compressedNote(item: PhotoGalleryViewModel.Item?): Boolean = item?.originalRemoved == true
 
     /** Whether [crop] keeps the whole photo: no EditCrop is sent then. */
     fun whole(crop: CropRect): Boolean =

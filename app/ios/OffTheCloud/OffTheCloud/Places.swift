@@ -1010,7 +1010,8 @@ struct PlacesMapView: View {
         viewer.showFiles([PhotoGalleryVM.Item(
             id: PhotoPaging.itemID(f), path: f.path, mime: f.mime, size: Int(f.fileSize),
             thumbData: nil, localURL: nil, isLocalOnly: false, thumbImage: image,
-            created: f.hasCreated ? f.created.date : nil, hash: f.hash, originalHash: f.originalHash
+            created: f.hasCreated ? f.created.date : nil, hash: f.hash, originalHash: f.originalHash,
+            originalRemoved: f.originalRemoved
         )], startAt: 0)
     }
 

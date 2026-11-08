@@ -28,6 +28,7 @@ import cloud.offthe.otc.net.retryWaitMs
 import cloud.offthe.otc.net.sleepOrWake
 import cloud.offthe.otc.proto.AddToImageGroup
 import cloud.offthe.otc.proto.CreateImageGroup
+import cloud.offthe.otc.proto.CompressResult
 import cloud.offthe.otc.proto.DelFile
 import cloud.offthe.otc.proto.DeleteImageGroup
 import cloud.offthe.otc.proto.FileExifInfo
@@ -275,10 +276,12 @@ class PhotoGalleryViewModel(
     // #194): the upward search above a jump brought it, not the downward one.
     // originalHash (photo edit): the photo it is an edit of (File.original_hash),
     // empty when it is none - the viewer offers Revert to Original only then.
+    // originalRemoved (Compress): that original's bytes are gone from the
+    // device (File.original_removed) - no Revert, and Info says so.
     data class Item(
         val id: String, val path: String, val mime: String, val size: Long, val thumbKey: String?,
         val preview: Bitmap? = null, val month: String? = null, val created: Long? = null, val hash: String = "",
-        val copies: Int? = null, val up: Boolean = false, val originalHash: String = "",
+        val copies: Int? = null, val up: Boolean = false, val originalHash: String = "", val originalRemoved: Boolean = false,
     )
     data class DateBucket(val month: String, val count: Int, val start: Int, val end: Int)
 
@@ -1805,7 +1808,7 @@ class PhotoGalleryViewModel(
         val created = if (f.hasCreated()) f.created.seconds * 1000 + f.created.nanos / 1_000_000 else null
         return Item(
             "${f.path}#${f.hash}#${f.byteSize}", f.path, f.mime, f.byteSize, thumbKey, month = month, created = created, hash = f.hash,
-            copies = if (f.hasCopies()) f.copies else null, up = up, originalHash = f.originalHash,
+            copies = if (f.hasCopies()) f.copies else null, up = up, originalHash = f.originalHash, originalRemoved = f.originalRemoved,
         )
     }
 
@@ -3071,24 +3074,8 @@ class PhotoGalleryViewModel(
      * asks for its photos again, as Files does when a folder leaves Images.
      */
     private fun showEdited(old: Item, f: PbFile, shown: Bitmap? = null) {
-        val at = _state.value.items.indexOfFirst { it.id == old.id }
-        val gone = setOf(old.path, f.path)
-        hiResOrder.removeAll(gone)
-        if (bigThumbFor in gone) stopBigThumb()
-        if (at >= 0) {
-            val made = itemOf(f, null, ZoneId.systemDefault(), old.up)
-            // What the answer leaves out stays as the photo had it.
-            val fresh = made.copy(month = made.month ?: old.month, created = made.created ?: old.created, preview = shown)
-            _state.update { s ->
-                s.copy(
-                    items = s.items.toMutableList().also { it[at] = fresh },
-                    hiResImages = s.hiResImages - gone, bigThumbs = s.bigThumbs - gone, thumbKeys = s.thumbKeys - gone,
-                    favourites = s.favourites - gone, unplayable = s.unplayable - gone,
-                    selected = if (old.path in s.selected) s.selected - old.path + f.path else s.selected,
-                )
-            }
-            if (_state.value.openIndex == at) open(at)
-        }
+        val at = swapItem(old, f, shown)
+        if (at >= 0 && _state.value.openIndex == at) open(at)
         if (fixedList) {
             onDeleted?.invoke()
             ImagesChanged.bump()
@@ -3097,6 +3084,52 @@ class PhotoGalleryViewModel(
             places.libraryChanged()
             if (_state.value.activeGroup != null || _state.value.groupsLoaded) scope.launch { loadGroups() }
         }
+    }
+
+    // [old] becomes [f] in the grid, where it is ([shown]: its picture
+    // until its own comes) - its place kept, its month and date kept where
+    // the answer has none, picked if it was - and what was held of the old
+    // content at either path goes. Its index, -1 when it isn't there.
+    private fun swapItem(old: Item, f: PbFile, shown: Bitmap? = null): Int {
+        val at = _state.value.items.indexOfFirst { it.id == old.id }
+        val gone = setOf(old.path, f.path)
+        hiResOrder.removeAll(gone)
+        if (bigThumbFor in gone) stopBigThumb()
+        if (at < 0) return at
+        val made = itemOf(f, null, ZoneId.systemDefault(), old.up)
+        // What the answer leaves out stays as the photo had it.
+        val fresh = made.copy(month = made.month ?: old.month, created = made.created ?: old.created, preview = shown)
+        _state.update { s ->
+            s.copy(
+                items = s.items.toMutableList().also { it[at] = fresh },
+                hiResImages = s.hiResImages - gone, bigThumbs = s.bigThumbs - gone, thumbKeys = s.thumbKeys - gone,
+                favourites = s.favourites - gone, unplayable = s.unplayable - gone,
+                selected = if (old.path in s.selected) s.selected - old.path + f.path else s.selected,
+            )
+        }
+        return at
+    }
+
+    /**
+     * Compress (CompressDialog.kt): the device compressed these photos and
+     * videos - each [results]' file is the content now at its path (a new
+     * hash, original_removed set, maybe a new name: a PNG becomes .jpg) -
+     * and the grid shows each in place of the tile it had, as after an
+     * edit; a tile already showing it is left as it is. The map's photos
+     * and the collections' covers follow.
+     */
+    fun compressed(results: List<CompressResult>) {
+        var swapped = false
+        for (r in results) {
+            if (!r.hasFile()) continue
+            val old = _state.value.items.firstOrNull { it.path == r.path && it.hash != r.file.hash } ?: continue
+            // Every path that held the original holds this now: as many copies.
+            val f = if (!r.file.hasCopies() && old.copies != null) r.file.toBuilder().setCopies(old.copies).build() else r.file
+            if (swapItem(old, f) >= 0) swapped = true
+        }
+        if (!swapped || fixedList) return
+        places.libraryChanged()
+        if (_state.value.activeGroup != null || _state.value.groupsLoaded) scope.launch { loadGroups() }
     }
 
     /**
