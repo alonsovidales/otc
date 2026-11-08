@@ -6,6 +6,50 @@
   "web.files.column.resize_tip": "Sleep of gebruik de pijltoetsen om de breedte te wijzigen. Dubbelklik om die terug te zetten.",
   "web.files.column.share": "Aandeel in de map",
   "web.files.column.size": "Grootte",
+  "web.files.compress.button": "Comprimeren",
+  "web.files.compress.compressed_note": "Gecomprimeerd op je apparaat; het origineel is verwijderd.",
+  "web.files.compress.confirm": "Comprimeren",
+  "web.files.compress.done": {
+    "one": "{count} bestand gecomprimeerd, {size} vrijgemaakt",
+    "other": "{count} bestanden gecomprimeerd, {size} vrijgemaakt",
+    "arg": "count"
+  },
+  "web.files.compress.estimating": "Groottes berekenen…",
+  "web.files.compress.failed": {
+    "one": "{count} bestand kon niet worden gecomprimeerd",
+    "other": "{count} bestanden konden niet worden gecomprimeerd",
+    "arg": "count"
+  },
+  "web.files.compress.jpeg_resave": "JPEG’s opslaan in lagere kwaliteit",
+  "web.files.compress.needs_update": "Je apparaat heeft een update nodig om bestanden te comprimeren.",
+  "web.files.compress.not_offered": {
+    "one": "{count} bestand kan niet kleiner worden gemaakt",
+    "other": "{count} bestanden kunnen niet kleiner worden gemaakt",
+    "arg": "count"
+  },
+  "web.files.compress.nothing": "Geen van deze bestanden kan kleiner worden gemaakt.",
+  "web.files.compress.options_failed": "Kan de groottes niet berekenen.",
+  "web.files.compress.photo_12mp": "Grote foto’s verkleinen tot 12 megapixels",
+  "web.files.compress.png_to_jpeg": "PNG’s opslaan als JPEG",
+  "web.files.compress.progress": "Comprimeren ({done} van {total})…",
+  "web.files.compress.row": {
+    "one": "{count} bestand · {now} → ongeveer {after}",
+    "other": "{count} bestanden · {now} → ongeveer {after}",
+    "arg": "count"
+  },
+  "web.files.compress.slow": "Video’s kosten wat tijd: je apparaat codeert ze op de achtergrond opnieuw, en je kunt het ondertussen gewoon blijven gebruiken.",
+  "web.files.compress.title": {
+    "one": "{count} bestand comprimeren",
+    "other": "{count} bestanden comprimeren",
+    "arg": "count"
+  },
+  "web.files.compress.total": "Maakt ongeveer {size} vrij",
+  "web.files.compress.video_1080p": "Naar 1080p verlagen",
+  "web.files.compress.video_720p": "Naar 720p verlagen",
+  "web.files.compress.video_hevc": "Zelfde resolutie, HEVC-formaat",
+  "web.files.compress.video_none": "Laten zoals ze zijn",
+  "web.files.compress.videos": "Video’s",
+  "web.files.compress.warning": "De originelen worden definitief van je apparaat verwijderd: alleen de gecomprimeerde bestanden blijven daar staan. Kopieën op je telefoons en computers blijven bewaard.",
   "web.files.gallery.cant_show": "Dit bestand kan hier niet worden getoond: download het in plaats daarvan.",
   "web.files.gallery.download_all": "Alles downloaden",
   "web.files.gallery.download_count": "{count} downloaden",
@@ -47,6 +91,16 @@
   "web.files.keep_out.switch": "De map \u2068{name}\u2069 buiten Afbeeldingen houden",
   "web.files.keep_out.tip_off": "Buiten Afbeeldingen houden: foto’s en video’s hier krijgen geen tags meer, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond",
   "web.files.keep_out.tip_on": "Buiten Afbeeldingen: foto’s en video’s hier krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond. Klik om ze in Afbeeldingen te tonen.",
+  "web.files.largest.empty": "Er staan nog geen bestanden op je apparaat.",
+  "web.files.largest.failed": "Kan de lijst niet laden.",
+  "web.files.largest.intro": "Grootste eerst. Een bestand dat op meerdere plekken staat, wordt één keer getoond.",
+  "web.files.largest.needs_update": "Je apparaat heeft een update nodig om zijn grootste bestanden te tonen.",
+  "web.files.largest.places": {
+    "one": "op {count} plek",
+    "other": "op {count} plekken",
+    "arg": "count"
+  },
+  "web.files.largest.title": "Grootste bestanden",
   "web.files.links.confirm_delete": "Deze link verwijderen? De gedeelde kopieën worden verwijderd en de link werkt niet meer.",
   "web.files.links.delete_failed": "Kan de link niet verwijderen.",
   "web.files.links.details": "{size} · gemaakt op {made} · geldig tot {until}",

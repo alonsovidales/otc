@@ -56,6 +56,9 @@
     <string name="app_settings_language_automatic_named">Automatic (%1$s)</string>
     <string name="app_settings_language_footer">Saved on your device, so every app signed in to it uses the same language. Automatic follows the language this phone is set to.</string>
     <string name="app_settings_language_this_phone">Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only.</string>
+    <string name="app_settings_largest_hint">Everything on your device, largest first, to see what takes the most space. Photos and videos can be compressed from there to free some.</string>
+    <string name="app_settings_largest_open">Show Largest Files</string>
+    <string name="app_settings_largest_title">Largest files</string>
     <string name="app_settings_limited_allow_all">Allow Access to All Photos</string>
     <string name="app_settings_limited_select_more">Select More Photos</string>
     <string name="app_settings_limited_warning">Only the photos you picked are backed up: Off The Cloud can see only those. To back up every photo on this phone, allow access to all of them.</string>

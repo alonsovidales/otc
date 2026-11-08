@@ -1,6 +1,8 @@
 {
   "dev.alert.bridge.left": {"text": "This device left the bridge"},
   "dev.alert.bridge.left_detail": {"text": "The bridge no longer knows {domain}: its account was deleted or the name released. The device goes on working at home, at {address} - set the apps to that address, or join the bridge again in Settings.", "args": [["domain", "text"], ["address", "text"]]},
+  "dev.alert.compress.done": {"text": {"one": "{count} file compressed, {saved} freed", "other": "{count} files compressed, {saved} freed"}, "args": [["count", "count"], ["saved", "text"]]},
+  "dev.alert.compress.failed": {"text": {"one": "{count} file couldn't be compressed", "other": "{count} files couldn't be compressed"}, "args": [["count", "count"]]},
   "dev.alert.file.crashed": {"text": "{name} could not be processed (it crashed the processing)", "args": [["name", "user"]]},
   "dev.alert.file.not_converted": {"text": "{name} could not be converted from HEIC", "args": [["name", "user"]]},
   "dev.alert.file.not_decrypted": {"text": "{name} could not be decrypted", "args": [["name", "user"]]},

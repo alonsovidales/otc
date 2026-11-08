@@ -1,6 +1,8 @@
 {
   "dev.alert.bridge.left": {"text": "Dieses Gerät hat die Bridge verlassen"},
   "dev.alert.bridge.left_detail": {"text": "Die Bridge kennt {domain} nicht mehr: Das Konto wurde gelöscht oder der Name freigegeben. Das Gerät funktioniert zu Hause weiter, unter {address} – stelle die Apps auf diese Adresse um oder verbinde es in den Einstellungen wieder mit der Bridge."},
+  "dev.alert.compress.done": {"text": {"one": "{count} Datei komprimiert, {saved} freigegeben", "other": "{count} Dateien komprimiert, {saved} freigegeben"}},
+  "dev.alert.compress.failed": {"text": {"one": "{count} Datei konnte nicht komprimiert werden", "other": "{count} Dateien konnten nicht komprimiert werden"}},
   "dev.alert.file.crashed": {"text": "{name} konnte nicht verarbeitet werden (die Verarbeitung ist abgestürzt)"},
   "dev.alert.file.not_converted": {"text": "{name} konnte nicht aus HEIC konvertiert werden"},
   "dev.alert.file.not_decrypted": {"text": "{name} konnte nicht entschlüsselt werden"},

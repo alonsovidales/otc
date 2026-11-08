@@ -27,6 +27,132 @@
     "text": "Dimensioni",
     "en": "Size"
   },
+  "web.files.compress.button": {
+    "text": "Comprimi",
+    "en": "Compress"
+  },
+  "web.files.compress.compressed_note": {
+    "text": "File compresso sul tuo dispositivo; l’originale è stato eliminato.",
+    "en": "Compressed on your device; its original was deleted."
+  },
+  "web.files.compress.confirm": {
+    "text": "Comprimi",
+    "en": "Compress"
+  },
+  "web.files.compress.done": {
+    "text": {
+      "one": "{count} file compresso, {size} liberati",
+      "other": "{count} file compressi, {size} liberati"
+    },
+    "en": {
+      "one": "{count} file compressed, {size} freed",
+      "other": "{count} files compressed, {size} freed"
+    }
+  },
+  "web.files.compress.estimating": {
+    "text": "Calcolo delle dimensioni…",
+    "en": "Working out the sizes…"
+  },
+  "web.files.compress.failed": {
+    "text": {
+      "one": "Impossibile comprimere {count} file",
+      "other": "Impossibile comprimere {count} file"
+    },
+    "en": {
+      "one": "{count} file couldn't be compressed",
+      "other": "{count} files couldn't be compressed"
+    }
+  },
+  "web.files.compress.jpeg_resave": {
+    "text": "Salva i JPEG con una qualità inferiore",
+    "en": "Save JPEGs at a lower quality"
+  },
+  "web.files.compress.needs_update": {
+    "text": "Il tuo dispositivo deve essere aggiornato per comprimere i file.",
+    "en": "Your device needs an update to compress files."
+  },
+  "web.files.compress.not_offered": {
+    "text": {
+      "one": "{count} file non può essere ridotto",
+      "other": "{count} file non possono essere ridotti"
+    },
+    "en": {
+      "one": "{count} file can't be made smaller",
+      "other": "{count} files can't be made smaller"
+    }
+  },
+  "web.files.compress.nothing": {
+    "text": "Nessuno di questi file può essere ridotto.",
+    "en": "None of these files can be made smaller."
+  },
+  "web.files.compress.options_failed": {
+    "text": "Impossibile calcolare le dimensioni.",
+    "en": "The sizes couldn't be worked out."
+  },
+  "web.files.compress.photo_12mp": {
+    "text": "Riduci le foto grandi a 12 megapixel",
+    "en": "Shrink large photos to 12 megapixels"
+  },
+  "web.files.compress.png_to_jpeg": {
+    "text": "Salva i PNG come JPEG",
+    "en": "Save PNGs as JPEG"
+  },
+  "web.files.compress.progress": {
+    "text": "Compressione {done} di {total}…",
+    "en": "Compressing {done} of {total}…"
+  },
+  "web.files.compress.row": {
+    "text": {
+      "one": "{count} file · {now} → circa {after}",
+      "other": "{count} file · {now} → circa {after}"
+    },
+    "en": {
+      "one": "{count} file · {now} → about {after}",
+      "other": "{count} files · {now} → about {after}"
+    }
+  },
+  "web.files.compress.slow": {
+    "text": "I video richiedono un po’ di tempo: il tuo dispositivo li ricodifica in background, e nel frattempo puoi continuare a usarlo.",
+    "en": "Videos take a while: your device re-encodes them in the background, and you can keep using it meanwhile."
+  },
+  "web.files.compress.title": {
+    "text": {
+      "one": "Comprimi {count} file",
+      "other": "Comprimi {count} file"
+    },
+    "en": {
+      "one": "Compress {count} file",
+      "other": "Compress {count} files"
+    }
+  },
+  "web.files.compress.total": {
+    "text": "Libera circa {size}",
+    "en": "Frees about {size}"
+  },
+  "web.files.compress.video_1080p": {
+    "text": "Riduci a 1080p",
+    "en": "Lower to 1080p"
+  },
+  "web.files.compress.video_720p": {
+    "text": "Riduci a 720p",
+    "en": "Lower to 720p"
+  },
+  "web.files.compress.video_hevc": {
+    "text": "Stessa risoluzione, formato HEVC",
+    "en": "Same size, HEVC format"
+  },
+  "web.files.compress.video_none": {
+    "text": "Lasciali come sono",
+    "en": "Leave as they are"
+  },
+  "web.files.compress.videos": {
+    "text": "Video",
+    "en": "Videos"
+  },
+  "web.files.compress.warning": {
+    "text": "Gli originali vengono eliminati definitivamente dal tuo dispositivo: lì restano solo i file compressi. Le copie sui tuoi telefoni e computer vengono conservate.",
+    "en": "The originals are deleted from your device for good: only the compressed files stay there. Copies on your phones and computers are kept."
+  },
   "web.files.gallery.cant_show": {
     "text": "Questo file non può essere mostrato qui: scaricalo.",
     "en": "This file could not be shown here - download it instead."
@@ -172,6 +298,36 @@
   "web.files.keep_out.tip_on": {
     "text": "Fuori da Immagini: le foto e i video qui non vengono etichettati, analizzati alla ricerca di volti né mostrati in Immagini. Fai clic per mostrarli in Immagini.",
     "en": "Kept out of Images: photos and videos here aren't tagged, searched for faces or shown in Images. Click to show them in Images."
+  },
+  "web.files.largest.empty": {
+    "text": "Non ci sono ancora file sul tuo dispositivo.",
+    "en": "There are no files on your device yet."
+  },
+  "web.files.largest.failed": {
+    "text": "Impossibile caricare l’elenco.",
+    "en": "The list couldn't be loaded."
+  },
+  "web.files.largest.intro": {
+    "text": "Prima i più grandi. Un file presente in più posti compare una sola volta.",
+    "en": "Largest first. A file in several places is listed once."
+  },
+  "web.files.largest.needs_update": {
+    "text": "Il tuo dispositivo deve essere aggiornato per elencare i suoi file più grandi.",
+    "en": "Your device needs an update to list its largest files."
+  },
+  "web.files.largest.places": {
+    "text": {
+      "one": "in {count} posto",
+      "other": "in {count} posti"
+    },
+    "en": {
+      "one": "in {count} place",
+      "other": "in {count} places"
+    }
+  },
+  "web.files.largest.title": {
+    "text": "File più grandi",
+    "en": "Largest files"
   },
   "web.files.links.confirm_delete": {
     "text": "Eliminare questo link? Le copie condivise vengono eliminate e il link smette di funzionare.",

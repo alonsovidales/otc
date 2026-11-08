@@ -6,6 +6,50 @@
   "web.files.column.resize_tip": "Faites glisser ou utilisez les touches fléchées pour changer la largeur. Double-cliquez pour la rétablir.",
   "web.files.column.share": "Part du dossier",
   "web.files.column.size": "Taille",
+  "web.files.compress.button": "Compresser",
+  "web.files.compress.compressed_note": "Fichier compressé sur votre appareil ; son original a été supprimé.",
+  "web.files.compress.confirm": "Compresser",
+  "web.files.compress.done": {
+    "one": "{count} fichier compressé, {size} libérés",
+    "other": "{count} fichiers compressés, {size} libérés",
+    "arg": "count"
+  },
+  "web.files.compress.estimating": "Calcul des tailles…",
+  "web.files.compress.failed": {
+    "one": "{count} fichier n’a pas pu être compressé",
+    "other": "{count} fichiers n’ont pas pu être compressés",
+    "arg": "count"
+  },
+  "web.files.compress.jpeg_resave": "Enregistrer les JPEG en qualité réduite",
+  "web.files.compress.needs_update": "Votre appareil doit être mis à jour pour compresser des fichiers.",
+  "web.files.compress.not_offered": {
+    "one": "{count} fichier ne peut pas être réduit",
+    "other": "{count} fichiers ne peuvent pas être réduits",
+    "arg": "count"
+  },
+  "web.files.compress.nothing": "Aucun de ces fichiers ne peut être réduit.",
+  "web.files.compress.options_failed": "Impossible de calculer les tailles.",
+  "web.files.compress.photo_12mp": "Réduire les grandes photos à 12 mégapixels",
+  "web.files.compress.png_to_jpeg": "Enregistrer les PNG en JPEG",
+  "web.files.compress.progress": "Compression {done} sur {total}…",
+  "web.files.compress.row": {
+    "one": "{count} fichier · {now} → environ {after}",
+    "other": "{count} fichiers · {now} → environ {after}",
+    "arg": "count"
+  },
+  "web.files.compress.slow": "Les vidéos prennent du temps : votre appareil les réencode en arrière-plan, et vous pouvez continuer à l’utiliser en attendant.",
+  "web.files.compress.title": {
+    "one": "Compresser {count} fichier",
+    "other": "Compresser {count} fichiers",
+    "arg": "count"
+  },
+  "web.files.compress.total": "Libère environ {size}",
+  "web.files.compress.video_1080p": "Réduire en 1080p",
+  "web.files.compress.video_720p": "Réduire en 720p",
+  "web.files.compress.video_hevc": "Même résolution, format HEVC",
+  "web.files.compress.video_none": "Les laisser telles quelles",
+  "web.files.compress.videos": "Vidéos",
+  "web.files.compress.warning": "Les originaux sont définitivement supprimés de votre appareil : seuls les fichiers compressés y restent. Les copies sur vos téléphones et ordinateurs sont conservées.",
   "web.files.gallery.cant_show": "Impossible d’afficher ce fichier ici : téléchargez-le plutôt.",
   "web.files.gallery.download_all": "Tout télécharger",
   "web.files.gallery.download_count": "Télécharger {count}",
@@ -47,6 +91,16 @@
   "web.files.keep_out.switch": "Exclure le dossier \u2068{name}\u2069 d’Images",
   "web.files.keep_out.tip_off": "Exclure d’Images : les photos et vidéos de ce dossier ne seront ni étiquetées, ni analysées pour y rechercher des visages, ni affichées dans Images",
   "web.files.keep_out.tip_on": "Hors d’Images : les photos et vidéos de ce dossier ne sont ni étiquetées, ni analysées pour y rechercher des visages, ni affichées dans Images. Cliquez pour les afficher dans Images.",
+  "web.files.largest.empty": "Il n’y a pas encore de fichiers sur votre appareil.",
+  "web.files.largest.failed": "Impossible de charger la liste.",
+  "web.files.largest.intro": "Les plus gros d’abord. Un fichier présent à plusieurs endroits n’apparaît qu’une fois.",
+  "web.files.largest.needs_update": "Votre appareil doit être mis à jour pour afficher ses plus gros fichiers.",
+  "web.files.largest.places": {
+    "one": "à {count} endroit",
+    "other": "à {count} endroits",
+    "arg": "count"
+  },
+  "web.files.largest.title": "Les plus gros fichiers",
   "web.files.links.confirm_delete": "Supprimer ce lien ? Les copies partagées sont supprimées et le lien cesse de fonctionner.",
   "web.files.links.delete_failed": "Impossible de le supprimer.",
   "web.files.links.details": "{size} · créé le {made} · jusqu’au {until}",

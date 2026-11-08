@@ -12,6 +12,24 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #4b8cbf42"
   },
+  "dev.alert.compress.done": {
+    "text": {
+      "one": "{count} file compressed, {saved} freed",
+      "other": "{count} files compressed, {saved} freed"
+    },
+    "args": [["count", "count"], ["saved", "text"]],
+    "note": "Title of an alert when the device finished compressing the photos and videos the owner picked (Compress). {count} is how many were compressed; {saved} the space freed, such as 1.2 GB (written by the device).",
+    "stored": true
+  },
+  "dev.alert.compress.failed": {
+    "text": {
+      "one": "{count} file couldn't be compressed",
+      "other": "{count} files couldn't be compressed"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of an alert when some of the photos and videos the owner asked to compress couldn't be (each was left as it was); the alert's lines name each file and why.",
+    "stored": true
+  },
   "dev.alert.file.crashed": {
     "text": "{name} could not be processed (it crashed the processing)",
     "args": [["name", "user"]],

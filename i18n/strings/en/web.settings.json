@@ -243,6 +243,20 @@
     "text": "This browser will remember it. Update your device to use it in every app.",
     "note": "Shown under the Language picker in Settings when the user's device runs software too old to store the language: only this browser switches until the device is updated (Settings, Update)."
   },
+  "web.settings.largest.hint": {
+    "text": "Everything on your device, largest first, to see what takes the most space. Photos and videos can be compressed from there to free some.",
+    "note": "Text of Settings' Largest files section (the web app), under its heading."
+  },
+  "web.settings.largest.open": {
+    "text": "Show largest files",
+    "note": "Button in Settings' Largest files section (the web app) that opens the list.",
+    "max": 32
+  },
+  "web.settings.largest.title": {
+    "text": "Largest files",
+    "note": "Heading of a Settings section (the web app) that opens the list of every file on the device, largest first.",
+    "max": 32
+  },
   "web.settings.logs.copied": {
     "text": "Copied",
     "note": "Label of the Copy button in the logs window for a moment after the log was copied.",

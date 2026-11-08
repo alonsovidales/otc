@@ -31,6 +31,46 @@
     "text": "eine Sammlung braucht einen Namen",
     "en": "a collection needs a name"
   },
+  "dev.files.compress_failed": {
+    "text": "das Gerät konnte diese Datei nicht komprimieren",
+    "en": "the device could not compress this file"
+  },
+  "dev.files.compress_kept_version": {
+    "text": "eine ältere Version einer Datei enthält diesen Inhalt, daher würde das Komprimieren keinen Platz freigeben",
+    "en": "an older version of a file keeps this content, so compressing it would free no space"
+  },
+  "dev.files.compress_missing": {
+    "text": "der Inhalt dieser Datei ist nicht auf den Laufwerken des Geräts",
+    "en": "this file's content isn't on the device's disks"
+  },
+  "dev.files.compress_no_job": {
+    "text": "es gibt keinen Komprimierungsauftrag",
+    "en": "there is no compress job"
+  },
+  "dev.files.compress_not_media": {
+    "text": "nur Fotos und Videos lassen sich komprimieren",
+    "en": "only photos and videos can be compressed"
+  },
+  "dev.files.compress_not_smaller": {
+    "text": "die komprimierte Fassung war nicht kleiner, daher blieb die Datei unverändert",
+    "en": "compressed, it came out no smaller, so the file was left as it was"
+  },
+  "dev.files.compress_nothing_to_gain": {
+    "text": "das Gerät kann diese Datei nicht merklich verkleinern",
+    "en": "the device can't make this file noticeably smaller"
+  },
+  "dev.files.compress_too_many": {
+    "text": "wähle höchstens 500 Dateien auf einmal",
+    "en": "pick at most 500 files at a time"
+  },
+  "dev.files.compress_unknown_preset": {
+    "text": "diese Art der Komprimierung ist für diese Datei nicht verfügbar",
+    "en": "this way of compressing isn't available for this file"
+  },
+  "dev.files.compress_upload_only": {
+    "text": "diese Datei liegt in einem Ordner mit „Nur hochladen“, in dem nichts ersetzt wird; schalte „Nur hochladen“ dort aus, um sie zu komprimieren",
+    "en": "this file is in an upload-only folder, where nothing is replaced; turn upload only off there to compress it"
+  },
   "dev.files.content_changed": {
     "text": "diese Datei hat sich geändert, seit sie angezeigt wurde, deshalb wurde nichts gelöscht: Aktualisiere und versuche es erneut",
     "en": "this file has changed since it was shown, so nothing was deleted: refresh and try again",
@@ -216,6 +256,10 @@
   "dev.files.nothing_to_stream": {
     "text": "nichts abzuspielen",
     "en": "nothing to stream"
+  },
+  "dev.files.original_compressed": {
+    "text": "diese Datei wurde komprimiert und ihr Original gelöscht, daher gibt es kein Original, zu dem du zurückkehren kannst",
+    "en": "this file was compressed and its original deleted, so there is nothing to go back to"
   },
   "dev.files.out_of_images_list_failed": {
     "text": "Fehler beim Auflisten der in „Bilder“ ausgeblendeten Ordner: {detail}",

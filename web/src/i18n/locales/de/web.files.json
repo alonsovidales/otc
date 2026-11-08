@@ -6,6 +6,50 @@
   "web.files.column.resize_tip": "Ziehe oder nutze die Pfeiltasten, um die Breite zu ändern. Doppelklicke, um sie zurückzusetzen.",
   "web.files.column.share": "Anteil am Ordner",
   "web.files.column.size": "Größe",
+  "web.files.compress.button": "Komprimieren",
+  "web.files.compress.compressed_note": "Auf deinem Gerät komprimiert; das Original wurde gelöscht.",
+  "web.files.compress.confirm": "Komprimieren",
+  "web.files.compress.done": {
+    "one": "{count} Datei komprimiert, {size} freigegeben",
+    "other": "{count} Dateien komprimiert, {size} freigegeben",
+    "arg": "count"
+  },
+  "web.files.compress.estimating": "Größen werden berechnet…",
+  "web.files.compress.failed": {
+    "one": "{count} Datei konnte nicht komprimiert werden",
+    "other": "{count} Dateien konnten nicht komprimiert werden",
+    "arg": "count"
+  },
+  "web.files.compress.jpeg_resave": "JPEGs in geringerer Qualität speichern",
+  "web.files.compress.needs_update": "Dein Gerät braucht ein Update, um Dateien zu komprimieren.",
+  "web.files.compress.not_offered": {
+    "one": "{count} Datei kann nicht verkleinert werden",
+    "other": "{count} Dateien können nicht verkleinert werden",
+    "arg": "count"
+  },
+  "web.files.compress.nothing": "Keine dieser Dateien kann verkleinert werden.",
+  "web.files.compress.options_failed": "Die Größen konnten nicht berechnet werden.",
+  "web.files.compress.photo_12mp": "Große Fotos auf 12 Megapixel verkleinern",
+  "web.files.compress.png_to_jpeg": "PNGs als JPEG speichern",
+  "web.files.compress.progress": "Wird komprimiert ({done} von {total})…",
+  "web.files.compress.row": {
+    "one": "{count} Datei · {now} → etwa {after}",
+    "other": "{count} Dateien · {now} → etwa {after}",
+    "arg": "count"
+  },
+  "web.files.compress.slow": "Videos dauern eine Weile: Dein Gerät kodiert sie im Hintergrund neu, und du kannst es währenddessen weiter nutzen.",
+  "web.files.compress.title": {
+    "one": "{count} Datei komprimieren",
+    "other": "{count} Dateien komprimieren",
+    "arg": "count"
+  },
+  "web.files.compress.total": "Gibt etwa {size} frei",
+  "web.files.compress.video_1080p": "Auf 1080p reduzieren",
+  "web.files.compress.video_720p": "Auf 720p reduzieren",
+  "web.files.compress.video_hevc": "Gleiche Auflösung, HEVC-Format",
+  "web.files.compress.video_none": "Unverändert lassen",
+  "web.files.compress.videos": "Videos",
+  "web.files.compress.warning": "Die Originale werden endgültig von deinem Gerät gelöscht: Dort liegen nur noch die komprimierten Dateien. Kopien auf deinen Handys und Computern bleiben erhalten.",
   "web.files.gallery.cant_show": "Diese Datei kann hier nicht angezeigt werden – lade sie stattdessen herunter.",
   "web.files.gallery.download_all": "Alle herunterladen",
   "web.files.gallery.download_count": "{count} herunterladen",
@@ -47,6 +91,16 @@
   "web.files.keep_out.switch": "\u2068{name}\u2069 in „Bilder“ ausblenden",
   "web.files.keep_out.tip_off": "In „Bilder“ ausblenden: Fotos und Videos hier erhalten dann keine Tags, werden nicht nach Gesichtern durchsucht und nicht in „Bilder“ angezeigt",
   "web.files.keep_out.tip_on": "In „Bilder“ ausgeblendet: Fotos und Videos hier erhalten keine Tags, werden nicht nach Gesichtern durchsucht und nicht in „Bilder“ angezeigt. Klicke, um sie in „Bilder“ anzuzeigen.",
+  "web.files.largest.empty": "Auf deinem Gerät sind noch keine Dateien.",
+  "web.files.largest.failed": "Die Liste konnte nicht geladen werden.",
+  "web.files.largest.intro": "Größte zuerst. Eine Datei, die an mehreren Stellen liegt, wird nur einmal aufgeführt.",
+  "web.files.largest.needs_update": "Dein Gerät braucht ein Update, um seine größten Dateien aufzulisten.",
+  "web.files.largest.places": {
+    "one": "an {count} Stelle",
+    "other": "an {count} Stellen",
+    "arg": "count"
+  },
+  "web.files.largest.title": "Größte Dateien",
   "web.files.links.confirm_delete": "Diesen Link löschen? Die geteilten Kopien werden gelöscht, und der Link funktioniert nicht mehr.",
   "web.files.links.delete_failed": "Der Link konnte nicht gelöscht werden.",
   "web.files.links.details": "{size} · erstellt am {made} · gültig bis {until}",

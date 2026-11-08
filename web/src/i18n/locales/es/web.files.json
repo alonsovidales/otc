@@ -6,6 +6,50 @@
   "web.files.column.resize_tip": "Arrastra o usa las teclas de flecha para cambiar el ancho. Haz doble clic para restablecerlo.",
   "web.files.column.share": "Parte de la carpeta",
   "web.files.column.size": "Tamaño",
+  "web.files.compress.button": "Comprimir",
+  "web.files.compress.compressed_note": "Archivo comprimido en tu dispositivo; se ha eliminado su original.",
+  "web.files.compress.confirm": "Comprimir",
+  "web.files.compress.done": {
+    "one": "{count} archivo comprimido, {size} liberados",
+    "other": "{count} archivos comprimidos, {size} liberados",
+    "arg": "count"
+  },
+  "web.files.compress.estimating": "Calculando los tamaños…",
+  "web.files.compress.failed": {
+    "one": "{count} archivo no se ha podido comprimir",
+    "other": "{count} archivos no se han podido comprimir",
+    "arg": "count"
+  },
+  "web.files.compress.jpeg_resave": "Guardar los JPEG con menos calidad",
+  "web.files.compress.needs_update": "Tu dispositivo necesita una actualización para comprimir archivos.",
+  "web.files.compress.not_offered": {
+    "one": "{count} archivo no se puede reducir",
+    "other": "{count} archivos no se pueden reducir",
+    "arg": "count"
+  },
+  "web.files.compress.nothing": "Ninguno de estos archivos se puede reducir.",
+  "web.files.compress.options_failed": "No se han podido calcular los tamaños.",
+  "web.files.compress.photo_12mp": "Reducir las fotos grandes a 12 megapíxeles",
+  "web.files.compress.png_to_jpeg": "Guardar los PNG como JPEG",
+  "web.files.compress.progress": "Comprimiendo {done} de {total}…",
+  "web.files.compress.row": {
+    "one": "{count} archivo · {now} → unos {after}",
+    "other": "{count} archivos · {now} → unos {after}",
+    "arg": "count"
+  },
+  "web.files.compress.slow": "Los vídeos tardan un rato: tu dispositivo los vuelve a codificar en segundo plano, y mientras tanto puedes seguir usándolo.",
+  "web.files.compress.title": {
+    "one": "Comprimir {count} archivo",
+    "other": "Comprimir {count} archivos",
+    "arg": "count"
+  },
+  "web.files.compress.total": "Libera unos {size}",
+  "web.files.compress.video_1080p": "Reducir a 1080p",
+  "web.files.compress.video_720p": "Reducir a 720p",
+  "web.files.compress.video_hevc": "Misma resolución, formato HEVC",
+  "web.files.compress.video_none": "Dejarlos como están",
+  "web.files.compress.videos": "Vídeos",
+  "web.files.compress.warning": "Los originales se eliminan de tu dispositivo para siempre: en él solo quedan los archivos comprimidos. Se conservan las copias de tus teléfonos y ordenadores.",
   "web.files.gallery.cant_show": "Este archivo no se puede mostrar aquí: descárgalo.",
   "web.files.gallery.download_all": "Descargar todo",
   "web.files.gallery.download_count": "Descargar {count}",
@@ -47,6 +91,16 @@
   "web.files.keep_out.switch": "Excluir la carpeta \u2068{name}\u2069 de Imágenes",
   "web.files.keep_out.tip_off": "Excluir de Imágenes: las fotos y los vídeos de aquí no se etiquetarán, no se analizarán en busca de caras ni se mostrarán en Imágenes",
   "web.files.keep_out.tip_on": "Fuera de Imágenes: las fotos y los vídeos de aquí no se etiquetan, no se analizan en busca de caras ni se muestran en Imágenes. Haz clic para mostrarlos en Imágenes.",
+  "web.files.largest.empty": "Aún no hay archivos en tu dispositivo.",
+  "web.files.largest.failed": "No se ha podido cargar la lista.",
+  "web.files.largest.intro": "De mayor a menor. Un archivo que está en varios lugares aparece una sola vez.",
+  "web.files.largest.needs_update": "Tu dispositivo necesita una actualización para mostrar sus archivos más grandes.",
+  "web.files.largest.places": {
+    "one": "en {count} lugar",
+    "other": "en {count} lugares",
+    "arg": "count"
+  },
+  "web.files.largest.title": "Archivos más grandes",
   "web.files.links.confirm_delete": "¿Eliminar este enlace? Las copias compartidas se eliminarán y el enlace dejará de funcionar.",
   "web.files.links.delete_failed": "No se ha podido eliminar.",
   "web.files.links.details": "{size} · creado el {made} · hasta el {until}",

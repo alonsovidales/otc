@@ -44,6 +44,56 @@ func DevFilesCollectionNeedsName() Msg {
 	return Msg{Key: "dev.files.collection_needs_name"}
 }
 
+// DevFilesCompressFailed is dev.files.compress_failed: "the device could not compress this file".
+func DevFilesCompressFailed() Msg {
+	return Msg{Key: "dev.files.compress_failed"}
+}
+
+// DevFilesCompressKeptVersion is dev.files.compress_kept_version: "an older version of a file keeps this content, so compressing it would free no s…".
+func DevFilesCompressKeptVersion() Msg {
+	return Msg{Key: "dev.files.compress_kept_version"}
+}
+
+// DevFilesCompressMissing is dev.files.compress_missing: "this file's content isn't on the device's disks".
+func DevFilesCompressMissing() Msg {
+	return Msg{Key: "dev.files.compress_missing"}
+}
+
+// DevFilesCompressNoJob is dev.files.compress_no_job: "there is no compress job".
+func DevFilesCompressNoJob() Msg {
+	return Msg{Key: "dev.files.compress_no_job"}
+}
+
+// DevFilesCompressNotMedia is dev.files.compress_not_media: "only photos and videos can be compressed".
+func DevFilesCompressNotMedia() Msg {
+	return Msg{Key: "dev.files.compress_not_media"}
+}
+
+// DevFilesCompressNotSmaller is dev.files.compress_not_smaller: "compressed, it came out no smaller, so the file was left as it was".
+func DevFilesCompressNotSmaller() Msg {
+	return Msg{Key: "dev.files.compress_not_smaller"}
+}
+
+// DevFilesCompressNothingToGain is dev.files.compress_nothing_to_gain: "the device can't make this file noticeably smaller".
+func DevFilesCompressNothingToGain() Msg {
+	return Msg{Key: "dev.files.compress_nothing_to_gain"}
+}
+
+// DevFilesCompressTooMany is dev.files.compress_too_many: "pick at most 500 files at a time".
+func DevFilesCompressTooMany() Msg {
+	return Msg{Key: "dev.files.compress_too_many"}
+}
+
+// DevFilesCompressUnknownPreset is dev.files.compress_unknown_preset: "this way of compressing isn't available for this file".
+func DevFilesCompressUnknownPreset() Msg {
+	return Msg{Key: "dev.files.compress_unknown_preset"}
+}
+
+// DevFilesCompressUploadOnly is dev.files.compress_upload_only: "this file is in an upload-only folder, where nothing is replaced; turn upload on…".
+func DevFilesCompressUploadOnly() Msg {
+	return Msg{Key: "dev.files.compress_upload_only"}
+}
+
 // DevFilesContentChanged is dev.files.content_changed: "this file has changed since it was shown, so nothing was deleted: refresh and tr…".
 func DevFilesContentChanged() Msg {
 	return Msg{Key: "dev.files.content_changed"}
@@ -272,6 +322,11 @@ func DevFilesNothingToShare() Msg {
 // DevFilesNothingToStream is dev.files.nothing_to_stream: "nothing to stream".
 func DevFilesNothingToStream() Msg {
 	return Msg{Key: "dev.files.nothing_to_stream"}
+}
+
+// DevFilesOriginalCompressed is dev.files.original_compressed: "this file was compressed and its original deleted, so there is nothing to go bac…".
+func DevFilesOriginalCompressed() Msg {
+	return Msg{Key: "dev.files.original_compressed"}
 }
 
 // DevFilesOutOfImagesListFailed is dev.files.out_of_images_list_failed: "error listing the folders kept out of Images: {detail}".

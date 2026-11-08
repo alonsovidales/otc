@@ -62,6 +62,102 @@ fun S.appFilesColumnSize(): UiText =
 fun S.appFilesColumnWider(): UiText =
     UiText.Res(R.string.app_files_column_wider)
 
+/** "Compress": Button in the selection bar of Images and of the Largest files list (the phone apps (iPhone, Android)): opens the Compress dialog for the photos and videos picked, which makes them smaller on the device. */
+fun S.appFilesCompressButton(): UiText =
+    UiText.Res(R.string.app_files_compress_button)
+
+/** "Compressed on your device; its original was deleted.": A line in the viewer's Info (the phone apps (iPhone, Android)) for a photo or video that was compressed, in place of Revert to original. */
+fun S.appFilesCompressCompressedNote(): UiText =
+    UiText.Res(R.string.app_files_compress_compressed_note)
+
+/** "Compress": The Compress dialog's button (the phone apps (iPhone, Android)) that starts compressing. */
+fun S.appFilesCompressConfirm(): UiText =
+    UiText.Res(R.string.app_files_compress_confirm)
+
+/** "{count} files compressed, {size} freed" (one: "{count} file compressed, {size} freed"): When compressing ended (the phone apps (iPhone, Android)): how many files were compressed and the space freed, such as 1.2 GB. */
+fun S.appFilesCompressDone(count: Int, size: String): UiText =
+    UiText.Plural(R.plurals.app_files_compress_done, count, listOf(count, size))
+
+/** "Working out the sizes…": Shown in the Compress dialog (the phone apps (iPhone, Android)) while the device works out what each file could weigh. */
+fun S.appFilesCompressEstimating(): UiText =
+    UiText.Res(R.string.app_files_compress_estimating)
+
+/** "{count} files couldn't be compressed" (one: "{count} file couldn't be compressed"): When compressing ended (the phone apps (iPhone, Android)) and some files couldn't be compressed (each left as it was). */
+fun S.appFilesCompressFailed(count: Int): UiText =
+    UiText.Plural(R.plurals.app_files_compress_failed, count, listOf(count))
+
+/** "Save JPEGs at a lower quality": A switch in the Compress dialog (the phone apps (iPhone, Android)): JPEG photos saved again at a lower quality, the same picture size. */
+fun S.appFilesCompressJpegResave(): UiText =
+    UiText.Res(R.string.app_files_compress_jpeg_resave)
+
+/** "Your device needs an update to compress files.": Shown (the phone apps (iPhone, Android)) when Compress is pressed and the device is older than the feature. */
+fun S.appFilesCompressNeedsUpdate(): UiText =
+    UiText.Res(R.string.app_files_compress_needs_update)
+
+/** "{count} files can't be made smaller" (one: "{count} file can't be made smaller"): In the Compress dialog (the phone apps (iPhone, Android)): how many of the files picked the device can't compress (documents, files already small, files in upload-only folders); each one's reason can be shown. */
+fun S.appFilesCompressNotOffered(count: Int): UiText =
+    UiText.Plural(R.plurals.app_files_compress_not_offered, count, listOf(count))
+
+/** "None of these files can be made smaller.": In the Compress dialog (the phone apps (iPhone, Android)) when none of the files picked can be compressed. */
+fun S.appFilesCompressNothing(): UiText =
+    UiText.Res(R.string.app_files_compress_nothing)
+
+/** "The sizes couldn't be worked out.": Shown in the Compress dialog (the phone apps (iPhone, Android)) when the device didn't answer; Try again follows. */
+fun S.appFilesCompressOptionsFailed(): UiText =
+    UiText.Res(R.string.app_files_compress_options_failed)
+
+/** "Shrink large photos to 12 megapixels": A switch in the Compress dialog (the phone apps (iPhone, Android)): photos over 13 megapixels (a phone's 48 MP photos) saved again as 12-megapixel JPEGs. */
+fun S.appFilesCompressPhoto12mp(): UiText =
+    UiText.Res(R.string.app_files_compress_photo_12mp)
+
+/** "Save PNGs as JPEG": A switch in the Compress dialog (the phone apps (iPhone, Android)): PNG pictures (screenshots, exports) saved as JPEG. Keep 'PNG' and 'JPEG'. */
+fun S.appFilesCompressPngToJpeg(): UiText =
+    UiText.Res(R.string.app_files_compress_png_to_jpeg)
+
+/** "Compressing {done} of {total}…": Progress of the files being compressed (the phone apps (iPhone, Android)), shown while the device works through them. */
+fun S.appFilesCompressProgress(done: Int, total: Int): UiText =
+    UiText.Res(R.string.app_files_compress_progress, listOf(done, total))
+
+/** "{count} files · {now} → about {after}" (one: "{count} file · {now} → about {after}"): Under a choice in the Compress dialog (the phone apps (iPhone, Android)): how many files it applies to, what they weigh now and, estimated, after; {now} and {after} are sizes such as 2.1 GB. */
+fun S.appFilesCompressRow(count: Int, now: String, after: String): UiText =
+    UiText.Plural(R.plurals.app_files_compress_row, count, listOf(count, now, after))
+
+/** "Videos take a while: your device re-encodes them in the background, and you can keep using it meanwhile.": Note in the Compress dialog (the phone apps (iPhone, Android)) when videos are to be compressed. */
+fun S.appFilesCompressSlow(): UiText =
+    UiText.Res(R.string.app_files_compress_slow)
+
+/** "Compress {count} Files" (one: "Compress {count} File"): Title of the Compress dialog (the phone apps (iPhone, Android)) for the files picked. */
+fun S.appFilesCompressTitle(count: Int): UiText =
+    UiText.Plural(R.plurals.app_files_compress_title, count, listOf(count))
+
+/** "Frees about {size}": The total at the foot of the Compress dialog (the phone apps (iPhone, Android)): the space the choices made would free, estimated; {size} such as 1.4 GB. */
+fun S.appFilesCompressTotal(size: String): UiText =
+    UiText.Res(R.string.app_files_compress_total, listOf(size))
+
+/** "Lower to 1080p": A choice for the videos in the Compress dialog (the phone apps (iPhone, Android)): 4K videos re-encoded at 1080p (Full HD). Keep '1080p'. */
+fun S.appFilesCompressVideo1080p(): UiText =
+    UiText.Res(R.string.app_files_compress_video_1080p)
+
+/** "Lower to 720p": A choice for the videos in the Compress dialog (the phone apps (iPhone, Android)): videos re-encoded at 720p (HD). Keep '720p'. */
+fun S.appFilesCompressVideo720p(): UiText =
+    UiText.Res(R.string.app_files_compress_video_720p)
+
+/** "Same size, HEVC format": A choice for the videos in the Compress dialog (the phone apps (iPhone, Android)): videos kept at their resolution, re-encoded in the HEVC (H.265) format, which takes about half the space of older formats. 'Same size' means the same picture size (resolution). Keep 'HEVC'. */
+fun S.appFilesCompressVideoHevc(): UiText =
+    UiText.Res(R.string.app_files_compress_video_hevc)
+
+/** "Leave as they are": A choice for the videos in the Compress dialog (the phone apps (iPhone, Android)): don't compress the videos. */
+fun S.appFilesCompressVideoNone(): UiText =
+    UiText.Res(R.string.app_files_compress_video_none)
+
+/** "Videos": Heading of the videos' choice in the Compress dialog (the phone apps (iPhone, Android)). */
+fun S.appFilesCompressVideos(): UiText =
+    UiText.Res(R.string.app_files_compress_videos)
+
+/** "The originals are deleted from your device for good: only the compressed files stay there. Copies on your phones and computers are kept.": Warning in the Compress dialog (the phone apps (iPhone, Android)), above the Compress button. 'For good' = it can't be undone. */
+fun S.appFilesCompressWarning(): UiText =
+    UiText.Res(R.string.app_files_compress_warning)
+
 /** "Delete {count} items?" (one: "Delete {count} item?"): Title of the confirmation asked before deleting what is selected in Files: files and folders (a folder with everything in it). {count} is how many are selected. Buttons: Delete (common.delete) and Cancel. */
 fun S.appFilesDeleteConfirm(count: Int): UiText =
     UiText.Plural(R.plurals.app_files_delete_confirm, count, listOf(count))
@@ -181,6 +277,30 @@ fun S.appFilesKeptOutBanner(): UiText =
 /** "Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them.": Explanation shown (title app.files.kept_out) when the mark of a folder kept out of Images is tapped in Files. Images is the photo section (app.shell.section_images). */
 fun S.appFilesKeptOutExplain(): UiText =
     UiText.Res(R.string.app_files_kept_out_explain)
+
+/** "There are no files on your device yet.": Shown in the Largest files list (the phone apps (iPhone, Android)) when the device holds no files. */
+fun S.appFilesLargestEmpty(): UiText =
+    UiText.Res(R.string.app_files_largest_empty)
+
+/** "The list couldn't be loaded.": Shown in the Largest files list (the phone apps (iPhone, Android)) when a page didn't come; a Try again button follows. */
+fun S.appFilesLargestFailed(): UiText =
+    UiText.Res(R.string.app_files_largest_failed)
+
+/** "Largest first. A file in several places is listed once.": Line at the top of the Largest files list (the phone apps (iPhone, Android)): the same content saved at several paths takes its space once, so it is one row. */
+fun S.appFilesLargestIntro(): UiText =
+    UiText.Res(R.string.app_files_largest_intro)
+
+/** "Your device needs an update to list its largest files.": Shown in the Largest files list (the phone apps (iPhone, Android)) when the device is older than the feature. */
+fun S.appFilesLargestNeedsUpdate(): UiText =
+    UiText.Res(R.string.app_files_largest_needs_update)
+
+/** "in {count} places" (one: "in {count} place"): Under a file in the Largest files list (the phone apps (iPhone, Android)) when the same content is at several paths on the device: how many (2 or more). */
+fun S.appFilesLargestPlaces(count: Int): UiText =
+    UiText.Plural(R.plurals.app_files_largest_places, count, listOf(count))
+
+/** "Largest Files": Title of the screen (the phone apps (iPhone, Android)) listing every file on the device, largest first, opened from Settings. */
+fun S.appFilesLargestTitle(): UiText =
+    UiText.Res(R.string.app_files_largest_title)
 
 /** "Failed to list path": Error line under the path field in Files when the device refused to list the folder without saying why (when it says why, its own words are shown instead). */
 fun S.appFilesListFailed(): UiText =

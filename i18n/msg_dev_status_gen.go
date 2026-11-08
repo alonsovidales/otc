@@ -9,6 +9,11 @@ func DevStatusBackgroundAnalysis() Msg {
 	return Msg{Key: "dev.status.background.analysis"}
 }
 
+// DevStatusBackgroundCompress is dev.status.background.compress: "Compressing photos and videos".
+func DevStatusBackgroundCompress() Msg {
+	return Msg{Key: "dev.status.background.compress"}
+}
+
 // DevStatusBackgroundDates is dev.status.background.dates: "Fixing photo dates".
 func DevStatusBackgroundDates() Msg {
 	return Msg{Key: "dev.status.background.dates"}

@@ -31,6 +31,46 @@
     "text": "een collectie moet een naam hebben",
     "en": "a collection needs a name"
   },
+  "dev.files.compress_failed": {
+    "text": "het apparaat kon dit bestand niet comprimeren",
+    "en": "the device could not compress this file"
+  },
+  "dev.files.compress_kept_version": {
+    "text": "een oudere versie van een bestand bevat deze inhoud, dus comprimeren zou geen ruimte vrijmaken",
+    "en": "an older version of a file keeps this content, so compressing it would free no space"
+  },
+  "dev.files.compress_missing": {
+    "text": "de inhoud van dit bestand staat niet op de schijven van het apparaat",
+    "en": "this file's content isn't on the device's disks"
+  },
+  "dev.files.compress_no_job": {
+    "text": "er is geen compressietaak",
+    "en": "there is no compress job"
+  },
+  "dev.files.compress_not_media": {
+    "text": "alleen foto’s en video’s kunnen worden gecomprimeerd",
+    "en": "only photos and videos can be compressed"
+  },
+  "dev.files.compress_not_smaller": {
+    "text": "gecomprimeerd werd het niet kleiner, dus het bestand is ongewijzigd gelaten",
+    "en": "compressed, it came out no smaller, so the file was left as it was"
+  },
+  "dev.files.compress_nothing_to_gain": {
+    "text": "het apparaat kan dit bestand niet merkbaar kleiner maken",
+    "en": "the device can't make this file noticeably smaller"
+  },
+  "dev.files.compress_too_many": {
+    "text": "kies maximaal 500 bestanden tegelijk",
+    "en": "pick at most 500 files at a time"
+  },
+  "dev.files.compress_unknown_preset": {
+    "text": "deze manier van comprimeren is niet beschikbaar voor dit bestand",
+    "en": "this way of compressing isn't available for this file"
+  },
+  "dev.files.compress_upload_only": {
+    "text": "dit bestand staat in een map met “Alleen uploaden”, waarin niets wordt vervangen; schakel “Alleen uploaden” daar uit om het te comprimeren",
+    "en": "this file is in an upload-only folder, where nothing is replaced; turn upload only off there to compress it"
+  },
   "dev.files.content_changed": {
     "text": "dit bestand is gewijzigd sinds het werd getoond, dus er is niets verwijderd: vernieuw en probeer het opnieuw",
     "en": "this file has changed since it was shown, so nothing was deleted: refresh and try again",
@@ -216,6 +256,10 @@
   "dev.files.nothing_to_stream": {
     "text": "niets om af te spelen",
     "en": "nothing to stream"
+  },
+  "dev.files.original_compressed": {
+    "text": "dit bestand is gecomprimeerd en het origineel is verwijderd, dus je kunt niet terug naar het origineel",
+    "en": "this file was compressed and its original deleted, so there is nothing to go back to"
   },
   "dev.files.out_of_images_list_failed": {
     "text": "fout bij het ophalen van de mappen die buiten Afbeeldingen worden gehouden: {detail}",

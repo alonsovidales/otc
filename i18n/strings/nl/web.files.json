@@ -27,6 +27,132 @@
     "text": "Grootte",
     "en": "Size"
   },
+  "web.files.compress.button": {
+    "text": "Comprimeren",
+    "en": "Compress"
+  },
+  "web.files.compress.compressed_note": {
+    "text": "Gecomprimeerd op je apparaat; het origineel is verwijderd.",
+    "en": "Compressed on your device; its original was deleted."
+  },
+  "web.files.compress.confirm": {
+    "text": "Comprimeren",
+    "en": "Compress"
+  },
+  "web.files.compress.done": {
+    "text": {
+      "one": "{count} bestand gecomprimeerd, {size} vrijgemaakt",
+      "other": "{count} bestanden gecomprimeerd, {size} vrijgemaakt"
+    },
+    "en": {
+      "one": "{count} file compressed, {size} freed",
+      "other": "{count} files compressed, {size} freed"
+    }
+  },
+  "web.files.compress.estimating": {
+    "text": "Groottes berekenen…",
+    "en": "Working out the sizes…"
+  },
+  "web.files.compress.failed": {
+    "text": {
+      "one": "{count} bestand kon niet worden gecomprimeerd",
+      "other": "{count} bestanden konden niet worden gecomprimeerd"
+    },
+    "en": {
+      "one": "{count} file couldn't be compressed",
+      "other": "{count} files couldn't be compressed"
+    }
+  },
+  "web.files.compress.jpeg_resave": {
+    "text": "JPEG’s opslaan in lagere kwaliteit",
+    "en": "Save JPEGs at a lower quality"
+  },
+  "web.files.compress.needs_update": {
+    "text": "Je apparaat heeft een update nodig om bestanden te comprimeren.",
+    "en": "Your device needs an update to compress files."
+  },
+  "web.files.compress.not_offered": {
+    "text": {
+      "one": "{count} bestand kan niet kleiner worden gemaakt",
+      "other": "{count} bestanden kunnen niet kleiner worden gemaakt"
+    },
+    "en": {
+      "one": "{count} file can't be made smaller",
+      "other": "{count} files can't be made smaller"
+    }
+  },
+  "web.files.compress.nothing": {
+    "text": "Geen van deze bestanden kan kleiner worden gemaakt.",
+    "en": "None of these files can be made smaller."
+  },
+  "web.files.compress.options_failed": {
+    "text": "Kan de groottes niet berekenen.",
+    "en": "The sizes couldn't be worked out."
+  },
+  "web.files.compress.photo_12mp": {
+    "text": "Grote foto’s verkleinen tot 12 megapixels",
+    "en": "Shrink large photos to 12 megapixels"
+  },
+  "web.files.compress.png_to_jpeg": {
+    "text": "PNG’s opslaan als JPEG",
+    "en": "Save PNGs as JPEG"
+  },
+  "web.files.compress.progress": {
+    "text": "Comprimeren ({done} van {total})…",
+    "en": "Compressing {done} of {total}…"
+  },
+  "web.files.compress.row": {
+    "text": {
+      "one": "{count} bestand · {now} → ongeveer {after}",
+      "other": "{count} bestanden · {now} → ongeveer {after}"
+    },
+    "en": {
+      "one": "{count} file · {now} → about {after}",
+      "other": "{count} files · {now} → about {after}"
+    }
+  },
+  "web.files.compress.slow": {
+    "text": "Video’s kosten wat tijd: je apparaat codeert ze op de achtergrond opnieuw, en je kunt het ondertussen gewoon blijven gebruiken.",
+    "en": "Videos take a while: your device re-encodes them in the background, and you can keep using it meanwhile."
+  },
+  "web.files.compress.title": {
+    "text": {
+      "one": "{count} bestand comprimeren",
+      "other": "{count} bestanden comprimeren"
+    },
+    "en": {
+      "one": "Compress {count} file",
+      "other": "Compress {count} files"
+    }
+  },
+  "web.files.compress.total": {
+    "text": "Maakt ongeveer {size} vrij",
+    "en": "Frees about {size}"
+  },
+  "web.files.compress.video_1080p": {
+    "text": "Naar 1080p verlagen",
+    "en": "Lower to 1080p"
+  },
+  "web.files.compress.video_720p": {
+    "text": "Naar 720p verlagen",
+    "en": "Lower to 720p"
+  },
+  "web.files.compress.video_hevc": {
+    "text": "Zelfde resolutie, HEVC-formaat",
+    "en": "Same size, HEVC format"
+  },
+  "web.files.compress.video_none": {
+    "text": "Laten zoals ze zijn",
+    "en": "Leave as they are"
+  },
+  "web.files.compress.videos": {
+    "text": "Video’s",
+    "en": "Videos"
+  },
+  "web.files.compress.warning": {
+    "text": "De originelen worden definitief van je apparaat verwijderd: alleen de gecomprimeerde bestanden blijven daar staan. Kopieën op je telefoons en computers blijven bewaard.",
+    "en": "The originals are deleted from your device for good: only the compressed files stay there. Copies on your phones and computers are kept."
+  },
   "web.files.gallery.cant_show": {
     "text": "Dit bestand kan hier niet worden getoond: download het in plaats daarvan.",
     "en": "This file could not be shown here - download it instead."
@@ -172,6 +298,36 @@
   "web.files.keep_out.tip_on": {
     "text": "Buiten Afbeeldingen: foto’s en video’s hier krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond. Klik om ze in Afbeeldingen te tonen.",
     "en": "Kept out of Images: photos and videos here aren't tagged, searched for faces or shown in Images. Click to show them in Images."
+  },
+  "web.files.largest.empty": {
+    "text": "Er staan nog geen bestanden op je apparaat.",
+    "en": "There are no files on your device yet."
+  },
+  "web.files.largest.failed": {
+    "text": "Kan de lijst niet laden.",
+    "en": "The list couldn't be loaded."
+  },
+  "web.files.largest.intro": {
+    "text": "Grootste eerst. Een bestand dat op meerdere plekken staat, wordt één keer getoond.",
+    "en": "Largest first. A file in several places is listed once."
+  },
+  "web.files.largest.needs_update": {
+    "text": "Je apparaat heeft een update nodig om zijn grootste bestanden te tonen.",
+    "en": "Your device needs an update to list its largest files."
+  },
+  "web.files.largest.places": {
+    "text": {
+      "one": "op {count} plek",
+      "other": "op {count} plekken"
+    },
+    "en": {
+      "one": "in {count} place",
+      "other": "in {count} places"
+    }
+  },
+  "web.files.largest.title": {
+    "text": "Grootste bestanden",
+    "en": "Largest files"
   },
   "web.files.links.confirm_delete": {
     "text": "Deze link verwijderen? De gedeelde kopieën worden verwijderd en de link werkt niet meer.",

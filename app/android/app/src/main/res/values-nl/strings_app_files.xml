@@ -16,6 +16,45 @@
     <string name="app_files_column_resize">Breedte van de kolom %1$s aanpassen</string>
     <string name="app_files_column_size">Grootte</string>
     <string name="app_files_column_wider">Breder</string>
+    <string name="app_files_compress_button">Comprimeren</string>
+    <string name="app_files_compress_compressed_note">Gecomprimeerd op je apparaat; het origineel is verwijderd.</string>
+    <string name="app_files_compress_confirm">Comprimeren</string>
+    <plurals name="app_files_compress_done">
+        <item quantity="one">%1$s bestand gecomprimeerd, %2$s vrijgemaakt</item>
+        <item quantity="other">%1$s bestanden gecomprimeerd, %2$s vrijgemaakt</item>
+    </plurals>
+    <string name="app_files_compress_estimating">Groottes berekenen…</string>
+    <plurals name="app_files_compress_failed">
+        <item quantity="one">%1$s bestand kon niet worden gecomprimeerd</item>
+        <item quantity="other">%1$s bestanden konden niet worden gecomprimeerd</item>
+    </plurals>
+    <string name="app_files_compress_jpeg_resave">JPEG’s opslaan in lagere kwaliteit</string>
+    <string name="app_files_compress_needs_update">Je apparaat heeft een update nodig om bestanden te comprimeren.</string>
+    <plurals name="app_files_compress_not_offered">
+        <item quantity="one">%1$s bestand kan niet kleiner worden gemaakt</item>
+        <item quantity="other">%1$s bestanden kunnen niet kleiner worden gemaakt</item>
+    </plurals>
+    <string name="app_files_compress_nothing">Geen van deze bestanden kan kleiner worden gemaakt.</string>
+    <string name="app_files_compress_options_failed">Kan de groottes niet berekenen.</string>
+    <string name="app_files_compress_photo_12mp">Grote foto’s verkleinen tot 12 megapixels</string>
+    <string name="app_files_compress_png_to_jpeg">PNG’s opslaan als JPEG</string>
+    <string name="app_files_compress_progress">Comprimeren (%1$s van %2$s)…</string>
+    <plurals name="app_files_compress_row">
+        <item quantity="one">%1$s bestand · %2$s → ongeveer %3$s</item>
+        <item quantity="other">%1$s bestanden · %2$s → ongeveer %3$s</item>
+    </plurals>
+    <string name="app_files_compress_slow">Video’s kosten wat tijd: je apparaat codeert ze op de achtergrond opnieuw, en je kunt het ondertussen gewoon blijven gebruiken.</string>
+    <plurals name="app_files_compress_title">
+        <item quantity="one">%1$s bestand comprimeren</item>
+        <item quantity="other">%1$s bestanden comprimeren</item>
+    </plurals>
+    <string name="app_files_compress_total">Maakt ongeveer %1$s vrij</string>
+    <string name="app_files_compress_video_1080p">Naar 1080p verlagen</string>
+    <string name="app_files_compress_video_720p">Naar 720p verlagen</string>
+    <string name="app_files_compress_video_hevc">Zelfde resolutie, HEVC-formaat</string>
+    <string name="app_files_compress_video_none">Laten zoals ze zijn</string>
+    <string name="app_files_compress_videos">Video’s</string>
+    <string name="app_files_compress_warning">De originelen worden definitief van je apparaat verwijderd: alleen de gecomprimeerde bestanden blijven daar staan. Kopieën op je telefoons en computers blijven bewaard.</string>
     <plurals name="app_files_delete_confirm">
         <item quantity="one">%1$s item verwijderen?</item>
         <item quantity="other">%1$s items verwijderen?</item>
@@ -58,6 +97,15 @@
     <string name="app_files_kept_out">Buiten Afbeeldingen</string>
     <string name="app_files_kept_out_banner">Buiten Afbeeldingen: foto’s en video’s hier krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond.</string>
     <string name="app_files_kept_out_explain">Foto’s en video’s hier krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond. Bestanden toont ze nog wel.</string>
+    <string name="app_files_largest_empty">Er staan nog geen bestanden op je apparaat.</string>
+    <string name="app_files_largest_failed">Kan de lijst niet laden.</string>
+    <string name="app_files_largest_intro">Grootste eerst. Een bestand dat op meerdere plekken staat, wordt één keer getoond.</string>
+    <string name="app_files_largest_needs_update">Je apparaat heeft een update nodig om zijn grootste bestanden te tonen.</string>
+    <plurals name="app_files_largest_places">
+        <item quantity="one">op %1$s plek</item>
+        <item quantity="other">op %1$s plekken</item>
+    </plurals>
+    <string name="app_files_largest_title">Grootste bestanden</string>
     <string name="app_files_list_failed">Kan de inhoud van de map niet weergeven</string>
     <string name="app_files_make_upload_only">Op “Alleen uploaden” zetten</string>
     <string name="app_files_make_upload_only_message">Er kan niets uit deze map worden verwijderd (niet vanaf deze telefoon, een computer of het web), en als je een bestand opnieuw uploadt, wordt de oudere versie bewaard. Handig voor fotoarchieven en reservekopieën.</string>

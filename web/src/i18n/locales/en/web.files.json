@@ -6,6 +6,50 @@
   "web.files.column.resize_tip": "Drag or use the arrow keys to change the width. Double-click to reset it.",
   "web.files.column.share": "Share of folder",
   "web.files.column.size": "Size",
+  "web.files.compress.button": "Compress",
+  "web.files.compress.compressed_note": "Compressed on your device; its original was deleted.",
+  "web.files.compress.confirm": "Compress",
+  "web.files.compress.done": {
+    "one": "{count} file compressed, {size} freed",
+    "other": "{count} files compressed, {size} freed",
+    "arg": "count"
+  },
+  "web.files.compress.estimating": "Working out the sizes…",
+  "web.files.compress.failed": {
+    "one": "{count} file couldn't be compressed",
+    "other": "{count} files couldn't be compressed",
+    "arg": "count"
+  },
+  "web.files.compress.jpeg_resave": "Save JPEGs at a lower quality",
+  "web.files.compress.needs_update": "Your device needs an update to compress files.",
+  "web.files.compress.not_offered": {
+    "one": "{count} file can't be made smaller",
+    "other": "{count} files can't be made smaller",
+    "arg": "count"
+  },
+  "web.files.compress.nothing": "None of these files can be made smaller.",
+  "web.files.compress.options_failed": "The sizes couldn't be worked out.",
+  "web.files.compress.photo_12mp": "Shrink large photos to 12 megapixels",
+  "web.files.compress.png_to_jpeg": "Save PNGs as JPEG",
+  "web.files.compress.progress": "Compressing {done} of {total}…",
+  "web.files.compress.row": {
+    "one": "{count} file · {now} → about {after}",
+    "other": "{count} files · {now} → about {after}",
+    "arg": "count"
+  },
+  "web.files.compress.slow": "Videos take a while: your device re-encodes them in the background, and you can keep using it meanwhile.",
+  "web.files.compress.title": {
+    "one": "Compress {count} file",
+    "other": "Compress {count} files",
+    "arg": "count"
+  },
+  "web.files.compress.total": "Frees about {size}",
+  "web.files.compress.video_1080p": "Lower to 1080p",
+  "web.files.compress.video_720p": "Lower to 720p",
+  "web.files.compress.video_hevc": "Same size, HEVC format",
+  "web.files.compress.video_none": "Leave as they are",
+  "web.files.compress.videos": "Videos",
+  "web.files.compress.warning": "The originals are deleted from your device for good: only the compressed files stay there. Copies on your phones and computers are kept.",
   "web.files.gallery.cant_show": "This file could not be shown here - download it instead.",
   "web.files.gallery.download_all": "Download all",
   "web.files.gallery.download_count": "Download {count}",
@@ -47,6 +91,16 @@
   "web.files.keep_out.switch": "Keep \u2068{name}\u2069 out of Images",
   "web.files.keep_out.tip_off": "Keep out of Images: photos and videos here won't be tagged, searched for faces or shown in Images",
   "web.files.keep_out.tip_on": "Kept out of Images: photos and videos here aren't tagged, searched for faces or shown in Images. Click to show them in Images.",
+  "web.files.largest.empty": "There are no files on your device yet.",
+  "web.files.largest.failed": "The list couldn't be loaded.",
+  "web.files.largest.intro": "Largest first. A file in several places is listed once.",
+  "web.files.largest.needs_update": "Your device needs an update to list its largest files.",
+  "web.files.largest.places": {
+    "one": "in {count} place",
+    "other": "in {count} places",
+    "arg": "count"
+  },
+  "web.files.largest.title": "Largest files",
   "web.files.links.confirm_delete": "Delete this link? The shared copies are deleted and the link stops working.",
   "web.files.links.delete_failed": "Could not delete it.",
   "web.files.links.details": "{size} · made {made} · until {until}",

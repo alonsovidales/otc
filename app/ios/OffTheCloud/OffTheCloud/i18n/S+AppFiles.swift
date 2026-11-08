@@ -84,6 +84,145 @@ extension S {
     /// Files, on a wide screen: accessibility action of a column's resize handle (app.files.column_resize) that makes the column wider. Agrees with the word column if your language needs it.
     static var appFilesColumnWider: String { L("app.files.column_wider", table: "AppFiles") }
 
+    /// Compress
+    ///
+    /// Button in the selection bar of Images and of the Largest files list (the phone apps (iPhone, Android)): opens the Compress dialog for the photos and videos picked, which makes them smaller on the device.
+    static var appFilesCompressButton: String { L("app.files.compress.button", table: "AppFiles") }
+
+    /// Compressed on your device; its original was deleted.
+    ///
+    /// A line in the viewer's Info (the phone apps (iPhone, Android)) for a photo or video that was compressed, in place of Revert to original.
+    static var appFilesCompressCompressedNote: String { L("app.files.compress.compressed_note", table: "AppFiles") }
+
+    /// Compress
+    ///
+    /// The Compress dialog's button (the phone apps (iPhone, Android)) that starts compressing.
+    static var appFilesCompressConfirm: String { L("app.files.compress.confirm", table: "AppFiles") }
+
+    /// one: {count} file compressed, {size} freed
+    /// other: {count} files compressed, {size} freed
+    ///
+    /// When compressing ended (the phone apps (iPhone, Android)): how many files were compressed and the space freed, such as 1.2 GB.
+    static func appFilesCompressDone(count: Int, size: String) -> String {
+        L("app.files.compress.done", table: "AppFiles", count, size)
+    }
+
+    /// Working out the sizes…
+    ///
+    /// Shown in the Compress dialog (the phone apps (iPhone, Android)) while the device works out what each file could weigh.
+    static var appFilesCompressEstimating: String { L("app.files.compress.estimating", table: "AppFiles") }
+
+    /// one: {count} file couldn't be compressed
+    /// other: {count} files couldn't be compressed
+    ///
+    /// When compressing ended (the phone apps (iPhone, Android)) and some files couldn't be compressed (each left as it was).
+    static func appFilesCompressFailed(count: Int) -> String {
+        L("app.files.compress.failed", table: "AppFiles", count)
+    }
+
+    /// Save JPEGs at a lower quality
+    ///
+    /// A switch in the Compress dialog (the phone apps (iPhone, Android)): JPEG photos saved again at a lower quality, the same picture size.
+    static var appFilesCompressJpegResave: String { L("app.files.compress.jpeg_resave", table: "AppFiles") }
+
+    /// Your device needs an update to compress files.
+    ///
+    /// Shown (the phone apps (iPhone, Android)) when Compress is pressed and the device is older than the feature.
+    static var appFilesCompressNeedsUpdate: String { L("app.files.compress.needs_update", table: "AppFiles") }
+
+    /// one: {count} file can't be made smaller
+    /// other: {count} files can't be made smaller
+    ///
+    /// In the Compress dialog (the phone apps (iPhone, Android)): how many of the files picked the device can't compress (documents, files already small, files in upload-only folders); each one's reason can be shown.
+    static func appFilesCompressNotOffered(count: Int) -> String {
+        L("app.files.compress.not_offered", table: "AppFiles", count)
+    }
+
+    /// None of these files can be made smaller.
+    ///
+    /// In the Compress dialog (the phone apps (iPhone, Android)) when none of the files picked can be compressed.
+    static var appFilesCompressNothing: String { L("app.files.compress.nothing", table: "AppFiles") }
+
+    /// The sizes couldn't be worked out.
+    ///
+    /// Shown in the Compress dialog (the phone apps (iPhone, Android)) when the device didn't answer; Try again follows.
+    static var appFilesCompressOptionsFailed: String { L("app.files.compress.options_failed", table: "AppFiles") }
+
+    /// Shrink large photos to 12 megapixels
+    ///
+    /// A switch in the Compress dialog (the phone apps (iPhone, Android)): photos over 13 megapixels (a phone's 48 MP photos) saved again as 12-megapixel JPEGs.
+    static var appFilesCompressPhoto12mp: String { L("app.files.compress.photo_12mp", table: "AppFiles") }
+
+    /// Save PNGs as JPEG
+    ///
+    /// A switch in the Compress dialog (the phone apps (iPhone, Android)): PNG pictures (screenshots, exports) saved as JPEG. Keep 'PNG' and 'JPEG'.
+    static var appFilesCompressPngToJpeg: String { L("app.files.compress.png_to_jpeg", table: "AppFiles") }
+
+    /// Compressing {done} of {total}…
+    ///
+    /// Progress of the files being compressed (the phone apps (iPhone, Android)), shown while the device works through them.
+    static func appFilesCompressProgress(done: Int, total: Int) -> String {
+        L("app.files.compress.progress", table: "AppFiles", done, total)
+    }
+
+    /// one: {count} file · {now} → about {after}
+    /// other: {count} files · {now} → about {after}
+    ///
+    /// Under a choice in the Compress dialog (the phone apps (iPhone, Android)): how many files it applies to, what they weigh now and, estimated, after; {now} and {after} are sizes such as 2.1 GB.
+    static func appFilesCompressRow(count: Int, now: String, after: String) -> String {
+        L("app.files.compress.row", table: "AppFiles", count, now, after)
+    }
+
+    /// Videos take a while: your device re-encodes them in the background, and you can keep using it meanwhile.
+    ///
+    /// Note in the Compress dialog (the phone apps (iPhone, Android)) when videos are to be compressed.
+    static var appFilesCompressSlow: String { L("app.files.compress.slow", table: "AppFiles") }
+
+    /// one: Compress {count} File
+    /// other: Compress {count} Files
+    ///
+    /// Title of the Compress dialog (the phone apps (iPhone, Android)) for the files picked.
+    static func appFilesCompressTitle(count: Int) -> String {
+        L("app.files.compress.title", table: "AppFiles", count)
+    }
+
+    /// Frees about {size}
+    ///
+    /// The total at the foot of the Compress dialog (the phone apps (iPhone, Android)): the space the choices made would free, estimated; {size} such as 1.4 GB.
+    static func appFilesCompressTotal(size: String) -> String {
+        L("app.files.compress.total", table: "AppFiles", size)
+    }
+
+    /// Lower to 1080p
+    ///
+    /// A choice for the videos in the Compress dialog (the phone apps (iPhone, Android)): 4K videos re-encoded at 1080p (Full HD). Keep '1080p'.
+    static var appFilesCompressVideo1080p: String { L("app.files.compress.video_1080p", table: "AppFiles") }
+
+    /// Lower to 720p
+    ///
+    /// A choice for the videos in the Compress dialog (the phone apps (iPhone, Android)): videos re-encoded at 720p (HD). Keep '720p'.
+    static var appFilesCompressVideo720p: String { L("app.files.compress.video_720p", table: "AppFiles") }
+
+    /// Same size, HEVC format
+    ///
+    /// A choice for the videos in the Compress dialog (the phone apps (iPhone, Android)): videos kept at their resolution, re-encoded in the HEVC (H.265) format, which takes about half the space of older formats. 'Same size' means the same picture size (resolution). Keep 'HEVC'.
+    static var appFilesCompressVideoHevc: String { L("app.files.compress.video_hevc", table: "AppFiles") }
+
+    /// Leave as they are
+    ///
+    /// A choice for the videos in the Compress dialog (the phone apps (iPhone, Android)): don't compress the videos.
+    static var appFilesCompressVideoNone: String { L("app.files.compress.video_none", table: "AppFiles") }
+
+    /// Videos
+    ///
+    /// Heading of the videos' choice in the Compress dialog (the phone apps (iPhone, Android)).
+    static var appFilesCompressVideos: String { L("app.files.compress.videos", table: "AppFiles") }
+
+    /// The originals are deleted from your device for good: only the compressed files stay there. Copies on your phones and computers are kept.
+    ///
+    /// Warning in the Compress dialog (the phone apps (iPhone, Android)), above the Compress button. 'For good' = it can't be undone.
+    static var appFilesCompressWarning: String { L("app.files.compress.warning", table: "AppFiles") }
+
     /// one: Delete {count} item?
     /// other: Delete {count} items?
     ///
@@ -257,6 +396,39 @@ extension S {
     ///
     /// Explanation shown (title app.files.kept_out) when the mark of a folder kept out of Images is tapped in Files. Images is the photo section (app.shell.section_images).
     static var appFilesKeptOutExplain: String { L("app.files.kept_out_explain", table: "AppFiles") }
+
+    /// There are no files on your device yet.
+    ///
+    /// Shown in the Largest files list (the phone apps (iPhone, Android)) when the device holds no files.
+    static var appFilesLargestEmpty: String { L("app.files.largest.empty", table: "AppFiles") }
+
+    /// The list couldn't be loaded.
+    ///
+    /// Shown in the Largest files list (the phone apps (iPhone, Android)) when a page didn't come; a Try again button follows.
+    static var appFilesLargestFailed: String { L("app.files.largest.failed", table: "AppFiles") }
+
+    /// Largest first. A file in several places is listed once.
+    ///
+    /// Line at the top of the Largest files list (the phone apps (iPhone, Android)): the same content saved at several paths takes its space once, so it is one row.
+    static var appFilesLargestIntro: String { L("app.files.largest.intro", table: "AppFiles") }
+
+    /// Your device needs an update to list its largest files.
+    ///
+    /// Shown in the Largest files list (the phone apps (iPhone, Android)) when the device is older than the feature.
+    static var appFilesLargestNeedsUpdate: String { L("app.files.largest.needs_update", table: "AppFiles") }
+
+    /// one: in {count} place
+    /// other: in {count} places
+    ///
+    /// Under a file in the Largest files list (the phone apps (iPhone, Android)) when the same content is at several paths on the device: how many (2 or more).
+    static func appFilesLargestPlaces(count: Int) -> String {
+        L("app.files.largest.places", table: "AppFiles", count)
+    }
+
+    /// Largest Files
+    ///
+    /// Title of the screen (the phone apps (iPhone, Android)) listing every file on the device, largest first, opened from Settings.
+    static var appFilesLargestTitle: String { L("app.files.largest.title", table: "AppFiles") }
 
     /// Failed to list path
     ///

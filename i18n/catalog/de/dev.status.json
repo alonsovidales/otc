@@ -1,5 +1,6 @@
 {
   "dev.status.background.analysis": {"text": "Analysiert neue Fotos und Videos"},
+  "dev.status.background.compress": {"text": "Komprimiert Fotos und Videos"},
   "dev.status.background.dates": {"text": "Korrigiert die Aufnahmedaten der Fotos"},
   "dev.status.background.faces": {"text": "Wählt das beste Gesicht jeder Person aus"},
   "dev.status.background.places": {"text": "Ermittelt, wo deine Fotos aufgenommen wurden"},

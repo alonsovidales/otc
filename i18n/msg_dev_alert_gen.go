@@ -14,6 +14,16 @@ func DevAlertBridgeLeftDetail(domain string, address string) Msg {
 	return Msg{Key: "dev.alert.bridge.left_detail", Args: map[string]any{"domain": domain, "address": address}}
 }
 
+// DevAlertCompressDone is dev.alert.compress.done: "{count} files compressed, {saved} freed".
+func DevAlertCompressDone(count int, saved string) Msg {
+	return Msg{Key: "dev.alert.compress.done", Args: map[string]any{"count": int64(count), "saved": saved}}
+}
+
+// DevAlertCompressFailed is dev.alert.compress.failed: "{count} files couldn't be compressed".
+func DevAlertCompressFailed(count int) Msg {
+	return Msg{Key: "dev.alert.compress.failed", Args: map[string]any{"count": int64(count)}}
+}
+
 // DevAlertFileCrashed is dev.alert.file.crashed: "{name} could not be processed (it crashed the processing)".
 func DevAlertFileCrashed(name string) Msg {
 	return Msg{Key: "dev.alert.file.crashed", Args: map[string]any{"name": name}}

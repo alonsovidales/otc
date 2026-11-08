@@ -217,6 +217,18 @@
     "text": "Je apparaat heeft een software-update nodig om deze keuze met je andere apps te delen. Tot die tijd geldt die alleen voor deze telefoon.",
     "en": "Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only."
   },
+  "app.settings.largest.hint": {
+    "text": "Alles op je apparaat, de grootste bestanden eerst, om te zien wat de meeste ruimte inneemt. Foto’s en video’s kun je daar comprimeren om wat ruimte vrij te maken.",
+    "en": "Everything on your device, largest first, to see what takes the most space. Photos and videos can be compressed from there to free some."
+  },
+  "app.settings.largest.open": {
+    "text": "Grootste bestanden tonen",
+    "en": "Show Largest Files"
+  },
+  "app.settings.largest.title": {
+    "text": "Grootste bestanden",
+    "en": "Largest files"
+  },
   "app.settings.limited.allow_all": {
     "text": "Toegang geven tot alle foto’s",
     "en": "Allow Access to All Photos"

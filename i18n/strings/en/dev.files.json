@@ -36,6 +36,46 @@
     "text": "a collection needs a name",
     "note": "Error reply when creating or renaming a collection (a group of photos chosen by the owner) with an empty name."
   },
+  "dev.files.compress_failed": {
+    "text": "the device could not compress this file",
+    "note": "Result of compressing one file in the background: re-encoding it failed (the device's own error may follow). The file was left as it was."
+  },
+  "dev.files.compress_kept_version": {
+    "text": "an older version of a file keeps this content, so compressing it would free no space",
+    "note": "Why a file picked to compress can't be: an upload-only folder keeps this same content as an older version of a file, so the device must keep its bytes anyway."
+  },
+  "dev.files.compress_missing": {
+    "text": "this file's content isn't on the device's disks",
+    "note": "Why a file picked to compress can't be: the device lists it but its content is missing from its storage (a rare fault)."
+  },
+  "dev.files.compress_no_job": {
+    "text": "there is no compress job",
+    "note": "Error when an app asks for the progress of a compress job and the device has none (none started since it last restarted)."
+  },
+  "dev.files.compress_not_media": {
+    "text": "only photos and videos can be compressed",
+    "note": "Why a file the owner picked to compress (Settings › Largest files, or Images: Compress) can't be: it is a document or other file, not a photo or video. Shown next to the file in the Compress dialog."
+  },
+  "dev.files.compress_not_smaller": {
+    "text": "compressed, it came out no smaller, so the file was left as it was",
+    "note": "Result of compressing one file (a photo or video, compressed in the background): the new file wasn't smaller than the original, so the device kept the original and threw the new one away."
+  },
+  "dev.files.compress_nothing_to_gain": {
+    "text": "the device can't make this file noticeably smaller",
+    "note": "Why a photo or video picked to compress can't be: every way the device has (a lower resolution, HEVC, a smaller JPEG) would save less than 15%. Shown next to the file in the Compress dialog."
+  },
+  "dev.files.compress_too_many": {
+    "text": "pick at most 500 files at a time",
+    "note": "Error when an app asks for the compress options of more than 500 files at once."
+  },
+  "dev.files.compress_unknown_preset": {
+    "text": "this way of compressing isn't available for this file",
+    "note": "Error for a file sent to be compressed with a choice the device doesn't offer for it (an app newer than the device, or the file changed). The file was left as it was."
+  },
+  "dev.files.compress_upload_only": {
+    "text": "this file is in an upload-only folder, where nothing is replaced; turn upload only off there to compress it",
+    "note": "Why a file picked to compress can't be: it, or a copy of it, is in an upload-only folder (a folder whose files the device never deletes or replaces, keeping older versions). Upload only is turned off on the folder's lock in Files."
+  },
   "dev.files.content_changed": {
     "text": "this file has changed since it was shown, so nothing was deleted: refresh and try again",
     "note": "Error in Images and Files when deleting a photo, video or file whose path holds other content than the one the app showed (it was replaced from another phone or computer, or edited, since the list was loaded). Nothing was deleted, with or without deleting every copy: the owner refreshes the list and deletes again if still wanted.",
@@ -245,6 +285,10 @@
   "dev.files.nothing_to_stream": {
     "text": "nothing to stream",
     "note": "Error reply when an app asks to play a video without saying which (an app fault)."
+  },
+  "dev.files.original_compressed": {
+    "text": "this file was compressed and its original deleted, so there is nothing to go back to",
+    "note": "Error when the owner chooses Revert to original for a file that was compressed: compressing deletes the original from the device for good."
   },
   "dev.files.out_of_images_list_failed": {
     "text": "error listing the folders kept out of Images: {detail}",

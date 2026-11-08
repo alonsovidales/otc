@@ -1311,6 +1311,255 @@ public nonisolated struct Msg_EditState: Sendable {
 
   public var edited: Bool = false
 
+  /// edited, and its original was deleted by a compress: nothing to revert.
+  public var originalRemoved: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Settings › Largest files: every content in the library, largest first,
+/// one entry per content (the same photo at three paths takes its space
+/// once) at its first path in byte order, with File.copies set. Files only,
+/// not the older versions an upload-only folder keeps. Answers ListOfFiles:
+/// files without content (thumbnails come from GetThumbnails by path),
+/// token the next page's `after` ("" once the list is over). Pages are cut
+/// by (size, hash) and read afresh each time: a file added or deleted
+/// between pages shows or goes by where it falls. Devices before it answer
+/// "unknown_payload".
+public nonisolated struct Msg_ListLargestFiles: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// "" for the first page, else the previous answer's token.
+  public var after: String = String()
+
+  /// 1-200; 0 is 50.
+  public var limit: Int32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// A file the owner picked to compress: path, and the content the app
+/// showed for it (File.hash).
+public nonisolated struct Msg_CompressItem: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var path: String = String()
+
+  public var hash: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Compress, step one: what the device can do for each item and what it
+/// would weigh - worked out from the files' headers (a video's resolution,
+/// codec and length; a photo's pixels and format), never by compressing
+/// them, so it answers in about a second for a few hundred. At most 500
+/// items. Answers CompressOptions, in the order asked.
+public nonisolated struct Msg_GetCompressOptions: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var items: [Msg_CompressItem] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// One way to compress an item, and its result's size, estimated.
+/// preset is one of:
+///   "video_1080p"  a video taller and wider than 1080p (4K) re-encoded at
+///                  1080p (the shorter side 1080), HEVC
+///   "video_720p"   a video over 720p re-encoded at 720p, HEVC
+///   "video_hevc"   an H.264 (or older) video re-encoded as HEVC at its own
+///                  size
+///   "photo_12mp"   a photo over 13 megapixels shrunk to about 12, as JPEG
+///   "jpeg_resave"  a JPEG saved again at a lower quality, its size kept
+///   "png_to_jpeg"  a PNG with no transparency saved as JPEG
+/// Only presets whose estimate is at least 15% smaller than the file are
+/// offered. New presets may come: apps leave out one they don't know.
+public nonisolated struct Msg_CompressChoice: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var preset: String = String()
+
+  public var estimatedSize: Int64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Msg_CompressOption: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var path: String = String()
+
+  public var hash: String = String()
+
+  /// The file's size now.
+  public var size: Int64 = 0
+
+  /// Paths holding this content (all of them are replaced); 1 or more.
+  public var copies: Int32 = 0
+
+  /// Strongest first. Empty: nothing to gain, and `reason` says why in the
+  /// request's language (not a photo or video; already as small as the
+  /// device makes it; in an upload-only folder, where nothing is replaced;
+  /// an older version keeps it; the file changed - error_code "changed").
+  public var choices: [Msg_CompressChoice] = []
+
+  public var reason: String = String()
+
+  /// "changed", "not_media", "nothing_to_gain", "upload_only",
+  /// "kept_version", "missing" - for the apps' rules; the words are reason.
+  public var reasonCode: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Msg_CompressOptions: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var items: [Msg_CompressOption] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Msg_CompressTask: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var path: String = String()
+
+  /// As CompressItem.hash: the content shown, "changed" when it isn't.
+  public var hash: String = String()
+
+  /// A preset GetCompressOptions offered for it.
+  public var preset: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Compress, step two: the device compresses the tasks one at a time in
+/// the background (Status.background_tasks kind "compress"), each replacing
+/// the file at every path holding its content - collections, Favourites,
+/// ratings and faces moving with it, tags and Smart search worked out
+/// again - and then DELETING THE ORIGINAL'S BYTES. Its hash is kept
+/// (File.original_removed): a phone or computer sending that original
+/// again is answered with the compressed file and nothing is stored. A
+/// result that isn't smaller than the original is dropped and the file left
+/// as it was. Never in an upload-only folder, never content an older
+/// version keeps. Answers CompressJob at once; tasks sent while a job runs
+/// join it. The demo refuses it; devices before it answer "unknown_payload".
+public nonisolated struct Msg_CompressFiles: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var tasks: [Msg_CompressTask] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// What a compress job has done: asked with GetCompressJob, and answered to
+/// CompressFiles. Kept until the next job starts, or a restart (a restart
+/// mid-job forgets the tasks not started; the file being worked on is left
+/// as it was).
+public nonisolated struct Msg_CompressJob: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var id: String = String()
+
+  public var total: Int32 = 0
+
+  /// Tasks over, whatever came of them.
+  public var done: Int32 = 0
+
+  /// Bytes the job freed so far: originals' sizes less their results'.
+  public var saved: Int64 = 0
+
+  public var finished: Bool = false
+
+  public var results: [Msg_CompressResult] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Msg_CompressResult: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var path: String = String()
+
+  /// "waiting", "running", "done", "skipped" (not smaller: left as it
+  /// was), "failed".
+  public var state: String = String()
+
+  /// A running video's progress, 0-100.
+  public var percent: Int32 = 0
+
+  /// done: the file now at path (new hash, original_hash and
+  /// original_removed set, its new size and name - a PNG becomes .jpg).
+  public var file: Msg_File {
+    get {_file ?? Msg_File()}
+    set {_file = newValue}
+  }
+  /// Returns true if `file` has been explicitly set.
+  public var hasFile: Bool {self._file != nil}
+  /// Clears the value of `file`. Subsequent reads from it will return its default value.
+  public mutating func clearFile() {self._file = nil}
+
+  /// skipped, failed: why, in the request's language.
+  public var message: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _file: Msg_File? = nil
+}
+
+/// The compress job running, or the last one; id "" for whichever that is.
+/// error_code "not_found" when there is none (or another id).
+public nonisolated struct Msg_GetCompressJob: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var id: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -2477,6 +2726,17 @@ public nonisolated struct Msg_File: @unchecked Sendable {
   public var originalHash: String {
     get {_storage._originalHash}
     set {_uniqueStorage()._originalHash = newValue}
+  }
+
+  /// Compress (CompressFiles): set with original_hash when this content is
+  /// a compressed copy whose original the device deleted. There is nothing
+  /// to revert to (no Revert to original), and original_hash is what the
+  /// phones and computers still hold: their sync takes a file with that
+  /// hash at this path for this one - never sending it again, never
+  /// downloading this over it - and Free up space never counts it as held.
+  public var originalRemoved: Bool {
+    get {_storage._originalRemoved}
+    set {_uniqueStorage()._originalRemoved = newValue}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -7927,6 +8187,40 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqEditVideo(newValue)}
   }
 
+  /// Settings › Largest files: answers resp_list_of_files.
+  public var reqListLargestFiles: Msg_ListLargestFiles {
+    get {
+      if case .reqListLargestFiles(let v)? = payload {return v}
+      return Msg_ListLargestFiles()
+    }
+    set {payload = .reqListLargestFiles(newValue)}
+  }
+
+  /// Compress: answers resp_compress_options, then resp_compress_job.
+  public var reqGetCompressOptions: Msg_GetCompressOptions {
+    get {
+      if case .reqGetCompressOptions(let v)? = payload {return v}
+      return Msg_GetCompressOptions()
+    }
+    set {payload = .reqGetCompressOptions(newValue)}
+  }
+
+  public var reqCompressFiles: Msg_CompressFiles {
+    get {
+      if case .reqCompressFiles(let v)? = payload {return v}
+      return Msg_CompressFiles()
+    }
+    set {payload = .reqCompressFiles(newValue)}
+  }
+
+  public var reqGetCompressJob: Msg_GetCompressJob {
+    get {
+      if case .reqGetCompressJob(let v)? = payload {return v}
+      return Msg_GetCompressJob()
+    }
+    set {payload = .reqGetCompressJob(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -8212,6 +8506,12 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     /// Video edit: answers with resp_file. Devices before it answer
     /// "unknown_payload".
     case reqEditVideo(Msg_EditVideo)
+    /// Settings › Largest files: answers resp_list_of_files.
+    case reqListLargestFiles(Msg_ListLargestFiles)
+    /// Compress: answers resp_compress_options, then resp_compress_job.
+    case reqGetCompressOptions(Msg_GetCompressOptions)
+    case reqCompressFiles(Msg_CompressFiles)
+    case reqGetCompressJob(Msg_GetCompressJob)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -8847,6 +9147,23 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respEditState(newValue)}
   }
 
+  /// The answers to GetCompressOptions and to CompressFiles/GetCompressJob.
+  public var respCompressOptions: Msg_CompressOptions {
+    get {
+      if case .respCompressOptions(let v)? = _storage._payload {return v}
+      return Msg_CompressOptions()
+    }
+    set {_uniqueStorage()._payload = .respCompressOptions(newValue)}
+  }
+
+  public var respCompressJob: Msg_CompressJob {
+    get {
+      if case .respCompressJob(let v)? = _storage._payload {return v}
+      return Msg_CompressJob()
+    }
+    set {_uniqueStorage()._payload = .respCompressJob(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Payload: Equatable, Sendable {
@@ -8946,6 +9263,9 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     case respPhotoRating(Msg_PhotoRating)
     /// The answer to GetEditState.
     case respEditState(Msg_EditState)
+    /// The answers to GetCompressOptions and to CompressFiles/GetCompressJob.
+    case respCompressOptions(Msg_CompressOptions)
+    case respCompressJob(Msg_CompressJob)
 
   }
 
@@ -10331,7 +10651,7 @@ nonisolated extension Msg_GetEditState: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 nonisolated extension Msg_EditState: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".EditState"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}copies\0\u{1}edited\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}copies\0\u{1}edited\0\u{3}original_removed\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -10341,6 +10661,7 @@ nonisolated extension Msg_EditState: SwiftProtobuf.Message, SwiftProtobuf._Messa
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularInt32Field(value: &self.copies) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.edited) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.originalRemoved) }()
       default: break
       }
     }
@@ -10353,12 +10674,450 @@ nonisolated extension Msg_EditState: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if self.edited != false {
       try visitor.visitSingularBoolField(value: self.edited, fieldNumber: 2)
     }
+    if self.originalRemoved != false {
+      try visitor.visitSingularBoolField(value: self.originalRemoved, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_EditState, rhs: Msg_EditState) -> Bool {
     if lhs.copies != rhs.copies {return false}
     if lhs.edited != rhs.edited {return false}
+    if lhs.originalRemoved != rhs.originalRemoved {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_ListLargestFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListLargestFiles"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}after\0\u{1}limit\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.after) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.limit) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.after.isEmpty {
+      try visitor.visitSingularStringField(value: self.after, fieldNumber: 1)
+    }
+    if self.limit != 0 {
+      try visitor.visitSingularInt32Field(value: self.limit, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ListLargestFiles, rhs: Msg_ListLargestFiles) -> Bool {
+    if lhs.after != rhs.after {return false}
+    if lhs.limit != rhs.limit {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_CompressItem: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompressItem"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}hash\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.hash) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    if !self.hash.isEmpty {
+      try visitor.visitSingularStringField(value: self.hash, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_CompressItem, rhs: Msg_CompressItem) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.hash != rhs.hash {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_GetCompressOptions: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetCompressOptions"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}items\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.items) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.items.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.items, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_GetCompressOptions, rhs: Msg_GetCompressOptions) -> Bool {
+    if lhs.items != rhs.items {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_CompressChoice: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompressChoice"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}preset\0\u{3}estimated_size\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.preset) }()
+      case 2: try { try decoder.decodeSingularInt64Field(value: &self.estimatedSize) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.preset.isEmpty {
+      try visitor.visitSingularStringField(value: self.preset, fieldNumber: 1)
+    }
+    if self.estimatedSize != 0 {
+      try visitor.visitSingularInt64Field(value: self.estimatedSize, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_CompressChoice, rhs: Msg_CompressChoice) -> Bool {
+    if lhs.preset != rhs.preset {return false}
+    if lhs.estimatedSize != rhs.estimatedSize {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_CompressOption: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompressOption"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}hash\0\u{1}size\0\u{1}copies\0\u{1}choices\0\u{1}reason\0\u{3}reason_code\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.hash) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self.size) }()
+      case 4: try { try decoder.decodeSingularInt32Field(value: &self.copies) }()
+      case 5: try { try decoder.decodeRepeatedMessageField(value: &self.choices) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.reason) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.reasonCode) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    if !self.hash.isEmpty {
+      try visitor.visitSingularStringField(value: self.hash, fieldNumber: 2)
+    }
+    if self.size != 0 {
+      try visitor.visitSingularInt64Field(value: self.size, fieldNumber: 3)
+    }
+    if self.copies != 0 {
+      try visitor.visitSingularInt32Field(value: self.copies, fieldNumber: 4)
+    }
+    if !self.choices.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.choices, fieldNumber: 5)
+    }
+    if !self.reason.isEmpty {
+      try visitor.visitSingularStringField(value: self.reason, fieldNumber: 6)
+    }
+    if !self.reasonCode.isEmpty {
+      try visitor.visitSingularStringField(value: self.reasonCode, fieldNumber: 7)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_CompressOption, rhs: Msg_CompressOption) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.hash != rhs.hash {return false}
+    if lhs.size != rhs.size {return false}
+    if lhs.copies != rhs.copies {return false}
+    if lhs.choices != rhs.choices {return false}
+    if lhs.reason != rhs.reason {return false}
+    if lhs.reasonCode != rhs.reasonCode {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_CompressOptions: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompressOptions"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}items\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.items) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.items.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.items, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_CompressOptions, rhs: Msg_CompressOptions) -> Bool {
+    if lhs.items != rhs.items {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_CompressTask: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompressTask"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}hash\0\u{1}preset\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.hash) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.preset) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    if !self.hash.isEmpty {
+      try visitor.visitSingularStringField(value: self.hash, fieldNumber: 2)
+    }
+    if !self.preset.isEmpty {
+      try visitor.visitSingularStringField(value: self.preset, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_CompressTask, rhs: Msg_CompressTask) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.hash != rhs.hash {return false}
+    if lhs.preset != rhs.preset {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_CompressFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompressFiles"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tasks\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.tasks) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.tasks.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.tasks, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_CompressFiles, rhs: Msg_CompressFiles) -> Bool {
+    if lhs.tasks != rhs.tasks {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_CompressJob: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompressJob"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}total\0\u{1}done\0\u{1}saved\0\u{1}finished\0\u{1}results\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.total) }()
+      case 3: try { try decoder.decodeSingularInt32Field(value: &self.done) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self.saved) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.finished) }()
+      case 6: try { try decoder.decodeRepeatedMessageField(value: &self.results) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if self.total != 0 {
+      try visitor.visitSingularInt32Field(value: self.total, fieldNumber: 2)
+    }
+    if self.done != 0 {
+      try visitor.visitSingularInt32Field(value: self.done, fieldNumber: 3)
+    }
+    if self.saved != 0 {
+      try visitor.visitSingularInt64Field(value: self.saved, fieldNumber: 4)
+    }
+    if self.finished != false {
+      try visitor.visitSingularBoolField(value: self.finished, fieldNumber: 5)
+    }
+    if !self.results.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.results, fieldNumber: 6)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_CompressJob, rhs: Msg_CompressJob) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.total != rhs.total {return false}
+    if lhs.done != rhs.done {return false}
+    if lhs.saved != rhs.saved {return false}
+    if lhs.finished != rhs.finished {return false}
+    if lhs.results != rhs.results {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_CompressResult: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompressResult"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}state\0\u{1}percent\0\u{1}file\0\u{1}message\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.state) }()
+      case 3: try { try decoder.decodeSingularInt32Field(value: &self.percent) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._file) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.message) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    if !self.state.isEmpty {
+      try visitor.visitSingularStringField(value: self.state, fieldNumber: 2)
+    }
+    if self.percent != 0 {
+      try visitor.visitSingularInt32Field(value: self.percent, fieldNumber: 3)
+    }
+    try { if let v = self._file {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    if !self.message.isEmpty {
+      try visitor.visitSingularStringField(value: self.message, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_CompressResult, rhs: Msg_CompressResult) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.state != rhs.state {return false}
+    if lhs.percent != rhs.percent {return false}
+    if lhs._file != rhs._file {return false}
+    if lhs.message != rhs.message {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_GetCompressJob: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetCompressJob"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_GetCompressJob, rhs: Msg_GetCompressJob) -> Bool {
+    if lhs.id != rhs.id {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -11724,7 +12483,7 @@ nonisolated extension Msg_PhotoPlaces: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".File"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0\u{3}upload_only\0\u{1}versions\0\u{1}size64\0\u{3}out_of_images\0\u{3}thumbnail_small\0\u{1}copies\0\u{1}rating\0\u{3}original_hash\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0\u{3}upload_only\0\u{1}versions\0\u{1}size64\0\u{3}out_of_images\0\u{3}thumbnail_small\0\u{1}copies\0\u{1}rating\0\u{3}original_hash\0\u{3}original_removed\0")
 
   fileprivate class _StorageClass {
     var _hash: String = String()
@@ -11742,6 +12501,7 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     var _copies: Int32? = nil
     var _rating: Msg_PhotoRating? = nil
     var _originalHash: String = String()
+    var _originalRemoved: Bool = false
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -11767,6 +12527,7 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       _copies = source._copies
       _rating = source._rating
       _originalHash = source._originalHash
+      _originalRemoved = source._originalRemoved
     }
   }
 
@@ -11800,6 +12561,7 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
         case 14: try { try decoder.decodeSingularInt32Field(value: &_storage._copies) }()
         case 15: try { try decoder.decodeSingularMessageField(value: &_storage._rating) }()
         case 16: try { try decoder.decodeSingularStringField(value: &_storage._originalHash) }()
+        case 17: try { try decoder.decodeSingularBoolField(value: &_storage._originalRemoved) }()
         default: break
         }
       }
@@ -11857,6 +12619,9 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       if !_storage._originalHash.isEmpty {
         try visitor.visitSingularStringField(value: _storage._originalHash, fieldNumber: 16)
       }
+      if _storage._originalRemoved != false {
+        try visitor.visitSingularBoolField(value: _storage._originalRemoved, fieldNumber: 17)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -11881,6 +12646,7 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
         if _storage._copies != rhs_storage._copies {return false}
         if _storage._rating != rhs_storage._rating {return false}
         if _storage._originalHash != rhs_storage._originalHash {return false}
+        if _storage._originalRemoved != rhs_storage._originalRemoved {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -19090,7 +19856,7 @@ nonisolated extension Msg_LocalEndpoint: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0\u{3}req_set_places_enabled\0\u{3}req_get_memories\0\u{3}req_hide_memory\0\u{3}req_set_memories_enabled\0\u{3}req_set_smart_search_enabled\0\u{3}req_get_favourites\0\u{3}req_set_favourite\0\u{3}req_set_person_cover\0\u{3}req_get_photo_faces\0\u{3}req_set_image_group_rating\0\u{3}req_set_photo_rating\0\u{3}req_rate_shared_gallery_item\0\u{3}req_shut_down_device\0\u{3}req_random_photos\0\u{3}req_edit_image\0\u{3}req_revert_image\0\u{3}req_get_edit_state\0\u{3}req_edit_video\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0\u{3}req_set_places_enabled\0\u{3}req_get_memories\0\u{3}req_hide_memory\0\u{3}req_set_memories_enabled\0\u{3}req_set_smart_search_enabled\0\u{3}req_get_favourites\0\u{3}req_set_favourite\0\u{3}req_set_person_cover\0\u{3}req_get_photo_faces\0\u{3}req_set_image_group_rating\0\u{3}req_set_photo_rating\0\u{3}req_rate_shared_gallery_item\0\u{3}req_shut_down_device\0\u{3}req_random_photos\0\u{3}req_edit_image\0\u{3}req_revert_image\0\u{3}req_get_edit_state\0\u{3}req_edit_video\0\u{3}req_list_largest_files\0\u{3}req_get_compress_options\0\u{3}req_compress_files\0\u{3}req_get_compress_job\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -21089,6 +21855,58 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqEditVideo(v)
         }
       }()
+      case 166: try {
+        var v: Msg_ListLargestFiles?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqListLargestFiles(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqListLargestFiles(v)
+        }
+      }()
+      case 167: try {
+        var v: Msg_GetCompressOptions?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetCompressOptions(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetCompressOptions(v)
+        }
+      }()
+      case 168: try {
+        var v: Msg_CompressFiles?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqCompressFiles(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqCompressFiles(v)
+        }
+      }()
+      case 169: try {
+        var v: Msg_GetCompressJob?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetCompressJob(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetCompressJob(v)
+        }
+      }()
       default: break
       }
     }
@@ -21718,6 +22536,22 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
       guard case .reqEditVideo(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 165)
     }()
+    case .reqListLargestFiles?: try {
+      guard case .reqListLargestFiles(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 166)
+    }()
+    case .reqGetCompressOptions?: try {
+      guard case .reqGetCompressOptions(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 167)
+    }()
+    case .reqCompressFiles?: try {
+      guard case .reqCompressFiles(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 168)
+    }()
+    case .reqGetCompressJob?: try {
+      guard case .reqGetCompressJob(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 169)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -21734,7 +22568,7 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{3}error_code\0\u{4}\u{6}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0\u{3}resp_cloud_ids_found\0\u{3}resp_file_versions\0\u{3}resp_bridge_access\0\u{3}resp_bridge_signed_in\0\u{3}resp_file_chunk\0\u{3}resp_upload_started\0\u{3}resp_upload_progress\0\u{3}resp_shared_gallery_preview\0\u{3}resp_shared_gallery_job\0\u{3}resp_shared_gallery\0\u{3}resp_shared_links\0\u{3}resp_logs\0\u{3}resp_local_endpoint\0\u{3}resp_out_of_images_folders\0\u{3}resp_restarting_device\0\u{3}resp_folder_usage\0\u{3}resp_hashes_found\0\u{3}resp_wifi_status\0\u{3}resp_photo_places\0\u{3}resp_memories\0\u{3}resp_favourites\0\u{3}resp_photo_faces\0\u{3}resp_photo_rating\0\u{3}resp_edit_state\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{3}error_code\0\u{4}\u{6}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0\u{3}resp_cloud_ids_found\0\u{3}resp_file_versions\0\u{3}resp_bridge_access\0\u{3}resp_bridge_signed_in\0\u{3}resp_file_chunk\0\u{3}resp_upload_started\0\u{3}resp_upload_progress\0\u{3}resp_shared_gallery_preview\0\u{3}resp_shared_gallery_job\0\u{3}resp_shared_gallery\0\u{3}resp_shared_links\0\u{3}resp_logs\0\u{3}resp_local_endpoint\0\u{3}resp_out_of_images_folders\0\u{3}resp_restarting_device\0\u{3}resp_folder_usage\0\u{3}resp_hashes_found\0\u{3}resp_wifi_status\0\u{3}resp_photo_places\0\u{3}resp_memories\0\u{3}resp_favourites\0\u{3}resp_photo_faces\0\u{3}resp_photo_rating\0\u{3}resp_edit_state\0\u{3}resp_compress_options\0\u{3}resp_compress_job\0")
 
   fileprivate class _StorageClass {
     var _id: Int32 = 0
@@ -22663,6 +23497,32 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
             _storage._payload = .respEditState(v)
           }
         }()
+        case 78: try {
+          var v: Msg_CompressOptions?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respCompressOptions(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respCompressOptions(v)
+          }
+        }()
+        case 79: try {
+          var v: Msg_CompressJob?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respCompressJob(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respCompressJob(v)
+          }
+        }()
         default: break
         }
       }
@@ -22959,6 +23819,14 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
       case .respEditState?: try {
         guard case .respEditState(let v)? = _storage._payload else { preconditionFailure() }
         try visitor.visitSingularMessageField(value: v, fieldNumber: 77)
+      }()
+      case .respCompressOptions?: try {
+        guard case .respCompressOptions(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 78)
+      }()
+      case .respCompressJob?: try {
+        guard case .respCompressJob(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 79)
       }()
       case nil: break
       }

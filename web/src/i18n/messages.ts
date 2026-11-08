@@ -105,6 +105,30 @@ export type MessageKey =
   | "web.files.column.resize_tip"
   | "web.files.column.share"
   | "web.files.column.size"
+  | "web.files.compress.button"
+  | "web.files.compress.compressed_note"
+  | "web.files.compress.confirm"
+  | "web.files.compress.done"
+  | "web.files.compress.estimating"
+  | "web.files.compress.failed"
+  | "web.files.compress.jpeg_resave"
+  | "web.files.compress.needs_update"
+  | "web.files.compress.not_offered"
+  | "web.files.compress.nothing"
+  | "web.files.compress.options_failed"
+  | "web.files.compress.photo_12mp"
+  | "web.files.compress.png_to_jpeg"
+  | "web.files.compress.progress"
+  | "web.files.compress.row"
+  | "web.files.compress.slow"
+  | "web.files.compress.title"
+  | "web.files.compress.total"
+  | "web.files.compress.video_1080p"
+  | "web.files.compress.video_720p"
+  | "web.files.compress.video_hevc"
+  | "web.files.compress.video_none"
+  | "web.files.compress.videos"
+  | "web.files.compress.warning"
   | "web.files.gallery.cant_show"
   | "web.files.gallery.download_all"
   | "web.files.gallery.download_count"
@@ -138,6 +162,12 @@ export type MessageKey =
   | "web.files.keep_out.switch"
   | "web.files.keep_out.tip_off"
   | "web.files.keep_out.tip_on"
+  | "web.files.largest.empty"
+  | "web.files.largest.failed"
+  | "web.files.largest.intro"
+  | "web.files.largest.needs_update"
+  | "web.files.largest.places"
+  | "web.files.largest.title"
   | "web.files.links.confirm_delete"
   | "web.files.links.delete_failed"
   | "web.files.links.details"
@@ -678,6 +708,9 @@ export type MessageKey =
   | "web.settings.language.not_saved"
   | "web.settings.language.title"
   | "web.settings.language.too_old"
+  | "web.settings.largest.hint"
+  | "web.settings.largest.open"
+  | "web.settings.largest.title"
   | "web.settings.logs.copied"
   | "web.settings.logs.copy"
   | "web.settings.logs.hint"
@@ -1350,6 +1383,30 @@ export interface MessageArgs {
   "web.files.column.resize_tip": undefined;
   "web.files.column.share": undefined;
   "web.files.column.size": undefined;
+  "web.files.compress.button": undefined;
+  "web.files.compress.compressed_note": undefined;
+  "web.files.compress.confirm": undefined;
+  "web.files.compress.done": { count: number; size: string };
+  "web.files.compress.estimating": undefined;
+  "web.files.compress.failed": { count: number };
+  "web.files.compress.jpeg_resave": undefined;
+  "web.files.compress.needs_update": undefined;
+  "web.files.compress.not_offered": { count: number };
+  "web.files.compress.nothing": undefined;
+  "web.files.compress.options_failed": undefined;
+  "web.files.compress.photo_12mp": undefined;
+  "web.files.compress.png_to_jpeg": undefined;
+  "web.files.compress.progress": { done: number; total: number };
+  "web.files.compress.row": { count: number; now: string; after: string };
+  "web.files.compress.slow": undefined;
+  "web.files.compress.title": { count: number };
+  "web.files.compress.total": { size: string };
+  "web.files.compress.video_1080p": undefined;
+  "web.files.compress.video_720p": undefined;
+  "web.files.compress.video_hevc": undefined;
+  "web.files.compress.video_none": undefined;
+  "web.files.compress.videos": undefined;
+  "web.files.compress.warning": undefined;
   "web.files.gallery.cant_show": undefined;
   "web.files.gallery.download_all": undefined;
   "web.files.gallery.download_count": { count: number };
@@ -1383,6 +1440,12 @@ export interface MessageArgs {
   "web.files.keep_out.switch": { name: string };
   "web.files.keep_out.tip_off": undefined;
   "web.files.keep_out.tip_on": undefined;
+  "web.files.largest.empty": undefined;
+  "web.files.largest.failed": undefined;
+  "web.files.largest.intro": undefined;
+  "web.files.largest.needs_update": undefined;
+  "web.files.largest.places": { count: number };
+  "web.files.largest.title": undefined;
   "web.files.links.confirm_delete": undefined;
   "web.files.links.delete_failed": undefined;
   "web.files.links.details": { size: string; made: string; until: string };
@@ -1938,6 +2001,9 @@ export interface MessageArgs {
   "web.settings.language.not_saved": undefined;
   "web.settings.language.title": undefined;
   "web.settings.language.too_old": undefined;
+  "web.settings.largest.hint": undefined;
+  "web.settings.largest.open": undefined;
+  "web.settings.largest.title": undefined;
   "web.settings.logs.copied": undefined;
   "web.settings.logs.copy": undefined;
   "web.settings.logs.hint": undefined;

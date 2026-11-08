@@ -197,6 +197,18 @@
     "text": "Este navegador vai lembrar-se dele. Atualiza o teu dispositivo para o usares em todas as apps.",
     "en": "This browser will remember it. Update your device to use it in every app."
   },
+  "web.settings.largest.hint": {
+    "text": "Tudo o que está no teu dispositivo, os ficheiros maiores primeiro, para veres o que ocupa mais espaço. A partir daí podes comprimir fotos e vídeos para libertar algum espaço.",
+    "en": "Everything on your device, largest first, to see what takes the most space. Photos and videos can be compressed from there to free some."
+  },
+  "web.settings.largest.open": {
+    "text": "Mostrar ficheiros maiores",
+    "en": "Show largest files"
+  },
+  "web.settings.largest.title": {
+    "text": "Ficheiros maiores",
+    "en": "Largest files"
+  },
   "web.settings.logs.copied": {
     "text": "Copiado",
     "en": "Copied"

@@ -57,6 +57,9 @@
     <string name="app_settings_language_automatic_named">Automatisch (%1$s)</string>
     <string name="app_settings_language_footer">Opgeslagen op je apparaat, zodat elke app die erop is ingelogd dezelfde taal gebruikt. Automatisch volgt de taal waarop deze telefoon is ingesteld.</string>
     <string name="app_settings_language_this_phone">Je apparaat heeft een software-update nodig om deze keuze met je andere apps te delen. Tot die tijd geldt die alleen voor deze telefoon.</string>
+    <string name="app_settings_largest_hint">Alles op je apparaat, de grootste bestanden eerst, om te zien wat de meeste ruimte inneemt. Foto’s en video’s kun je daar comprimeren om wat ruimte vrij te maken.</string>
+    <string name="app_settings_largest_open">Grootste bestanden tonen</string>
+    <string name="app_settings_largest_title">Grootste bestanden</string>
     <string name="app_settings_limited_allow_all">Toegang geven tot alle foto’s</string>
     <string name="app_settings_limited_select_more">Meer foto’s selecteren</string>
     <string name="app_settings_limited_warning">Alleen van de foto’s die je hebt gekozen wordt een reservekopie gemaakt: Off The Cloud ziet alleen die. Geef toegang tot al je foto’s om van alle foto’s op deze telefoon een reservekopie te maken.</string>

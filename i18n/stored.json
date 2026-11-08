@@ -1,6 +1,8 @@
 {
   "dev.alert.bridge.left": [],
   "dev.alert.bridge.left_detail": [["domain", "text"], ["address", "text"]],
+  "dev.alert.compress.done": [["count", "count"], ["saved", "text"]],
+  "dev.alert.compress.failed": [["count", "count"]],
   "dev.alert.file.crashed": [["name", "user"]],
   "dev.alert.file.not_converted": [["name", "user"]],
   "dev.alert.file.not_decrypted": [["name", "user"]],

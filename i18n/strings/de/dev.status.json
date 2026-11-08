@@ -3,6 +3,10 @@
     "text": "Analysiert neue Fotos und Videos",
     "en": "Analysing new photos and videos"
   },
+  "dev.status.background.compress": {
+    "text": "Komprimiert Fotos und Videos",
+    "en": "Compressing photos and videos"
+  },
   "dev.status.background.dates": {
     "text": "Korrigiert die Aufnahmedaten der Fotos",
     "en": "Fixing photo dates"

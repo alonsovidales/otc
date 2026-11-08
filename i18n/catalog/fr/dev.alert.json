@@ -1,6 +1,8 @@
 {
   "dev.alert.bridge.left": {"text": "Cet appareil a quitté la passerelle"},
   "dev.alert.bridge.left_detail": {"text": "La passerelle ne connaît plus {domain} : son compte a été supprimé ou le nom a été libéré. L’appareil continue de fonctionner à la maison, à l’adresse {address} : configurez les apps sur cette adresse, ou rejoignez de nouveau la passerelle dans les Paramètres."},
+  "dev.alert.compress.done": {"text": {"one": "{count} fichier compressé, {saved} libérés", "other": "{count} fichiers compressés, {saved} libérés"}},
+  "dev.alert.compress.failed": {"text": {"one": "{count} fichier n’a pas pu être compressé", "other": "{count} fichiers n’ont pas pu être compressés"}},
   "dev.alert.file.crashed": {"text": "Le fichier {name} n’a pas pu être traité (il a fait planter le traitement)"},
   "dev.alert.file.not_converted": {"text": "Le fichier {name} n’a pas pu être converti depuis le format HEIC"},
   "dev.alert.file.not_decrypted": {"text": "Le fichier {name} n’a pas pu être déchiffré"},

@@ -265,6 +265,21 @@ extension S {
     /// Shown under the list of languages on the Language screen when the device's software is too old to keep the language.
     static var appSettingsLanguageThisPhone: String { L("app.settings.language_this_phone", table: "AppSettings") }
 
+    /// Everything on your device, largest first, to see what takes the most space. Photos and videos can be compressed from there to free some.
+    ///
+    /// Text of Settings' Largest files section (the phone apps (iPhone, Android)), under its heading.
+    static var appSettingsLargestHint: String { L("app.settings.largest.hint", table: "AppSettings") }
+
+    /// Show Largest Files
+    ///
+    /// Button in Settings' Largest files section (the phone apps (iPhone, Android)) that opens the list.
+    static var appSettingsLargestOpen: String { L("app.settings.largest.open", table: "AppSettings") }
+
+    /// Largest files
+    ///
+    /// Heading of a Settings section (the phone apps (iPhone, Android)) that opens the list of every file on the device, largest first.
+    static var appSettingsLargestTitle: String { L("app.settings.largest.title", table: "AppSettings") }
+
     /// Allow Access to All Photos
     ///
     /// Button under app.settings.limited.warning: opens this app's page in the phone's own settings, where the user can let the app see every photo.

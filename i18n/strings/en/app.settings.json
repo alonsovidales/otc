@@ -259,6 +259,20 @@
     "text": "Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only.",
     "note": "Shown under the list of languages on the Language screen when the device's software is too old to keep the language."
   },
+  "app.settings.largest.hint": {
+    "text": "Everything on your device, largest first, to see what takes the most space. Photos and videos can be compressed from there to free some.",
+    "note": "Text of Settings' Largest files section (the phone apps (iPhone, Android)), under its heading."
+  },
+  "app.settings.largest.open": {
+    "text": "Show Largest Files",
+    "note": "Button in Settings' Largest files section (the phone apps (iPhone, Android)) that opens the list.",
+    "max": 32
+  },
+  "app.settings.largest.title": {
+    "text": "Largest files",
+    "note": "Heading of a Settings section (the phone apps (iPhone, Android)) that opens the list of every file on the device, largest first.",
+    "max": 32
+  },
   "app.settings.limited.allow_all": {
     "text": "Allow Access to All Photos",
     "note": "Button under app.settings.limited.warning: opens this app's page in the phone's own settings, where the user can let the app see every photo.",

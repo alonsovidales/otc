@@ -190,6 +190,18 @@ fun S.appSettingsLanguageFooter(): UiText =
 fun S.appSettingsLanguageThisPhone(): UiText =
     UiText.Res(R.string.app_settings_language_this_phone)
 
+/** "Everything on your device, largest first, to see what takes the most space. Photos and videos can be compressed from there to free some.": Text of Settings' Largest files section (the phone apps (iPhone, Android)), under its heading. */
+fun S.appSettingsLargestHint(): UiText =
+    UiText.Res(R.string.app_settings_largest_hint)
+
+/** "Show Largest Files": Button in Settings' Largest files section (the phone apps (iPhone, Android)) that opens the list. */
+fun S.appSettingsLargestOpen(): UiText =
+    UiText.Res(R.string.app_settings_largest_open)
+
+/** "Largest files": Heading of a Settings section (the phone apps (iPhone, Android)) that opens the list of every file on the device, largest first. */
+fun S.appSettingsLargestTitle(): UiText =
+    UiText.Res(R.string.app_settings_largest_title)
+
 /** "Allow Access to All Photos": Button under app.settings.limited.warning: opens this app's page in the phone's own settings, where the user can let the app see every photo. */
 fun S.appSettingsLimitedAllowAll(): UiText =
     UiText.Res(R.string.app_settings_limited_allow_all)

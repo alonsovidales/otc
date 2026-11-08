@@ -2625,6 +2625,147 @@
         }
       }
     },
+    "app.settings.largest.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alles auf deinem Gerät, die größten Dateien zuerst, damit du siehst, was am meisten Platz belegt. Fotos und Videos lassen sich dort komprimieren, um etwas Platz freizugeben."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everything on your device, largest first, to see what takes the most space. Photos and videos can be compressed from there to free some."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todo lo que hay en tu dispositivo, de mayor a menor, para ver qué ocupa más espacio. Desde ahí puedes comprimir fotos y vídeos para liberar algo de espacio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout ce qui se trouve sur votre appareil, les plus gros fichiers d’abord, pour voir ce qui prend le plus de place. Les photos et vidéos peuvent y être compressées pour libérer de l’espace."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tutto ciò che c’è sul tuo dispositivo, prima i file più grandi, per vedere cosa occupa più spazio. Da lì puoi comprimere foto e video per liberarne un po’."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alles op je apparaat, de grootste bestanden eerst, om te zien wat de meeste ruimte inneemt. Foto’s en video’s kun je daar comprimeren om wat ruimte vrij te maken."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tudo o que está no teu dispositivo, os ficheiros maiores primeiro, para veres o que ocupa mais espaço. A partir daí podes comprimir fotos e vídeos para libertar algum espaço."
+          }
+        }
+      }
+    },
+    "app.settings.largest.open" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Größte Dateien anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Largest Files"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar archivos más grandes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les plus gros fichiers"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra i file più grandi"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grootste bestanden tonen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar ficheiros maiores"
+          }
+        }
+      }
+    },
+    "app.settings.largest.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Größte Dateien"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Largest files"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archivos más grandes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les plus gros fichiers"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File più grandi"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grootste bestanden"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ficheiros maiores"
+          }
+        }
+      }
+    },
     "app.settings.limited.allow_all" : {
       "extractionState" : "manual",
       "localizations" : {

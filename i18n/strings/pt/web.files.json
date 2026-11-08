@@ -27,6 +27,132 @@
     "text": "Tamanho",
     "en": "Size"
   },
+  "web.files.compress.button": {
+    "text": "Comprimir",
+    "en": "Compress"
+  },
+  "web.files.compress.compressed_note": {
+    "text": "Ficheiro comprimido no teu dispositivo; o original foi eliminado.",
+    "en": "Compressed on your device; its original was deleted."
+  },
+  "web.files.compress.confirm": {
+    "text": "Comprimir",
+    "en": "Compress"
+  },
+  "web.files.compress.done": {
+    "text": {
+      "one": "{count} ficheiro comprimido, {size} libertados",
+      "other": "{count} ficheiros comprimidos, {size} libertados"
+    },
+    "en": {
+      "one": "{count} file compressed, {size} freed",
+      "other": "{count} files compressed, {size} freed"
+    }
+  },
+  "web.files.compress.estimating": {
+    "text": "A calcular os tamanhos…",
+    "en": "Working out the sizes…"
+  },
+  "web.files.compress.failed": {
+    "text": {
+      "one": "Não foi possível comprimir {count} ficheiro",
+      "other": "Não foi possível comprimir {count} ficheiros"
+    },
+    "en": {
+      "one": "{count} file couldn't be compressed",
+      "other": "{count} files couldn't be compressed"
+    }
+  },
+  "web.files.compress.jpeg_resave": {
+    "text": "Guardar os JPEG com menor qualidade",
+    "en": "Save JPEGs at a lower quality"
+  },
+  "web.files.compress.needs_update": {
+    "text": "O teu dispositivo precisa de uma atualização para comprimir ficheiros.",
+    "en": "Your device needs an update to compress files."
+  },
+  "web.files.compress.not_offered": {
+    "text": {
+      "one": "{count} ficheiro não pode ser reduzido",
+      "other": "{count} ficheiros não podem ser reduzidos"
+    },
+    "en": {
+      "one": "{count} file can't be made smaller",
+      "other": "{count} files can't be made smaller"
+    }
+  },
+  "web.files.compress.nothing": {
+    "text": "Nenhum destes ficheiros pode ser reduzido.",
+    "en": "None of these files can be made smaller."
+  },
+  "web.files.compress.options_failed": {
+    "text": "Não foi possível calcular os tamanhos.",
+    "en": "The sizes couldn't be worked out."
+  },
+  "web.files.compress.photo_12mp": {
+    "text": "Reduzir as fotos grandes para 12 megapíxeis",
+    "en": "Shrink large photos to 12 megapixels"
+  },
+  "web.files.compress.png_to_jpeg": {
+    "text": "Guardar os PNG como JPEG",
+    "en": "Save PNGs as JPEG"
+  },
+  "web.files.compress.progress": {
+    "text": "A comprimir {done} de {total}…",
+    "en": "Compressing {done} of {total}…"
+  },
+  "web.files.compress.row": {
+    "text": {
+      "one": "{count} ficheiro · {now} → cerca de {after}",
+      "other": "{count} ficheiros · {now} → cerca de {after}"
+    },
+    "en": {
+      "one": "{count} file · {now} → about {after}",
+      "other": "{count} files · {now} → about {after}"
+    }
+  },
+  "web.files.compress.slow": {
+    "text": "Os vídeos demoram algum tempo: o teu dispositivo volta a codificá-los em segundo plano, e entretanto podes continuar a usá-lo.",
+    "en": "Videos take a while: your device re-encodes them in the background, and you can keep using it meanwhile."
+  },
+  "web.files.compress.title": {
+    "text": {
+      "one": "Comprimir {count} ficheiro",
+      "other": "Comprimir {count} ficheiros"
+    },
+    "en": {
+      "one": "Compress {count} file",
+      "other": "Compress {count} files"
+    }
+  },
+  "web.files.compress.total": {
+    "text": "Liberta cerca de {size}",
+    "en": "Frees about {size}"
+  },
+  "web.files.compress.video_1080p": {
+    "text": "Reduzir para 1080p",
+    "en": "Lower to 1080p"
+  },
+  "web.files.compress.video_720p": {
+    "text": "Reduzir para 720p",
+    "en": "Lower to 720p"
+  },
+  "web.files.compress.video_hevc": {
+    "text": "Mesma resolução, formato HEVC",
+    "en": "Same size, HEVC format"
+  },
+  "web.files.compress.video_none": {
+    "text": "Deixá-los como estão",
+    "en": "Leave as they are"
+  },
+  "web.files.compress.videos": {
+    "text": "Vídeos",
+    "en": "Videos"
+  },
+  "web.files.compress.warning": {
+    "text": "Os originais são eliminados do teu dispositivo para sempre: lá só ficam os ficheiros comprimidos. As cópias nos teus telemóveis e computadores são mantidas.",
+    "en": "The originals are deleted from your device for good: only the compressed files stay there. Copies on your phones and computers are kept."
+  },
   "web.files.gallery.cant_show": {
     "text": "Não foi possível mostrar este ficheiro aqui: transfere-o.",
     "en": "This file could not be shown here - download it instead."
@@ -172,6 +298,36 @@
   "web.files.keep_out.tip_on": {
     "text": "Fora de Imagens: as fotos e os vídeos desta pasta não são etiquetados, não são analisados para encontrar rostos nem aparecem em Imagens. Clica para os mostrar em Imagens.",
     "en": "Kept out of Images: photos and videos here aren't tagged, searched for faces or shown in Images. Click to show them in Images."
+  },
+  "web.files.largest.empty": {
+    "text": "Ainda não há ficheiros no teu dispositivo.",
+    "en": "There are no files on your device yet."
+  },
+  "web.files.largest.failed": {
+    "text": "Não foi possível carregar a lista.",
+    "en": "The list couldn't be loaded."
+  },
+  "web.files.largest.intro": {
+    "text": "Maiores primeiro. Um ficheiro que está em vários sítios aparece só uma vez.",
+    "en": "Largest first. A file in several places is listed once."
+  },
+  "web.files.largest.needs_update": {
+    "text": "O teu dispositivo precisa de uma atualização para listar os ficheiros maiores.",
+    "en": "Your device needs an update to list its largest files."
+  },
+  "web.files.largest.places": {
+    "text": {
+      "one": "em {count} sítio",
+      "other": "em {count} sítios"
+    },
+    "en": {
+      "one": "in {count} place",
+      "other": "in {count} places"
+    }
+  },
+  "web.files.largest.title": {
+    "text": "Ficheiros maiores",
+    "en": "Largest files"
   },
   "web.files.links.confirm_delete": {
     "text": "Eliminar esta ligação? As cópias partilhadas são eliminadas e a ligação deixa de funcionar.",

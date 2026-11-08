@@ -16,6 +16,50 @@
     <string name="app_files_column_resize">Redimensionar a coluna %1$s</string>
     <string name="app_files_column_size">Tamanho</string>
     <string name="app_files_column_wider">Mais larga</string>
+    <string name="app_files_compress_button">Comprimir</string>
+    <string name="app_files_compress_compressed_note">Ficheiro comprimido no teu dispositivo; o original foi eliminado.</string>
+    <string name="app_files_compress_confirm">Comprimir</string>
+    <plurals name="app_files_compress_done">
+        <item quantity="one">%1$s ficheiro comprimido, %2$s libertados</item>
+        <item quantity="many">%1$s ficheiros comprimidos, %2$s libertados</item>
+        <item quantity="other">%1$s ficheiros comprimidos, %2$s libertados</item>
+    </plurals>
+    <string name="app_files_compress_estimating">A calcular os tamanhos…</string>
+    <plurals name="app_files_compress_failed">
+        <item quantity="one">Não foi possível comprimir %1$s ficheiro</item>
+        <item quantity="many">Não foi possível comprimir %1$s ficheiros</item>
+        <item quantity="other">Não foi possível comprimir %1$s ficheiros</item>
+    </plurals>
+    <string name="app_files_compress_jpeg_resave">Guardar os JPEG com menor qualidade</string>
+    <string name="app_files_compress_needs_update">O teu dispositivo precisa de uma atualização para comprimir ficheiros.</string>
+    <plurals name="app_files_compress_not_offered">
+        <item quantity="one">%1$s ficheiro não pode ser reduzido</item>
+        <item quantity="many">%1$s ficheiros não podem ser reduzidos</item>
+        <item quantity="other">%1$s ficheiros não podem ser reduzidos</item>
+    </plurals>
+    <string name="app_files_compress_nothing">Nenhum destes ficheiros pode ser reduzido.</string>
+    <string name="app_files_compress_options_failed">Não foi possível calcular os tamanhos.</string>
+    <string name="app_files_compress_photo_12mp">Reduzir as fotos grandes para 12 megapíxeis</string>
+    <string name="app_files_compress_png_to_jpeg">Guardar os PNG como JPEG</string>
+    <string name="app_files_compress_progress">A comprimir %1$s de %2$s…</string>
+    <plurals name="app_files_compress_row">
+        <item quantity="one">%1$s ficheiro · %2$s → cerca de %3$s</item>
+        <item quantity="many">%1$s ficheiros · %2$s → cerca de %3$s</item>
+        <item quantity="other">%1$s ficheiros · %2$s → cerca de %3$s</item>
+    </plurals>
+    <string name="app_files_compress_slow">Os vídeos demoram algum tempo: o teu dispositivo volta a codificá-los em segundo plano, e entretanto podes continuar a usá-lo.</string>
+    <plurals name="app_files_compress_title">
+        <item quantity="one">Comprimir %1$s ficheiro</item>
+        <item quantity="many">Comprimir %1$s ficheiros</item>
+        <item quantity="other">Comprimir %1$s ficheiros</item>
+    </plurals>
+    <string name="app_files_compress_total">Liberta cerca de %1$s</string>
+    <string name="app_files_compress_video_1080p">Reduzir para 1080p</string>
+    <string name="app_files_compress_video_720p">Reduzir para 720p</string>
+    <string name="app_files_compress_video_hevc">Mesma resolução, formato HEVC</string>
+    <string name="app_files_compress_video_none">Deixá-los como estão</string>
+    <string name="app_files_compress_videos">Vídeos</string>
+    <string name="app_files_compress_warning">Os originais são eliminados do teu dispositivo para sempre: lá só ficam os ficheiros comprimidos. As cópias nos teus telemóveis e computadores são mantidas.</string>
     <plurals name="app_files_delete_confirm">
         <item quantity="one">Eliminar %1$s item?</item>
         <item quantity="many">Eliminar %1$s itens?</item>
@@ -62,6 +106,16 @@
     <string name="app_files_kept_out">Fora de Imagens</string>
     <string name="app_files_kept_out_banner">Fora de Imagens: as fotos e os vídeos desta pasta não são etiquetados, não são analisados para encontrar rostos nem aparecem em Imagens.</string>
     <string name="app_files_kept_out_explain">As fotos e os vídeos desta pasta não são etiquetados, não são analisados para encontrar rostos nem aparecem em Imagens. Ficheiros continua a mostrá-los.</string>
+    <string name="app_files_largest_empty">Ainda não há ficheiros no teu dispositivo.</string>
+    <string name="app_files_largest_failed">Não foi possível carregar a lista.</string>
+    <string name="app_files_largest_intro">Maiores primeiro. Um ficheiro que está em vários sítios aparece só uma vez.</string>
+    <string name="app_files_largest_needs_update">O teu dispositivo precisa de uma atualização para listar os ficheiros maiores.</string>
+    <plurals name="app_files_largest_places">
+        <item quantity="one">em %1$s sítio</item>
+        <item quantity="many">em %1$s sítios</item>
+        <item quantity="other">em %1$s sítios</item>
+    </plurals>
+    <string name="app_files_largest_title">Ficheiros maiores</string>
     <string name="app_files_list_failed">Não foi possível listar o caminho</string>
     <string name="app_files_make_upload_only">Ativar apenas carregamento</string>
     <string name="app_files_make_upload_only_message">Nada nesta pasta pode ser eliminado (a partir deste telemóvel, de um computador ou da web), e carregar novamente um ficheiro mantém a versão anterior. Ideal para acervos de fotos e cópias de segurança.</string>

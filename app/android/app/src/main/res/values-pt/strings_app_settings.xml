@@ -60,6 +60,9 @@
     <string name="app_settings_language_automatic_named">Automático (%1$s)</string>
     <string name="app_settings_language_footer">Guardado no teu dispositivo, para que todas as apps com sessão iniciada nele usem o mesmo idioma. «Automático» segue o idioma definido neste telemóvel.</string>
     <string name="app_settings_language_this_phone">O teu dispositivo precisa de uma atualização de software para partilhar esta escolha com as tuas outras apps. Até lá, só se aplica a este telemóvel.</string>
+    <string name="app_settings_largest_hint">Tudo o que está no teu dispositivo, os ficheiros maiores primeiro, para veres o que ocupa mais espaço. A partir daí podes comprimir fotos e vídeos para libertar algum espaço.</string>
+    <string name="app_settings_largest_open">Mostrar ficheiros maiores</string>
+    <string name="app_settings_largest_title">Ficheiros maiores</string>
     <string name="app_settings_limited_allow_all">Permitir acesso a todas as fotos</string>
     <string name="app_settings_limited_select_more">Selecionar mais fotos</string>
     <string name="app_settings_limited_warning">Só é feita cópia de segurança das fotos que escolheste: o Off The Cloud só consegue ver essas. Para fazer cópia de segurança de todas as fotos deste telemóvel, permite o acesso a todas.</string>

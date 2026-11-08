@@ -197,6 +197,18 @@
     "text": "Dieser Browser merkt sie sich. Aktualisiere dein Gerät, um sie in jeder App zu verwenden.",
     "en": "This browser will remember it. Update your device to use it in every app."
   },
+  "web.settings.largest.hint": {
+    "text": "Alles auf deinem Gerät, die größten Dateien zuerst, damit du siehst, was am meisten Platz belegt. Fotos und Videos lassen sich dort komprimieren, um etwas Platz freizugeben.",
+    "en": "Everything on your device, largest first, to see what takes the most space. Photos and videos can be compressed from there to free some."
+  },
+  "web.settings.largest.open": {
+    "text": "Größte Dateien anzeigen",
+    "en": "Show largest files"
+  },
+  "web.settings.largest.title": {
+    "text": "Größte Dateien",
+    "en": "Largest files"
+  },
   "web.settings.logs.copied": {
     "text": "Kopiert",
     "en": "Copied"

@@ -197,6 +197,18 @@
     "text": "Deze browser onthoudt je keuze. Werk je apparaat bij om de taal in elke app te gebruiken.",
     "en": "This browser will remember it. Update your device to use it in every app."
   },
+  "web.settings.largest.hint": {
+    "text": "Alles op je apparaat, de grootste bestanden eerst, om te zien wat de meeste ruimte inneemt. Foto’s en video’s kun je daar comprimeren om wat ruimte vrij te maken.",
+    "en": "Everything on your device, largest first, to see what takes the most space. Photos and videos can be compressed from there to free some."
+  },
+  "web.settings.largest.open": {
+    "text": "Grootste bestanden tonen",
+    "en": "Show largest files"
+  },
+  "web.settings.largest.title": {
+    "text": "Grootste bestanden",
+    "en": "Largest files"
+  },
   "web.settings.logs.copied": {
     "text": "Gekopieerd",
     "en": "Copied"

@@ -3,6 +3,10 @@
     "text": "A analisar fotos e vídeos novos",
     "en": "Analysing new photos and videos"
   },
+  "dev.status.background.compress": {
+    "text": "A comprimir fotos e vídeos",
+    "en": "Compressing photos and videos"
+  },
   "dev.status.background.dates": {
     "text": "A corrigir as datas das fotos",
     "en": "Fixing photo dates"

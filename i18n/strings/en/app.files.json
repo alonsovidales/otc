@@ -73,6 +73,135 @@
     "note": "Files, on a wide screen: accessibility action of a column's resize handle (app.files.column_resize) that makes the column wider. Agrees with the word column if your language needs it.",
     "max": 24
   },
+  "app.files.compress.button": {
+    "text": "Compress",
+    "note": "Button in the selection bar of Images and of the Largest files list (the phone apps (iPhone, Android)): opens the Compress dialog for the photos and videos picked, which makes them smaller on the device.",
+    "max": 20
+  },
+  "app.files.compress.compressed_note": {
+    "text": "Compressed on your device; its original was deleted.",
+    "note": "A line in the viewer's Info (the phone apps (iPhone, Android)) for a photo or video that was compressed, in place of Revert to original."
+  },
+  "app.files.compress.confirm": {
+    "text": "Compress",
+    "note": "The Compress dialog's button (the phone apps (iPhone, Android)) that starts compressing.",
+    "max": 20
+  },
+  "app.files.compress.done": {
+    "text": {
+      "one": "{count} file compressed, {size} freed",
+      "other": "{count} files compressed, {size} freed"
+    },
+    "args": [["count", "count"], ["size", "text"]],
+    "note": "When compressing ended (the phone apps (iPhone, Android)): how many files were compressed and the space freed, such as 1.2 GB."
+  },
+  "app.files.compress.estimating": {
+    "text": "Working out the sizes…",
+    "note": "Shown in the Compress dialog (the phone apps (iPhone, Android)) while the device works out what each file could weigh."
+  },
+  "app.files.compress.failed": {
+    "text": {
+      "one": "{count} file couldn't be compressed",
+      "other": "{count} files couldn't be compressed"
+    },
+    "args": [["count", "count"]],
+    "note": "When compressing ended (the phone apps (iPhone, Android)) and some files couldn't be compressed (each left as it was)."
+  },
+  "app.files.compress.jpeg_resave": {
+    "text": "Save JPEGs at a lower quality",
+    "note": "A switch in the Compress dialog (the phone apps (iPhone, Android)): JPEG photos saved again at a lower quality, the same picture size.",
+    "max": 48
+  },
+  "app.files.compress.needs_update": {
+    "text": "Your device needs an update to compress files.",
+    "note": "Shown (the phone apps (iPhone, Android)) when Compress is pressed and the device is older than the feature."
+  },
+  "app.files.compress.not_offered": {
+    "text": {
+      "one": "{count} file can't be made smaller",
+      "other": "{count} files can't be made smaller"
+    },
+    "args": [["count", "count"]],
+    "note": "In the Compress dialog (the phone apps (iPhone, Android)): how many of the files picked the device can't compress (documents, files already small, files in upload-only folders); each one's reason can be shown."
+  },
+  "app.files.compress.nothing": {
+    "text": "None of these files can be made smaller.",
+    "note": "In the Compress dialog (the phone apps (iPhone, Android)) when none of the files picked can be compressed."
+  },
+  "app.files.compress.options_failed": {
+    "text": "The sizes couldn't be worked out.",
+    "note": "Shown in the Compress dialog (the phone apps (iPhone, Android)) when the device didn't answer; Try again follows."
+  },
+  "app.files.compress.photo_12mp": {
+    "text": "Shrink large photos to 12 megapixels",
+    "note": "A switch in the Compress dialog (the phone apps (iPhone, Android)): photos over 13 megapixels (a phone's 48 MP photos) saved again as 12-megapixel JPEGs.",
+    "max": 48
+  },
+  "app.files.compress.png_to_jpeg": {
+    "text": "Save PNGs as JPEG",
+    "note": "A switch in the Compress dialog (the phone apps (iPhone, Android)): PNG pictures (screenshots, exports) saved as JPEG. Keep 'PNG' and 'JPEG'.",
+    "max": 48
+  },
+  "app.files.compress.progress": {
+    "text": "Compressing {done} of {total}…",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "Progress of the files being compressed (the phone apps (iPhone, Android)), shown while the device works through them."
+  },
+  "app.files.compress.row": {
+    "text": {
+      "one": "{count} file · {now} → about {after}",
+      "other": "{count} files · {now} → about {after}"
+    },
+    "args": [["count", "count"], ["now", "text"], ["after", "text"]],
+    "note": "Under a choice in the Compress dialog (the phone apps (iPhone, Android)): how many files it applies to, what they weigh now and, estimated, after; {now} and {after} are sizes such as 2.1 GB."
+  },
+  "app.files.compress.slow": {
+    "text": "Videos take a while: your device re-encodes them in the background, and you can keep using it meanwhile.",
+    "note": "Note in the Compress dialog (the phone apps (iPhone, Android)) when videos are to be compressed."
+  },
+  "app.files.compress.title": {
+    "text": {
+      "one": "Compress {count} File",
+      "other": "Compress {count} Files"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of the Compress dialog (the phone apps (iPhone, Android)) for the files picked.",
+    "max": 40
+  },
+  "app.files.compress.total": {
+    "text": "Frees about {size}",
+    "args": [["size", "text"]],
+    "note": "The total at the foot of the Compress dialog (the phone apps (iPhone, Android)): the space the choices made would free, estimated; {size} such as 1.4 GB."
+  },
+  "app.files.compress.video_1080p": {
+    "text": "Lower to 1080p",
+    "note": "A choice for the videos in the Compress dialog (the phone apps (iPhone, Android)): 4K videos re-encoded at 1080p (Full HD). Keep '1080p'.",
+    "max": 32
+  },
+  "app.files.compress.video_720p": {
+    "text": "Lower to 720p",
+    "note": "A choice for the videos in the Compress dialog (the phone apps (iPhone, Android)): videos re-encoded at 720p (HD). Keep '720p'.",
+    "max": 32
+  },
+  "app.files.compress.video_hevc": {
+    "text": "Same size, HEVC format",
+    "note": "A choice for the videos in the Compress dialog (the phone apps (iPhone, Android)): videos kept at their resolution, re-encoded in the HEVC (H.265) format, which takes about half the space of older formats. 'Same size' means the same picture size (resolution). Keep 'HEVC'.",
+    "max": 40
+  },
+  "app.files.compress.video_none": {
+    "text": "Leave as they are",
+    "note": "A choice for the videos in the Compress dialog (the phone apps (iPhone, Android)): don't compress the videos.",
+    "max": 32
+  },
+  "app.files.compress.videos": {
+    "text": "Videos",
+    "note": "Heading of the videos' choice in the Compress dialog (the phone apps (iPhone, Android)).",
+    "max": 24
+  },
+  "app.files.compress.warning": {
+    "text": "The originals are deleted from your device for good: only the compressed files stay there. Copies on your phones and computers are kept.",
+    "note": "Warning in the Compress dialog (the phone apps (iPhone, Android)), above the Compress button. 'For good' = it can't be undone."
+  },
   "app.files.delete_confirm": {
     "text": {
       "one": "Delete {count} item?",
@@ -237,6 +366,35 @@
   "app.files.kept_out_explain": {
     "text": "Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them.",
     "note": "Explanation shown (title app.files.kept_out) when the mark of a folder kept out of Images is tapped in Files. Images is the photo section (app.shell.section_images)."
+  },
+  "app.files.largest.empty": {
+    "text": "There are no files on your device yet.",
+    "note": "Shown in the Largest files list (the phone apps (iPhone, Android)) when the device holds no files."
+  },
+  "app.files.largest.failed": {
+    "text": "The list couldn't be loaded.",
+    "note": "Shown in the Largest files list (the phone apps (iPhone, Android)) when a page didn't come; a Try again button follows."
+  },
+  "app.files.largest.intro": {
+    "text": "Largest first. A file in several places is listed once.",
+    "note": "Line at the top of the Largest files list (the phone apps (iPhone, Android)): the same content saved at several paths takes its space once, so it is one row."
+  },
+  "app.files.largest.needs_update": {
+    "text": "Your device needs an update to list its largest files.",
+    "note": "Shown in the Largest files list (the phone apps (iPhone, Android)) when the device is older than the feature."
+  },
+  "app.files.largest.places": {
+    "text": {
+      "one": "in {count} place",
+      "other": "in {count} places"
+    },
+    "args": [["count", "count"]],
+    "note": "Under a file in the Largest files list (the phone apps (iPhone, Android)) when the same content is at several paths on the device: how many (2 or more)."
+  },
+  "app.files.largest.title": {
+    "text": "Largest Files",
+    "note": "Title of the screen (the phone apps (iPhone, Android)) listing every file on the device, largest first, opened from Settings.",
+    "max": 32
   },
   "app.files.list_failed": {
     "text": "Failed to list path",

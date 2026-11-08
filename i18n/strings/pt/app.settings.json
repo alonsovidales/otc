@@ -217,6 +217,18 @@
     "text": "O teu dispositivo precisa de uma atualização de software para partilhar esta escolha com as tuas outras apps. Até lá, só se aplica a este telemóvel.",
     "en": "Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only."
   },
+  "app.settings.largest.hint": {
+    "text": "Tudo o que está no teu dispositivo, os ficheiros maiores primeiro, para veres o que ocupa mais espaço. A partir daí podes comprimir fotos e vídeos para libertar algum espaço.",
+    "en": "Everything on your device, largest first, to see what takes the most space. Photos and videos can be compressed from there to free some."
+  },
+  "app.settings.largest.open": {
+    "text": "Mostrar ficheiros maiores",
+    "en": "Show Largest Files"
+  },
+  "app.settings.largest.title": {
+    "text": "Ficheiros maiores",
+    "en": "Largest files"
+  },
   "app.settings.limited.allow_all": {
     "text": "Permitir acesso a todas as fotos",
     "en": "Allow Access to All Photos"

@@ -60,6 +60,9 @@
     <string name="app_settings_language_automatic_named">Automático (%1$s)</string>
     <string name="app_settings_language_footer">Se guarda en tu dispositivo, así que todas las apps que han iniciado sesión en él usan el mismo idioma. Automático sigue el idioma configurado en este teléfono.</string>
     <string name="app_settings_language_this_phone">Tu dispositivo necesita una actualización de software para compartir esta elección con tus otras apps. Hasta entonces, solo se aplica a este teléfono.</string>
+    <string name="app_settings_largest_hint">Todo lo que hay en tu dispositivo, de mayor a menor, para ver qué ocupa más espacio. Desde ahí puedes comprimir fotos y vídeos para liberar algo de espacio.</string>
+    <string name="app_settings_largest_open">Mostrar archivos más grandes</string>
+    <string name="app_settings_largest_title">Archivos más grandes</string>
     <string name="app_settings_limited_allow_all">Permitir acceso a todas las fotos</string>
     <string name="app_settings_limited_select_more">Seleccionar más fotos</string>
     <string name="app_settings_limited_warning">Solo se hace copia de seguridad de las fotos que has elegido: Off The Cloud solo puede ver esas. Para hacer copia de seguridad de todas las fotos de este teléfono, permite el acceso a todas.</string>

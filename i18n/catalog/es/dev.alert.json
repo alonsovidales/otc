@@ -1,6 +1,8 @@
 {
   "dev.alert.bridge.left": {"text": "Este dispositivo ha salido del puente"},
   "dev.alert.bridge.left_detail": {"text": "El puente ya no reconoce {domain}: se ha eliminado su cuenta o se ha liberado el nombre. El dispositivo sigue funcionando en casa, en {address}; configura las apps con esa dirección o vuelve a unirte al puente en Ajustes."},
+  "dev.alert.compress.done": {"text": {"one": "{count} archivo comprimido, {saved} liberados", "other": "{count} archivos comprimidos, {saved} liberados"}},
+  "dev.alert.compress.failed": {"text": {"one": "{count} archivo no se ha podido comprimir", "other": "{count} archivos no se han podido comprimir"}},
   "dev.alert.file.crashed": {"text": "No se ha podido procesar el archivo {name} (ha bloqueado el procesamiento)"},
   "dev.alert.file.not_converted": {"text": "No se ha podido convertir el archivo {name} desde HEIC"},
   "dev.alert.file.not_decrypted": {"text": "No se ha podido descifrar el archivo {name}"},

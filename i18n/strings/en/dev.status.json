@@ -4,6 +4,11 @@
     "note": "A row of the Background work section in Settings (Status.background_tasks): what the device is working through by itself, with a progress bar and how many photos or videos it has dealt with under it. Here: the photos and videos just uploaded, which the device makes thumbnails of and works out what they show (tags, faces).",
     "max": 60
   },
+  "dev.status.background.compress": {
+    "text": "Compressing photos and videos",
+    "note": "A line in Settings' Background work while the device compresses the photos and videos the owner picked (Compress), with a count under it.",
+    "max": 48
+  },
   "dev.status.background.dates": {
     "text": "Fixing photo dates",
     "note": "A row of the Background work section in Settings (Status.background_tasks): what the device is working through by itself, with a progress bar and how many photos or videos it has dealt with under it. Here: the device puts right the dates its photos were taken on, read again from each photo.",

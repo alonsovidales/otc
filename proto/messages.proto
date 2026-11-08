@@ -478,6 +478,137 @@ message GetEditState {
 message EditState {
   int32 copies = 1;
   bool edited = 2;
+  // edited, and its original was deleted by a compress: nothing to revert.
+  bool original_removed = 3;
+}
+
+// Settings › Largest files: every content in the library, largest first,
+// one entry per content (the same photo at three paths takes its space
+// once) at its first path in byte order, with File.copies set. Files only,
+// not the older versions an upload-only folder keeps. Answers ListOfFiles:
+// files without content (thumbnails come from GetThumbnails by path),
+// token the next page's `after` ("" once the list is over). Pages are cut
+// by (size, hash) and read afresh each time: a file added or deleted
+// between pages shows or goes by where it falls. Devices before it answer
+// "unknown_payload".
+message ListLargestFiles {
+  // "" for the first page, else the previous answer's token.
+  string after = 1;
+  // 1-200; 0 is 50.
+  int32 limit = 2;
+}
+
+// A file the owner picked to compress: path, and the content the app
+// showed for it (File.hash).
+message CompressItem {
+  string path = 1;
+  string hash = 2;
+}
+
+// Compress, step one: what the device can do for each item and what it
+// would weigh - worked out from the files' headers (a video's resolution,
+// codec and length; a photo's pixels and format), never by compressing
+// them, so it answers in about a second for a few hundred. At most 500
+// items. Answers CompressOptions, in the order asked.
+message GetCompressOptions {
+  repeated CompressItem items = 1;
+}
+
+// One way to compress an item, and its result's size, estimated.
+// preset is one of:
+//   "video_1080p"  a video taller and wider than 1080p (4K) re-encoded at
+//                  1080p (the shorter side 1080), HEVC
+//   "video_720p"   a video over 720p re-encoded at 720p, HEVC
+//   "video_hevc"   an H.264 (or older) video re-encoded as HEVC at its own
+//                  size
+//   "photo_12mp"   a photo over 13 megapixels shrunk to about 12, as JPEG
+//   "jpeg_resave"  a JPEG saved again at a lower quality, its size kept
+//   "png_to_jpeg"  a PNG with no transparency saved as JPEG
+// Only presets whose estimate is at least 15% smaller than the file are
+// offered. New presets may come: apps leave out one they don't know.
+message CompressChoice {
+  string preset = 1;
+  int64 estimated_size = 2;
+}
+
+message CompressOption {
+  string path = 1;
+  string hash = 2;
+  // The file's size now.
+  int64 size = 3;
+  // Paths holding this content (all of them are replaced); 1 or more.
+  int32 copies = 4;
+  // Strongest first. Empty: nothing to gain, and `reason` says why in the
+  // request's language (not a photo or video; already as small as the
+  // device makes it; in an upload-only folder, where nothing is replaced;
+  // an older version keeps it; the file changed - error_code "changed").
+  repeated CompressChoice choices = 5;
+  string reason = 6;
+  // "changed", "not_media", "nothing_to_gain", "upload_only",
+  // "kept_version", "missing" - for the apps' rules; the words are reason.
+  string reason_code = 7;
+}
+
+message CompressOptions {
+  repeated CompressOption items = 1;
+}
+
+message CompressTask {
+  string path = 1;
+  // As CompressItem.hash: the content shown, "changed" when it isn't.
+  string hash = 2;
+  // A preset GetCompressOptions offered for it.
+  string preset = 3;
+}
+
+// Compress, step two: the device compresses the tasks one at a time in
+// the background (Status.background_tasks kind "compress"), each replacing
+// the file at every path holding its content - collections, Favourites,
+// ratings and faces moving with it, tags and Smart search worked out
+// again - and then DELETING THE ORIGINAL'S BYTES. Its hash is kept
+// (File.original_removed): a phone or computer sending that original
+// again is answered with the compressed file and nothing is stored. A
+// result that isn't smaller than the original is dropped and the file left
+// as it was. Never in an upload-only folder, never content an older
+// version keeps. Answers CompressJob at once; tasks sent while a job runs
+// join it. The demo refuses it; devices before it answer "unknown_payload".
+message CompressFiles {
+  repeated CompressTask tasks = 1;
+}
+
+// What a compress job has done: asked with GetCompressJob, and answered to
+// CompressFiles. Kept until the next job starts, or a restart (a restart
+// mid-job forgets the tasks not started; the file being worked on is left
+// as it was).
+message CompressJob {
+  string id = 1;
+  int32 total = 2;
+  // Tasks over, whatever came of them.
+  int32 done = 3;
+  // Bytes the job freed so far: originals' sizes less their results'.
+  int64 saved = 4;
+  bool finished = 5;
+  repeated CompressResult results = 6;
+}
+
+message CompressResult {
+  string path = 1;
+  // "waiting", "running", "done", "skipped" (not smaller: left as it
+  // was), "failed".
+  string state = 2;
+  // A running video's progress, 0-100.
+  int32 percent = 3;
+  // done: the file now at path (new hash, original_hash and
+  // original_removed set, its new size and name - a PNG becomes .jpg).
+  File file = 4;
+  // skipped, failed: why, in the request's language.
+  string message = 5;
+}
+
+// The compress job running, or the last one; id "" for whichever that is.
+// error_code "not_found" when there is none (or another id).
+message GetCompressJob {
+  string id = 1;
 }
 
 message DelFile {
@@ -1117,6 +1248,13 @@ message File {
   // edit's own answer); empty everywhere else, for content that isn't an
   // edit, and from devices before it.
   string original_hash = 16;
+  // Compress (CompressFiles): set with original_hash when this content is
+  // a compressed copy whose original the device deleted. There is nothing
+  // to revert to (no Revert to original), and original_hash is what the
+  // phones and computers still hold: their sync takes a file with that
+  // hash at this path for this one - never sending it again, never
+  // downloading this over it - and Free up space never counts it as held.
+  bool original_removed = 17;
 }
 
 message Ack {
@@ -3332,6 +3470,12 @@ message ReqEnvelope {
     // Video edit: answers with resp_file. Devices before it answer
     // "unknown_payload".
     EditVideo req_edit_video = 165;
+    // Settings › Largest files: answers resp_list_of_files.
+    ListLargestFiles req_list_largest_files = 166;
+    // Compress: answers resp_compress_options, then resp_compress_job.
+    GetCompressOptions req_get_compress_options = 167;
+    CompressFiles req_compress_files = 168;
+    GetCompressJob req_get_compress_job = 169;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -3465,5 +3609,8 @@ message RespEnvelope {
     PhotoRating resp_photo_rating = 76;
     // The answer to GetEditState.
     EditState resp_edit_state = 77;
+    // The answers to GetCompressOptions and to CompressFiles/GetCompressJob.
+    CompressOptions resp_compress_options = 78;
+    CompressJob resp_compress_job = 79;
   }
 }

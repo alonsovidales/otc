@@ -6,6 +6,50 @@
   "web.files.column.resize_tip": "Arrasta ou usa as teclas de seta para alterar a largura. Faz duplo clique para a repor.",
   "web.files.column.share": "Parte da pasta",
   "web.files.column.size": "Tamanho",
+  "web.files.compress.button": "Comprimir",
+  "web.files.compress.compressed_note": "Ficheiro comprimido no teu dispositivo; o original foi eliminado.",
+  "web.files.compress.confirm": "Comprimir",
+  "web.files.compress.done": {
+    "one": "{count} ficheiro comprimido, {size} libertados",
+    "other": "{count} ficheiros comprimidos, {size} libertados",
+    "arg": "count"
+  },
+  "web.files.compress.estimating": "A calcular os tamanhos…",
+  "web.files.compress.failed": {
+    "one": "Não foi possível comprimir {count} ficheiro",
+    "other": "Não foi possível comprimir {count} ficheiros",
+    "arg": "count"
+  },
+  "web.files.compress.jpeg_resave": "Guardar os JPEG com menor qualidade",
+  "web.files.compress.needs_update": "O teu dispositivo precisa de uma atualização para comprimir ficheiros.",
+  "web.files.compress.not_offered": {
+    "one": "{count} ficheiro não pode ser reduzido",
+    "other": "{count} ficheiros não podem ser reduzidos",
+    "arg": "count"
+  },
+  "web.files.compress.nothing": "Nenhum destes ficheiros pode ser reduzido.",
+  "web.files.compress.options_failed": "Não foi possível calcular os tamanhos.",
+  "web.files.compress.photo_12mp": "Reduzir as fotos grandes para 12 megapíxeis",
+  "web.files.compress.png_to_jpeg": "Guardar os PNG como JPEG",
+  "web.files.compress.progress": "A comprimir {done} de {total}…",
+  "web.files.compress.row": {
+    "one": "{count} ficheiro · {now} → cerca de {after}",
+    "other": "{count} ficheiros · {now} → cerca de {after}",
+    "arg": "count"
+  },
+  "web.files.compress.slow": "Os vídeos demoram algum tempo: o teu dispositivo volta a codificá-los em segundo plano, e entretanto podes continuar a usá-lo.",
+  "web.files.compress.title": {
+    "one": "Comprimir {count} ficheiro",
+    "other": "Comprimir {count} ficheiros",
+    "arg": "count"
+  },
+  "web.files.compress.total": "Liberta cerca de {size}",
+  "web.files.compress.video_1080p": "Reduzir para 1080p",
+  "web.files.compress.video_720p": "Reduzir para 720p",
+  "web.files.compress.video_hevc": "Mesma resolução, formato HEVC",
+  "web.files.compress.video_none": "Deixá-los como estão",
+  "web.files.compress.videos": "Vídeos",
+  "web.files.compress.warning": "Os originais são eliminados do teu dispositivo para sempre: lá só ficam os ficheiros comprimidos. As cópias nos teus telemóveis e computadores são mantidas.",
   "web.files.gallery.cant_show": "Não foi possível mostrar este ficheiro aqui: transfere-o.",
   "web.files.gallery.download_all": "Transferir tudo",
   "web.files.gallery.download_count": "Transferir {count}",
@@ -47,6 +91,16 @@
   "web.files.keep_out.switch": "Manter a pasta \u2068{name}\u2069 fora de Imagens",
   "web.files.keep_out.tip_off": "Manter fora de Imagens: as fotos e os vídeos desta pasta não vão ser etiquetados, analisados para encontrar rostos nem mostrados em Imagens",
   "web.files.keep_out.tip_on": "Fora de Imagens: as fotos e os vídeos desta pasta não são etiquetados, não são analisados para encontrar rostos nem aparecem em Imagens. Clica para os mostrar em Imagens.",
+  "web.files.largest.empty": "Ainda não há ficheiros no teu dispositivo.",
+  "web.files.largest.failed": "Não foi possível carregar a lista.",
+  "web.files.largest.intro": "Maiores primeiro. Um ficheiro que está em vários sítios aparece só uma vez.",
+  "web.files.largest.needs_update": "O teu dispositivo precisa de uma atualização para listar os ficheiros maiores.",
+  "web.files.largest.places": {
+    "one": "em {count} sítio",
+    "other": "em {count} sítios",
+    "arg": "count"
+  },
+  "web.files.largest.title": "Ficheiros maiores",
   "web.files.links.confirm_delete": "Eliminar esta ligação? As cópias partilhadas são eliminadas e a ligação deixa de funcionar.",
   "web.files.links.delete_failed": "Não foi possível eliminá-la.",
   "web.files.links.details": "{size} · criada em {made} · até {until}",

@@ -8,6 +8,26 @@
     "en": "The bridge no longer knows {domain}: its account was deleted or the name released. The device goes on working at home, at {address} - set the apps to that address, or join the bridge again in Settings.",
     "reviewed": "claude-backtranslation 2026-10-11 #dfc68e71"
   },
+  "dev.alert.compress.done": {
+    "text": {
+      "one": "{count} bestand gecomprimeerd, {saved} vrijgemaakt",
+      "other": "{count} bestanden gecomprimeerd, {saved} vrijgemaakt"
+    },
+    "en": {
+      "one": "{count} file compressed, {saved} freed",
+      "other": "{count} files compressed, {saved} freed"
+    }
+  },
+  "dev.alert.compress.failed": {
+    "text": {
+      "one": "{count} bestand kon niet worden gecomprimeerd",
+      "other": "{count} bestanden konden niet worden gecomprimeerd"
+    },
+    "en": {
+      "one": "{count} file couldn't be compressed",
+      "other": "{count} files couldn't be compressed"
+    }
+  },
   "dev.alert.file.crashed": {
     "text": "Het bestand {name} kon niet worden verwerkt (de verwerking liep erop vast)",
     "en": "{name} could not be processed (it crashed the processing)"

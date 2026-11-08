@@ -729,6 +729,161 @@ export interface GetEditState {
 export interface EditState {
   copies: number;
   edited: boolean;
+  /** edited, and its original was deleted by a compress: nothing to revert. */
+  originalRemoved: boolean;
+}
+
+/**
+ * Settings › Largest files: every content in the library, largest first,
+ * one entry per content (the same photo at three paths takes its space
+ * once) at its first path in byte order, with File.copies set. Files only,
+ * not the older versions an upload-only folder keeps. Answers ListOfFiles:
+ * files without content (thumbnails come from GetThumbnails by path),
+ * token the next page's `after` ("" once the list is over). Pages are cut
+ * by (size, hash) and read afresh each time: a file added or deleted
+ * between pages shows or goes by where it falls. Devices before it answer
+ * "unknown_payload".
+ */
+export interface ListLargestFiles {
+  /** "" for the first page, else the previous answer's token. */
+  after: string;
+  /** 1-200; 0 is 50. */
+  limit: number;
+}
+
+/**
+ * A file the owner picked to compress: path, and the content the app
+ * showed for it (File.hash).
+ */
+export interface CompressItem {
+  path: string;
+  hash: string;
+}
+
+/**
+ * Compress, step one: what the device can do for each item and what it
+ * would weigh - worked out from the files' headers (a video's resolution,
+ * codec and length; a photo's pixels and format), never by compressing
+ * them, so it answers in about a second for a few hundred. At most 500
+ * items. Answers CompressOptions, in the order asked.
+ */
+export interface GetCompressOptions {
+  items: CompressItem[];
+}
+
+/**
+ * One way to compress an item, and its result's size, estimated.
+ * preset is one of:
+ *   "video_1080p"  a video taller and wider than 1080p (4K) re-encoded at
+ *                  1080p (the shorter side 1080), HEVC
+ *   "video_720p"   a video over 720p re-encoded at 720p, HEVC
+ *   "video_hevc"   an H.264 (or older) video re-encoded as HEVC at its own
+ *                  size
+ *   "photo_12mp"   a photo over 13 megapixels shrunk to about 12, as JPEG
+ *   "jpeg_resave"  a JPEG saved again at a lower quality, its size kept
+ *   "png_to_jpeg"  a PNG with no transparency saved as JPEG
+ * Only presets whose estimate is at least 15% smaller than the file are
+ * offered. New presets may come: apps leave out one they don't know.
+ */
+export interface CompressChoice {
+  preset: string;
+  estimatedSize: bigint;
+}
+
+export interface CompressOption {
+  path: string;
+  hash: string;
+  /** The file's size now. */
+  size: bigint;
+  /** Paths holding this content (all of them are replaced); 1 or more. */
+  copies: number;
+  /**
+   * Strongest first. Empty: nothing to gain, and `reason` says why in the
+   * request's language (not a photo or video; already as small as the
+   * device makes it; in an upload-only folder, where nothing is replaced;
+   * an older version keeps it; the file changed - error_code "changed").
+   */
+  choices: CompressChoice[];
+  reason: string;
+  /**
+   * "changed", "not_media", "nothing_to_gain", "upload_only",
+   * "kept_version", "missing" - for the apps' rules; the words are reason.
+   */
+  reasonCode: string;
+}
+
+export interface CompressOptions {
+  items: CompressOption[];
+}
+
+export interface CompressTask {
+  path: string;
+  /** As CompressItem.hash: the content shown, "changed" when it isn't. */
+  hash: string;
+  /** A preset GetCompressOptions offered for it. */
+  preset: string;
+}
+
+/**
+ * Compress, step two: the device compresses the tasks one at a time in
+ * the background (Status.background_tasks kind "compress"), each replacing
+ * the file at every path holding its content - collections, Favourites,
+ * ratings and faces moving with it, tags and Smart search worked out
+ * again - and then DELETING THE ORIGINAL'S BYTES. Its hash is kept
+ * (File.original_removed): a phone or computer sending that original
+ * again is answered with the compressed file and nothing is stored. A
+ * result that isn't smaller than the original is dropped and the file left
+ * as it was. Never in an upload-only folder, never content an older
+ * version keeps. Answers CompressJob at once; tasks sent while a job runs
+ * join it. The demo refuses it; devices before it answer "unknown_payload".
+ */
+export interface CompressFiles {
+  tasks: CompressTask[];
+}
+
+/**
+ * What a compress job has done: asked with GetCompressJob, and answered to
+ * CompressFiles. Kept until the next job starts, or a restart (a restart
+ * mid-job forgets the tasks not started; the file being worked on is left
+ * as it was).
+ */
+export interface CompressJob {
+  id: string;
+  total: number;
+  /** Tasks over, whatever came of them. */
+  done: number;
+  /** Bytes the job freed so far: originals' sizes less their results'. */
+  saved: bigint;
+  finished: boolean;
+  results: CompressResult[];
+}
+
+export interface CompressResult {
+  path: string;
+  /**
+   * "waiting", "running", "done", "skipped" (not smaller: left as it
+   * was), "failed".
+   */
+  state: string;
+  /** A running video's progress, 0-100. */
+  percent: number;
+  /**
+   * done: the file now at path (new hash, original_hash and
+   * original_removed set, its new size and name - a PNG becomes .jpg).
+   */
+  file?:
+    | File
+    | undefined;
+  /** skipped, failed: why, in the request's language. */
+  message: string;
+}
+
+/**
+ * The compress job running, or the last one; id "" for whichever that is.
+ * error_code "not_found" when there is none (or another id).
+ */
+export interface GetCompressJob {
+  id: string;
 }
 
 export interface DelFile {
@@ -1531,6 +1686,15 @@ export interface File {
    * edit, and from devices before it.
    */
   originalHash: string;
+  /**
+   * Compress (CompressFiles): set with original_hash when this content is
+   * a compressed copy whose original the device deleted. There is nothing
+   * to revert to (no Revert to original), and original_hash is what the
+   * phones and computers still hold: their sync takes a file with that
+   * hash at this path for this one - never sending it again, never
+   * downloading this over it - and Free up space never counts it as held.
+   */
+  originalRemoved: boolean;
 }
 
 export interface Ack {
@@ -4171,6 +4335,14 @@ export interface ReqEnvelope {
      */
     { $case: "reqEditVideo"; reqEditVideo: EditVideo }
     | //
+    /** Settings › Largest files: answers resp_list_of_files. */
+    { $case: "reqListLargestFiles"; reqListLargestFiles: ListLargestFiles }
+    | //
+    /** Compress: answers resp_compress_options, then resp_compress_job. */
+    { $case: "reqGetCompressOptions"; reqGetCompressOptions: GetCompressOptions }
+    | { $case: "reqCompressFiles"; reqCompressFiles: CompressFiles }
+    | { $case: "reqGetCompressJob"; reqGetCompressJob: GetCompressJob }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -4340,6 +4512,10 @@ export interface RespEnvelope {
     | //
     /** The answer to GetEditState. */
     { $case: "respEditState"; respEditState: EditState }
+    | //
+    /** The answers to GetCompressOptions and to CompressFiles/GetCompressJob. */
+    { $case: "respCompressOptions"; respCompressOptions: CompressOptions }
+    | { $case: "respCompressJob"; respCompressJob: CompressJob }
     | undefined;
 }
 
@@ -6624,7 +6800,7 @@ export const GetEditState: MessageFns<GetEditState> = {
 };
 
 function createBaseEditState(): EditState {
-  return { copies: 0, edited: false };
+  return { copies: 0, edited: false, originalRemoved: false };
 }
 
 export const EditState: MessageFns<EditState> = {
@@ -6634,6 +6810,9 @@ export const EditState: MessageFns<EditState> = {
     }
     if (message.edited !== false) {
       writer.uint32(16).bool(message.edited);
+    }
+    if (message.originalRemoved !== false) {
+      writer.uint32(24).bool(message.originalRemoved);
     }
     return writer;
   },
@@ -6661,6 +6840,14 @@ export const EditState: MessageFns<EditState> = {
           message.edited = reader.bool();
           continue;
         }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.originalRemoved = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6677,6 +6864,762 @@ export const EditState: MessageFns<EditState> = {
     const message = createBaseEditState();
     message.copies = object.copies ?? 0;
     message.edited = object.edited ?? false;
+    message.originalRemoved = object.originalRemoved ?? false;
+    return message;
+  },
+};
+
+function createBaseListLargestFiles(): ListLargestFiles {
+  return { after: "", limit: 0 };
+}
+
+export const ListLargestFiles: MessageFns<ListLargestFiles> = {
+  encode(message: ListLargestFiles, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.after !== "") {
+      writer.uint32(10).string(message.after);
+    }
+    if (message.limit !== 0) {
+      writer.uint32(16).int32(message.limit);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListLargestFiles {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListLargestFiles();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.after = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.limit = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<ListLargestFiles>, I>>(base?: I): ListLargestFiles {
+    return ListLargestFiles.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListLargestFiles>, I>>(object: I): ListLargestFiles {
+    const message = createBaseListLargestFiles();
+    message.after = object.after ?? "";
+    message.limit = object.limit ?? 0;
+    return message;
+  },
+};
+
+function createBaseCompressItem(): CompressItem {
+  return { path: "", hash: "" };
+}
+
+export const CompressItem: MessageFns<CompressItem> = {
+  encode(message: CompressItem, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.hash !== "") {
+      writer.uint32(18).string(message.hash);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CompressItem {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCompressItem();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<CompressItem>, I>>(base?: I): CompressItem {
+    return CompressItem.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CompressItem>, I>>(object: I): CompressItem {
+    const message = createBaseCompressItem();
+    message.path = object.path ?? "";
+    message.hash = object.hash ?? "";
+    return message;
+  },
+};
+
+function createBaseGetCompressOptions(): GetCompressOptions {
+  return { items: [] };
+}
+
+export const GetCompressOptions: MessageFns<GetCompressOptions> = {
+  encode(message: GetCompressOptions, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.items) {
+      CompressItem.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetCompressOptions {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetCompressOptions();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.items.push(CompressItem.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<GetCompressOptions>, I>>(base?: I): GetCompressOptions {
+    return GetCompressOptions.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetCompressOptions>, I>>(object: I): GetCompressOptions {
+    const message = createBaseGetCompressOptions();
+    message.items = object.items?.map((e) => CompressItem.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseCompressChoice(): CompressChoice {
+  return { preset: "", estimatedSize: 0n };
+}
+
+export const CompressChoice: MessageFns<CompressChoice> = {
+  encode(message: CompressChoice, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.preset !== "") {
+      writer.uint32(10).string(message.preset);
+    }
+    if (message.estimatedSize !== 0n) {
+      if (BigInt.asIntN(64, message.estimatedSize) !== message.estimatedSize) {
+        throw new globalThis.Error("value provided for field message.estimatedSize of type int64 too large");
+      }
+      writer.uint32(16).int64(message.estimatedSize);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CompressChoice {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCompressChoice();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.preset = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.estimatedSize = reader.int64() as bigint;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<CompressChoice>, I>>(base?: I): CompressChoice {
+    return CompressChoice.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CompressChoice>, I>>(object: I): CompressChoice {
+    const message = createBaseCompressChoice();
+    message.preset = object.preset ?? "";
+    message.estimatedSize = object.estimatedSize ?? 0n;
+    return message;
+  },
+};
+
+function createBaseCompressOption(): CompressOption {
+  return { path: "", hash: "", size: 0n, copies: 0, choices: [], reason: "", reasonCode: "" };
+}
+
+export const CompressOption: MessageFns<CompressOption> = {
+  encode(message: CompressOption, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.hash !== "") {
+      writer.uint32(18).string(message.hash);
+    }
+    if (message.size !== 0n) {
+      if (BigInt.asIntN(64, message.size) !== message.size) {
+        throw new globalThis.Error("value provided for field message.size of type int64 too large");
+      }
+      writer.uint32(24).int64(message.size);
+    }
+    if (message.copies !== 0) {
+      writer.uint32(32).int32(message.copies);
+    }
+    for (const v of message.choices) {
+      CompressChoice.encode(v!, writer.uint32(42).fork()).join();
+    }
+    if (message.reason !== "") {
+      writer.uint32(50).string(message.reason);
+    }
+    if (message.reasonCode !== "") {
+      writer.uint32(58).string(message.reasonCode);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CompressOption {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCompressOption();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.size = reader.int64() as bigint;
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.copies = reader.int32();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.choices.push(CompressChoice.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.reason = reader.string();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.reasonCode = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<CompressOption>, I>>(base?: I): CompressOption {
+    return CompressOption.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CompressOption>, I>>(object: I): CompressOption {
+    const message = createBaseCompressOption();
+    message.path = object.path ?? "";
+    message.hash = object.hash ?? "";
+    message.size = object.size ?? 0n;
+    message.copies = object.copies ?? 0;
+    message.choices = object.choices?.map((e) => CompressChoice.fromPartial(e)) || [];
+    message.reason = object.reason ?? "";
+    message.reasonCode = object.reasonCode ?? "";
+    return message;
+  },
+};
+
+function createBaseCompressOptions(): CompressOptions {
+  return { items: [] };
+}
+
+export const CompressOptions: MessageFns<CompressOptions> = {
+  encode(message: CompressOptions, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.items) {
+      CompressOption.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CompressOptions {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCompressOptions();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.items.push(CompressOption.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<CompressOptions>, I>>(base?: I): CompressOptions {
+    return CompressOptions.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CompressOptions>, I>>(object: I): CompressOptions {
+    const message = createBaseCompressOptions();
+    message.items = object.items?.map((e) => CompressOption.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseCompressTask(): CompressTask {
+  return { path: "", hash: "", preset: "" };
+}
+
+export const CompressTask: MessageFns<CompressTask> = {
+  encode(message: CompressTask, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.hash !== "") {
+      writer.uint32(18).string(message.hash);
+    }
+    if (message.preset !== "") {
+      writer.uint32(26).string(message.preset);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CompressTask {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCompressTask();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.preset = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<CompressTask>, I>>(base?: I): CompressTask {
+    return CompressTask.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CompressTask>, I>>(object: I): CompressTask {
+    const message = createBaseCompressTask();
+    message.path = object.path ?? "";
+    message.hash = object.hash ?? "";
+    message.preset = object.preset ?? "";
+    return message;
+  },
+};
+
+function createBaseCompressFiles(): CompressFiles {
+  return { tasks: [] };
+}
+
+export const CompressFiles: MessageFns<CompressFiles> = {
+  encode(message: CompressFiles, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.tasks) {
+      CompressTask.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CompressFiles {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCompressFiles();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.tasks.push(CompressTask.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<CompressFiles>, I>>(base?: I): CompressFiles {
+    return CompressFiles.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CompressFiles>, I>>(object: I): CompressFiles {
+    const message = createBaseCompressFiles();
+    message.tasks = object.tasks?.map((e) => CompressTask.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseCompressJob(): CompressJob {
+  return { id: "", total: 0, done: 0, saved: 0n, finished: false, results: [] };
+}
+
+export const CompressJob: MessageFns<CompressJob> = {
+  encode(message: CompressJob, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    if (message.total !== 0) {
+      writer.uint32(16).int32(message.total);
+    }
+    if (message.done !== 0) {
+      writer.uint32(24).int32(message.done);
+    }
+    if (message.saved !== 0n) {
+      if (BigInt.asIntN(64, message.saved) !== message.saved) {
+        throw new globalThis.Error("value provided for field message.saved of type int64 too large");
+      }
+      writer.uint32(32).int64(message.saved);
+    }
+    if (message.finished !== false) {
+      writer.uint32(40).bool(message.finished);
+    }
+    for (const v of message.results) {
+      CompressResult.encode(v!, writer.uint32(50).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CompressJob {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCompressJob();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.total = reader.int32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.done = reader.int32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.saved = reader.int64() as bigint;
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.finished = reader.bool();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.results.push(CompressResult.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<CompressJob>, I>>(base?: I): CompressJob {
+    return CompressJob.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CompressJob>, I>>(object: I): CompressJob {
+    const message = createBaseCompressJob();
+    message.id = object.id ?? "";
+    message.total = object.total ?? 0;
+    message.done = object.done ?? 0;
+    message.saved = object.saved ?? 0n;
+    message.finished = object.finished ?? false;
+    message.results = object.results?.map((e) => CompressResult.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseCompressResult(): CompressResult {
+  return { path: "", state: "", percent: 0, file: undefined, message: "" };
+}
+
+export const CompressResult: MessageFns<CompressResult> = {
+  encode(message: CompressResult, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.state !== "") {
+      writer.uint32(18).string(message.state);
+    }
+    if (message.percent !== 0) {
+      writer.uint32(24).int32(message.percent);
+    }
+    if (message.file !== undefined) {
+      File.encode(message.file, writer.uint32(34).fork()).join();
+    }
+    if (message.message !== "") {
+      writer.uint32(42).string(message.message);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CompressResult {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCompressResult();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.state = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.percent = reader.int32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.file = File.decode(reader, reader.uint32());
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.message = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<CompressResult>, I>>(base?: I): CompressResult {
+    return CompressResult.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CompressResult>, I>>(object: I): CompressResult {
+    const message = createBaseCompressResult();
+    message.path = object.path ?? "";
+    message.state = object.state ?? "";
+    message.percent = object.percent ?? 0;
+    message.file = (object.file !== undefined && object.file !== null) ? File.fromPartial(object.file) : undefined;
+    message.message = object.message ?? "";
+    return message;
+  },
+};
+
+function createBaseGetCompressJob(): GetCompressJob {
+  return { id: "" };
+}
+
+export const GetCompressJob: MessageFns<GetCompressJob> = {
+  encode(message: GetCompressJob, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetCompressJob {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetCompressJob();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<GetCompressJob>, I>>(base?: I): GetCompressJob {
+    return GetCompressJob.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetCompressJob>, I>>(object: I): GetCompressJob {
+    const message = createBaseGetCompressJob();
+    message.id = object.id ?? "";
     return message;
   },
 };
@@ -9040,6 +9983,7 @@ function createBaseFile(): File {
     copies: undefined,
     rating: undefined,
     originalHash: "",
+    originalRemoved: false,
   };
 }
 
@@ -9092,6 +10036,9 @@ export const File: MessageFns<File> = {
     }
     if (message.originalHash !== "") {
       writer.uint32(130).string(message.originalHash);
+    }
+    if (message.originalRemoved !== false) {
+      writer.uint32(136).bool(message.originalRemoved);
     }
     return writer;
   },
@@ -9223,6 +10170,14 @@ export const File: MessageFns<File> = {
           message.originalHash = reader.string();
           continue;
         }
+        case 17: {
+          if (tag !== 136) {
+            break;
+          }
+
+          message.originalRemoved = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -9254,6 +10209,7 @@ export const File: MessageFns<File> = {
       ? PhotoRating.fromPartial(object.rating)
       : undefined;
     message.originalHash = object.originalHash ?? "";
+    message.originalRemoved = object.originalRemoved ?? false;
     return message;
   },
 };
@@ -22311,6 +23267,18 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqEditVideo":
         EditVideo.encode(message.payload.reqEditVideo, writer.uint32(1322).fork()).join();
         break;
+      case "reqListLargestFiles":
+        ListLargestFiles.encode(message.payload.reqListLargestFiles, writer.uint32(1330).fork()).join();
+        break;
+      case "reqGetCompressOptions":
+        GetCompressOptions.encode(message.payload.reqGetCompressOptions, writer.uint32(1338).fork()).join();
+        break;
+      case "reqCompressFiles":
+        CompressFiles.encode(message.payload.reqCompressFiles, writer.uint32(1346).fork()).join();
+        break;
+      case "reqGetCompressJob":
+        GetCompressJob.encode(message.payload.reqGetCompressJob, writer.uint32(1354).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -23809,6 +24777,50 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqEditVideo", reqEditVideo: EditVideo.decode(reader, reader.uint32()) };
           continue;
         }
+        case 166: {
+          if (tag !== 1330) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqListLargestFiles",
+            reqListLargestFiles: ListLargestFiles.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 167: {
+          if (tag !== 1338) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetCompressOptions",
+            reqGetCompressOptions: GetCompressOptions.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 168: {
+          if (tag !== 1346) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqCompressFiles",
+            reqCompressFiles: CompressFiles.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 169: {
+          if (tag !== 1354) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetCompressJob",
+            reqGetCompressJob: GetCompressJob.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -25196,6 +26208,42 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqListLargestFiles": {
+        if (object.payload?.reqListLargestFiles !== undefined && object.payload?.reqListLargestFiles !== null) {
+          message.payload = {
+            $case: "reqListLargestFiles",
+            reqListLargestFiles: ListLargestFiles.fromPartial(object.payload.reqListLargestFiles),
+          };
+        }
+        break;
+      }
+      case "reqGetCompressOptions": {
+        if (object.payload?.reqGetCompressOptions !== undefined && object.payload?.reqGetCompressOptions !== null) {
+          message.payload = {
+            $case: "reqGetCompressOptions",
+            reqGetCompressOptions: GetCompressOptions.fromPartial(object.payload.reqGetCompressOptions),
+          };
+        }
+        break;
+      }
+      case "reqCompressFiles": {
+        if (object.payload?.reqCompressFiles !== undefined && object.payload?.reqCompressFiles !== null) {
+          message.payload = {
+            $case: "reqCompressFiles",
+            reqCompressFiles: CompressFiles.fromPartial(object.payload.reqCompressFiles),
+          };
+        }
+        break;
+      }
+      case "reqGetCompressJob": {
+        if (object.payload?.reqGetCompressJob !== undefined && object.payload?.reqGetCompressJob !== null) {
+          message.payload = {
+            $case: "reqGetCompressJob",
+            reqGetCompressJob: GetCompressJob.fromPartial(object.payload.reqGetCompressJob),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -25487,6 +26535,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respEditState":
         EditState.encode(message.payload.respEditState, writer.uint32(618).fork()).join();
+        break;
+      case "respCompressOptions":
+        CompressOptions.encode(message.payload.respCompressOptions, writer.uint32(626).fork()).join();
+        break;
+      case "respCompressJob":
+        CompressJob.encode(message.payload.respCompressJob, writer.uint32(634).fork()).join();
         break;
     }
     return writer;
@@ -26174,6 +27228,25 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respEditState", respEditState: EditState.decode(reader, reader.uint32()) };
           continue;
         }
+        case 78: {
+          if (tag !== 626) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respCompressOptions",
+            respCompressOptions: CompressOptions.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 79: {
+          if (tag !== 634) {
+            break;
+          }
+
+          message.payload = { $case: "respCompressJob", respCompressJob: CompressJob.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -26774,6 +27847,24 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respEditState",
             respEditState: EditState.fromPartial(object.payload.respEditState),
+          };
+        }
+        break;
+      }
+      case "respCompressOptions": {
+        if (object.payload?.respCompressOptions !== undefined && object.payload?.respCompressOptions !== null) {
+          message.payload = {
+            $case: "respCompressOptions",
+            respCompressOptions: CompressOptions.fromPartial(object.payload.respCompressOptions),
+          };
+        }
+        break;
+      }
+      case "respCompressJob": {
+        if (object.payload?.respCompressJob !== undefined && object.payload?.respCompressJob !== null) {
+          message.payload = {
+            $case: "respCompressJob",
+            respCompressJob: CompressJob.fromPartial(object.payload.respCompressJob),
           };
         }
         break;
