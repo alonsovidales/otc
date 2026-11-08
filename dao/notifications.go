@@ -4,6 +4,7 @@ package dao
 
 import (
 	"database/sql"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -229,7 +230,15 @@ type execer interface {
 // insertError starts an Error row: grouped (actorDomain "") or standalone
 // (cStandaloneError), whose details are its first line.
 func insertError(ex execer, id, actorDomain string, a alerttext.Alert, details string, now time.Time) error {
-	if key, msgArgs, lines := msgColumns(a, a.Line(now)); key.Valid {
+	key, msgArgs, lines := msgColumns(a, a.Line(now))
+	return insertErrorRow(ex, id, actorDomain, a, details, key, msgArgs, lines)
+}
+
+// insertErrorRow is insertError with the row's details and msg columns
+// worked out; without the columns (a database from before them) its
+// English alone.
+func insertErrorRow(ex execer, id, actorDomain string, a alerttext.Alert, details string, key, msgArgs, lines sql.NullString) error {
+	if key.Valid {
 		_, err := ex.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`, `msg_key`, `msg_args`, `msg_lines`) values (?, now(), 'Error', 'This device', ?, ?, ?, 1, ?, ?, ?)",
 			id, actorDomain, a.Title, details, key, msgArgs, lines)
 		if !isUnknownColumn(err) {
@@ -239,6 +248,42 @@ func insertError(ex execer, id, actorDomain string, a alerttext.Alert, details s
 	_, err := ex.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`) values (?, now(), 'Error', 'This device', ?, ?, ?, 1)",
 		id, actorDomain, a.Title, details)
 	return err
+}
+
+// AlertLine is one line of AddStandaloneAlert's details: what happened,
+// and when.
+type AlertLine struct {
+	Alert alerttext.Alert
+	At    time.Time
+}
+
+// AddStandaloneAlert records the end of something the owner started (a
+// compress job): an Error row of its own - no other error joins it, nor it
+// them, and it is never pushed - titled a, whose details are lines, in
+// order, each "15:04 <title>: <detail>" in English and in msg_lines. Lines
+// past the details' caps are left out of both (the title keeps the
+// count); none leaves the details empty. A line with only its English
+// leaves the row with only its English, as a grouped error does.
+func (dao *Dao) AddStandaloneAlert(a alerttext.Alert, lines []AlertLine) error {
+	var english []string
+	keyed := []alerttext.Line{}
+	size, keyedSize, allKeyed := 0, 2, a.Keyed()
+	for _, l := range lines {
+		e := l.Alert.EnglishLine(l.At)
+		k := l.Alert.Line(l.At)
+		raw, err := json.Marshal(k)
+		if err != nil || size+len(e)+1 > errorNotificationDetailsCap || keyedSize+len(raw)+1 > alerttext.MaxLinesBytes || len(keyed) == alerttext.MaxLines {
+			break
+		}
+		english, keyed = append(english, e), append(keyed, k)
+		size, keyedSize = size+len(e)+1, keyedSize+len(raw)+1
+		allKeyed = allKeyed && l.Alert.Keyed()
+	}
+	var key, msgArgs, stored sql.NullString
+	if allKeyed {
+		key, msgArgs, stored = msgColumns(a, keyed...)
+	}
+	return insertErrorRow(dao.db, uuid.New().String(), cStandaloneError, a, strings.Join(english, "\n"), key, msgArgs, stored)
 }
 
 // msgColumns are a's msg_key, msg_args and msg_lines (holding lines): all

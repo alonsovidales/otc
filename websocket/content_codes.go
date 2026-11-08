@@ -28,6 +28,24 @@ const (
 	cCodeTooLarge    = "too_large"
 )
 
+// The error codes of Compress (files_manager/compress.go, compress_job.go)
+// and of what it leaves:
+//
+//   - "too_many": GetCompressOptions or CompressFiles with more than 500
+//     files; nothing was looked at.
+//   - "not_found": GetCompressJob of no job (none since the device
+//     started, or another id).
+//   - "original_removed": RevertImage of a compressed file, whose original
+//     the device deleted - there is nothing to go back to.
+//
+// A file the options can't compress isn't an error: its CompressOption
+// says why (reason_code, "changed" among them).
+const (
+	cCodeTooMany         = "too_many"
+	cCodeNotFound        = "not_found"
+	cCodeOriginalRemoved = "original_removed"
+)
+
 // contentCode gives resp the error code err calls for, if one of these.
 func contentCode(resp *pb.RespEnvelope, err error) {
 	switch {
@@ -53,10 +71,29 @@ func editError(resp *pb.RespEnvelope, lang string, err error) {
 		resp.ErrorCode = cCodeNotEditable
 	case filesmanager.IsNotEdited(err):
 		resp.ErrorCode = cCodeNotEdited
+	case errors.Is(err, filesmanager.ErrOriginalRemoved):
+		resp.ErrorCode = cCodeOriginalRemoved
 	case filesmanager.IsCutTooShort(err):
 		resp.ErrorCode = cCodeTooShort
 	default:
 		log.Error("an edit failed:", err)
+		contentCode(resp, err)
+	}
+}
+
+// compressError fills resp with a refusal of a compress request
+// (GetCompressOptions, CompressFiles, GetCompressJob): its code, and its
+// message in lang.
+func compressError(resp *pb.RespEnvelope, lang string, err error) {
+	resp.Error = true
+	resp.ErrorMessage = errText(lang, err)
+	switch {
+	case filesmanager.IsCompressTooMany(err):
+		resp.ErrorCode = cCodeTooMany
+	case filesmanager.IsCompressNoJob(err):
+		resp.ErrorCode = cCodeNotFound
+	default:
+		log.Error("a compress request failed:", err)
 		contentCode(resp, err)
 	}
 }

@@ -43,12 +43,16 @@ const (
 	// BackgroundFaces: the looks of the faces found before release 157, and
 	// everyone's face chosen again (BackfillFaceQuality).
 	BackgroundFaces = "faces"
+	// BackgroundCompress: the photos and videos the owner asked to
+	// compress (compress_job.go).
+	BackgroundCompress = "compress"
 )
 
-// backgroundOrder is the order Status lists them in: the uploads first,
-// then the passes in the order startBackfillOnce runs them.
+// backgroundOrder is the order Status lists them in: what the owner asked
+// for first - the uploads, a compress - then the passes in the order
+// startBackfillOnce runs them.
 var backgroundOrder = []string{
-	BackgroundAnalysis, BackgroundThumbnails, BackgroundDates, BackgroundPlaces, BackgroundQuality, BackgroundFaces, BackgroundSmartSearch,
+	BackgroundAnalysis, BackgroundCompress, BackgroundThumbnails, BackgroundDates, BackgroundPlaces, BackgroundQuality, BackgroundFaces, BackgroundSmartSearch,
 }
 
 // backgroundText is what a kind is doing, in the device's words.
@@ -68,6 +72,8 @@ func backgroundText(kind string) (i18n.Msg, bool) {
 		return i18n.DevStatusBackgroundSmartSearch(), true
 	case BackgroundFaces:
 		return i18n.DevStatusBackgroundFaces(), true
+	case BackgroundCompress:
+		return i18n.DevStatusBackgroundCompress(), true
 	}
 	return i18n.Msg{}, false
 }

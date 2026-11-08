@@ -59,6 +59,11 @@ var ErrNotEdited = devtext.New(i18n.DevFilesNotEdited())
 // under way). Answered as not_editable, with its own message.
 var errEditsUnavailable = devtext.New(i18n.DevFilesEditsUnavailable())
 
+// ErrOriginalRemoved is RevertImage's refusal for a compressed file: its
+// original's bytes were deleted (compress_job.go), so there is nothing to
+// go back to (error_code "original_removed").
+var ErrOriginalRemoved = devtext.New(i18n.DevFilesOriginalCompressed())
+
 // IsNotEditable is whether err is a refusal to edit (error_code
 // "not_editable").
 func IsNotEditable(err error) bool {
@@ -476,13 +481,17 @@ func (mg *Manager) EditImage(ses *session.Session, req *pb.EditImage, lang strin
 // size), the extension a copy's name takes, how the content gets to the
 // disk, the names a path holding it tries when it is renamed (nil: it
 // keeps its own), and how a face's box moves with it (nil: its faces are
-// found again by the analysis).
+// found again by the analysis). removesOriginal is a compress's
+// (compress_job.go): every copy is replaced or none is
+// (dao.ReplaceEveryCopy), and the edit's row says its original is gone -
+// the compress deletes it once saved.
 type editOut struct {
-	edited  *pb.File
-	ext     string
-	store   func() error
-	renames func(p string) func(n int) string
-	move    func(dao.FaceBox) (dao.FaceBox, bool)
+	edited          *pb.File
+	ext             string
+	store           func() error
+	renames         func(p string) func(n int) string
+	move            func(dao.FaceBox) (dao.FaceBox, bool)
+	removesOriginal bool
 }
 
 // saveEdit stores an edit of file and gives it its paths - file's own and,
@@ -495,12 +504,15 @@ func (mg *Manager) saveEdit(ses *session.Session, file *pb.File, out editOut, as
 		return file, nil // nothing changed
 	}
 
-	// What it is an edit of: the original of an edit edited again.
-	edit := &dao.EditedContent{Hash: edited.Hash, Original: file.Hash, OriginalMime: file.Mime, OriginalSize: dao.FileSize(file)}
+	// What it is an edit of: the original of an edit edited again - and,
+	// of a compressed file, an original that is gone, whatever this edit
+	// does.
+	edit := &dao.EditedContent{Hash: edited.Hash, Original: file.Hash, OriginalMime: file.Mime, OriginalSize: dao.FileSize(file), OriginalRemoved: out.removesOriginal}
 	if prev, err := mg.dao.EditOf(file.Hash); err != nil {
 		return nil, err
 	} else if prev != nil {
 		edit.Original, edit.OriginalMime, edit.OriginalSize, edit.OriginalExt = prev.Original, prev.OriginalMime, prev.OriginalSize, prev.OriginalExt
+		edit.OriginalRemoved = edit.OriginalRemoved || prev.OriginalRemoved
 	}
 	if edit.OriginalExt == "" && !asCopy && out.renames(file.Path) != nil {
 		_, edit.OriginalExt = splitExt(file.Path)
@@ -536,14 +548,18 @@ func (mg *Manager) saveEdit(ses *session.Session, file *pb.File, out editOut, as
 		for _, p := range paths {
 			targets = append(targets, dao.EditTarget{Path: p, Names: out.renames(p)})
 		}
-		done, err := mg.dao.ApplyEdit(targets, file.Hash, edited, edit)
+		apply := mg.dao.ApplyEdit
+		if out.removesOriginal {
+			apply = mg.dao.ReplaceEveryCopy
+		}
+		done, err := apply(targets, file.Hash, edited, edit)
 		if err == nil {
 			result = done[0]
 		}
 		return err
 	})
 	switch {
-	case errors.Is(err, dao.ErrNoEdits):
+	case errors.Is(err, dao.ErrNoEdits), errors.Is(err, dao.ErrSchemaBehind):
 		err = errEditsUnavailable
 	case errors.Is(err, dao.ErrOtherContent):
 		err = &ContentChangedError{}
@@ -555,7 +571,7 @@ func (mg *Manager) saveEdit(ses *session.Session, file *pb.File, out editOut, as
 		return nil, err
 	}
 	if edit != nil {
-		result.OriginalHash = edit.Original
+		result.OriginalHash, result.OriginalRemoved = edit.Original, edit.OriginalRemoved
 	}
 
 	// Who is in it: the original's faces, moved with the edit - before its
@@ -598,6 +614,9 @@ func (mg *Manager) RevertImage(ses *session.Session, p, shown string, everyCopy 
 			return nil, errVideoNotEdited
 		}
 		return nil, ErrNotEdited
+	}
+	if edit.OriginalRemoved {
+		return nil, ErrOriginalRemoved
 	}
 	if !mg.hasBlob(edit.Original) {
 		return nil, devtext.New(i18n.DevFilesContentMissing(p))
@@ -659,7 +678,7 @@ func (mg *Manager) EditState(p string) (*pb.EditState, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &pb.EditState{Copies: max(counts[file.Hash], 1), Edited: edit != nil}, nil
+	return &pb.EditState{Copies: max(counts[file.Hash], 1), Edited: edit != nil, OriginalRemoved: edit != nil && edit.OriginalRemoved}, nil
 }
 
 // editedAlready is the file a phone's sync means when it sends content into
@@ -687,7 +706,8 @@ func (mg *Manager) editedAlready(p, content string) *pb.File {
 }
 
 // setOriginals sets File.original_hash on the edits among files (a
-// listing, a page of Images). A failure only leaves them unset.
+// listing, a page of Images), and original_removed on the compressed ones.
+// A failure only leaves them unset.
 func (mg *Manager) setOriginals(files []*pb.File) {
 	hashes := make([]string, 0, len(files))
 	for _, f := range files {
@@ -705,7 +725,7 @@ func (mg *Manager) setOriginals(files []*pb.File) {
 	}
 	for _, f := range files {
 		if o, ok := originals[f.Hash]; ok {
-			f.OriginalHash = o
+			f.OriginalHash, f.OriginalRemoved = o.Hash, o.Removed
 		}
 	}
 }
@@ -735,19 +755,27 @@ func (mg *Manager) releaseEdit(hash string) {
 	}
 }
 
-// heldOriginal is the original of an edit kept whole on the disk as
-// content hash, with its type and size: nil when there is none.
-func (mg *Manager) heldOriginal(hash string) *pb.File {
-	held, err := mg.dao.HeldOriginals([]string{hash})
+// originalOf is what the device keeps of hash as an edit's original that
+// no file holds: held, the original kept whole on the disk, with its type
+// and size; or removed, a compressed file's original, whose bytes are gone
+// (or going) while the compressed file it was made into is still held
+// (compressedFor). Neither for any other content.
+func (mg *Manager) originalOf(hash string) (held *pb.File, removed bool) {
+	originals, err := mg.dao.HeldOriginals([]string{hash})
 	if err != nil {
 		log.Error("could not look for an edit's original:", err)
-		return nil
+		return nil, false
 	}
-	o, ok := held[hash]
-	if !ok || !mg.hasBlob(hash) {
-		return nil
+	o, ok := originals[hash]
+	switch {
+	case !ok:
+		return nil, false
+	case o.Removed:
+		return nil, mg.compressedFor(hash) != nil
+	case !mg.hasBlob(hash):
+		return nil, false
 	}
 	f := &pb.File{Hash: hash, Mime: o.Mime}
 	dao.SetFileSize(f, o.Size)
-	return f
+	return f, false
 }

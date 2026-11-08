@@ -3050,6 +3050,47 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.Payload = &pb.RespEnvelope_RespEditState{RespEditState: state}
 		}
 
+	// Settings › Largest files: every content by its size, a page at a
+	// time (files_manager/largest.go). Same callers as ListFiles.
+	case *pb.ReqEnvelope_ReqListLargestFiles:
+		log.Debug("Largest files after:", p.ReqListLargestFiles.After, "limit:", p.ReqListLargestFiles.Limit)
+		files, token, err := ch.mg.filesManager.ListLargestFiles(p.ReqListLargestFiles.After, p.ReqListLargestFiles.Limit)
+		if err != nil {
+			log.Error("error listing the largest files:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespListOfFiles{RespListOfFiles: &pb.ListOfFiles{Files: files, Token: token}}
+		}
+
+	// Compress: what each file can become, then the job that makes it so
+	// and deletes the originals (files_manager/compress.go, compress_job.go).
+	case *pb.ReqEnvelope_ReqGetCompressOptions:
+		log.Debug("Compress options of", len(p.ReqGetCompressOptions.Items), "file(s)")
+		options, err := ch.mg.filesManager.CompressOptions(ses, p.ReqGetCompressOptions.Items, lang)
+		if err != nil {
+			compressError(resp, lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespCompressOptions{RespCompressOptions: options}
+		}
+
+	case *pb.ReqEnvelope_ReqCompressFiles:
+		log.Debug("Compress", len(p.ReqCompressFiles.Tasks), "file(s)")
+		job, err := ch.mg.filesManager.CompressFiles(ses, p.ReqCompressFiles.Tasks, lang)
+		if err != nil {
+			compressError(resp, lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespCompressJob{RespCompressJob: job}
+		}
+
+	case *pb.ReqEnvelope_ReqGetCompressJob:
+		job, err := ch.mg.filesManager.CompressJob(p.ReqGetCompressJob.Id, lang)
+		if err != nil {
+			compressError(resp, lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespCompressJob{RespCompressJob: job}
+		}
+
 	// Issue #132: upload-only folders and the versions they keep.
 	case *pb.ReqEnvelope_ReqSetUploadOnly:
 		log.Debug("Set upload only:", p.ReqSetUploadOnly.Path, p.ReqSetUploadOnly.UploadOnly)

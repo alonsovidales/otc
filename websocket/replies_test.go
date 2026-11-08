@@ -287,6 +287,18 @@ var headEnglish = []struct {
 	{"dev.files.video_not_edited", i18n.DevFilesVideoNotEdited(), "this video has no edit to undo"},
 	{"dev.files.cut_failed", i18n.DevFilesCutFailed(), "the device couldn't cut the video"},
 	{"dev.files.edited_copy_name", i18n.DevFilesEditedCopyName("IMG_1"), "IMG_1 (edited)"},
+	// New with Compress (no older English).
+	{"dev.files.compress_failed", i18n.DevFilesCompressFailed(), "the device could not compress this file"},
+	{"dev.files.compress_kept_version", i18n.DevFilesCompressKeptVersion(), "an older version of a file keeps this content, so compressing it would free no space"},
+	{"dev.files.compress_missing", i18n.DevFilesCompressMissing(), "this file's content isn't on the device's disks"},
+	{"dev.files.compress_no_job", i18n.DevFilesCompressNoJob(), "there is no compress job"},
+	{"dev.files.compress_not_media", i18n.DevFilesCompressNotMedia(), "only photos and videos can be compressed"},
+	{"dev.files.compress_not_smaller", i18n.DevFilesCompressNotSmaller(), "compressed, it came out no smaller, so the file was left as it was"},
+	{"dev.files.compress_nothing_to_gain", i18n.DevFilesCompressNothingToGain(), "the device can't make this file noticeably smaller"},
+	{"dev.files.compress_too_many", i18n.DevFilesCompressTooMany(), "pick at most 500 files at a time"},
+	{"dev.files.compress_unknown_preset", i18n.DevFilesCompressUnknownPreset(), "this way of compressing isn't available for this file"},
+	{"dev.files.compress_upload_only", i18n.DevFilesCompressUploadOnly(), "this file is in an upload-only folder, where nothing is replaced; turn upload only off there to compress it"},
+	{"dev.files.original_compressed", i18n.DevFilesOriginalCompressed(), "this file was compressed and its original deleted, so there is nothing to go back to"},
 }
 
 // The catalog's English is the device's English as it was.

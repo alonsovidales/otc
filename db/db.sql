@@ -89,7 +89,10 @@ create table file_versions
 -- the original's; `original_ext` its name's extension as it was (".HEIC")
 -- when the edit changed it, '' when it didn't. The row goes when no file or
 -- kept version holds the edit any more, and the original with it once
--- nothing else holds that.
+-- nothing else holds that. A compress (release 177) is such an edit, one
+-- that deletes its original's bytes: `original_removed` then says they are
+-- gone - nothing to revert to - while the row keeps the original's hash,
+-- with which the phones and computers that still hold it are answered.
 create table edited_content
 (
   `hash` varchar(64) not null,
@@ -98,6 +101,7 @@ create table edited_content
   `original_size` bigint not null,
   `original_ext` varchar(16) not null default '',
   `edited` datetime not null,
+  `original_removed` tinyint(1) not null default 0,
 
   primary key (`hash`),
   key (`original_hash`)

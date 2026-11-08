@@ -192,6 +192,9 @@ type Manager struct {
 	// thumbFixes is the queue of thumbnails a grid asked for small ones of
 	// before they existed (thumbnail_fix.go).
 	thumbFixes thumbFixQueue
+	// compress is the compress job running, or the last one, and what its
+	// options read of each file (compress.go, compress_job.go).
+	compress compressState
 
 	// guard makes processing gentler on a low-memory device and after a
 	// run that died (lowmem.go, runstate.go); nil otherwise - processing
@@ -1987,14 +1990,21 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		if err := pendingUploads.roomFor(filepath.Dir(targetPath), sealedSize(int64(len(content)))); err != nil {
 			return nil, err
 		}
-		unlock := lockBlob(hash)
-		err = blobstore.WriteBytes(targetPath, session, content)
-		unlock()
-		if err != nil {
-			mg.alert(i18n.DevAlertFileNotSaved, path, err)
-			return nil, err
+		// A compressed file's original is never stored again
+		// (compress_job.go): registerUpload answers it with the compressed
+		// file, and should it store a row after all (the compressed file
+		// deleted meanwhile), the content is written below once the row is
+		// there.
+		if mg.compressedFor(hash) == nil {
+			unlock := lockBlob(hash)
+			err = blobstore.WriteBytes(targetPath, session, content)
+			unlock()
+			if err != nil {
+				mg.alert(i18n.DevAlertFileNotSaved, path, err)
+				return nil, err
+			}
+			wrote = true
 		}
-		wrote = true
 	}
 
 	known := mg.contentKnown(hash)
@@ -2002,10 +2012,15 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	if err != nil {
 		if wrote {
 			mg.removeBlobIfUnused(hash)
+			mg.dropRemovedOriginal(hash)
 		}
 		return file, err
 	}
 	if !write {
+		if wrote {
+			// Compressed while this was written: its bytes go again.
+			mg.dropRemovedOriginal(hash)
+		}
 		return file, nil
 	}
 	// Written above, but a DelFile of another path with the same content,
@@ -2080,6 +2095,13 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 	// holding its edit gets the edit, which the photo is now.
 	if edited := mg.editedAlready(path, hash); edited != nil {
 		return edited, false, nil
+	}
+	// A compressed file's original, sent again (a phone that still has the
+	// photo, its sync anywhere else): answered as LinkFile answers it,
+	// with the compressed content; the caller removes what it wrote.
+	if mg.compressedFor(hash) != nil {
+		file, err = mg.LinkFile(session, path, hash, forceOverride, created, modified, cloudID)
+		return file, false, err
 	}
 
 	file = &pb.File{
@@ -2478,7 +2500,11 @@ func (mg *Manager) HasFile(hash, cloudID string) (exists bool, err error) {
 	if err == sql.ErrNoRows {
 		// An edit's original, kept whole though no path holds it
 		// (edit_image.go): the phone that took it never sends it again.
-		return mg.heldOriginal(hash) != nil, nil
+		// Nor a compressed file's original, whose bytes are gone
+		// (compress_job.go): the device has that photo, as the compressed
+		// copy it keeps in its place.
+		held, removed := mg.originalOf(hash)
+		return held != nil || removed, nil
 	}
 	if err != nil {
 		return false, err
@@ -2648,9 +2674,16 @@ func blobPath(hash string) string {
 // hash's lock, like every other decision to remove a blob, so an upload of
 // the same content can't slip in between the check and the removal.
 func (mg *Manager) dropIfOrphaned(hash string) {
-	if hash != "" && mg.dropOrphan(hash) {
-		mg.releaseEdit(hash) // as removeBlobIfUnused, after the lock
+	if hash == "" {
+		return
 	}
+	if mg.dropOrphan(hash) {
+		mg.releaseEdit(hash) // as removeBlobIfUnused, after the lock
+		return
+	}
+	// Compressed while this ran: its edit's row keeps it referenced, and
+	// what was just written of it goes as its bytes did (compress_job.go).
+	mg.dropRemovedOriginal(hash)
 }
 
 // dropOrphan is dropIfOrphaned under hash's lock: whether it was orphaned,
@@ -2715,7 +2748,15 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 	existing, err := mg.dao.GetFileByHash(hash)
 	if err == sql.ErrNoRows {
 		// An edit's original, linked anywhere else: a path of its own.
-		if existing = mg.heldOriginal(hash); existing == nil {
+		var removed bool
+		if existing, removed = mg.originalOf(hash); existing == nil {
+			// A compressed file's original (compress_job.go): its bytes are
+			// gone, and the compressed content takes its place here too.
+			if removed {
+				if compressed := mg.compressedFor(hash); compressed != nil {
+					return mg.LinkFile(session, path, compressed.Hash, forceOverride, created, modified, cloudID)
+				}
+			}
 			return nil, devtext.New(i18n.DevFilesNoSuchHash())
 		}
 		err = nil

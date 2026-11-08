@@ -144,6 +144,9 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqGetFavourites{}):      demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqGetPhotoFaces{}):      demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqGetEditState{}):       demoAllow,
+	demoReq(&pb.ReqEnvelope_ReqListLargestFiles{}):   demoAllow,
+	demoReq(&pb.ReqEnvelope_ReqGetCompressOptions{}): demoAllow,
+	demoReq(&pb.ReqEnvelope_ReqGetCompressJob{}):     demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqGetReprocessStatus{}): demoAllow,
 
 	// Social, sharing and notifications, to read.
@@ -208,6 +211,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqEditImage{}):                 demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqRevertImage{}):               demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqEditVideo{}):                 demoRefuse,
+	demoReq(&pb.ReqEnvelope_ReqCompressFiles{}):             demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqSetUploadOnly{}):             demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqSetOutOfImages{}):            demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqRenamePerson{}):              demoRefuse,

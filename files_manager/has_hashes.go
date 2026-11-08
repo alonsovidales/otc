@@ -24,7 +24,9 @@ var reContentHash = regexp.MustCompile(`^[0-9a-f]{64}$`)
 // own format (its first bytes: OTS1 before release 164, OTS2 since), which
 // a blob cut short (or one that isn't there) never has. Each hash is
 // answered once; anything that isn't a SHA-256 in hex is left out, and so
-// is everything past the first cMaxHasHashes.
+// is everything past the first cMaxHasHashes. A compressed file's original
+// is never in it, though HasFile answers it held: the device keeps only
+// the compressed copy.
 func (mg *Manager) HasHashes(hashes []string) ([]string, error) {
 	seen := map[string]bool{}
 	var asked []string
@@ -41,7 +43,10 @@ func (mg *Manager) HasHashes(hashes []string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	// An edit's original is held whole too, with no path (edit_image.go).
+	// An edit's original is held whole too, with no path (edit_image.go) -
+	// but never a compressed file's (compress_job.go): its bytes are gone,
+	// and the phone's copy is the only one left. Left out here, before its
+	// blob is looked for, which isn't missing by mistake.
 	var pathless []string
 	for _, h := range asked {
 		if _, ok := sizes[h]; !ok {
@@ -55,7 +60,9 @@ func (mg *Manager) HasHashes(hashes []string) ([]string, error) {
 			log.Error("could not look for the originals of edits:", err)
 		}
 		for h, o := range held {
-			sizes[h] = o.Size
+			if !o.Removed {
+				sizes[h] = o.Size
+			}
 		}
 	}
 	found := []string{}

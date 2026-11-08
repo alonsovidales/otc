@@ -36,9 +36,16 @@ const cOrphanBatch = 4096
 
 // AfterListening is the start-up work that waits until bin/otc.go has the
 // listeners up, so the device answers while it runs: the sweep of what
-// interrupted work left (sweepOrphanedStorage), in the background.
+// interrupted work left (sweepOrphanedStorage), then the originals a
+// compress saved and didn't get to delete (finishRemovedOriginals), in the
+// background.
 func (mg *Manager) AfterListening() {
-	go mg.sweepOrphanedStorage()
+	go func() {
+		mg.sweepOrphanedStorage()
+		if cfg.HasSection("otc") && mg.dao != nil {
+			mg.finishRemovedOriginals()
+		}
+	}()
 }
 
 // sweepOrphanedStorage looks only at what was last modified before this
@@ -151,10 +158,10 @@ func sweepOrphans(storage, unenc string, links map[string]bool, before time.Time
 		})
 	}
 	if unenc != "" {
-		// A post's video copies being written (post_export.go), and a
-		// video's cut (edit_video.go).
+		// A post's video copies being written (post_export.go), a video's
+		// cut (edit_video.go) and its compressed copy (compress_job.go).
 		eachEntry(unenc, "posts' folder", func(e fs.DirEntry) { // i18n-ignore: names a folder in the log
-			if !e.Type().IsRegular() || !(strings.HasPrefix(e.Name(), ".post-") || strings.HasPrefix(e.Name(), ".cut-")) {
+			if !e.Type().IsRegular() || !(strings.HasPrefix(e.Name(), ".post-") || strings.HasPrefix(e.Name(), ".cut-") || strings.HasPrefix(e.Name(), cCompressTempPrefix)) {
 				return
 			}
 			if size, ok := old(e); ok {

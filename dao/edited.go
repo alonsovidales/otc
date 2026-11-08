@@ -5,6 +5,7 @@ package dao
 import (
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -17,16 +18,39 @@ import (
 // made from. That original has no path; it is kept - its blob, thumbnails,
 // tags and faces - while an edit of it is held, which is what
 // HashReferenced counts it by.
+//
+// A compress (files_manager/compress_job.go, release 177) is an edit too,
+// one that deletes its original's bytes: original_removed then says the
+// original is gone - nothing to revert to - while its hash stays, for the
+// phones and computers that hold it (HasFile answers it held, HasHashes
+// never counts it, LinkFile and the uploads answer the compressed file).
 
 // EditedContent is an edited_content row: Hash, made from Original (whose
 // mime and size these are). OriginalExt is the original's name's
 // extension as it was (".HEIC") when the edit changed it, else "".
+// OriginalRemoved is set when a compress deleted the original's bytes.
 type EditedContent struct {
-	Hash         string
-	Original     string
-	OriginalMime string
-	OriginalSize int64
-	OriginalExt  string
+	Hash            string
+	Original        string
+	OriginalMime    string
+	OriginalSize    int64
+	OriginalExt     string
+	OriginalRemoved bool
+}
+
+// cRemoved stands for edited_content's original_removed in the selects
+// that read it (removedQuery): a database from before release 177 has no
+// such column, and is read with 0 in its place - no original removed there.
+const cRemoved = "{original_removed}"
+
+// removedQuery runs query, which names original_removed as cRemoved, with
+// the column, or with 0 on a database without it.
+func (dao *Dao) removedQuery(query string, args ...any) (*sql.Rows, error) {
+	rows, err := dao.db.Query(strings.Replace(query, cRemoved, "`original_removed`", 1), args...)
+	if isUnknownColumn(err) {
+		return dao.db.Query(strings.Replace(query, cRemoved, "0", 1), args...)
+	}
+	return rows, err
 }
 
 // ErrNoEdits is the answer of the edit writes on a database without
@@ -37,8 +61,15 @@ var ErrNoEdits = errors.New("this database keeps no photo edits") // i18n-ignore
 // database has no edits).
 func (dao *Dao) EditOf(hash string) (*EditedContent, error) {
 	e := &EditedContent{Hash: hash}
-	err := dao.db.QueryRow("select `original_hash`, `original_mime`, `original_size`, `original_ext` from `edited_content` where `hash` = ?", hash).
-		Scan(&e.Original, &e.OriginalMime, &e.OriginalSize, &e.OriginalExt)
+	const query = "select `original_hash`, `original_mime`, `original_size`, `original_ext`, " + cRemoved + " from `edited_content` where `hash` = ?"
+	read := func(removed string) error {
+		return dao.db.QueryRow(strings.Replace(query, cRemoved, removed, 1), hash).
+			Scan(&e.Original, &e.OriginalMime, &e.OriginalSize, &e.OriginalExt, &e.OriginalRemoved)
+	}
+	err := read("`original_removed`")
+	if isUnknownColumn(err) {
+		err = read("0")
+	}
 	if errors.Is(err, sql.ErrNoRows) || isNoSuchTable(err) {
 		return nil, nil
 	}
@@ -48,14 +79,21 @@ func (dao *Dao) EditOf(hash string) (*EditedContent, error) {
 	return e, nil
 }
 
+// EditOrigin is what a listing says of an edit: its original
+// (File.original_hash) and whether a compress deleted it
+// (File.original_removed).
+type EditOrigin struct {
+	Hash    string
+	Removed bool
+}
+
 // OriginalsOf is, of hashes, the ones that are edits, each with its
-// original (File.original_hash in a listing). Empty on a database without
-// edits.
-func (dao *Dao) OriginalsOf(hashes []string) (map[string]string, error) {
-	out := map[string]string{}
+// original. Empty on a database without edits.
+func (dao *Dao) OriginalsOf(hashes []string) (map[string]EditOrigin, error) {
+	out := map[string]EditOrigin{}
 	for _, chunk := range hashChunks(hashes) {
 		ph, args := inPlaceholders(chunk)
-		rows, err := dao.db.Query("select `hash`, `original_hash` from `edited_content` where `hash` in ("+ph+")", args...)
+		rows, err := dao.removedQuery("select `hash`, `original_hash`, "+cRemoved+" from `edited_content` where `hash` in ("+ph+")", args...)
 		if isNoSuchTable(err) {
 			return out, nil
 		}
@@ -63,8 +101,9 @@ func (dao *Dao) OriginalsOf(hashes []string) (map[string]string, error) {
 			return nil, err
 		}
 		for rows.Next() {
-			var h, o string
-			if err := rows.Scan(&h, &o); err != nil {
+			var h string
+			var o EditOrigin
+			if err := rows.Scan(&h, &o.Hash, &o.Removed); err != nil {
 				rows.Close()
 				return nil, err
 			}
@@ -79,20 +118,24 @@ func (dao *Dao) OriginalsOf(hashes []string) (map[string]string, error) {
 	return out, nil
 }
 
-// HeldOriginal is an edit's original, by its type and size.
+// HeldOriginal is an edit's original, by its type and size. Removed: a
+// compress deleted its bytes (or is about to) - any of its edits' rows
+// saying so is enough, as the device must then never count it whole.
 type HeldOriginal struct {
-	Mime string
-	Size int64
+	Mime    string
+	Size    int64
+	Removed bool
 }
 
 // HeldOriginals is, of hashes, the ones kept as the original of an edit:
 // the device holds them whole though no path has them (HasFile,
-// HasHashes, LinkFile). Empty on a database without edits.
+// HasHashes, LinkFile) - unless Removed. Empty on a database without
+// edits.
 func (dao *Dao) HeldOriginals(hashes []string) (map[string]HeldOriginal, error) {
 	out := map[string]HeldOriginal{}
 	for _, chunk := range hashChunks(hashes) {
 		ph, args := inPlaceholders(chunk)
-		rows, err := dao.db.Query("select `original_hash`, `original_mime`, `original_size` from `edited_content` where `original_hash` in ("+ph+")", args...)
+		rows, err := dao.removedQuery("select `original_hash`, `original_mime`, `original_size`, "+cRemoved+" from `edited_content` where `original_hash` in ("+ph+")", args...)
 		if isNoSuchTable(err) {
 			return out, nil
 		}
@@ -102,10 +145,11 @@ func (dao *Dao) HeldOriginals(hashes []string) (map[string]HeldOriginal, error) 
 		for rows.Next() {
 			var h string
 			var o HeldOriginal
-			if err := rows.Scan(&h, &o.Mime, &o.Size); err != nil {
+			if err := rows.Scan(&h, &o.Mime, &o.Size, &o.Removed); err != nil {
 				rows.Close()
 				return nil, err
 			}
+			o.Removed = o.Removed || out[h].Removed
 			out[h] = o
 		}
 		err = rows.Err()
@@ -147,7 +191,7 @@ func (dao *Dao) EditedFolderFile(folder, content, stem, ext string) (*pb.File, e
 	args = append(args, content, content)
 	args = append(args, heldArgs...)
 	args = append(args, content, likeEscape(stem)+".%")
-	rows, err := dao.db.Query("select `f`.`hash`, `f`.`mime`, `f`.`created`, `f`.`modified`, `f`.`path`, `f`.`size`, `e`.`original_hash`, `e`.`original_ext` "+
+	rows, err := dao.removedQuery("select `f`.`hash`, `f`.`mime`, `f`.`created`, `f`.`modified`, `f`.`path`, `f`.`size`, `e`.`original_hash`, `e`.`original_ext`, "+cRemoved+" "+
 		"from `files` as `f` join `edited_content` as `e` on `e`.`hash` = `f`.`hash` where "+cond+
 		" and ((`e`.`original_hash` = ? and not exists (select 1 from `files` as `g` where `g`.`hash` = ? and "+held+"))"+
 		" or (`e`.`hash` = ? and `e`.`original_ext` <> '' and `f`.`path` like ? collate utf8mb4_bin)) order by `f`.`path`", args...)
@@ -164,7 +208,7 @@ func (dao *Dao) EditedFolderFile(folder, content, stem, ext string) (*pb.File, e
 		var size int64
 		var original, originalExt string
 		f := new(pb.File)
-		if err := rows.Scan(&f.Hash, &f.Mime, &created, &modified, &f.Path, &size, &original, &originalExt); err != nil {
+		if err := rows.Scan(&f.Hash, &f.Mime, &created, &modified, &f.Path, &size, &original, &originalExt, &f.OriginalRemoved); err != nil {
 			return nil, err
 		}
 		f.Created, f.Modified = timestamppb.New(created), timestamppb.New(modified)
@@ -202,6 +246,20 @@ const cNameTries = 100
 // favourite and ratings go to to (moved, not copied; a collection already
 // holding to keeps its own).
 func (dao *Dao) ApplyEdit(targets []EditTarget, from string, to *pb.File, edit *EditedContent) (done []*pb.File, err error) {
+	return dao.applyEdit(targets, from, to, edit, false)
+}
+
+// ReplaceEveryCopy is ApplyEdit for a compress, which deletes from's bytes
+// once it is done: every copy goes, or none does. When a file or a kept
+// version still holds from after the targets - a copy linked since they
+// were read, a version an upload-only folder kept - nothing is changed and
+// the answer is ErrOtherContent. from's rows are read for update, so no
+// copy can be added before the commit.
+func (dao *Dao) ReplaceEveryCopy(targets []EditTarget, from string, to *pb.File, edit *EditedContent) ([]*pb.File, error) {
+	return dao.applyEdit(targets, from, to, edit, true)
+}
+
+func (dao *Dao) applyEdit(targets []EditTarget, from string, to *pb.File, edit *EditedContent, whole bool) (done []*pb.File, err error) {
 	tx, err := dao.db.Begin()
 	if err != nil {
 		return nil, err
@@ -209,11 +267,7 @@ func (dao *Dao) ApplyEdit(targets []EditTarget, from string, to *pb.File, edit *
 	defer tx.Rollback()
 
 	if edit != nil {
-		if _, err = tx.Exec("insert ignore into `edited_content` (`hash`, `original_hash`, `original_mime`, `original_size`, `original_ext`, `edited`) values (?, ?, ?, ?, ?, ?)",
-			edit.Hash, edit.Original, edit.OriginalMime, edit.OriginalSize, edit.OriginalExt, time.Now().UTC()); err != nil {
-			if isNoSuchTable(err) {
-				return nil, ErrNoEdits
-			}
+		if err = insertEdit(tx, edit); err != nil {
 			return nil, err
 		}
 	}
@@ -243,6 +297,18 @@ func (dao *Dao) ApplyEdit(targets []EditTarget, from string, to *pb.File, edit *
 		SetFileSize(f, FileSize(to))
 		done = append(done, f)
 	}
+	if whole {
+		var files, versions int
+		if err = tx.QueryRow("select count(*) from `files` where `hash` = ? for update", from).Scan(&files); err != nil {
+			return nil, err
+		}
+		if err = tx.QueryRow("select count(*) from `file_versions` where `hash` = ? for update", from).Scan(&versions); err != nil {
+			return nil, err
+		}
+		if files+versions > 0 {
+			return nil, ErrOtherContent
+		}
+	}
 	if len(done) > 0 {
 		if err = moveMembershipsIfGone(tx, from, to.Hash); err != nil {
 			return nil, err
@@ -255,6 +321,23 @@ func (dao *Dao) ApplyEdit(targets []EditTarget, from string, to *pb.File, edit *
 		dao.markMonths(from, to.Hash)
 	}
 	return done, nil
+}
+
+// insertEdit records edit in tx (an edit's row is kept if it has one).
+// original_removed is written only when set: a database from before the
+// column still takes every edit that keeps its original, and one that
+// doesn't is ErrSchemaBehind there, with nothing changed.
+func insertEdit(tx *sql.Tx, edit *EditedContent) error {
+	cols, marks := "`hash`, `original_hash`, `original_mime`, `original_size`, `original_ext`, `edited`", "?, ?, ?, ?, ?, ?"
+	if edit.OriginalRemoved {
+		cols, marks = cols+", `original_removed`", marks+", 1"
+	}
+	_, err := tx.Exec("insert ignore into `edited_content` ("+cols+") values ("+marks+")",
+		edit.Hash, edit.Original, edit.OriginalMime, edit.OriginalSize, edit.OriginalExt, time.Now().UTC())
+	if isNoSuchTable(err) {
+		return ErrNoEdits
+	}
+	return schemaBehind(err)
 }
 
 // renameInTx runs update with the target's first name that is free (its
@@ -285,11 +368,7 @@ func (dao *Dao) AddEditCopy(file *pb.File, names func(n int) string, edit *Edite
 	}
 	defer tx.Rollback()
 	if edit != nil {
-		if _, err = tx.Exec("insert ignore into `edited_content` (`hash`, `original_hash`, `original_mime`, `original_size`, `original_ext`, `edited`) values (?, ?, ?, ?, ?, ?)",
-			edit.Hash, edit.Original, edit.OriginalMime, edit.OriginalSize, edit.OriginalExt, time.Now().UTC()); err != nil {
-			if isNoSuchTable(err) {
-				return nil, ErrNoEdits
-			}
+		if err = insertEdit(tx, edit); err != nil {
 			return nil, err
 		}
 	}

@@ -130,6 +130,10 @@ func everyAlertKey() map[string]struct {
 		"dev.alert.user.keeps_stopping":        {i18n.DevAlertUserKeepsStopping("kim", 5), "The user kim stopped 5 times in a row"},
 		"dev.alert.user.keeps_stopping_detail": {i18n.DevAlertUserKeepsStoppingDetail(), "The device keeps starting it again, waiting longer each time, up to 10 minutes. If it doesn't recover, send the logs from Settings > Logs."},
 
+		// New with Compress (no older English).
+		"dev.alert.compress.done":   {i18n.DevAlertCompressDone(3, "1.2 GB"), "3 files compressed, 1.2 GB freed"},
+		"dev.alert.compress.failed": {i18n.DevAlertCompressFailed(1), "1 file couldn't be compressed"},
+
 		"dev.alert.setaside.title":  {i18n.DevAlertSetasideTitle(name), name + " was set aside"},
 		"dev.alert.setaside.detail": {i18n.DevAlertSetasideDetail(), "the device stopped twice while processing it. It is kept as it is, without the thumbnail, tags or faces it was missing, and tried again after the next update."},
 

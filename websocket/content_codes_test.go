@@ -62,3 +62,35 @@ func TestGetFileTooLargeAnswersItsCode(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// Compress's codes: too many files at once (nothing read), no job, and a
+// revert of a compressed file - each with the device's words in the
+// request's language; the demo answers the reads and refuses the job.
+func TestCompressCodes(t *testing.T) {
+	ch, _ := ownerWithLibrary(t)
+	resp, _ := ch.processMessage(&pb.ReqEnvelope{Id: 1, Lang: "es", Payload: &pb.ReqEnvelope_ReqGetCompressOptions{
+		ReqGetCompressOptions: &pb.GetCompressOptions{Items: make([]*pb.CompressItem, 501)},
+	}})
+	if resp == nil || !resp.Error || resp.ErrorCode != cCodeTooMany || resp.ErrorMessage != i18n.DevFilesCompressTooMany().Render("es") {
+		t.Errorf("501 items: %+v", resp)
+	}
+	resp, _ = ch.processMessage(&pb.ReqEnvelope{Id: 2, Payload: &pb.ReqEnvelope_ReqGetCompressJob{ReqGetCompressJob: &pb.GetCompressJob{}}})
+	if resp == nil || !resp.Error || resp.ErrorCode != cCodeNotFound || resp.ErrorMessage != "there is no compress job" {
+		t.Errorf("no job: %+v", resp)
+	}
+	resp = &pb.RespEnvelope{}
+	editError(resp, "en", filesmanager.ErrOriginalRemoved)
+	if resp.ErrorCode != cCodeOriginalRemoved || resp.ErrorMessage != "this file was compressed and its original deleted, so there is nothing to go back to" {
+		t.Errorf("a revert of a compressed file: %+v", resp)
+	}
+	for req, want := range map[*pb.ReqEnvelope]demoRule{
+		{Payload: &pb.ReqEnvelope_ReqListLargestFiles{}}:   demoAllow,
+		{Payload: &pb.ReqEnvelope_ReqGetCompressOptions{}}: demoAllow,
+		{Payload: &pb.ReqEnvelope_ReqGetCompressJob{}}:     demoAllow,
+		{Payload: &pb.ReqEnvelope_ReqCompressFiles{}}:      demoRefuse,
+	} {
+		if got := demoRules[demoReq(req.Payload)]; got != want {
+			t.Errorf("%T: demo rule %v, want %v", req.Payload, got, want)
+		}
+	}
+}

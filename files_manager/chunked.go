@@ -536,22 +536,36 @@ func (mg *Manager) FinishUpload(ses *session.Session, id, sha string, owner any)
 	}
 
 	// Into place before the row exists, as UploadFile: a restart between
-	// the two then leaves nothing, never a listed file without content.
-	target := blobPath(hash)
-	unlock := lockBlob(hash)
-	err = up.w.CommitAs(target)
-	unlock()
-	if err != nil {
-		mg.alert(i18n.DevAlertFileNotSaved, up.key.path, err)
-		return nil, err
+	// the two then leaves nothing, never a listed file without content. A
+	// compressed file's original never goes there again (compress_job.go):
+	// registerUpload answers it with the compressed file.
+	removed := mg.compressedFor(hash) != nil
+	if removed {
+		up.w.Abort()
+	} else {
+		target := blobPath(hash)
+		unlock := lockBlob(hash)
+		err = up.w.CommitAs(target)
+		unlock()
+		if err != nil {
+			mg.alert(i18n.DevAlertFileNotSaved, up.key.path, err)
+			return nil, err
+		}
 	}
 	known := mg.contentKnown(hash)
 	file, write, err := mg.registerUpload(ses, up.key.path, hash, mimetype.Detect(up.head).String(), up.size(), up.force, up.created, up.modified, up.cloudID)
 	if err != nil {
 		mg.removeBlobIfUnused(hash)
+		if !removed {
+			mg.dropRemovedOriginal(hash)
+		}
 		return file, err
 	}
 	if !write {
+		if !removed {
+			// Compressed while this was sent: its bytes go again.
+			mg.dropRemovedOriginal(hash)
+		}
 		return file, nil
 	}
 	if !mg.hasBlob(hash) {

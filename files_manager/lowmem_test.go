@@ -581,3 +581,16 @@ func TestWaitForTaggerLoadsTheIdleModel(t *testing.T) {
 		t.Errorf("%d loads, want 1", n)
 	}
 }
+
+// Compress offers no video on the 2 GB tier: a 4K encode alone took ffmpeg
+// past what such a board has beside the device.
+func TestVideoCompressNeedsMemory(t *testing.T) {
+	for _, c := range []struct {
+		total int64
+		want  bool
+	}{{0, true}, {2 << 30, false}, {cUsersBelow - 1, false}, {cUsersBelow, true}, {pi8GB, true}} {
+		if got := (MemoryProfile{Total: c.total, Low: c.total < cLowMemoryBelow}).VideoCompressAllowed(); got != c.want {
+			t.Errorf("%d bytes: %v, want %v", c.total, got, c.want)
+		}
+	}
+}

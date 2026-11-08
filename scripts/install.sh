@@ -1587,6 +1587,11 @@ SQL
     mysql "$db" <<'SQL'
     CREATE TABLE IF NOT EXISTS edited_content (`hash` VARCHAR(64) NOT NULL, `original_hash` VARCHAR(64) NOT NULL, `original_mime` VARCHAR(150) NOT NULL, `original_size` BIGINT NOT NULL, `original_ext` VARCHAR(16) NOT NULL DEFAULT '', `edited` DATETIME NOT NULL, PRIMARY KEY (`hash`), KEY (`original_hash`)) ENGINE=InnoDB;
 SQL
+    # Release 177 (updates/177.sh): a compressed file's original, whose
+    # bytes the device deleted (see db.sql's edited_content).
+    mysql "$db" <<'SQL'
+    ALTER TABLE edited_content ADD COLUMN IF NOT EXISTS `original_removed` TINYINT(1) NOT NULL DEFAULT 0;
+SQL
 }
 
 apply_schema_migrations otc

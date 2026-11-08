@@ -145,7 +145,15 @@ func shrinkTo(img image.Image, maxPixels int64) image.Image {
 	if int64(w)*int64(h) <= maxPixels {
 		return img
 	}
-	k := shrinkFactor(w, h, maxPixels)
+	return shrinkBy(img, shrinkFactor(w, h, maxPixels))
+}
+
+// shrinkBy is img brought down by the whole factor k (2 or more) as
+// shrinkTo does it: each pixel of the result the average of the k x k it
+// stands for.
+func shrinkBy(img image.Image, k int) image.Image {
+	b := img.Bounds()
+	w, h := b.Dx(), b.Dy()
 	dw, dh := (w+k-1)/k, (h+k-1)/k
 	dst := image.NewNRGBA(image.Rect(0, 0, dw, dh))
 	if p, ok := img.(*image.YCbCr); ok {

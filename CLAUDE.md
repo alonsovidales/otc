@@ -639,7 +639,7 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     app's backup putting it back). The same holds for the edit's own hash at the photo's old name
     when the edit renamed it (an iPhone relinking by cloud id). Nothing is stored twice, and the
     store apps, which know nothing of edits, are covered without a change. Linked anywhere else,
-    the original is an ordinary photo again (`heldOriginal` gives LinkFile its MIME and size).
+    the original is an ordinary photo again (`originalOf` gives LinkFile its MIME and size).
     The computers' backups (otc-sync's `engine.reconcile`, the Mac's `SyncModel.reconcile`) also
     count a local file backed up when the device's file at its path is its edit
     (`File.original_hash` = its hash), or when an edit that renamed it holds its stem
@@ -700,8 +700,116 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     `dev.files.edit_failed` with `cut_failed`; a revert with nothing to undo on a video says
     `dev.files.video_not_edited`. Tests: `edit_video_test.go` and `TestCutAndRevertVideoMySQL`
     (a real cut with the Mac's ffmpeg against MariaDB, as the photo tests).
+  - **Compress** (release 177, `files_manager/compress.go` the options, `compress_job.go` the job,
+    `dao/compress.go`, column `edited_content.original_removed` - `177.sh` and install.sh's block;
+    the owner asked to free space from Settings › Largest files and Images): a photo or video is
+    re-encoded smaller in place of every copy, saved as an edit is, and then **the original's
+    bytes are deleted**; its hash stays in the edit's row with `original_removed = 1`, the record
+    the phones and computers that keep the original are answered by. There is no revert.
+    - **Requests:** `GetCompressOptions {items: [{path, hash}]}` (167, at most 500, else
+      `too_many`) -> `CompressOptions` (resp 78): per item, in the order asked, its size, copies
+      and `choices` (preset + estimated size, strongest first), or `reason`/`reason_code`, decided
+      in this order (`refusal`): `changed` (the path holds another hash, or none; the words of
+      `dev.files.content_changed`), `not_media` (by type, or the extension when the type is
+      `application/octet-stream`), `upload_only` (any path of the content under an upload-only
+      folder), `kept_version` (a `file_versions` row holds it), `missing` (no blob),
+      `nothing_to_gain` (no preset at least 15% smaller, or a database without the column).
+      `CompressFiles {tasks: [{path, hash, preset}]}` (168) -> `CompressJob` (resp 79) at once;
+      `GetCompressJob {id}` (169; "" the current or last) -> the same, `not_found` when there is
+      none. Demo: the two reads and the options allowed, CompressFiles refused. `RevertImage` of a
+      compressed file is `original_removed` (`dev.files.original_compressed`); `EditState.
+      original_removed` (3) and `File.original_removed` (17) go with `original_hash` everywhere
+      (`setOriginals`, `EditedFolderFile`, saveEdit's answer).
+    - **Presets** (from the header only - photos: `jpeg.DecodeConfig`, the PNG IHDR and its chunks
+      before IDAT, the HEIF primary item's `ispe`, WebP's flags, read from the blob's first 1 MB
+      segment, the whole photo only when the header runs past it; videos: ffprobe over the loopback
+      stream, four at a time; cached by hash for the job, 1000 at most - `compressProbes`):
+      `video_720p` (shorter side over 800), `video_1080p` (over 1200), `video_hevc` (a codec other
+      than hevc, av1, vp9); estimate = duration x (video target + sound) / 8 + 1%, targets for 30 fps
+      HEVC 3 and 6 Mbps scaled by min(2, max(1, fps/30)) and never over the source's own rate,
+      `video_hevc` 0.55 x the source's, sound its own rate when AAC (copied) else 160 kbps. Only an
+      MP4 or MOV (an M4V is an MP4) - ffmpeg's 3GP muxer refuses HEVC, so a 3GP, an MKV, a WebM get
+      nothing; none at all when the device's ffmpeg has no libx265 (`hasX265`, asked once), nor on
+      the 2 GB tier (`MemoryProfile.VideoCompressAllowed`: ffmpeg alone took 0.7-1.2 GB on 4K).
+      `photo_12mp` over 13 MP (12e6 x 0.32 bytes), any photo the edits decode; `jpeg_resave` a JPEG
+      over 0.45 bytes a pixel (pixels x 0.24); `png_to_jpeg` (pixels x 0.30). A PNG or WebP with a
+      transparent pixel gets nothing (a JPEG has none): a PNG whose header allows it is decoded to
+      see, within the decode budget. No camera raws (`editKindOf`).
+    - **The job:** one per instance, in memory (`compressState`): tasks sent while it runs join
+      it (a path waiting or running isn't queued twice); a finished one is kept until the next
+      starts; a restart forgets the tasks not started. One worker, a task at a time, listed in
+      Status as `compress` (`BackgroundCompress`, `dev.status.background.compress`), each through
+      `beginProcessing("", jobTranscode)` and a video in `transcodeSlots`. Each task checks again
+      (the hash - an empty one is `changed` - upload only, versions, the blob, the preset still
+      offered: `dev.files.compress_unknown_preset`), checks room for 1.2 x the estimate, then: a
+      video with ffmpeg into a plain `.compress-*` in unenc-storage-path (the orphan sweep takes
+      one a power cut left) - `-map` the picture and each sound ffmpeg knows, `libx265 -preset
+      faster -b:v T -maxrate 1.5T -bufsize 2T -tag:v hvc1`, `scale` of the shorter side to 1080/720
+      on the frames as shown (ffmpeg turns them upright as it re-encodes: a phone's portrait video
+      comes out 1080x1920 with no rotation), `yuv420p10le` for a 10-bit source with its
+      primaries/transfer/matrix, AAC copied (`-c:a:N copy`, else `aac 160k`), `-map_metadata 0
+      -movflags +faststart+use_metadata_tags` (date and place kept), the decoder's threads as
+      `ffmpegInput` sets them (x265's pool left to its own size: `pools=N` measured no less memory
+      and asks for a NUMA affinity a container refuses), progress from `-progress pipe:1` into
+      `percent` (never backwards),
+      40 s a second of video, 30 min at least (`compressVideoArgs`, `compressRun`); a photo in
+      memory (`renderCompress`: `holdDecode`, `decodeHeic`/`decodeFull`; `photo_12mp` by a whole
+      factor with `shrinkBy` - the analysis' box, on the YCbCr - when it is 2 or more, then
+      Catmull-Rom the rest of the way, then turned upright, JPEG q88; `jpeg_resave` q82 and
+      `png_to_jpeg` q90 keep the pixels and their orientation tag; the EXIF through `editedExif`,
+      the ICC from APP2, a HEIF's `colr` or a PNG's `iCCP`/`eXIf` - `pngMetadata`). A result over 95%
+      of the original is `skipped` (`dev.files.compress_not_smaller`). Then `saveEdit` with
+      `removesOriginal`: `dao.ReplaceEveryCopy` - every path of the content in one transaction, and
+      when a file or kept version still holds it after (a copy linked meanwhile) nothing changes,
+      `changed`; the edit's row is written with `original_removed = 1` (only then is the column
+      named, so a database without it still takes ordinary edits; one that hasn't it refuses the
+      compress); an edit's source names its first original; faces copied scaled (`scaledFace`, in
+      the analysis' pixels; a video's left to the analysis); collections, Favourites and ratings
+      moved; `enqueueMedia`. Last `dropRemovedOriginal(original)`: under the hash's lock, only for
+      content an edit's row marks removed and that no `files`/`file_versions` row holds
+      (`dao.ContentHeld`; `HashReferenced` always says yes while the row names it) - every edit of
+      it marked removed (`SetOriginalRemoved`), then its blob, thumbnails, tags, faces, place,
+      measures, embedding and pending analysis deleted; held after all, its edits are ordinary
+      again (revertible). An intermediate edit's blob and row go with saveEdit's
+      `removeBlobIfUnused`. `saved` += what was freed less the result. Processing of the original
+      in flight when it went is cleaned by `dropIfOrphaned`, and a compress a restart cut between
+      the save and the delete is finished at the next start (`finishRemovedOriginals`, after the
+      orphan sweep).
+    - **Alerts** at a job's end, never pushed (`dao.AddStandaloneAlert`, a standalone Error row
+      with lines): `dev.alert.compress.done` (count, the bytes freed as `i18n.FormatBytes` in the
+      language of the request that started the job) and/or `dev.alert.compress.failed` (count),
+      one line a failed file - `dev.alert.file.not_processed` with the file's name and the reason's
+      key, "14:05 IMG_1.JPG could not be processed: <why>" (no catalog key names a file alone).
+      Skipped files are in neither.
+    - **An original that is gone** (`compressedFor` = `dao.RemovedOriginalEdit`: the newest edit
+      marked removed, at its first path, or as a version keeps it; nil while a file holds the
+      original): `HasFile` answers true (the phones don't send it); `HasHashes` never counts it,
+      skipped before `wholeBlob` (Free up space never deletes the phone's copy); `originalOf`
+      says it is removed, never held; `LinkFile` answers `editedAlready` in its folder and links the compressed
+      content anywhere else, never "no such hash"; `UploadFile` doesn't write it (and
+      `FinishUpload` aborts its sealed file) when it is such an original, `registerUpload`
+      answers as LinkFile, and bytes written by an upload that raced the compress are removed
+      (`dropRemovedOriginal`). An edit of a compressed file keeps the mark (`saveEdit` carries
+      `prev.OriginalRemoved`).
+    - **Tests:** `compress_test.go` (estimates table, kinds, reasons, the token, ffprobe's answer,
+      ffmpeg's arguments, headers, the PNG's metadata, the render, the shrink) and
+      `compress_mysql_test.go` (`TestCompressMySQL`: a 4K HLG clip held upright and a 48 MP JPEG
+      through the options and the job against MariaDB with the Mac's ffmpeg - every copy, the
+      originals' blobs and thumbnails gone, faces, collections, the alerts, HasFile/HasHashes, an
+      upload whole and in chunks, LinkFile, Revert refused, an edit after; and the start's finish),
+      `dao/largest_mysql_test.go`, `updater/release177_test.go`. End to end on 2026-11-09 in a
+      throwaway image of the branch (Debian's ffmpeg 7.1 with libx265; held to 5.75 GB and 4 CPUs
+      of the Mac's, memory locked): a 45 s 4K HEVC recording at 40 Mbps to 1080p in 28-34 s,
+      227 MB -> 34.9 MB (estimated 34.8), ffmpeg at ~690 MB and the container at 1.42 GB; a 3 s
+      4K HLG clip held upright to 1080x1920 Main 10 with its colours, ffmpeg at 1.16 GB at its
+      peak; twelve 48 MP HEICs at 2-4 s each, 15 MB -> 1.37 MB, the device at ~530 MB; the 17
+      files' options in 70-100 ms; 370 MB freed; the originals' blobs and thumbnails gone,
+      HasFile true, HasHashes none, an original sent again in chunks answered with its compressed
+      file and stored nowhere, Revert `original_removed`; no OOM. A Pi 5's cores are several
+      times slower than these.
   - **Listings:** ListFiles, SearchFiles and SearchPhotos pages set `File.original_hash` (16)
-    (`setOriginals`, one query, a failure only logged) for the viewers' Revert to original.
+    (`setOriginals`, one query, a failure only logged) for the viewers' Revert to original, and
+    `original_removed` (17) on a compressed file.
   - **Tests:** `edit_image_test.go` (the maths, EXIF, ICC, formats) and
     `edit_image_mysql_test.go`, against a real MariaDB: `OTC_TEST_DEVICE_MYSQL_DSN=user:pass@tcp(host:port)/`,
     a user that may create databases (it makes one from db.sql and drops it).
@@ -1699,6 +1807,21 @@ start takes its file.
   Lima VM): 22 ms at the root, where listing the root takes 114 ms, and 22 ms for a 45k-file
   folder. The answer has no upload-only or kept-out flags: the apps join it with their ListFiles
   listing by (path, is_dir).
+  **Largest files** (release 177, Settings › Largest files; `files_manager/largest.go`,
+  `dao/largest.go`): `ListLargestFiles{after, limit}` (166) answers `ListOfFiles` - every content
+  in the library once however many paths hold it, the largest first, at the same size by hash,
+  as its row at its first path in byte order (`dao.FilesOfHashes`), with `File.copies` and
+  `original_hash`/`original_removed` (`setOriginals`, for the viewer's Revert), without content
+  (thumbnails by path, as Files' grid). Every file counts - documents, folders kept out of Images -
+  and older versions don't. Keyset pages (`limit` 1-200, 0 is 50): the token is `<size>:<hash>`
+  of the last content the page read, "" once the list is over; a token that doesn't parse is the
+  first page, never an error, and the hash is taken as it is (one that isn't a SHA-256 doesn't
+  stop the pages). One `select hash, max(size) s from files group by hash having s < ? or (s = ?
+  and hash > ?) order by s desc, hash limit ?` a page: there is no index on size (release 143),
+  so each page groups the hash index and sorts. Measured in the Lima VM (MariaDB 11.8, 170k rows,
+  150k contents, `TestLargestFilesLargeMySQL` with `OTC_TEST_BROWSE_LARGE=1`): 110-120 ms a page
+  of 50 (the first 290 ms) - a Pi is 3-4x slower; an index on (hash, size) made it 67 ms, one on
+  (size, hash) read as a keyset over rows 47 ms. The demo allows it.
   **Logs** (Settings > Logs, web/iOS/Android, main instance only): `GetLogs{source "app"|"update",
   offset, max_bytes, wait_seconds}` reads the device's log (`[logger] log_file`) or the update log
   (`/var/log/otc-update/update.log`) in whole lines; with `wait_seconds` and nothing new the device
@@ -3814,6 +3937,27 @@ under Architecture.
   Replace the `<video>` is keyed by path and hash, so the new content streams anew; the tile has
   no picture until the device's thumbnail comes. A video's Revert says `video_revert_text`.
 
+Largest files and Compress on the web (2026-11-08; rules in `components/compress.ts`, `node
+web/scripts/compress-test.mjs`, cases C1-C13 the dialog, J1-J6 the job, L1-L10 the list, R1-R2 the
+viewer - the phones' `CompressTests.swift` and `CompressTest.kt` use the same ids; device side under
+Photo edits' Compress). Settings › Largest files (after Background work, on any device) opens
+`LargestFiles.tsx` (its own chunk) as a back-stack layer over Settings: `ListLargestFiles` 50 a page
+with `usePageRetry`, a row per content (small thumbnail by path, else `FileTypeIcon`; name, folder,
+size, "in N places"), `largest.needs_update` on `unknown_payload`; photos and videos open in
+`MediaViewer` with `copies`, other files as Files opens them (`fileOpen.ts`, Files' helpers moved
+there). A checkbox or a touch long press picks; the bar has Compress alone. Images' selection bar has
+Compress before Delete (breakpoints re-measured in German: labels from 1024 px, 1240 in a
+collection, 1600 among one person's photos, 1840 both). `CompressDialog.tsx` (its own chunk; the
+demo refuses at the press) asks `GetCompressOptions` for the picked photos and videos only, each
+path once, the first 500 (`compressItems`); a videos radio (1080p, 720p, HEVC, Leave as they are;
+default 1080p, else HEVC, else 720p; an item not offered the choice falls back to HEVC), a switch per
+photo preset, `compress.row` sums, the not-offered list with the device's reasons, the total, the
+warning and the slow note. `CompressFiles` starts the job and clears the selection; `compressJob.ts`
+follows it (`GetCompressJob` every 2 s while the dialog shows it, every 10 s while the page that
+started it is open; `watchCompress` forgets it at the end of a sign-in), and each done result's File
+replaces its tile or row; skipped counts as not compressed. `ViewerItem.originalRemoved` hides Revert
+and Info shows `compress.compressed_note`.
+
 Newer photos above a jump on the web (issue #194, `components/newerPhotos.ts`,
 `node web/scripts/newer-photos-test.mjs`): after a scrubber jump (`cutoff`), `PhotoGallery` keeps an
 upward cursor - `upRef` (token, end), `upMapRef` (its `have`; `mapRef` is the jump's search alone,
@@ -4661,7 +4805,23 @@ folder is removed or the device changes. A backup's `SetUploadOnly` is re-sent u
 and that is forgotten only when the device or password changes. A two-way record entry
 `kept-on-device:<hash>` (a delete the device refused) is never a plain hash: read it only through
 `baselinesFor` / `SyncPaths.baselines` (which also drop it once the folder is no longer upload
-only). A two-way folder whose Upload only request isn't acknowledged sends no device deletes. A sync record counts as saved only after a
+only). A two-way folder whose Upload only request isn't acknowledged sends no device deletes.
+**Compress (computers keep their originals, owner 2026-11-08):** a two-way device entry listed with
+`original_removed` whose `original_hash` is the local hash, or the record's plain entry, is the same
+file: nothing is downloaded or sent, and the record keeps `compressed:<hash here>:<hash on device>`
+(read only through `recordBaselines`/`baselinesFor` / `SyncPaths.baselines`, written back by
+`recordEntry`). A new version here goes up and replaces the copy; a later change of the copy (an
+edit) comes down. A copy the device saved under another name (x.png -> x.jpg, "x (2).jpg", a HEIC ->
+x.JPG) is paired with the original here (`renamedOriginals`, same folder, `stemOf`/`originalStems`
+as the device's `splitExt`/`renamedNames`) and planned as one file at the name here; changed here,
+the copy is deleted first and the new version goes up under the name here; the copy edited, deleted
+or renamed on the device breaks the pair (it comes down, the original goes to the trash). An upload
+whose content is the original of a listed compressed copy links the copy instead (`linkCopy`: the
+device would answer it with the copy and store nothing). Two-way passes run device deletes last.
+Backups count a file as backed up when the device's file at its path, or under the name an edit or
+compress gave it ("(n)" included), was made from it. Folder identity and both mass-deletion guards
+treat a compressed copy as its original. Tests: engine `compress_test.go`, the Mac's
+`SyncPathsTests` (same case names). A sync record counts as saved only after a
 successful write. In both WSClients a superseded connection attempt's outcome is dropped, and a
 rejected password is reported before the socket closes. `otc-sync flash-device` refuses a disk
 whose `--size`/`--name` changed. The Mac's unit tests are hosted by the real app (`TEST_HOST`), so
@@ -5685,6 +5845,25 @@ nothing more; a request that can't be made or launched says `app.photos.delete_p
 the phone, a photo goes back to the device only with Sync All or a one-off pass, as any photo it no
 longer holds. Free Up Space itself is unchanged (`held` is `internal` now).
 
+**Largest files and Compress on Android** (2026-11-08; `ui/files/LargestFiles.kt` +
+`LargestFilesView.kt`, `ui/files/Compress.kt` (`CompressRules`, `CompressModel`) +
+`CompressDialog.kt`; tests `CompressTest.kt`, the web's case ids; debug-only
+`CompressPreviewActivity`, `--es show largest|compress|bar`, `--es device demo|old|slow`).
+Settings › Largest files (`LargestFilesSection`, after In progress) opens a full-screen list: pages
+of 50 as its end nears, a failed page asked again 1 s doubling to 10 s, `unknown_payload` ->
+`largest.needs_update`; a row per content (small thumbnail by path, else `FileTypeIcon`; name,
+folder, size, "in N places"); photos and videos in a viewer of their own (copies set), other files as
+Files opens them (`fetchToPreview`, shared with Files); what the viewer deleted leaves at once, and
+the list is read again from the top as far as it was shown (`reread`, at most 1000 rows) after an
+edit, a delete or a job that compressed something. `SelectionActionBar`'s Share, Download and Delete
+are optional: the list's bar has Compress alone, Images' has it before Delete. The dialog's model is
+one per screen and outlives a rotation: the web's rules (first 500 photos and videos, the radio and
+switches, the sums, the reasons); Compress sends CompressFiles (no answer: `GetCompressJob("")` is
+asked before saying it failed), clears the selection and follows the job every 2 s while the dialog
+shows it and every 10 s while Images or the list is in front, never in the background; each done
+result swaps its tile (`compressed` -> `swapItem`) or row. `Item.originalRemoved`: no Revert
+(`PhotoEdit.revertable`), Info says `compress.compressed_note`.
+
 **Newer photos above a jump on Android** (issue #194): a jump sets `State.upOn` and a second
 cursor (`upToken`, `upHave`, `upEnd`; `askUp`/`fetchUpPage`, `upFailed`'s backoff, `retryUp`, a
 Wake); the downward `have` is `downHave`, never `items.size`. The room above (`roomAbove`,
@@ -5771,6 +5950,20 @@ the full-screen viewer takes the viewer away. Delete from Phone fetches the asse
 `PHAssetChangeRequest.deleteAssets` (iOS asks; Recently Deleted keeps them 30 days; with iCloud Photos the
 deletion reaches iCloud and the other devices, which the text says); done, `AssetSyncCache.resolve`;
 `PHPhotosError.userCancelled` says nothing (`declined`), any other error `app.photos.delete_phone.failed`.
+
+**Largest files and Compress on iOS** (2026-11-08; `Compress.swift`: `CompressRules`,
+`CompressModel`, `CompressSheet` and Images' glue; `LargestFiles.swift`: the list's rules, model,
+screen and Settings section; tests `CompressTests.swift`, the web's case ids). Android's rules: Settings
+› Largest files after In progress (heading, "Show Largest Files", the hint as the footer); rows with
+their checkbox (or a long press), a thumbnail by path (`GridThumbLoader`, Images' size and cache) or
+`FileTypeIcon`, name, folder, "in N places" and size; pages of 50 asked 15 rows before the end, a
+failed one with `PageRetry` and Try again; `reread()` in place after a pull, a viewer edit or a job
+that compressed something; a photo or video opens in the shared viewer, anything else in Quick Look.
+`SelectionActionBar`'s Share/Download/Delete are optional; Images has Compress before Delete, except
+among one person's photos (a ninth item cut German labels). The job is asked every 2 s while the
+sheet shows and every 10 s while the screen holds the model (`compressFollow`); each done result
+replaces its item. `Item.originalRemoved`: no Revert to Original, and Info opens with
+`compress.compressed_note`.
 
 **Newer photos above a jump on iOS** (issue #194, `NewerPhotos.swift`, `NewerPhotosTests.swift`):
 after a jump `PhotoGalleryVM` keeps a second cursor (`upToken`, `upEnd`, `upLoading`,

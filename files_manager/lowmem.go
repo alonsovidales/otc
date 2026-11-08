@@ -172,6 +172,14 @@ func (p MemoryProfile) ExtraUsersAllowed() bool {
 	return p.Total == 0 || p.Total >= cUsersBelow
 }
 
+// VideoCompressAllowed says whether Compress offers videos here: not under
+// cUsersBelow (the 2 GB tier), where ffmpeg's HEVC encode of a 4K video
+// alone - 0.7-1.2 GB measured - is more than the board has beside the
+// device. Photos are offered everywhere; an unknown size offers both.
+func (p MemoryProfile) VideoCompressAllowed() bool {
+	return p.Total == 0 || p.Total >= cUsersBelow
+}
+
 // GoMemoryLimit is the Go runtime's soft limit in low-memory mode.
 func (p MemoryProfile) GoMemoryLimit() int64 {
 	return int64(float64(p.Total) * cLowGoMemoryShare)
