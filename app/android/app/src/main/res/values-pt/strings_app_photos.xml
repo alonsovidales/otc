@@ -353,6 +353,8 @@
         <item quantity="many">%1$s fotos removidas desta pessoa</item>
         <item quantity="other">%1$s fotos removidas desta pessoa</item>
     </plurals>
+    <string name="app_photos_person_removed_video">Vídeo removido de \u2068%1$s\u2069</string>
+    <string name="app_photos_person_removed_video_unnamed">Vídeo removido desta pessoa</string>
     <string name="app_photos_places_area_chip">Zona do mapa</string>
     <string name="app_photos_places_back_to_map">Voltar ao mapa</string>
     <string name="app_photos_places_close_area">Fechar a zona do mapa</string>
@@ -415,6 +417,14 @@
     <string name="app_photos_viewer_delete_title">Eliminar esta foto?</string>
     <string name="app_photos_viewer_delete_video">Eliminar vídeo</string>
     <string name="app_photos_viewer_delete_video_title">Eliminar este vídeo?</string>
+    <string name="app_photos_viewer_face_add">Adicionar uma pessoa</string>
+    <string name="app_photos_viewer_face_add_all">Já estão incluídas todas as pessoas encontradas até agora.</string>
+    <string name="app_photos_viewer_face_add_failed">Não foi possível adicionar esta pessoa. Tenta novamente.</string>
+    <string name="app_photos_viewer_face_add_find">Procurar por nome</string>
+    <string name="app_photos_viewer_face_add_no_match">Ninguém tem esse nome.</string>
+    <string name="app_photos_viewer_face_add_none">Ainda não foi encontrado ninguém.</string>
+    <string name="app_photos_viewer_face_add_title_photo">Quem está nesta foto?</string>
+    <string name="app_photos_viewer_face_add_title_video">Quem está neste vídeo?</string>
     <string name="app_photos_viewer_favourite_add">Adicionar aos Favoritos</string>
     <string name="app_photos_viewer_favourite_failed">Não foi possível alterar os Favoritos. Tenta de novo.</string>
     <string name="app_photos_viewer_favourite_remove">Remover dos Favoritos</string>

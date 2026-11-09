@@ -65,6 +65,8 @@
   "dev.files.nothing_to_stream": {"text": "nada para reproduzir"},
   "dev.files.original_compressed": {"text": "este ficheiro foi comprimido e o original foi eliminado, por isso não é possível voltar ao original"},
   "dev.files.out_of_images_list_failed": {"text": "erro ao listar as pastas fora de Imagens: {detail}"},
+  "dev.files.person_add_faces_off": {"text": "o reconhecimento facial está desativado neste dispositivo"},
+  "dev.files.person_add_gone": {"text": "essa foto ou esse vídeo já não está neste dispositivo"},
   "dev.files.person_cover_image": {"text": "essa imagem não pode ser usada: tem de ser um JPEG com 256 KB no máximo"},
   "dev.files.person_cover_no_face": {"text": "essa foto não tem nenhum rosto desta pessoa"},
   "dev.files.person_gone": {"text": "essa pessoa já não está neste dispositivo"},

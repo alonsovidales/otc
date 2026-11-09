@@ -1171,6 +1171,15 @@
     "args": [["count", "count"]],
     "note": "app.photos.person.removed for a person without a name. {count} is how many photos."
   },
+  "app.photos.person.removed_video": {
+    "text": "Removed this video from {name}",
+    "args": [["name", "user"]],
+    "note": "Note at the foot of the viewer once a person added to a video by hand was taken off it (the × beside them in the video's Info). {name} is the person's name. The photo form is app.photos.person.removed."
+  },
+  "app.photos.person.removed_video_unnamed": {
+    "text": "Removed this video from this person",
+    "note": "app.photos.person.removed_video for a person without a name."
+  },
   "app.photos.places.area_chip": {
     "text": "Map area",
     "note": "Chip over the grid in Images once a group of photos on the map was opened: the grid shows only the photos and videos taken in that area of the map. Tapping it shows the map again; its × shows the photos of every place again (app.photos.places.close_area).",
@@ -1436,6 +1445,38 @@
     "note": "Title of the confirmation asked before deleting the video open in the full-screen viewer (Images, or a video opened from Files) from the device. Buttons: Delete Video and Cancel. The video form of app.photos.viewer.delete_title; the web says the same (web.images.viewer.delete_video_title).",
     "review": "required",
     "reviewed": "claude-backtranslation 2026-10-14 #adc476b7"
+  },
+  "app.photos.viewer.face_add": {
+    "text": "Add a person",
+    "note": "Button at the end of the People block of the viewer's Info (the photo or video open full screen) (the people in the photo or video open, each with their face and name): opens the list of people (the title is app.photos.viewer.face_add_title_photo or app.photos.viewer.face_add_title_video) to add someone who is in it by hand - a photo face recognition didn't find them in, or a video, where faces aren't looked for. Also its screen-reader name."
+  },
+  "app.photos.viewer.face_add_all": {
+    "text": "Everyone found so far is in it already.",
+    "note": "In the list opened by Add a person (app.photos.viewer.face_add) when every person face recognition has found (People) is already in the photo or video, so there is no one left to add. \"It\" is the photo or video: word it to fit either."
+  },
+  "app.photos.viewer.face_add_failed": {
+    "text": "Couldn't add this person. Try again.",
+    "note": "Error in the list opened by Add a person (app.photos.viewer.face_add) when the device didn't add the person picked to the photo or video. A device that refuses says why in its own words instead."
+  },
+  "app.photos.viewer.face_add_find": {
+    "text": "Find by name",
+    "note": "Placeholder and screen-reader name of the field at the top of the list opened by Add a person (app.photos.viewer.face_add), shown when there are many people: typing narrows the list to the names that contain what was typed."
+  },
+  "app.photos.viewer.face_add_no_match": {
+    "text": "No one has that name.",
+    "note": "In the list opened by Add a person (app.photos.viewer.face_add) when no name matches what was typed in its field (app.photos.viewer.face_add_find)."
+  },
+  "app.photos.viewer.face_add_none": {
+    "text": "No one has been found yet.",
+    "note": "In the list opened by Add a person (app.photos.viewer.face_add) when face recognition hasn't found anyone yet (People is empty), so there is no one to add."
+  },
+  "app.photos.viewer.face_add_title_photo": {
+    "text": "Who is in this photo?",
+    "note": "Title of the list of people opened by Add a person (app.photos.viewer.face_add) in a photo's Info: the people face recognition found (People), with their faces and names, without those already in the photo. Picking one adds them to the photo."
+  },
+  "app.photos.viewer.face_add_title_video": {
+    "text": "Who is in this video?",
+    "note": "app.photos.viewer.face_add_title_photo for a video: the title of the list of people opened by Add a person (app.photos.viewer.face_add) in a video's Info."
   },
   "app.photos.viewer.favourite_add": {
     "text": "Add to Favourites",

@@ -265,6 +265,14 @@
     "text": "Fehler beim Auflisten der in „Bilder“ ausgeblendeten Ordner: {detail}",
     "en": "error listing the folders kept out of Images: {detail}"
   },
+  "dev.files.person_add_faces_off": {
+    "text": "die Gesichtserkennung ist auf diesem Gerät ausgeschaltet",
+    "en": "face recognition is turned off on this device"
+  },
+  "dev.files.person_add_gone": {
+    "text": "dieses Foto oder Video ist nicht mehr auf diesem Gerät",
+    "en": "that photo or video is no longer on this device"
+  },
   "dev.files.person_cover_image": {
     "text": "dieses Bild kann nicht verwendet werden: Es muss ein JPEG mit höchstens 256 KB sein",
     "en": "that picture can't be used: it must be a JPEG of at most 256 KB"

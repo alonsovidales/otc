@@ -319,6 +319,8 @@
         <item quantity="one">%1$s foto bij deze persoon weggehaald</item>
         <item quantity="other">%1$s foto’s bij deze persoon weggehaald</item>
     </plurals>
+    <string name="app_photos_person_removed_video">Video bij \u2068%1$s\u2069 weggehaald</string>
+    <string name="app_photos_person_removed_video_unnamed">Video bij deze persoon weggehaald</string>
     <string name="app_photos_places_area_chip">Kaartgebied</string>
     <string name="app_photos_places_back_to_map">Terug naar de kaart</string>
     <string name="app_photos_places_close_area">Kaartgebied sluiten</string>
@@ -378,6 +380,14 @@
     <string name="app_photos_viewer_delete_title">Deze foto verwijderen?</string>
     <string name="app_photos_viewer_delete_video">Video verwijderen</string>
     <string name="app_photos_viewer_delete_video_title">Deze video verwijderen?</string>
+    <string name="app_photos_viewer_face_add">Persoon toevoegen</string>
+    <string name="app_photos_viewer_face_add_all">Alle personen die tot nu toe zijn gevonden, staan er al bij.</string>
+    <string name="app_photos_viewer_face_add_failed">Deze persoon kon niet worden toegevoegd. Probeer het opnieuw.</string>
+    <string name="app_photos_viewer_face_add_find">Zoeken op naam</string>
+    <string name="app_photos_viewer_face_add_no_match">Niemand heeft die naam.</string>
+    <string name="app_photos_viewer_face_add_none">Er is nog niemand gevonden.</string>
+    <string name="app_photos_viewer_face_add_title_photo">Wie staat er op deze foto?</string>
+    <string name="app_photos_viewer_face_add_title_video">Wie is er te zien in deze video?</string>
     <string name="app_photos_viewer_favourite_add">Toevoegen aan Favorieten</string>
     <string name="app_photos_viewer_favourite_failed">Favorieten wijzigen is niet gelukt. Probeer het opnieuw.</string>
     <string name="app_photos_viewer_favourite_remove">Verwijderen uit Favorieten</string>

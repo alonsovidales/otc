@@ -334,6 +334,16 @@ func DevFilesOutOfImagesListFailed(detail string) Msg {
 	return Msg{Key: "dev.files.out_of_images_list_failed", Args: map[string]any{"detail": detail}}
 }
 
+// DevFilesPersonAddFacesOff is dev.files.person_add_faces_off: "face recognition is turned off on this device".
+func DevFilesPersonAddFacesOff() Msg {
+	return Msg{Key: "dev.files.person_add_faces_off"}
+}
+
+// DevFilesPersonAddGone is dev.files.person_add_gone: "that photo or video is no longer on this device".
+func DevFilesPersonAddGone() Msg {
+	return Msg{Key: "dev.files.person_add_gone"}
+}
+
 // DevFilesPersonCoverImage is dev.files.person_cover_image: "that picture can't be used: it must be a JPEG of at most 256 KB".
 func DevFilesPersonCoverImage() Msg {
 	return Msg{Key: "dev.files.person_cover_image"}

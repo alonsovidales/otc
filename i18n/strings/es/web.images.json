@@ -1125,6 +1125,14 @@
       "other": "Removed {count} photos from this person"
     }
   },
+  "web.images.person.removed_video": {
+    "text": "Se ha quitado este vídeo de {name}",
+    "en": "Removed this video from {name}"
+  },
+  "web.images.person.removed_video_unnamed": {
+    "text": "Se ha quitado este vídeo de esta persona",
+    "en": "Removed this video from this person"
+  },
   "web.images.person.removing": {
     "text": "Quitando…",
     "en": "Removing…"
@@ -1709,6 +1717,30 @@
   "web.images.viewer.exposure": {
     "text": "Exposición",
     "en": "Exposure"
+  },
+  "web.images.viewer.face_add": {
+    "text": "Añadir una persona",
+    "en": "Add a person"
+  },
+  "web.images.viewer.face_add_all": {
+    "text": "Ya aparecen todas las personas encontradas hasta ahora.",
+    "en": "Everyone found so far is in it already."
+  },
+  "web.images.viewer.face_add_failed": {
+    "text": "No se ha podido añadir a esta persona. Vuelve a intentarlo.",
+    "en": "Couldn't add this person. Try again."
+  },
+  "web.images.viewer.face_add_none": {
+    "text": "Aún no se ha encontrado a nadie.",
+    "en": "No one has been found yet."
+  },
+  "web.images.viewer.face_add_title_photo": {
+    "text": "¿Quién aparece en esta foto?",
+    "en": "Who is in this photo?"
+  },
+  "web.images.viewer.face_add_title_video": {
+    "text": "¿Quién aparece en este vídeo?",
+    "en": "Who is in this video?"
   },
   "web.images.viewer.face_photos": {
     "text": "Ver las fotos de esta persona",

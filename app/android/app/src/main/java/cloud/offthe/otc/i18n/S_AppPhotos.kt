@@ -866,6 +866,14 @@ fun S.appPhotosPersonRemoved(count: Int, name: String): UiText =
 fun S.appPhotosPersonRemovedUnnamed(count: Int): UiText =
     UiText.Plural(R.plurals.app_photos_person_removed_unnamed, count, listOf(count))
 
+/** "Removed this video from {name}": Note at the foot of the viewer once a person added to a video by hand was taken off it (the × beside them in the video's Info). {name} is the person's name. The photo form is app.photos.person.removed. */
+fun S.appPhotosPersonRemovedVideo(name: String): UiText =
+    UiText.Res(R.string.app_photos_person_removed_video, listOf(name))
+
+/** "Removed this video from this person": app.photos.person.removed_video for a person without a name. */
+fun S.appPhotosPersonRemovedVideoUnnamed(): UiText =
+    UiText.Res(R.string.app_photos_person_removed_video_unnamed)
+
 /** "Map area": Chip over the grid in Images once a group of photos on the map was opened: the grid shows only the photos and videos taken in that area of the map. Tapping it shows the map again; its × shows the photos of every place again (app.photos.places.close_area). */
 fun S.appPhotosPlacesAreaChip(): UiText =
     UiText.Res(R.string.app_photos_places_area_chip)
@@ -1065,6 +1073,38 @@ fun S.appPhotosViewerDeleteVideo(): UiText =
 /** "Delete this video?": Title of the confirmation asked before deleting the video open in the full-screen viewer (Images, or a video opened from Files) from the device. Buttons: Delete Video and Cancel. The video form of app.photos.viewer.delete_title; the web says the same (web.images.viewer.delete_video_title). */
 fun S.appPhotosViewerDeleteVideoTitle(): UiText =
     UiText.Res(R.string.app_photos_viewer_delete_video_title)
+
+/** "Add a person": Button at the end of the People block of the viewer's Info (the photo or video open full screen) (the people in the photo or video open, each with their face and name): opens the list of people (the title is app.photos.viewer.face_add_title_photo or app.photos.viewer.face_add_title_video) to add someone who is in it by hand - a photo face recognition didn't find them in, or a video, where faces aren't looked for. Also its screen-reader name. */
+fun S.appPhotosViewerFaceAdd(): UiText =
+    UiText.Res(R.string.app_photos_viewer_face_add)
+
+/** "Everyone found so far is in it already.": In the list opened by Add a person (app.photos.viewer.face_add) when every person face recognition has found (People) is already in the photo or video, so there is no one left to add. "It" is the photo or video: word it to fit either. */
+fun S.appPhotosViewerFaceAddAll(): UiText =
+    UiText.Res(R.string.app_photos_viewer_face_add_all)
+
+/** "Couldn't add this person. Try again.": Error in the list opened by Add a person (app.photos.viewer.face_add) when the device didn't add the person picked to the photo or video. A device that refuses says why in its own words instead. */
+fun S.appPhotosViewerFaceAddFailed(): UiText =
+    UiText.Res(R.string.app_photos_viewer_face_add_failed)
+
+/** "Find by name": Placeholder and screen-reader name of the field at the top of the list opened by Add a person (app.photos.viewer.face_add), shown when there are many people: typing narrows the list to the names that contain what was typed. */
+fun S.appPhotosViewerFaceAddFind(): UiText =
+    UiText.Res(R.string.app_photos_viewer_face_add_find)
+
+/** "No one has that name.": In the list opened by Add a person (app.photos.viewer.face_add) when no name matches what was typed in its field (app.photos.viewer.face_add_find). */
+fun S.appPhotosViewerFaceAddNoMatch(): UiText =
+    UiText.Res(R.string.app_photos_viewer_face_add_no_match)
+
+/** "No one has been found yet.": In the list opened by Add a person (app.photos.viewer.face_add) when face recognition hasn't found anyone yet (People is empty), so there is no one to add. */
+fun S.appPhotosViewerFaceAddNone(): UiText =
+    UiText.Res(R.string.app_photos_viewer_face_add_none)
+
+/** "Who is in this photo?": Title of the list of people opened by Add a person (app.photos.viewer.face_add) in a photo's Info: the people face recognition found (People), with their faces and names, without those already in the photo. Picking one adds them to the photo. */
+fun S.appPhotosViewerFaceAddTitlePhoto(): UiText =
+    UiText.Res(R.string.app_photos_viewer_face_add_title_photo)
+
+/** "Who is in this video?": app.photos.viewer.face_add_title_photo for a video: the title of the list of people opened by Add a person (app.photos.viewer.face_add) in a video's Info. */
+fun S.appPhotosViewerFaceAddTitleVideo(): UiText =
+    UiText.Res(R.string.app_photos_viewer_face_add_title_video)
 
 /** "Add to Favourites": Accessibility label of the empty heart in the photo viewer: puts the photo in Favourites, the collection every device has, listed first in Collections. */
 fun S.appPhotosViewerFavouriteAdd(): UiText =

@@ -1125,6 +1125,14 @@
       "other": "Removed {count} photos from this person"
     }
   },
+  "web.images.person.removed_video": {
+    "text": "Video bij {name} weggehaald",
+    "en": "Removed this video from {name}"
+  },
+  "web.images.person.removed_video_unnamed": {
+    "text": "Video bij deze persoon weggehaald",
+    "en": "Removed this video from this person"
+  },
   "web.images.person.removing": {
     "text": "Bezig met weghalen…",
     "en": "Removing…"
@@ -1709,6 +1717,30 @@
   "web.images.viewer.exposure": {
     "text": "Sluitertijd",
     "en": "Exposure"
+  },
+  "web.images.viewer.face_add": {
+    "text": "Persoon toevoegen",
+    "en": "Add a person"
+  },
+  "web.images.viewer.face_add_all": {
+    "text": "Alle personen die tot nu toe zijn gevonden, staan er al bij.",
+    "en": "Everyone found so far is in it already."
+  },
+  "web.images.viewer.face_add_failed": {
+    "text": "Deze persoon kon niet worden toegevoegd. Probeer het opnieuw.",
+    "en": "Couldn't add this person. Try again."
+  },
+  "web.images.viewer.face_add_none": {
+    "text": "Er is nog niemand gevonden.",
+    "en": "No one has been found yet."
+  },
+  "web.images.viewer.face_add_title_photo": {
+    "text": "Wie staat er op deze foto?",
+    "en": "Who is in this photo?"
+  },
+  "web.images.viewer.face_add_title_video": {
+    "text": "Wie is er te zien in deze video?",
+    "en": "Who is in this video?"
   },
   "web.images.viewer.face_photos": {
     "text": "Foto's van deze persoon tonen",

@@ -1085,6 +1085,14 @@
       "other": "Removed {count} photos from this person"
     }
   },
+  "app.photos.person.removed_video": {
+    "text": "Video von {name} entfernt",
+    "en": "Removed this video from {name}"
+  },
+  "app.photos.person.removed_video_unnamed": {
+    "text": "Video von dieser Person entfernt",
+    "en": "Removed this video from this person"
+  },
   "app.photos.places.area_chip": {
     "text": "Kartenbereich",
     "en": "Map area"
@@ -1307,6 +1315,38 @@
     "text": "Dieses Video löschen?",
     "en": "Delete this video?",
     "reviewed": "claude-backtranslation 2026-10-14 #2741ae28"
+  },
+  "app.photos.viewer.face_add": {
+    "text": "Person hinzufügen",
+    "en": "Add a person"
+  },
+  "app.photos.viewer.face_add_all": {
+    "text": "Alle bisher gefundenen Personen sind schon dabei.",
+    "en": "Everyone found so far is in it already."
+  },
+  "app.photos.viewer.face_add_failed": {
+    "text": "Diese Person konnte nicht hinzugefügt werden. Versuche es erneut.",
+    "en": "Couldn't add this person. Try again."
+  },
+  "app.photos.viewer.face_add_find": {
+    "text": "Nach Namen suchen",
+    "en": "Find by name"
+  },
+  "app.photos.viewer.face_add_no_match": {
+    "text": "Niemand hat diesen Namen.",
+    "en": "No one has that name."
+  },
+  "app.photos.viewer.face_add_none": {
+    "text": "Noch niemand gefunden.",
+    "en": "No one has been found yet."
+  },
+  "app.photos.viewer.face_add_title_photo": {
+    "text": "Wer ist auf diesem Foto?",
+    "en": "Who is in this photo?"
+  },
+  "app.photos.viewer.face_add_title_video": {
+    "text": "Wer ist in diesem Video?",
+    "en": "Who is in this video?"
   },
   "app.photos.viewer.favourite_add": {
     "text": "Zu Favoriten hinzufügen",

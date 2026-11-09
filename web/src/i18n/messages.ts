@@ -511,6 +511,8 @@ export type MessageKey =
   | "web.images.person.remove_title_unnamed"
   | "web.images.person.removed"
   | "web.images.person.removed_unnamed"
+  | "web.images.person.removed_video"
+  | "web.images.person.removed_video_unnamed"
   | "web.images.person.removing"
   | "web.images.person.two"
   | "web.images.picker.all"
@@ -647,6 +649,12 @@ export type MessageKey =
   | "web.images.viewer.dimensions"
   | "web.images.viewer.download_it"
   | "web.images.viewer.exposure"
+  | "web.images.viewer.face_add"
+  | "web.images.viewer.face_add_all"
+  | "web.images.viewer.face_add_failed"
+  | "web.images.viewer.face_add_none"
+  | "web.images.viewer.face_add_title_photo"
+  | "web.images.viewer.face_add_title_video"
   | "web.images.viewer.face_photos"
   | "web.images.viewer.favourite_add"
   | "web.images.viewer.favourite_failed"
@@ -1798,6 +1806,8 @@ export interface MessageArgs {
   "web.images.person.remove_title_unnamed": { count: number };
   "web.images.person.removed": { count: number; name: string };
   "web.images.person.removed_unnamed": { count: number };
+  "web.images.person.removed_video": { name: string };
+  "web.images.person.removed_video_unnamed": undefined;
   "web.images.person.removing": undefined;
   "web.images.person.two": { first: string; second: string };
   "web.images.picker.all": undefined;
@@ -1935,6 +1945,12 @@ export interface MessageArgs {
   "web.images.viewer.dimensions": undefined;
   "web.images.viewer.download_it": undefined;
   "web.images.viewer.exposure": undefined;
+  "web.images.viewer.face_add": undefined;
+  "web.images.viewer.face_add_all": undefined;
+  "web.images.viewer.face_add_failed": undefined;
+  "web.images.viewer.face_add_none": undefined;
+  "web.images.viewer.face_add_title_photo": undefined;
+  "web.images.viewer.face_add_title_video": undefined;
   "web.images.viewer.face_photos": undefined;
   "web.images.viewer.favourite_add": undefined;
   "web.images.viewer.favourite_failed": undefined;

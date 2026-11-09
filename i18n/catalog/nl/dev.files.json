@@ -65,6 +65,8 @@
   "dev.files.nothing_to_stream": {"text": "niets om af te spelen"},
   "dev.files.original_compressed": {"text": "dit bestand is gecomprimeerd en het origineel is verwijderd, dus je kunt niet terug naar het origineel"},
   "dev.files.out_of_images_list_failed": {"text": "fout bij het ophalen van de mappen die buiten Afbeeldingen worden gehouden: {detail}"},
+  "dev.files.person_add_faces_off": {"text": "gezichtsherkenning staat uit op dit apparaat"},
+  "dev.files.person_add_gone": {"text": "die foto of video staat niet meer op dit apparaat"},
   "dev.files.person_cover_image": {"text": "die afbeelding kan niet worden gebruikt: het moet een JPEG van maximaal 256 kB zijn"},
   "dev.files.person_cover_no_face": {"text": "op die foto staat geen gezicht van deze persoon"},
   "dev.files.person_gone": {"text": "die persoon staat niet meer op dit apparaat"},

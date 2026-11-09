@@ -1085,6 +1085,14 @@
       "other": "Removed {count} photos from this person"
     }
   },
+  "app.photos.person.removed_video": {
+    "text": "Video bij {name} weggehaald",
+    "en": "Removed this video from {name}"
+  },
+  "app.photos.person.removed_video_unnamed": {
+    "text": "Video bij deze persoon weggehaald",
+    "en": "Removed this video from this person"
+  },
   "app.photos.places.area_chip": {
     "text": "Kaartgebied",
     "en": "Map area"
@@ -1307,6 +1315,38 @@
     "text": "Deze video verwijderen?",
     "en": "Delete this video?",
     "reviewed": "claude-backtranslation 2026-10-14 #3434687b"
+  },
+  "app.photos.viewer.face_add": {
+    "text": "Persoon toevoegen",
+    "en": "Add a person"
+  },
+  "app.photos.viewer.face_add_all": {
+    "text": "Alle personen die tot nu toe zijn gevonden, staan er al bij.",
+    "en": "Everyone found so far is in it already."
+  },
+  "app.photos.viewer.face_add_failed": {
+    "text": "Deze persoon kon niet worden toegevoegd. Probeer het opnieuw.",
+    "en": "Couldn't add this person. Try again."
+  },
+  "app.photos.viewer.face_add_find": {
+    "text": "Zoeken op naam",
+    "en": "Find by name"
+  },
+  "app.photos.viewer.face_add_no_match": {
+    "text": "Niemand heeft die naam.",
+    "en": "No one has that name."
+  },
+  "app.photos.viewer.face_add_none": {
+    "text": "Er is nog niemand gevonden.",
+    "en": "No one has been found yet."
+  },
+  "app.photos.viewer.face_add_title_photo": {
+    "text": "Wie staat er op deze foto?",
+    "en": "Who is in this photo?"
+  },
+  "app.photos.viewer.face_add_title_video": {
+    "text": "Wie is er te zien in deze video?",
+    "en": "Who is in this video?"
   },
   "app.photos.viewer.favourite_add": {
     "text": "Toevoegen aan Favorieten",

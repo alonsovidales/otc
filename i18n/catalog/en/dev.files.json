@@ -65,6 +65,8 @@
   "dev.files.nothing_to_stream": {"text": "nothing to stream"},
   "dev.files.original_compressed": {"text": "this file was compressed and its original deleted, so there is nothing to go back to"},
   "dev.files.out_of_images_list_failed": {"text": "error listing the folders kept out of Images: {detail}", "args": [["detail", "text"]]},
+  "dev.files.person_add_faces_off": {"text": "face recognition is turned off on this device"},
+  "dev.files.person_add_gone": {"text": "that photo or video is no longer on this device"},
   "dev.files.person_cover_image": {"text": "that picture can't be used: it must be a JPEG of at most 256 KB"},
   "dev.files.person_cover_no_face": {"text": "that photo has no face of this person"},
   "dev.files.person_gone": {"text": "that person is no longer on this device"},

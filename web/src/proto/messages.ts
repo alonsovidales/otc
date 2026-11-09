@@ -2889,7 +2889,9 @@ export interface MergePeople {
  * photos are not analysed again. A Reprocess finds every face afresh, as
  * it always did. An unnamed person left with no faces goes, as after a
  * delete; a named one keeps their name. Hashes with no face of person_id
- * are ignored, not an error. Answers with the generic Ack; a device from
+ * are ignored, not an error. People added to a photo or video by hand
+ * (AddToPerson) are taken off it, or moved, the same way; one moved to a
+ * person already in it goes. Answers with the generic Ack; a device from
  * before it answers unknown_payload.
  */
 export interface RemoveFromPerson {
@@ -2919,7 +2921,8 @@ export interface SetPersonCover {
 /**
  * The faces found in one photo, for the viewer's Info (owner, 2026-11-01,
  * from a user: "see what face it has, especially on new images ... and be
- * able to remove faces from there"): path is the photo's. Answered with
+ * able to remove faces from there"): path is the photo's, or a video's (its
+ * people added by hand; see PhotoFaces.adds_people). Answered with
  * PhotoFaces, empty while face recognition is off or when none was found;
  * a face is taken off its person with RemoveFromPerson (the person and
  * PhotoFaces.hash). A device from before it answers error_code
@@ -2930,11 +2933,40 @@ export interface GetPhotoFaces {
 }
 
 /**
+ * Add a person to a photo or video by hand (owner, 2026-11-09: "add people
+ * to the photos and videos by hand ... in the faces we will have an add
+ * button ... select one of the faces that are not already in the photo"):
+ * person_id, one of the people People lists, is put in the contents hashes
+ * (files' content hashes, as in search results) - a photo face recognition
+ * didn't find them in, or a video, where no face is looked for. The
+ * content is then theirs as their faces' photos are: their photos in
+ * Images, People's count, the search and the memories; Info lists them
+ * (PhotoFace.by_hand); RemoveFromPerson takes them off, or moves them, as
+ * it does faces. Face recognition never learns from them: there is no face
+ * to learn from. A content they are in already (a face of theirs found
+ * there, or added before) is left as it is, as are hashes no photo or
+ * video on the device has; the person's face found later in a photo takes
+ * the place of their row there. Answered with the generic Ack; refused, in
+ * the request's language, for no person, no hash or more than 10000, face
+ * recognition off, a person who isn't there (any more), or none of hashes
+ * a photo or video on the device. A device from before it answers
+ * error_code "unknown_payload"; the apps offer it only where
+ * PhotoFaces.adds_people says the device takes it.
+ */
+export interface AddToPerson {
+  personId: string;
+  hashes: string[];
+}
+
+/**
  * One face in a photo: the person it is matched to (name "" while they
  * are unnamed), its crop - a small JPEG, as People's faces - and where it
  * is in the photo, in the photo's own pixels. Faces taken off everyone
  * ("Not this person") aren't listed. Two faces matched to the same person
- * are both listed; RemoveFromPerson takes both off them.
+ * are both listed; RemoveFromPerson takes both off them. by_hand: a person
+ * added to the photo or video by hand (AddToPerson), with no box (x, y, w
+ * and h 0) and, as the crop, the face People shows for them (none when
+ * People shows none); devices before it never set it.
  */
 export interface PhotoFace {
   personId: string;
@@ -2944,17 +2976,24 @@ export interface PhotoFace {
   y: number;
   w: number;
   h: number;
+  byHand: boolean;
 }
 
 /**
- * The answer to GetPhotoFaces: the faces, left to right; whether face
- * recognition is on (off: no faces, and the apps show none); and the
- * photo's content hash, for RemoveFromPerson.
+ * The answer to GetPhotoFaces: the faces, left to right, then the people
+ * added by hand, in the order they were added; whether face recognition is
+ * on (off: no faces, and the apps show none); and the photo's content
+ * hash, for RemoveFromPerson and AddToPerson. adds_people: the device
+ * takes AddToPerson for this photo or video, and answers for a video too
+ * (its people added by hand); Info then offers Add while face recognition
+ * is on. Not set for content kept out of Images, which has no people.
+ * Devices before it never set it, and answer a video with no faces.
  */
 export interface PhotoFaces {
   faces: PhotoFace[];
   faceRecognition: boolean;
   hash: string;
+  addsPeople: boolean;
 }
 
 /**
@@ -4342,6 +4381,9 @@ export interface ReqEnvelope {
     { $case: "reqGetCompressOptions"; reqGetCompressOptions: GetCompressOptions }
     | { $case: "reqCompressFiles"; reqCompressFiles: CompressFiles }
     | { $case: "reqGetCompressJob"; reqGetCompressJob: GetCompressJob }
+    | //
+    /** Info's Add: a person put in a photo or video by hand. */
+    { $case: "reqAddToPerson"; reqAddToPerson: AddToPerson }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -16756,8 +16798,66 @@ export const GetPhotoFaces: MessageFns<GetPhotoFaces> = {
   },
 };
 
+function createBaseAddToPerson(): AddToPerson {
+  return { personId: "", hashes: [] };
+}
+
+export const AddToPerson: MessageFns<AddToPerson> = {
+  encode(message: AddToPerson, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.personId !== "") {
+      writer.uint32(10).string(message.personId);
+    }
+    for (const v of message.hashes) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AddToPerson {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseAddToPerson();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.personId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.hashes.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<AddToPerson>, I>>(base?: I): AddToPerson {
+    return AddToPerson.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<AddToPerson>, I>>(object: I): AddToPerson {
+    const message = createBaseAddToPerson();
+    message.personId = object.personId ?? "";
+    message.hashes = object.hashes?.map((e) => e) || [];
+    return message;
+  },
+};
+
 function createBasePhotoFace(): PhotoFace {
-  return { personId: "", name: "", thumbnail: new Uint8Array(0), x: 0, y: 0, w: 0, h: 0 };
+  return { personId: "", name: "", thumbnail: new Uint8Array(0), x: 0, y: 0, w: 0, h: 0, byHand: false };
 }
 
 export const PhotoFace: MessageFns<PhotoFace> = {
@@ -16782,6 +16882,9 @@ export const PhotoFace: MessageFns<PhotoFace> = {
     }
     if (message.h !== 0) {
       writer.uint32(56).int32(message.h);
+    }
+    if (message.byHand !== false) {
+      writer.uint32(64).bool(message.byHand);
     }
     return writer;
   },
@@ -16849,6 +16952,14 @@ export const PhotoFace: MessageFns<PhotoFace> = {
           message.h = reader.int32();
           continue;
         }
+        case 8: {
+          if (tag !== 64) {
+            break;
+          }
+
+          message.byHand = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -16870,12 +16981,13 @@ export const PhotoFace: MessageFns<PhotoFace> = {
     message.y = object.y ?? 0;
     message.w = object.w ?? 0;
     message.h = object.h ?? 0;
+    message.byHand = object.byHand ?? false;
     return message;
   },
 };
 
 function createBasePhotoFaces(): PhotoFaces {
-  return { faces: [], faceRecognition: false, hash: "" };
+  return { faces: [], faceRecognition: false, hash: "", addsPeople: false };
 }
 
 export const PhotoFaces: MessageFns<PhotoFaces> = {
@@ -16888,6 +17000,9 @@ export const PhotoFaces: MessageFns<PhotoFaces> = {
     }
     if (message.hash !== "") {
       writer.uint32(26).string(message.hash);
+    }
+    if (message.addsPeople !== false) {
+      writer.uint32(32).bool(message.addsPeople);
     }
     return writer;
   },
@@ -16923,6 +17038,14 @@ export const PhotoFaces: MessageFns<PhotoFaces> = {
           message.hash = reader.string();
           continue;
         }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.addsPeople = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -16940,6 +17063,7 @@ export const PhotoFaces: MessageFns<PhotoFaces> = {
     message.faces = object.faces?.map((e) => PhotoFace.fromPartial(e)) || [];
     message.faceRecognition = object.faceRecognition ?? false;
     message.hash = object.hash ?? "";
+    message.addsPeople = object.addsPeople ?? false;
     return message;
   },
 };
@@ -23279,6 +23403,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetCompressJob":
         GetCompressJob.encode(message.payload.reqGetCompressJob, writer.uint32(1354).fork()).join();
         break;
+      case "reqAddToPerson":
+        AddToPerson.encode(message.payload.reqAddToPerson, writer.uint32(1362).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -24821,6 +24948,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 170: {
+          if (tag !== 1362) {
+            break;
+          }
+
+          message.payload = { $case: "reqAddToPerson", reqAddToPerson: AddToPerson.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -26240,6 +26375,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqGetCompressJob",
             reqGetCompressJob: GetCompressJob.fromPartial(object.payload.reqGetCompressJob),
+          };
+        }
+        break;
+      }
+      case "reqAddToPerson": {
+        if (object.payload?.reqAddToPerson !== undefined && object.payload?.reqAddToPerson !== null) {
+          message.payload = {
+            $case: "reqAddToPerson",
+            reqAddToPerson: AddToPerson.fromPartial(object.payload.reqAddToPerson),
           };
         }
         break;

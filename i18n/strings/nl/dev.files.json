@@ -265,6 +265,14 @@
     "text": "fout bij het ophalen van de mappen die buiten Afbeeldingen worden gehouden: {detail}",
     "en": "error listing the folders kept out of Images: {detail}"
   },
+  "dev.files.person_add_faces_off": {
+    "text": "gezichtsherkenning staat uit op dit apparaat",
+    "en": "face recognition is turned off on this device"
+  },
+  "dev.files.person_add_gone": {
+    "text": "die foto of video staat niet meer op dit apparaat",
+    "en": "that photo or video is no longer on this device"
+  },
   "dev.files.person_cover_image": {
     "text": "die afbeelding kan niet worden gebruikt: het moet een JPEG van maximaal 256 kB zijn",
     "en": "that picture can't be used: it must be a JPEG of at most 256 KB"

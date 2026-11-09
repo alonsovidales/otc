@@ -4888,7 +4888,9 @@ public nonisolated struct Msg_MergePeople: Sendable {
 /// photos are not analysed again. A Reprocess finds every face afresh, as
 /// it always did. An unnamed person left with no faces goes, as after a
 /// delete; a named one keeps their name. Hashes with no face of person_id
-/// are ignored, not an error. Answers with the generic Ack; a device from
+/// are ignored, not an error. People added to a photo or video by hand
+/// (AddToPerson) are taken off it, or moved, the same way; one moved to a
+/// person already in it goes. Answers with the generic Ack; a device from
 /// before it answers unknown_payload.
 public nonisolated struct Msg_RemoveFromPerson: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -4955,7 +4957,8 @@ public nonisolated struct Msg_SetPersonCover: Sendable {
 
 /// The faces found in one photo, for the viewer's Info (owner, 2026-11-01,
 /// from a user: "see what face it has, especially on new images ... and be
-/// able to remove faces from there"): path is the photo's. Answered with
+/// able to remove faces from there"): path is the photo's, or a video's (its
+/// people added by hand; see PhotoFaces.adds_people). Answered with
 /// PhotoFaces, empty while face recognition is off or when none was found;
 /// a face is taken off its person with RemoveFromPerson (the person and
 /// PhotoFaces.hash). A device from before it answers error_code
@@ -4972,11 +4975,47 @@ public nonisolated struct Msg_GetPhotoFaces: Sendable {
   public init() {}
 }
 
+/// Add a person to a photo or video by hand (owner, 2026-11-09: "add people
+/// to the photos and videos by hand ... in the faces we will have an add
+/// button ... select one of the faces that are not already in the photo"):
+/// person_id, one of the people People lists, is put in the contents hashes
+/// (files' content hashes, as in search results) - a photo face recognition
+/// didn't find them in, or a video, where no face is looked for. The
+/// content is then theirs as their faces' photos are: their photos in
+/// Images, People's count, the search and the memories; Info lists them
+/// (PhotoFace.by_hand); RemoveFromPerson takes them off, or moves them, as
+/// it does faces. Face recognition never learns from them: there is no face
+/// to learn from. A content they are in already (a face of theirs found
+/// there, or added before) is left as it is, as are hashes no photo or
+/// video on the device has; the person's face found later in a photo takes
+/// the place of their row there. Answered with the generic Ack; refused, in
+/// the request's language, for no person, no hash or more than 10000, face
+/// recognition off, a person who isn't there (any more), or none of hashes
+/// a photo or video on the device. A device from before it answers
+/// error_code "unknown_payload"; the apps offer it only where
+/// PhotoFaces.adds_people says the device takes it.
+public nonisolated struct Msg_AddToPerson: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var personID: String = String()
+
+  public var hashes: [String] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 /// One face in a photo: the person it is matched to (name "" while they
 /// are unnamed), its crop - a small JPEG, as People's faces - and where it
 /// is in the photo, in the photo's own pixels. Faces taken off everyone
 /// ("Not this person") aren't listed. Two faces matched to the same person
-/// are both listed; RemoveFromPerson takes both off them.
+/// are both listed; RemoveFromPerson takes both off them. by_hand: a person
+/// added to the photo or video by hand (AddToPerson), with no box (x, y, w
+/// and h 0) and, as the crop, the face People shows for them (none when
+/// People shows none); devices before it never set it.
 public nonisolated struct Msg_PhotoFace: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -4996,14 +5035,21 @@ public nonisolated struct Msg_PhotoFace: Sendable {
 
   public var h: Int32 = 0
 
+  public var byHand: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-/// The answer to GetPhotoFaces: the faces, left to right; whether face
-/// recognition is on (off: no faces, and the apps show none); and the
-/// photo's content hash, for RemoveFromPerson.
+/// The answer to GetPhotoFaces: the faces, left to right, then the people
+/// added by hand, in the order they were added; whether face recognition is
+/// on (off: no faces, and the apps show none); and the photo's content
+/// hash, for RemoveFromPerson and AddToPerson. adds_people: the device
+/// takes AddToPerson for this photo or video, and answers for a video too
+/// (its people added by hand); Info then offers Add while face recognition
+/// is on. Not set for content kept out of Images, which has no people.
+/// Devices before it never set it, and answer a video with no faces.
 public nonisolated struct Msg_PhotoFaces: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -5014,6 +5060,8 @@ public nonisolated struct Msg_PhotoFaces: Sendable {
   public var faceRecognition: Bool = false
 
   public var hash: String = String()
+
+  public var addsPeople: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -8221,6 +8269,15 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqGetCompressJob(newValue)}
   }
 
+  /// Info's Add: a person put in a photo or video by hand.
+  public var reqAddToPerson: Msg_AddToPerson {
+    get {
+      if case .reqAddToPerson(let v)? = payload {return v}
+      return Msg_AddToPerson()
+    }
+    set {payload = .reqAddToPerson(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -8512,6 +8569,8 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     case reqGetCompressOptions(Msg_GetCompressOptions)
     case reqCompressFiles(Msg_CompressFiles)
     case reqGetCompressJob(Msg_GetCompressJob)
+    /// Info's Add: a person put in a photo or video by hand.
+    case reqAddToPerson(Msg_AddToPerson)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -16356,9 +16415,44 @@ nonisolated extension Msg_GetPhotoFaces: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
+nonisolated extension Msg_AddToPerson: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".AddToPerson"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}person_id\0\u{1}hashes\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.personID) }()
+      case 2: try { try decoder.decodeRepeatedStringField(value: &self.hashes) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.personID.isEmpty {
+      try visitor.visitSingularStringField(value: self.personID, fieldNumber: 1)
+    }
+    if !self.hashes.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.hashes, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_AddToPerson, rhs: Msg_AddToPerson) -> Bool {
+    if lhs.personID != rhs.personID {return false}
+    if lhs.hashes != rhs.hashes {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 nonisolated extension Msg_PhotoFace: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PhotoFace"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}person_id\0\u{1}name\0\u{1}thumbnail\0\u{1}x\0\u{1}y\0\u{1}w\0\u{1}h\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}person_id\0\u{1}name\0\u{1}thumbnail\0\u{1}x\0\u{1}y\0\u{1}w\0\u{1}h\0\u{3}by_hand\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -16373,6 +16467,7 @@ nonisolated extension Msg_PhotoFace: SwiftProtobuf.Message, SwiftProtobuf._Messa
       case 5: try { try decoder.decodeSingularInt32Field(value: &self.y) }()
       case 6: try { try decoder.decodeSingularInt32Field(value: &self.w) }()
       case 7: try { try decoder.decodeSingularInt32Field(value: &self.h) }()
+      case 8: try { try decoder.decodeSingularBoolField(value: &self.byHand) }()
       default: break
       }
     }
@@ -16400,6 +16495,9 @@ nonisolated extension Msg_PhotoFace: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if self.h != 0 {
       try visitor.visitSingularInt32Field(value: self.h, fieldNumber: 7)
     }
+    if self.byHand != false {
+      try visitor.visitSingularBoolField(value: self.byHand, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -16411,6 +16509,7 @@ nonisolated extension Msg_PhotoFace: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if lhs.y != rhs.y {return false}
     if lhs.w != rhs.w {return false}
     if lhs.h != rhs.h {return false}
+    if lhs.byHand != rhs.byHand {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -16418,7 +16517,7 @@ nonisolated extension Msg_PhotoFace: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 nonisolated extension Msg_PhotoFaces: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PhotoFaces"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}faces\0\u{3}face_recognition\0\u{1}hash\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}faces\0\u{3}face_recognition\0\u{1}hash\0\u{3}adds_people\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -16429,6 +16528,7 @@ nonisolated extension Msg_PhotoFaces: SwiftProtobuf.Message, SwiftProtobuf._Mess
       case 1: try { try decoder.decodeRepeatedMessageField(value: &self.faces) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.faceRecognition) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.hash) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.addsPeople) }()
       default: break
       }
     }
@@ -16444,6 +16544,9 @@ nonisolated extension Msg_PhotoFaces: SwiftProtobuf.Message, SwiftProtobuf._Mess
     if !self.hash.isEmpty {
       try visitor.visitSingularStringField(value: self.hash, fieldNumber: 3)
     }
+    if self.addsPeople != false {
+      try visitor.visitSingularBoolField(value: self.addsPeople, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -16451,6 +16554,7 @@ nonisolated extension Msg_PhotoFaces: SwiftProtobuf.Message, SwiftProtobuf._Mess
     if lhs.faces != rhs.faces {return false}
     if lhs.faceRecognition != rhs.faceRecognition {return false}
     if lhs.hash != rhs.hash {return false}
+    if lhs.addsPeople != rhs.addsPeople {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -19856,7 +19960,7 @@ nonisolated extension Msg_LocalEndpoint: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0\u{3}req_set_places_enabled\0\u{3}req_get_memories\0\u{3}req_hide_memory\0\u{3}req_set_memories_enabled\0\u{3}req_set_smart_search_enabled\0\u{3}req_get_favourites\0\u{3}req_set_favourite\0\u{3}req_set_person_cover\0\u{3}req_get_photo_faces\0\u{3}req_set_image_group_rating\0\u{3}req_set_photo_rating\0\u{3}req_rate_shared_gallery_item\0\u{3}req_shut_down_device\0\u{3}req_random_photos\0\u{3}req_edit_image\0\u{3}req_revert_image\0\u{3}req_get_edit_state\0\u{3}req_edit_video\0\u{3}req_list_largest_files\0\u{3}req_get_compress_options\0\u{3}req_compress_files\0\u{3}req_get_compress_job\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0\u{3}req_set_places_enabled\0\u{3}req_get_memories\0\u{3}req_hide_memory\0\u{3}req_set_memories_enabled\0\u{3}req_set_smart_search_enabled\0\u{3}req_get_favourites\0\u{3}req_set_favourite\0\u{3}req_set_person_cover\0\u{3}req_get_photo_faces\0\u{3}req_set_image_group_rating\0\u{3}req_set_photo_rating\0\u{3}req_rate_shared_gallery_item\0\u{3}req_shut_down_device\0\u{3}req_random_photos\0\u{3}req_edit_image\0\u{3}req_revert_image\0\u{3}req_get_edit_state\0\u{3}req_edit_video\0\u{3}req_list_largest_files\0\u{3}req_get_compress_options\0\u{3}req_compress_files\0\u{3}req_get_compress_job\0\u{3}req_add_to_person\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -21907,6 +22011,19 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqGetCompressJob(v)
         }
       }()
+      case 170: try {
+        var v: Msg_AddToPerson?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqAddToPerson(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqAddToPerson(v)
+        }
+      }()
       default: break
       }
     }
@@ -22551,6 +22668,10 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
     case .reqGetCompressJob?: try {
       guard case .reqGetCompressJob(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 169)
+    }()
+    case .reqAddToPerson?: try {
+      guard case .reqAddToPerson(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 170)
     }()
     case nil: break
     }

@@ -1199,6 +1199,15 @@
     "args": [["count", "count"]],
     "note": "web.images.person.removed for a person without a name. {count} is how many photos."
   },
+  "web.images.person.removed_video": {
+    "text": "Removed this video from {name}",
+    "args": [["name", "user"]],
+    "note": "Message at the bottom of the photo viewer once a person added to a video by hand was taken off it (the × beside them in the video's Info). {name} is the person's name. The photo form is web.images.person.removed."
+  },
+  "web.images.person.removed_video_unnamed": {
+    "text": "Removed this video from this person",
+    "note": "web.images.person.removed_video for a person without a name."
+  },
   "web.images.person.removing": {
     "text": "Removing…",
     "note": "Read out by screen readers while the photos are being taken off a person, on the Remove button of web.images.person.remove_title.",
@@ -1876,6 +1885,30 @@
     "text": "Exposure",
     "note": "Label in the photo viewer's details panel, before the exposure time (1/120 s).",
     "max": 20
+  },
+  "web.images.viewer.face_add": {
+    "text": "Add a person",
+    "note": "Button at the end of the People block of the photo viewer's Info panel (web.images.viewer.more_info) (the people in the photo or video open, each with their face and name): opens the list of people (the title is web.images.viewer.face_add_title_photo or web.images.viewer.face_add_title_video) to add someone who is in it by hand - a photo face recognition didn't find them in, or a video, where faces aren't looked for. Also its screen-reader name."
+  },
+  "web.images.viewer.face_add_all": {
+    "text": "Everyone found so far is in it already.",
+    "note": "In the list opened by Add a person (web.images.viewer.face_add) when every person face recognition has found (People) is already in the photo or video, so there is no one left to add. \"It\" is the photo or video: word it to fit either."
+  },
+  "web.images.viewer.face_add_failed": {
+    "text": "Couldn't add this person. Try again.",
+    "note": "Error in the list opened by Add a person (web.images.viewer.face_add) when the device didn't add the person picked to the photo or video. A device that refuses says why in its own words instead."
+  },
+  "web.images.viewer.face_add_none": {
+    "text": "No one has been found yet.",
+    "note": "In the list opened by Add a person (web.images.viewer.face_add) when face recognition hasn't found anyone yet (People is empty), so there is no one to add."
+  },
+  "web.images.viewer.face_add_title_photo": {
+    "text": "Who is in this photo?",
+    "note": "Title of the list of people opened by Add a person (web.images.viewer.face_add) in a photo's Info: the people face recognition found (People), with their faces and names, without those already in the photo. Picking one adds them to the photo."
+  },
+  "web.images.viewer.face_add_title_video": {
+    "text": "Who is in this video?",
+    "note": "web.images.viewer.face_add_title_photo for a video: the title of the list of people opened by Add a person (web.images.viewer.face_add) in a video's Info."
   },
   "web.images.viewer.face_photos": {
     "text": "Show this person's photos",

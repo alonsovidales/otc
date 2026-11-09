@@ -265,6 +265,14 @@
     "text": "erreur lors de la lecture de la liste des dossiers hors d’Images : {detail}",
     "en": "error listing the folders kept out of Images: {detail}"
   },
+  "dev.files.person_add_faces_off": {
+    "text": "la reconnaissance faciale est désactivée sur cet appareil",
+    "en": "face recognition is turned off on this device"
+  },
+  "dev.files.person_add_gone": {
+    "text": "cette photo ou cette vidéo n’est plus sur cet appareil",
+    "en": "that photo or video is no longer on this device"
+  },
   "dev.files.person_cover_image": {
     "text": "cette image ne peut pas être utilisée : il faut un JPEG de 256 Ko au plus",
     "en": "that picture can't be used: it must be a JPEG of at most 256 KB"

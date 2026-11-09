@@ -265,6 +265,14 @@
     "text": "errore durante l’elenco delle cartelle fuori da Immagini: {detail}",
     "en": "error listing the folders kept out of Images: {detail}"
   },
+  "dev.files.person_add_faces_off": {
+    "text": "il riconoscimento facciale è disattivato su questo dispositivo",
+    "en": "face recognition is turned off on this device"
+  },
+  "dev.files.person_add_gone": {
+    "text": "quella foto o quel video non è più su questo dispositivo",
+    "en": "that photo or video is no longer on this device"
+  },
   "dev.files.person_cover_image": {
     "text": "quell'immagine non si può usare: deve essere un JPEG di al massimo 256 KB",
     "en": "that picture can't be used: it must be a JPEG of at most 256 KB"
