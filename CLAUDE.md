@@ -6112,7 +6112,22 @@ otc-update.service has `TimeoutStartSec=4h` (a migration must finish well inside
 `dd conv=excl` temp file under umask 022, then `mv -T`: never `> file` or chmod as root in
 `/var/lib/otc`, which `otc` owns. Downloads in the runner, update.sh, verified-install.sh and
 `fetch_pinned` carry `curl --connect-timeout 30 --speed-limit 1 --speed-time 120`, cutting only a
-stalled transfer (no `--max-time`).
+stalled transfer (no `--max-time`). A release file (`github.com/<owner>/<repo>/releases/download/
+<tag>/<name>`: the source archive, the web app, protoc, the quality model, ONNX Runtime) whose link
+still fails is fetched once more through GitHub's API (`gh_api_fetch`: the release by tag into a
+file - never a pipe, which would keep a cut-short answer ahead of curl's retry -, the asset's id by
+name, an integer read with `python3 -I`, then the asset with `Accept: application/octet-stream`),
+and is used, as before, only once its hash matches the signed manifest or its pin. The runner,
+update.sh and verified-install.sh first retry the link for about a minute (`gh_fetch`: `--retry 6
+--retry-all-errors`, 1 s doubling); install.sh's `fetch_pinned` and `fetch_optional` keep their own
+retries (5 and 3, 2 s apart) before the API. On 2026-11-09 GitHub's links answered 504 for over ten minutes for some files and not
+others while the API served them, and Cala's update to 177 failed with "could not download the
+source of release 177". The same `gh_api_fetch` is in the runner, update.sh, verified-install.sh
+and install.sh (`fetch_pinned`, `fetch_optional`), checked by `updater/gh_fetch_test.go`, which
+also runs it against a stand-in curl. The source archive is fetched by the runner already
+installed, so that download has it from the update after the one that brings it; update.sh's own
+downloads (the web app, protoc, the model) run from the release being installed and have it at
+once.
 More root runners follow the same trigger-file shape, and update.sh reinstalls all of them on
 every update (one that reads its request's words does so with `dd iflag=nofollow,nonblock`; each
 removes whatever is at its request path with `rm -rf --` - a directory there, which `rm -f` can't

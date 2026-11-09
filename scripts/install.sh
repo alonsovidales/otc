@@ -110,6 +110,39 @@ if [ -z "${OTC_VERIFIED_SRC:-}" ]; then
     exec bash "$hv" "$@"
 fi
 
+# gh_api_fetch <url> <out>: a github.com release file fetched through
+# GitHub's API instead of its download link. On 2026-11-09 those links
+# answered 504 for over ten minutes, for some files and not others, while
+# the API served the very same files. Only for a
+# https://github.com/<owner>/<repo>/releases/download/<tag>/<name> link;
+# what it fetches is used only once its hash matches (the signed manifest's,
+# or a pin), as from the link. The same function is in otc-update-runner.sh,
+# update.sh, verified-install.sh and install.sh (updater/gh_fetch_test.go).
+gh_api_fetch() {
+    local url="$1" out="$2" repo="" tag="" name="" id=""
+    local re='^https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/releases/download/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$'
+    local stall=(--connect-timeout 30 --speed-limit 1 --speed-time 120)
+    [[ "$url" =~ $re ]] || return 1
+    repo="${BASH_REMATCH[1]}" tag="${BASH_REMATCH[2]}" name="${BASH_REMATCH[3]}"
+    echo "GitHub's download link for $name failed: fetching it through GitHub's API" >&2
+    # The release into a file, never a pipe: curl starts a retried
+    # transfer's file afresh, while what it had sent down a pipe would stay
+    # ahead of the retry's answer.
+    if curl -fsSL --retry 3 --max-time 60 --max-filesize 1048576 "${stall[@]}" \
+            -H 'Accept: application/vnd.github+json' -o "$out.release" \
+            "https://api.github.com/repos/$repo/releases/tags/$tag"; then
+        id="$(python3 -I -c 'import json, sys
+for a in json.load(sys.stdin).get("assets") or []:
+    if a.get("name") == sys.argv[1] and type(a.get("id")) is int:
+        print(a["id"])
+        break' "$name" < "$out.release" 2>/dev/null)" || true
+    fi
+    rm -f -- "$out.release"
+    [[ "$id" =~ ^[0123456789]{1,20}$ ]] || return 1
+    curl -fsSL --retry 6 --retry-all-errors "${stall[@]}" -H 'Accept: application/octet-stream' \
+        -o "$out" "https://api.github.com/repos/$repo/releases/assets/$id"
+}
+
 # fetch_pinned URL DEST SHA256 - downloads to a temporary file and moves it
 # into place only if it matches the pinned hash (issue #160): nothing
 # downloaded here is run or loaded unchecked.
@@ -132,7 +165,8 @@ fetch_pinned() {
     # install for good. Under 1 byte/s for two minutes has truly stopped
     # (exit 28, retried); a slow but live link is never cut off.
     curl -fL --retry 5 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 \
-        -o "$tmpd/download" "$url" || { rm -rf "$tmpd"; wiz_error download url "$url"; die "could not download $url"; }
+        -o "$tmpd/download" "$url" || gh_api_fetch "$url" "$tmpd/download" \
+        || { rm -rf "$tmpd"; wiz_error download url "$url"; die "could not download $url"; }
     if [ "$(sha256sum "$tmpd/download" | awk '{print $1}')" != "$want" ]; then
         rm -rf "$tmpd"; wiz_error pinned_hash url "$url"; die "$url does not match its pinned hash"
     fi
@@ -148,7 +182,7 @@ fetch_optional() {
     dir="$(dirname -- "$dest")"
     tmpd="$(mktemp -d "$dir/.otc-fetch.XXXXXX")" || { log "warning: could not make a download directory in $dir"; return 0; }
     if ! curl -fL --retry 3 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 \
-        -o "$tmpd/download" "$url"; then
+        -o "$tmpd/download" "$url" && ! gh_api_fetch "$url" "$tmpd/download"; then
         rm -rf "$tmpd"
         log "warning: could not download $url - it is tried again by the next update"
         return 0

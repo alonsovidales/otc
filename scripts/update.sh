@@ -48,6 +48,44 @@ LOG_FILE=/var/log/otc-update/update.log
 # that has truly stopped (exit 28, which --retry retries); a slow but live
 # link is never cut off.
 CURL_STALL=(--connect-timeout 30 --speed-limit 1 --speed-time 120)
+# gh_api_fetch <url> <out>: a github.com release file fetched through
+# GitHub's API instead of its download link. On 2026-11-09 those links
+# answered 504 for over ten minutes, for some files and not others, while
+# the API served the very same files. Only for a
+# https://github.com/<owner>/<repo>/releases/download/<tag>/<name> link;
+# what it fetches is used only once its hash matches (the signed manifest's,
+# or a pin), as from the link. The same function is in otc-update-runner.sh,
+# update.sh, verified-install.sh and install.sh (updater/gh_fetch_test.go).
+gh_api_fetch() {
+    local url="$1" out="$2" repo="" tag="" name="" id=""
+    local re='^https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/releases/download/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$'
+    local stall=(--connect-timeout 30 --speed-limit 1 --speed-time 120)
+    [[ "$url" =~ $re ]] || return 1
+    repo="${BASH_REMATCH[1]}" tag="${BASH_REMATCH[2]}" name="${BASH_REMATCH[3]}"
+    echo "GitHub's download link for $name failed: fetching it through GitHub's API" >&2
+    # The release into a file, never a pipe: curl starts a retried
+    # transfer's file afresh, while what it had sent down a pipe would stay
+    # ahead of the retry's answer.
+    if curl -fsSL --retry 3 --max-time 60 --max-filesize 1048576 "${stall[@]}" \
+            -H 'Accept: application/vnd.github+json' -o "$out.release" \
+            "https://api.github.com/repos/$repo/releases/tags/$tag"; then
+        id="$(python3 -I -c 'import json, sys
+for a in json.load(sys.stdin).get("assets") or []:
+    if a.get("name") == sys.argv[1] and type(a.get("id")) is int:
+        print(a["id"])
+        break' "$name" < "$out.release" 2>/dev/null)" || true
+    fi
+    rm -f -- "$out.release"
+    [[ "$id" =~ ^[0123456789]{1,20}$ ]] || return 1
+    curl -fsSL --retry 6 --retry-all-errors "${stall[@]}" -H 'Accept: application/octet-stream' \
+        -o "$out" "https://api.github.com/repos/$repo/releases/assets/$id"
+}
+# gh_fetch <url> <out>: a release's file, retried for about a minute (1 s
+# doubling), then through GitHub's API (gh_api_fetch above).
+gh_fetch() {
+    curl -fsSL --retry 6 --retry-all-errors "${CURL_STALL[@]}" -o "$2" "$1" \
+        || gh_api_fetch "$1" "$2"
+}
 # The web app the service serves (its [otc-api] static): a symlink to one
 # directory under WEB_DIR, root's, one per release installed - the one
 # served and the one before it, which a failed start goes back to.
@@ -334,7 +372,7 @@ if [ -z "${OTC_VERIFIED_SRC:-}" ] || [ -z "${OTC_VERIFIED_MANIFEST:-}" ]; then
         boot_target="$version"; boot_src="$src"
     done < "$stage/VERSIONS"
     case "$boot_src" in [0-9a-f]*) ;; *) fail "release $boot_target has no signed source archive" no_source_archive "$(args release "$boot_target")" ;; esac
-    curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$stage/src.tar.gz" "$REPO_GH/releases/download/v$boot_target/src.tar.gz" \
+    gh_fetch "$REPO_GH/releases/download/v$boot_target/src.tar.gz" "$stage/src.tar.gz" \
         || fail "could not download the source of release $boot_target" source_download_failed "$(args release "$boot_target")"
     [ "$(sha256sum "$stage/src.tar.gz" | awk '{print $1}')" = "$boot_src" ] \
         || fail "the source of release $boot_target does not match its signed hash" source_hash_mismatch "$(args release "$boot_target")"
@@ -490,7 +528,7 @@ QUALITY_ONNX_URL=https://github.com/alonsovidales/otc/releases/download/models/n
 QUALITY_ONNX_SHA=b35a4d6616b5597fb84d57cbcfbc7d5f3d80b694069d1182b66677903d0b71d1
 if [ -d /usr/local/models ] && [ ! -L /usr/local/models ] && [ ! -e "$QUALITY_ONNX" ] && [ ! -L "$QUALITY_ONNX" ]; then
     if qtmp="$(mktemp -d /usr/local/models/.otc-fetch.XXXXXX)"; then
-        if curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$qtmp/download" "$QUALITY_ONNX_URL" \
+        if gh_fetch "$QUALITY_ONNX_URL" "$qtmp/download" \
             && [ "$(sha256sum "$qtmp/download" | awk '{print $1}')" = "$QUALITY_ONNX_SHA" ]; then
             chmod 0644 "$qtmp/download"
             mv -Tf "$qtmp/download" "$QUALITY_ONNX"
@@ -541,8 +579,8 @@ case "$PROTOC_ARCH" in
     x86_64)   PROTOC_SHA=3e866620c5be27664f3d2fa2d656b5f3e09b5152b42f1bedbf427b333e90021a ;;
 esac
 if ! command -v protoc >/dev/null 2>&1 || ! protoc --version | grep -q " ${PROTOC_VERSION}$"; then
-    curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$tmp/protoc.zip" \
-        "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip" \
+    gh_fetch "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip" \
+        "$tmp/protoc.zip" \
         || fail "could not download protoc ${PROTOC_VERSION}" protoc_download_failed "$(args version "$PROTOC_VERSION")"
     [ "$(sha256sum "$tmp/protoc.zip" | awk '{print $1}')" = "$PROTOC_SHA" ] || fail "protoc ${PROTOC_VERSION} does not match its pinned hash" protoc_hash_mismatch "$(args version "$PROTOC_VERSION")"
     rm -rf /opt/protoc && mkdir -p /opt/protoc
@@ -590,10 +628,9 @@ go build $build_jobs -o "$tmp/otc" ./bin/otc.go || fail "the build failed - see 
 web_staged=""
 if [ "$target_assets_sha" != "-" ] && [ -n "$target_assets_sha" ]; then
     status running "Installing the web app" installing_web
-    # Retried for a while: GitHub answers 500 now and then (release 88 on
-    # Pit got four in a row).
-    if curl -fsSL --retry 8 --retry-delay 5 --retry-all-errors "${CURL_STALL[@]}" -o "$tmp/web-dist.tar.gz" \
-        "$REPO_GH/releases/download/v$target/web-dist.tar.gz"; then
+    # Retried for a while, then through GitHub's API: GitHub answers 500 now
+    # and then (release 88 on Pit got four in a row), and 504 for a while.
+    if gh_fetch "$REPO_GH/releases/download/v$target/web-dist.tar.gz" "$tmp/web-dist.tar.gz"; then
         actual="$(sha256sum "$tmp/web-dist.tar.gz" | awk '{print $1}')"
         if [ "$actual" != "$target_assets_sha" ]; then
             fail "the web assets failed their checksum (expected $target_assets_sha, got $actual)" web_checksum "$(args expected "$target_assets_sha" actual "$actual")"

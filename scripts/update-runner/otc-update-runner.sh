@@ -124,6 +124,44 @@ trap 'rm -rf "$RUN_DIR"' EXIT
 # hangs the unit for good. Under 1 byte/s for two minutes has truly
 # stopped (exit 28, retried); a slow but live link is never cut off.
 fetch() { curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 -o "$2" "$1"; }
+# gh_api_fetch <url> <out>: a github.com release file fetched through
+# GitHub's API instead of its download link. On 2026-11-09 those links
+# answered 504 for over ten minutes, for some files and not others, while
+# the API served the very same files. Only for a
+# https://github.com/<owner>/<repo>/releases/download/<tag>/<name> link;
+# what it fetches is used only once its hash matches (the signed manifest's,
+# or a pin), as from the link. The same function is in otc-update-runner.sh,
+# update.sh, verified-install.sh and install.sh (updater/gh_fetch_test.go).
+gh_api_fetch() {
+    local url="$1" out="$2" repo="" tag="" name="" id=""
+    local re='^https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/releases/download/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$'
+    local stall=(--connect-timeout 30 --speed-limit 1 --speed-time 120)
+    [[ "$url" =~ $re ]] || return 1
+    repo="${BASH_REMATCH[1]}" tag="${BASH_REMATCH[2]}" name="${BASH_REMATCH[3]}"
+    echo "GitHub's download link for $name failed: fetching it through GitHub's API" >&2
+    # The release into a file, never a pipe: curl starts a retried
+    # transfer's file afresh, while what it had sent down a pipe would stay
+    # ahead of the retry's answer.
+    if curl -fsSL --retry 3 --max-time 60 --max-filesize 1048576 "${stall[@]}" \
+            -H 'Accept: application/vnd.github+json' -o "$out.release" \
+            "https://api.github.com/repos/$repo/releases/tags/$tag"; then
+        id="$(python3 -I -c 'import json, sys
+for a in json.load(sys.stdin).get("assets") or []:
+    if a.get("name") == sys.argv[1] and type(a.get("id")) is int:
+        print(a["id"])
+        break' "$name" < "$out.release" 2>/dev/null)" || true
+    fi
+    rm -f -- "$out.release"
+    [[ "$id" =~ ^[0123456789]{1,20}$ ]] || return 1
+    curl -fsSL --retry 6 --retry-all-errors "${stall[@]}" -H 'Accept: application/octet-stream' \
+        -o "$out" "https://api.github.com/repos/$repo/releases/assets/$id"
+}
+# gh_fetch <url> <out>: a release's file, retried for about a minute (1 s
+# doubling), then through GitHub's API (gh_api_fetch above).
+gh_fetch() {
+    curl -fsSL --retry 6 --retry-all-errors --connect-timeout 30 --speed-limit 1 --speed-time 120 -o "$2" "$1" \
+        || gh_api_fetch "$1" "$2"
+}
 # Right after a release the CDN can serve the new manifest beside the old
 # signature (or the other way round) for a while, which reads exactly like
 # a manifest someone altered: a signature that doesn't match is fetched
@@ -182,7 +220,7 @@ for space in "$RUN_DIR 150" "/ 1024"; do
 done
 
 status running "Downloading release $target" downloading "$(args release "$target")"
-fetch "$OTC_REPO_GH/releases/download/v$target/src.tar.gz" "$RUN_DIR/src.tar.gz" \
+gh_fetch "$OTC_REPO_GH/releases/download/v$target/src.tar.gz" "$RUN_DIR/src.tar.gz" \
     || { status failed "could not download the source of release $target" source_download_failed "$(args release "$target")"; exit 1; }
 actual="$(sha256sum "$RUN_DIR/src.tar.gz" | awk '{print $1}')"
 [ "$actual" = "$src_sha" ] || { status failed "the source of release $target does not match its signed hash" source_hash_mismatch "$(args release "$target")"; exit 1; }
