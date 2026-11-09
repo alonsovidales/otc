@@ -5,6 +5,7 @@ package dao
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -157,18 +158,21 @@ func (dao *Dao) TagsOfHashes(hashes []string) (map[string][]MemoryTag, error) {
 	return out, err
 }
 
-// MemoryFace is a person face recognition found in a photo; Name is ""
-// for someone not named yet.
+// MemoryFace is a person face recognition found in a photo, or added to
+// it by hand; Name is "" for someone not named yet.
 type MemoryFace struct {
 	PersonID, Name string
 }
 
-// FacesOfHashes is the people found in each of hashes, once each (a face
-// taken off its person, person_id "", is no one's).
+// FacesOfHashes is the people in each of hashes, once each: found there
+// (a face taken off its person, person_id "", is no one's) or added by
+// hand (people_by_hand.go).
 func (dao *Dao) FacesOfHashes(hashes []string) (map[string][]MemoryFace, error) {
 	out := map[string][]MemoryFace{}
-	err := eachChunkRow(dao, hashes, "select distinct `f`.`hash`, `f`.`person_id`, coalesce(`p`.`name`, '') from `faces` as `f`"+
-		" left join `people` as `p` on `p`.`id` = `f`.`person_id` where `f`.`person_id` <> '' and `f`.`hash` in (%s)", func(rows *sql.Rows) error {
+	err := eachChunkRow(dao, hashes, "select distinct `f`.`hash`, `f`.`person_id`, coalesce(`p`.`name`, '') from"+
+		" (select `hash`, `person_id` from `faces` where `person_id` <> '' and `hash` in (%s)"+
+		" union all select `hash`, `person_id` from "+cByHand+" as `b` where `hash` in (%s)) as `f`"+
+		" left join `people` as `p` on `p`.`id` = `f`.`person_id`", func(rows *sql.Rows) error {
 		var h string
 		var f MemoryFace
 		if err := rows.Scan(&h, &f.PersonID, &f.Name); err != nil {
@@ -278,12 +282,19 @@ func (dao *Dao) PlaceTagCounts(limit int) ([]TagCount, error) {
 	return out, rows.Err()
 }
 
-// eachChunkRow runs query (one %s for the placeholders) for hashes, in
-// chunks, calling row for each row.
+// eachChunkRow runs query (a %s for the placeholders, each with the
+// chunk's hashes; read with cByHand) for hashes, in chunks, calling row
+// for each row.
 func eachChunkRow(dao *Dao, hashes []string, query string, row func(*sql.Rows) error) error {
+	n := strings.Count(query, "%s")
 	for _, chunk := range hashChunks(hashes) {
 		ph, args := inPlaceholders(chunk)
-		rows, err := dao.db.Query(fmt.Sprintf(query, ph), args...)
+		phs, all := make([]any, n), make([]any, 0, n*len(args))
+		for i := range n {
+			phs[i] = ph
+			all = append(all, args...)
+		}
+		rows, err := dao.byHandQuery(fmt.Sprintf(query, phs...), all...)
 		if err != nil {
 			return err
 		}

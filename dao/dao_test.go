@@ -68,9 +68,9 @@ func TestSearchMediaMultiplePeopleRequiresAllOfThem(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("join \\(select `hash` from `faces` where `person_id` in \\(\\?,\\?\\) and `person_id` <> '' group by `hash` having count\\(distinct `person_id`\\) = 2\\) as `fc` on `fc`\\.`hash` = `f`\\.`hash` "+
+	mock.ExpectQuery("join \\(select `hash` from \\(select `hash`, `person_id` from `faces` where `person_id` in \\(\\?,\\?\\) and `person_id` <> '' union all select `hash`, `person_id` from `people_by_hand` as `b` where `person_id` in \\(\\?,\\?\\)\\) as `pf` group by `hash` having count\\(distinct `person_id`\\) = 2\\) as `fc` on `fc`\\.`hash` = `f`\\.`hash` "+
 		"order by `f`\\.`created` desc, `f`\\.`path` desc$").
-		WithArgs("alice-id", "bob-id").
+		WithArgs("alice-id", "bob-id", "alice-id", "bob-id").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
@@ -94,9 +94,9 @@ func TestSearchMediaCombinesTagsAndPerson(t *testing.T) {
 
 	mock.ExpectQuery(
 		"join \\(select `hash`, sum\\(`score`\\) as `score` from `file_tags` where `tag` in \\(\\?\\) group by `hash`\\) as `tg` on `tg`\\.`hash` = `f`\\.`hash` "+
-			"join \\(select `hash` from `faces` where `person_id` in \\(\\?\\) and `person_id` <> '' group by `hash` having count\\(distinct `person_id`\\) = 1\\) as `fc` on `fc`\\.`hash` = `f`\\.`hash` "+
+			"join \\(select `hash` from \\(select `hash`, `person_id` from `faces` where `person_id` in \\(\\?\\) and `person_id` <> '' union all select `hash`, `person_id` from `people_by_hand` as `b` where `person_id` in \\(\\?\\)\\) as `pf` group by `hash` having count\\(distinct `person_id`\\) = 1\\) as `fc` on `fc`\\.`hash` = `f`\\.`hash` "+
 			"order by `tg`\\.`score` desc").
-		WithArgs("dogs", "alice-id").
+		WithArgs("dogs", "alice-id", "alice-id").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size", "score"}))
 
 	d := NewWithDB(db)
@@ -119,7 +119,7 @@ func TestSearchMediaImagesOnlyIgnoredWhenFiltersApplied(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectQuery("from `faces` .* on `fc`\\.`hash` = `f`\\.`hash` order by").
-		WithArgs("alice-id").
+		WithArgs("alice-id", "alice-id").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
@@ -201,10 +201,10 @@ func TestSearchMediaDateBucketsMultiplePeopleRequiresAllOfThem(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectQuery("select `f`\\.`hash`, min\\(`f`\\.`created`\\) as `created` from `files` as `f` "+
-		"join \\(select `hash` from `faces` where `person_id` in \\(\\?,\\?\\) and `person_id` <> '' group by `hash` having count\\(distinct `person_id`\\) = 2\\) as `fc` on `fc`\\.`hash` = `f`\\.`hash` "+
+		"join \\(select `hash` from \\(select `hash`, `person_id` from `faces` where `person_id` in \\(\\?,\\?\\) and `person_id` <> '' union all select `hash`, `person_id` from `people_by_hand` as `b` where `person_id` in \\(\\?,\\?\\)\\) as `pf` group by `hash` having count\\(distinct `person_id`\\) = 2\\) as `fc` on `fc`\\.`hash` = `f`\\.`hash` "+
 		"group by `f`\\.`hash`"+
 		"\\) as `month_src` group by `bucket` order by `bucket` desc").
-		WithArgs("alice-id", "bob-id").
+		WithArgs("alice-id", "bob-id", "alice-id", "bob-id").
 		WillReturnRows(sqlmock.NewRows([]string{"bucket", "count"}))
 
 	d := NewWithDB(db)
@@ -401,6 +401,14 @@ func TestMergePeopleReassignsFacesAndDeletesSources(t *testing.T) {
 	mock.ExpectExec("update `faces` set `person_id` = \\? where `person_id` in \\(\\?,\\?\\)").
 		WithArgs("target-id", "src-1", "src-2").
 		WillReturnResult(sqlmock.NewResult(0, 3))
+	// Where they were added by hand goes to the target too: once a
+	// content, and never where the target has a face.
+	mock.ExpectExec("update ignore `people_by_hand` set `person_id` = \\? where `person_id` in \\(\\?,\\?\\)$").
+		WithArgs("target-id", "src-1", "src-2").WillReturnResult(sqlmock.NewResult(0, 2))
+	mock.ExpectExec("delete from `people_by_hand` where `person_id` in \\(\\?,\\?\\)$").
+		WithArgs("src-1", "src-2").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `people_by_hand` where `person_id` = \\? and exists \\(select 1 from `faces` where `faces`.`hash` = `people_by_hand`.`hash` and `faces`.`person_id` = `people_by_hand`.`person_id`\\)").
+		WithArgs("target-id").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("delete from `people` where `id` in \\(\\?,\\?\\)").
 		WithArgs("src-1", "src-2").
 		WillReturnResult(sqlmock.NewResult(0, 2))
@@ -428,6 +436,10 @@ func TestMergePeopleFiltersTargetOutOfSources(t *testing.T) {
 	mock.ExpectExec("update `faces` set `person_id` = \\? where `person_id` in \\(\\?\\)").
 		WithArgs("target-id", "src-1").
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	// A database without people_by_hand: nothing of it to move.
+	mock.ExpectExec("update ignore `people_by_hand`").WithArgs("target-id", "src-1").WillReturnError(noByHandTable)
+	mock.ExpectExec("delete from `people_by_hand`").WithArgs("src-1").WillReturnError(noByHandTable)
+	mock.ExpectExec("delete from `people_by_hand`").WithArgs("target-id").WillReturnError(noByHandTable)
 	mock.ExpectExec("delete from `people` where `id` in \\(\\?\\)").
 		WithArgs("src-1").
 		WillReturnResult(sqlmock.NewResult(0, 1))
@@ -727,6 +739,7 @@ func TestWipeTagsAndFacesDeletesAllThreeTablesInOneTransaction(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectExec("delete from `file_tags`").WillReturnResult(sqlmock.NewResult(0, 10))
 	mock.ExpectExec("delete from `faces`").WillReturnResult(sqlmock.NewResult(0, 5))
+	mock.ExpectExec("delete from `people_by_hand`").WillReturnResult(sqlmock.NewResult(0, 2))
 	mock.ExpectExec("delete from `people`").WillReturnResult(sqlmock.NewResult(0, 3))
 	mock.ExpectCommit()
 
@@ -735,7 +748,7 @@ func TestWipeTagsAndFacesDeletesAllThreeTablesInOneTransaction(t *testing.T) {
 		t.Fatalf("WipeTagsAndFaces: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("not all expected queries ran (order matters here: file_tags, then faces, then people): %v", err)
+		t.Errorf("not all expected queries ran (order matters here: file_tags, then faces, then the people added by hand, then people): %v", err)
 	}
 }
 
@@ -1265,9 +1278,9 @@ func TestSearchMediaCombinesPersonAndGroup(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectQuery(
-		"join \\(select `hash` from `faces` where `person_id` in \\(\\?\\) and `person_id` <> '' group by `hash` having count\\(distinct `person_id`\\) = 1\\) as `fc` on `fc`\\.`hash` = `f`\\.`hash` "+
+		"join \\(select `hash` from \\(select `hash`, `person_id` from `faces` where `person_id` in \\(\\?\\) and `person_id` <> '' union all select `hash`, `person_id` from `people_by_hand` as `b` where `person_id` in \\(\\?\\)\\) as `pf` group by `hash` having count\\(distinct `person_id`\\) = 1\\) as `fc` on `fc`\\.`hash` = `f`\\.`hash` "+
 			"join `image_group_files` as `ig` on `ig`\\.`hash` = `f`\\.`hash` and `ig`\\.`group_id` = \\? order by").
-		WithArgs("alice-id", "album-1").
+		WithArgs("alice-id", "alice-id", "album-1").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)

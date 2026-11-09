@@ -27,14 +27,18 @@ func TestRemoveFromPersonGivesTheFacesToNoOne(t *testing.T) {
 		WithArgs("", "f1", "f2").WillReturnResult(sqlmock.NewResult(0, 2))
 	mock.ExpectExec("update `people` set `cover_face_id` = null, `cover_chosen` = \\(`cover_image` is not null\\) where `cover_face_id` in \\(\\?,\\?\\)").
 		WithArgs("f1", "f2").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec("delete from `people` where `id` = \\? and `name` = '' and not exists \\(select 1 from `faces` where `faces`.`person_id` = `people`.`id`\\)").
+	// Added by hand to B too: taken off it as well.
+	mock.ExpectExec("delete from `people_by_hand` where `person_id` = \\? and `hash` in \\(\\?,\\?\\)").
+		WithArgs("p1", "A", "B").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `people` where `id` = \\? and `name` = '' and not exists \\(select 1 from `faces` where `faces`.`person_id` = `people`.`id`\\)" +
+		" and not exists \\(select 1 from `people_by_hand` as `bh` where `bh`.`person_id` = `people`.`id`\\)").
 		WithArgs("p1").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectCommit()
 
 	// A hash named twice is asked for once.
-	moved, err := NewWithDB(db).RemoveFromPerson("p1", []string{"A", "B", "A"}, "")
-	if err != nil || moved != 2 {
-		t.Fatalf("RemoveFromPerson = %d, %v; want 2 faces moved", moved, err)
+	faces, byHand, err := NewWithDB(db).RemoveFromPerson("p1", []string{"A", "B", "A"}, "")
+	if err != nil || faces != 2 || byHand != 1 {
+		t.Fatalf("RemoveFromPerson = %d, %d, %v; want 2 faces moved and 1 added by hand", faces, byHand, err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
@@ -58,11 +62,19 @@ func TestRemoveFromPersonMovesTheFacesToAnotherPerson(t *testing.T) {
 		WithArgs("p2", "f1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("update `people` set `cover_face_id` = null, `cover_chosen` = \\(`cover_image` is not null\\) where `cover_face_id` in \\(\\?\\)").
 		WithArgs("f1").WillReturnResult(sqlmock.NewResult(0, 0))
+	// Where p1 was added by hand goes to p2 too, unless p2 is there
+	// already; then p2's row where the face went gives way to it.
+	mock.ExpectExec("update ignore `people_by_hand` set `person_id` = \\? where `person_id` in \\(\\?\\) and `hash` in \\(\\?\\)").
+		WithArgs("p2", "p1", "A").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("delete from `people_by_hand` where `person_id` in \\(\\?\\) and `hash` in \\(\\?\\)").
+		WithArgs("p1", "A").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("delete from `people_by_hand` where `person_id` = \\? and `hash` in \\(\\?\\) and exists \\(select 1 from `faces` where `faces`.`hash` = `people_by_hand`.`hash` and `faces`.`person_id` = `people_by_hand`.`person_id`\\)").
+		WithArgs("p2", "A").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("delete from `people` where `id` = \\?").WithArgs("p1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
-	if moved, err := NewWithDB(db).RemoveFromPerson("p1", []string{"A"}, "p2"); err != nil || moved != 1 {
-		t.Fatalf("RemoveFromPerson = %d, %v; want 1 face moved", moved, err)
+	if faces, byHand, err := NewWithDB(db).RemoveFromPerson("p1", []string{"A"}, "p2"); err != nil || faces != 1 || byHand != 0 {
+		t.Fatalf("RemoveFromPerson = %d, %d, %v; want 1 face moved", faces, byHand, err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
@@ -83,16 +95,19 @@ func TestRemoveFromPersonChangesNothingWhenThereIsNothingToDo(t *testing.T) {
 	mock.ExpectQuery("select 1 from `people` where `id` = \\? for update").WithArgs("gone").
 		WillReturnRows(sqlmock.NewRows([]string{"1"}))
 	mock.ExpectRollback()
-	if moved, err := d.RemoveFromPerson("p1", []string{"A"}, "gone"); !errors.Is(err, ErrNoSuchPerson) || moved != 0 {
-		t.Errorf("to a person who is gone: %d, %v; want ErrNoSuchPerson", moved, err)
+	if faces, byHand, err := d.RemoveFromPerson("p1", []string{"A"}, "gone"); !errors.Is(err, ErrNoSuchPerson) || faces+byHand != 0 {
+		t.Errorf("to a person who is gone: %d, %d, %v; want ErrNoSuchPerson", faces, byHand, err)
 	}
 
+	// Neither a face nor a row added by hand - on a database without
+	// people_by_hand, which has none.
 	mock.ExpectBegin()
 	mock.ExpectQuery("select `id` from `faces` where `person_id` = \\?").WithArgs("p1", "Z").
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectExec("delete from `people_by_hand`").WithArgs("p1", "Z").WillReturnError(noByHandTable)
 	mock.ExpectRollback()
-	if moved, err := d.RemoveFromPerson("p1", []string{"Z"}, ""); err != nil || moved != 0 {
-		t.Errorf("photos without a face of the person: %d, %v; want 0 and no error", moved, err)
+	if faces, byHand, err := d.RemoveFromPerson("p1", []string{"Z"}, ""); err != nil || faces+byHand != 0 {
+		t.Errorf("photos without a face of the person: %d, %d, %v; want 0 and no error", faces, byHand, err)
 	}
 
 	// No one, to themselves, or no photos: not even a transaction.
@@ -100,8 +115,8 @@ func TestRemoveFromPersonChangesNothingWhenThereIsNothingToDo(t *testing.T) {
 		person, to string
 		hashes     []string
 	}{{"", "p2", []string{"A"}}, {"p1", "p1", []string{"A"}}, {"p1", "", nil}} {
-		if moved, err := d.RemoveFromPerson(c.person, c.hashes, c.to); err != nil || moved != 0 {
-			t.Errorf("%+v: %d, %v", c, moved, err)
+		if faces, byHand, err := d.RemoveFromPerson(c.person, c.hashes, c.to); err != nil || faces+byHand != 0 {
+			t.Errorf("%+v: %d, %d, %v", c, faces, byHand, err)
 		}
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -140,6 +155,9 @@ func TestNoOneIsNeverDeletedOrMerged(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectExec("update `faces` set `person_id` = \\? where `person_id` in \\(\\?\\)").
 		WithArgs("p1", "p2").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("update ignore `people_by_hand`").WithArgs("p1", "p2").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("delete from `people_by_hand`").WithArgs("p2").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("delete from `people_by_hand`").WithArgs("p1").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("delete from `people` where `id` in \\(\\?\\)").WithArgs("p2").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	if err := d.MergePeople("p1", []string{"", "p2"}); err != nil {

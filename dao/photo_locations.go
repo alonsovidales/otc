@@ -122,7 +122,7 @@ func (dao *Dao) EachLocatedCopy(excluded []string, fn func(LocatedCopy) error) e
 // search are the index's photos among these.
 func (dao *Dao) EachMatchingMediaHash(tags []string, personIDs []string, groupID string, imagesOnly bool, excluded []string, fn func(hash string)) error {
 	from, where, _, _, args := searchMediaClauses("", tags, personIDs, groupID, imagesOnly, nil, excluded, nil)
-	rows, err := dao.db.Query("select distinct `f`.`hash` "+from+where, args...)
+	rows, err := dao.byHandQuery("select distinct `f`.`hash` "+from+where, args...)
 	if err != nil {
 		return err
 	}

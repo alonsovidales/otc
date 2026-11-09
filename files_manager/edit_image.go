@@ -575,12 +575,15 @@ func (mg *Manager) saveEdit(ses *session.Session, file *pb.File, out editOut, as
 	}
 
 	// Who is in it: the original's faces, moved with the edit - before its
-	// analysis, which then finds them there and leaves them.
+	// analysis, which then finds them there and leaves them - and the
+	// people added to it by hand, photo or video (no box: a crop keeps
+	// them all).
 	if out.move != nil {
 		if _, err := mg.dao.CopyFaces(file.Hash, edited.Hash, out.move, func() string { return uuid.New().String() }); err != nil {
 			log.Error("could not give an edit its photo's faces:", err)
 		}
 	}
+	mg.copyPeopleByHand(file.Hash, edited.Hash)
 	if !asCopy {
 		// The photo, when nothing holds it any more - an edit edited again
 		// goes; an original stays, kept by its edit.
@@ -656,6 +659,10 @@ func (mg *Manager) RevertImage(ses *session.Session, p, shown string, everyCopy 
 	} else if err != nil {
 		return nil, err
 	}
+	// The original has its faces still (kept with it), and is found again
+	// by the analysis where they were cut out; the people added to the
+	// edit by hand since are given to it, or the revert would lose them.
+	mg.copyPeopleByHand(file.Hash, edit.Original)
 	if err := mg.removeBlobIfUnused(file.Hash); err != nil {
 		log.Error("could not remove a reverted edit", file.Hash, ":", err)
 	}

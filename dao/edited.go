@@ -440,7 +440,8 @@ type FaceBox struct{ X, Y, W, H int }
 // CopyFaces gives to the faces of from, each with its box moved by move
 // (false: it is not in to - cropped out), each to the same person, in one
 // transaction: an edit keeps who is in it. Nothing when to has faces
-// already. Answers how many were given.
+// already. A face given takes the place of its person's row added by hand
+// in to (people_by_hand.go). Answers how many were given.
 func (dao *Dao) CopyFaces(from, to string, move func(FaceBox) (FaceBox, bool), newID func() string) (int, error) {
 	tx, err := dao.db.Begin()
 	if err != nil {
@@ -490,6 +491,11 @@ func (dao *Dao) CopyFaces(from, to string, move func(FaceBox) (FaceBox, bool), n
 			return 0, err
 		}
 		n++
+	}
+	if n > 0 {
+		if err = dropByHandUnderFaces(tx, "`hash` = ?", to); err != nil {
+			return 0, err
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		return 0, err

@@ -86,7 +86,7 @@ func (dao *Dao) SearchMediaOf(b *MediaBrowse, hashes []string) ([]*pb.File, erro
 		if rating != nil {
 			cols += ", coalesce(`pr`.`stars`, 0)"
 		}
-		rows, err := dao.db.Query("select "+cols+" "+from+where, args...)
+		rows, err := dao.byHandQuery("select "+cols+" "+from+where, args...)
 		if err != nil {
 			return nil, err
 		}
@@ -241,7 +241,7 @@ func (dao *Dao) estimateMedia(m *MediaFilters) (int, *mediaDriver, error) {
 	best, driver := -1, (*mediaDriver)(nil)
 	try := func(count string, args []any, d *mediaDriver) error {
 		var n int
-		if err := dao.db.QueryRow(count, args...).Scan(&n); err != nil {
+		if err := byHandScan(dao.db, count, args, &n); err != nil {
 			return err
 		}
 		if best < 0 || n < best {
@@ -268,9 +268,11 @@ func (dao *Dao) estimateMedia(m *MediaFilters) (int, *mediaDriver, error) {
 			return 0, &mediaDriver{kind: "none", table: "(select `hash` from `faces` where 0 = 1)"}, nil
 		}
 		for _, id := range m.PersonIDs {
-			args := []any{id}
-			if err := try("select count(*) from `faces` where `person_id` = ?", args,
-				&mediaDriver{kind: "person", table: "(select distinct `hash` from `faces` where `person_id` = ?)", args: args}); err != nil {
+			// Their faces' contents and those they were added to by hand
+			// (people_by_hand.go): never both for one content.
+			args := []any{id, id}
+			if err := try("select (select count(*) from `faces` where `person_id` = ?) + (select count(*) from "+cByHand+" as `b` where `b`.`person_id` = ?)", args,
+				&mediaDriver{kind: "person", table: "(select `hash` from `faces` where `person_id` = ? union select `hash` from " + cByHand + " as `b` where `b`.`person_id` = ?)", args: args}); err != nil {
 				return 0, nil, err
 			}
 		}
@@ -326,7 +328,7 @@ func (dao *Dao) datedRows(b *MediaBrowse, driver *mediaDriver) ([]ListedHash, er
 	if len(conds) > 0 {
 		query += " where " + strings.Join(conds, " and ")
 	}
-	rows, err := dao.db.Query(query, append(queryArgs, args...)...)
+	rows, err := dao.byHandQuery(query, append(queryArgs, args...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -443,8 +445,8 @@ func (dao *Dao) RankMedia(m *MediaFilters) ([]ListedHash, error) {
 			where = append(where, "0 = 1")
 		} else {
 			for _, id := range m.PersonIDs {
-				where = append(where, "(select 1 from `faces` as `xc` where `xc`.`hash` = `d`.`hash` and `xc`.`person_id` = ? limit 1) is not null")
-				whereArgs = append(whereArgs, id)
+				where = append(where, personIn("`d`"))
+				whereArgs = append(whereArgs, id, id)
 			}
 		}
 	}
@@ -467,7 +469,7 @@ func (dao *Dao) RankMedia(m *MediaFilters) ([]ListedHash, error) {
 		query += " having `score` is not null"
 	}
 	args := append(append(append(selectArgs, fromArgs...), joinArgs...), whereArgs...)
-	rows, err := dao.db.Query(query, args...)
+	rows, err := dao.byHandQuery(query, args...)
 	if err != nil {
 		return nil, err
 	}

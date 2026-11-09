@@ -4105,6 +4105,34 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
 
+	// The viewer's Info: Add, a person put in a photo or video by hand.
+	case *pb.ReqEnvelope_ReqAddToPerson:
+		req := p.ReqAddToPerson
+		log.Info("Add a person by hand:", req.PersonId, len(req.Hashes), "photo(s) or video(s)")
+		if refusal := addToPersonRefusal(req, ch.mg.settings.FaceRecognitionEnabled()); refusal != nil {
+			resp.Error = true
+			resp.ErrorMessage = refusal.Render(lang)
+			break
+		}
+		err := ch.mg.filesManager.AddToPerson(req.PersonId, req.Hashes)
+		switch {
+		case err == nil:
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		case errors.Is(err, dao.ErrNoSuchPerson):
+			// Deleted or merged meanwhile (another app): no one added.
+			log.Info("the person to add is gone:", req.PersonId)
+			resp.Error = true
+			resp.ErrorMessage = i18n.DevFilesPersonGone().Render(lang)
+		case errors.Is(err, filesmanager.ErrPersonAddGone):
+			log.Info("none of the photos or videos to add a person to is here")
+			resp.Error = true
+			resp.ErrorMessage = i18n.DevFilesPersonAddGone().Render(lang)
+		default:
+			log.Error("error adding a person by hand:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		}
+
 	// The viewer's Info: the faces found in one photo, and who each is.
 	case *pb.ReqEnvelope_ReqGetPhotoFaces:
 		faces, err := ch.mg.filesManager.PhotoFaces(ses, p.ReqGetPhotoFaces.Path, ch.mg.settings.FaceRecognitionEnabled())

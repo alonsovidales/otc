@@ -143,7 +143,7 @@ func expectLastDelFile(mock sqlmock.Sqlmock, path, hash string) {
 	mock.ExpectCommit()
 	mock.ExpectQuery("select `hash` from `file_versions` where `path` = \\?").WithArgs(path, path).WillReturnRows(hashRows())
 	mock.ExpectQuery(reReferenced).WithArgs(hash, hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
-	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs(hash).WillReturnRows(sqlmock.NewRows([]string{"id", "person_id"}))
+	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"id", "person_id"}))
 	mock.ExpectExec("delete from `skipped_analysis` where `hash` in").WithArgs(hash).WillReturnResult(sqlmock.NewResult(0, 0))
 }
 

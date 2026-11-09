@@ -68,7 +68,8 @@ type MediaFilters struct {
 	// Tags keeps the photos with any of them (ranked by their score going
 	// down, which BrowseMedia doesn't do: see search_lists.go).
 	Tags []string
-	// PersonIDs keeps the photos with a face of every one of them.
+	// PersonIDs keeps the photos with a face of every one of them, or
+	// that they were added to by hand.
 	PersonIDs []string
 	// GroupID keeps a collection's photos.
 	GroupID string
@@ -96,6 +97,14 @@ func (m *MediaFilters) rated() *RatingQuery {
 		return nil
 	}
 	return m.Rating
+}
+
+// personIn is the condition that the content of alias (its `hash`) has a
+// face of a person, or was added to them by hand (people_by_hand.go): the
+// person's id twice in its arguments. Read with cByHand (byHandQuery).
+func personIn(alias string) string {
+	return "((select 1 from `faces` as `xc` where `xc`.`hash` = " + alias + ".`hash` and `xc`.`person_id` = ? limit 1) is not null" +
+		" or (select 1 from " + cByHand + " as `xb` where `xb`.`hash` = " + alias + ".`hash` and `xb`.`person_id` = ? limit 1) is not null)"
 }
 
 // peopleMatchable says whether any photo can have every person of ids:
@@ -168,7 +177,7 @@ func (dao *Dao) BrowseMedia(b *MediaBrowse, from *time.Time, want int) (files []
 	}
 	parts = append(parts, oldest)
 	queryArgs = append(queryArgs, gArgs...)
-	dates, err := dao.db.Query(selectFrom("`f`.`created`")+" where "+strings.Join(parts, " and ")+
+	dates, err := dao.byHandQuery(selectFrom("`f`.`created`")+" where "+strings.Join(parts, " and ")+
 		" order by `f`.`created` "+dir+fmt.Sprintf(" limit %d", want+1), queryArgs...)
 	if err != nil {
 		return nil, nil, false, err
@@ -208,7 +217,7 @@ func (dao *Dao) BrowseMedia(b *MediaBrowse, from *time.Time, want int) (files []
 	}
 	parts = append(slices.Clone(conds), "`f`.`created` >= ?", "`f`.`created` <= ?", oldest)
 	queryArgs = append(append(slices.Clone(args), lo, hi), gArgs...)
-	rows, err := dao.db.Query(selectFrom("`f`.`hash`, `f`.`mime`, `f`.`created`, `f`.`modified`, `f`.`path`, `f`.`size`")+
+	rows, err := dao.byHandQuery(selectFrom("`f`.`hash`, `f`.`mime`, `f`.`created`, `f`.`modified`, `f`.`path`, `f`.`size`")+
 		" where "+strings.Join(parts, " and ")+" order by `f`.`created` "+dir+", `f`.`path` "+dir, queryArgs...)
 	if err != nil {
 		return nil, nil, false, err
@@ -269,8 +278,8 @@ func (b *MediaBrowse) rowClauses() (joins string, conds []string, args []any) {
 			conds = append(conds, "0 = 1")
 		} else {
 			for _, id := range m.PersonIDs {
-				conds = append(conds, "(select 1 from `faces` as `xc` where `xc`.`hash` = `f`.`hash` and `xc`.`person_id` = ? limit 1) is not null")
-				args = append(args, id)
+				conds = append(conds, personIn("`f`"))
+				args = append(args, id, id)
 			}
 		}
 	}

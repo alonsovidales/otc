@@ -87,7 +87,7 @@ func TestPersonCoverMySQL(t *testing.T) {
 	}
 
 	// The chosen face taken off them: the device's choice again.
-	if _, err := d.RemoveFromPerson("p1", []string{"A"}, ""); err != nil {
+	if _, _, err := d.RemoveFromPerson("p1", []string{"A"}, ""); err != nil {
 		t.Fatal(err)
 	}
 	var chosen int

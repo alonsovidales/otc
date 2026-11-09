@@ -1626,6 +1626,11 @@ SQL
     mysql "$db" <<'SQL'
     ALTER TABLE edited_content ADD COLUMN IF NOT EXISTS `original_removed` TINYINT(1) NOT NULL DEFAULT 0;
 SQL
+    # Release 179 (updates/179.sh): people added to a photo or video by hand
+    # (see db.sql's people_by_hand).
+    mysql "$db" <<'SQL'
+    CREATE TABLE IF NOT EXISTS people_by_hand (`hash` VARCHAR(64) NOT NULL, `person_id` VARCHAR(36) NOT NULL, `created` DATETIME NOT NULL, PRIMARY KEY (`person_id`, `hash`), KEY (`hash`)) ENGINE=InnoDB;
+SQL
 }
 
 apply_schema_migrations otc

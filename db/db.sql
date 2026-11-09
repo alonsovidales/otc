@@ -781,6 +781,31 @@ create table faces
   key (`person_id`)
 ) engine=InnoDB;
 
+-- A person added to a photo or video by hand (release 179; owner,
+-- 2026-11-09: "add people to the photos and videos by hand ... select one
+-- of the faces that are not already in the photo"): one row per person
+-- and content, keyed by `hash` like faces - a photo face recognition
+-- didn't find them in, or a video, where no face is looked for. Not a
+-- `faces` row, deliberately: it has no box, crop, embedding or quality, so
+-- it never reaches matching, covers, medoids or HashHasFaces, yet the
+-- content is the person's wherever a face makes it so - their photos in
+-- Images, People's count, the memories, Info (dao/people_by_hand.go). It
+-- goes with its content (dao.DelFacesByHash), its person
+-- (dao.DeletePerson, a fresh Reprocess) and "Not this person"
+-- (dao.RemoveFromPerson), moves with a merge, is copied to an edit, and
+-- gives way to a face of the person found in the content: a person is in
+-- a content once. An unnamed person with a row here stays when their last
+-- face goes. `created` orders Info's list.
+create table people_by_hand
+(
+  `hash` varchar(64) not null,
+  `person_id` varchar(36) not null,
+  `created` datetime not null,
+
+  primary key (`person_id`, `hash`),
+  key (`hash`)
+) engine=InnoDB;
+
 -- Issue #73: tracks a full-library reprocess run (re-running tagging/face
 -- detection against every already-uploaded photo/video, e.g. after a model
 -- change like the detection fixes that motivated this) - a singleton row

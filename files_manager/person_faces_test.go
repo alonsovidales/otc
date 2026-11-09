@@ -25,6 +25,14 @@ func faceRows(rows ...[]any) *sqlmock.Rows {
 	return r
 }
 
+// expectNoByHandMoved is dao.RemoveFromPerson finding no row of person
+// added by hand in hash to move to to.
+func expectNoByHandMoved(mock sqlmock.Sqlmock, person, to, hash string) {
+	mock.ExpectExec("update ignore `people_by_hand` set `person_id` = \\?").WithArgs(to, person, hash).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("delete from `people_by_hand` where `person_id` in").WithArgs(person, hash).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("delete from `people_by_hand` where `person_id` = \\? and `hash` in .* and exists").WithArgs(to, hash).WillReturnResult(sqlmock.NewResult(0, 0))
+}
+
 func refIDsOf(fr faceRefs, person string) string {
 	p := fr[person]
 	if p == nil {
@@ -60,6 +68,7 @@ func TestRemoveFromPersonRebuildsBothPeople(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("alice-3"))
 	mock.ExpectExec("update `faces` set `person_id` = \\?").WithArgs("bob", "alice-3").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("update `people` set `cover_face_id` = null").WithArgs("alice-3").WillReturnResult(sqlmock.NewResult(0, 1))
+	expectNoByHandMoved(mock, "alice", "bob", "h3")
 	mock.ExpectExec("delete from `people` where `id` = \\?").WithArgs("alice").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectCommit()
 	mock.ExpectQuery("select `id`, `person_id`, `embedding` from `faces` where `person_id` = \\?").WithArgs("alice").
@@ -115,6 +124,7 @@ func TestRemoveFromPersonDismissesTheFaces(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("stranger-1"))
 	mock.ExpectExec("update `faces` set `person_id` = \\?").WithArgs("", "stranger-1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("update `people` set `cover_face_id` = null").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `people_by_hand` where `person_id` = \\? and `hash` in").WithArgs("stranger", "h1").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("delete from `people` where `id` = \\?").WithArgs("stranger").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	mock.ExpectQuery("select `id`, `person_id`, `embedding` from `faces` where `person_id` = \\?").WithArgs("stranger").
@@ -216,5 +226,109 @@ func TestNoOneIsNeverAReference(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
+	}
+}
+
+// Only people added by hand taken off: no face moved, so no reference and
+// no cover changes - nothing is read again - but the photos leave the
+// person's grid as after a delete, and the memories are worked out again.
+func TestRemoveFromPersonByHandOnlyBuildsNothing(t *testing.T) {
+	ses := faceTestSession(t)
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	refs := refsOf(map[string][][]float32{"alice": {{1, 0}}})
+	mg := &Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(100), faceRefs: refs}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery("select `id` from `faces` where `person_id` = \\? and `hash` in").WithArgs("alice", "v1").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectExec("delete from `people_by_hand` where `person_id` = \\? and `hash` in").WithArgs("alice", "v1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `people` where `id` = \\?").WithArgs("alice").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
+	gen := mg.memories.gen.Load()
+	if err := mg.RemoveFromPerson(ses, "alice", []string{"v1"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err) // and no read of alice's faces
+	}
+	if got := refIDsOf(mg.faceRefs, "alice"); got != "[alice-1]" {
+		t.Errorf("alice's references %s, want them untouched", got)
+	}
+	if _, deletes := mg.searchTokens.begin(); deletes != 1 {
+		t.Errorf("deletes noted %d, want 1", deletes)
+	}
+	if mg.memories.gen.Load() == gen {
+		t.Error("the memories weren't worked out again")
+	}
+}
+
+// Info's Add: the person put in the photos and videos named, the memories
+// worked out again when someone was; none of them on the device is
+// ErrPersonAddGone, and the person gone is dao.ErrNoSuchPerson. The
+// matching set is never touched.
+func TestAddToPerson(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	refs := refsOf(map[string][][]float32{"alice": {{1, 0}}})
+	mg := &Manager{dao: dao.NewWithDB(db), faceRefs: refs}
+	person := func(id string, there bool) {
+		rows := sqlmock.NewRows([]string{"1"})
+		if there {
+			rows.AddRow(1)
+		}
+		mock.ExpectBegin()
+		mock.ExpectQuery("select 1 from `people` where `id` = \\? for update").WithArgs(id).WillReturnRows(rows)
+	}
+
+	person("alice", true)
+	mock.ExpectQuery("select distinct `f`.`hash`").WithArgs("alice", "h1", "v1").
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "free"}).AddRow("h1", false).AddRow("v1", true))
+	mock.ExpectExec("insert ignore into `people_by_hand`").WithArgs("v1", "alice", sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	gen := mg.memories.gen.Load()
+	if err := mg.AddToPerson("alice", []string{"h1", "v1"}); err != nil {
+		t.Fatal(err)
+	}
+	if mg.memories.gen.Load() == gen {
+		t.Error("the memories weren't worked out again")
+	}
+
+	// In them already: ok, nothing changed.
+	person("alice", true)
+	mock.ExpectQuery("select distinct `f`.`hash`").WithArgs("alice", "h1").
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "free"}).AddRow("h1", false))
+	mock.ExpectRollback()
+	gen = mg.memories.gen.Load()
+	if err := mg.AddToPerson("alice", []string{"h1"}); err != nil {
+		t.Errorf("in it already: %v", err)
+	}
+	if mg.memories.gen.Load() != gen {
+		t.Error("nothing changed, and the memories were worked out again")
+	}
+
+	person("alice", true)
+	mock.ExpectQuery("select distinct `f`.`hash`").WithArgs("alice", "gone").WillReturnRows(sqlmock.NewRows([]string{"hash", "free"}))
+	mock.ExpectRollback()
+	if err := mg.AddToPerson("alice", []string{"gone"}); !errors.Is(err, ErrPersonAddGone) {
+		t.Errorf("nothing on the device: %v", err)
+	}
+
+	person("bob", false)
+	mock.ExpectRollback()
+	if err := mg.AddToPerson("bob", []string{"h1"}); !errors.Is(err, dao.ErrNoSuchPerson) {
+		t.Errorf("a person who is gone: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+	if got := refIDsOf(mg.faceRefs, "alice"); got != "[alice-1]" {
+		t.Errorf("alice's references %s, want them untouched", got)
 	}
 }

@@ -52,6 +52,7 @@ func TestDemoRefusesChanges(t *testing.T) {
 		{&pb.ReqEnvelope{Id: 11, Payload: &pb.ReqEnvelope_ReqRestartDevice{ReqRestartDevice: &pb.RestartDevice{}}}, "This is a demo device: changes are turned off."},
 		{&pb.ReqEnvelope{Id: 11, Payload: &pb.ReqEnvelope_ReqShutDownDevice{ReqShutDownDevice: &pb.ShutDownDevice{}}}, "This is a demo device: changes are turned off."},
 		{&pb.ReqEnvelope{Id: 11, Payload: &pb.ReqEnvelope_ReqRemoveFromPerson{ReqRemoveFromPerson: &pb.RemoveFromPerson{PersonId: "p1", Hashes: []string{"A"}}}}, "This is a demo device: changes are turned off."},
+		{&pb.ReqEnvelope{Id: 11, Payload: &pb.ReqEnvelope_ReqAddToPerson{ReqAddToPerson: &pb.AddToPerson{PersonId: "p1", Hashes: []string{"A"}}}}, "This is a demo device: changes are turned off."},
 		{&pb.ReqEnvelope{Id: 11, Payload: &pb.ReqEnvelope_ReqFriendshipInterRequest{ReqFriendshipInterRequest: &pb.FriendshipInterRequest{}}}, "This is a demo device: changes are turned off."},
 		{&pb.ReqEnvelope{Id: 11}, "This is a demo device: changes are turned off."},
 	} {

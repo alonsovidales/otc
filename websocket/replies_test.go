@@ -271,6 +271,10 @@ var headEnglish = []struct {
 	// A person's face chosen by the owner: new, as above.
 	{"dev.files.person_cover_no_face", i18n.DevFilesPersonCoverNoFace(), "that photo has no face of this person"},
 	{"dev.files.person_cover_image", i18n.DevFilesPersonCoverImage(), "that picture can't be used: it must be a JPEG of at most 256 KB"},
+	// People added by hand to a photo or video (release 179): new, as
+	// above.
+	{"dev.files.person_add_faces_off", i18n.DevFilesPersonAddFacesOff(), "face recognition is turned off on this device"},
+	{"dev.files.person_add_gone", i18n.DevFilesPersonAddGone(), "that photo or video is no longer on this device"},
 	// Collection Rating (release 163): new, as above.
 	{"dev.files.rating_off", i18n.DevFilesRatingOff(), "Rating is off for this collection: turn it on to rate its photos"},
 	{"dev.files.rating_link_off", i18n.DevFilesRatingLinkOff(), "the photos of this link can't be rated any more"},

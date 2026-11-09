@@ -84,7 +84,7 @@ func TestRemoveFromPersonMySQL(t *testing.T) {
 
 	// Not this person: A (whose face is p1's cover) and a photo p1 isn't
 	// in leave p1. Its cover is cleared; it keeps B and C.
-	if moved, err := d.RemoveFromPerson("p1", []string{"A", "D"}, ""); err != nil || moved != 1 {
+	if moved, _, err := d.RemoveFromPerson("p1", []string{"A", "D"}, ""); err != nil || moved != 1 {
 		t.Fatalf("not this person: %d, %v", moved, err)
 	}
 	if got := people(); got != "[p1:2 p2:1 p3:1]" {
@@ -109,7 +109,7 @@ func TestRemoveFromPersonMySQL(t *testing.T) {
 	}
 
 	// Someone else: C goes from p1 to Ana; p3's own face in C stays p3's.
-	if moved, err := d.RemoveFromPerson("p1", []string{"C"}, "p2"); err != nil || moved != 1 {
+	if moved, _, err := d.RemoveFromPerson("p1", []string{"C"}, "p2"); err != nil || moved != 1 {
 		t.Fatalf("someone else: %d, %v", moved, err)
 	}
 	if got := photosOf("p2"); got != "/c.jpg,/d.jpg" {
@@ -123,7 +123,7 @@ func TestRemoveFromPersonMySQL(t *testing.T) {
 	}
 
 	// To someone who is gone: nothing moves.
-	if _, err := d.RemoveFromPerson("p1", []string{"B"}, "nobody"); !errors.Is(err, ErrNoSuchPerson) {
+	if _, _, err := d.RemoveFromPerson("p1", []string{"B"}, "nobody"); !errors.Is(err, ErrNoSuchPerson) {
 		t.Errorf("to a person who is gone: %v", err)
 	}
 	if got := photosOf("p1"); got != "/b.jpg" {
@@ -132,10 +132,10 @@ func TestRemoveFromPersonMySQL(t *testing.T) {
 
 	// p1, unnamed, loses its last face to Ana and goes; Ana, named, loses
 	// every face and stays, with no cover.
-	if moved, err := d.RemoveFromPerson("p1", []string{"B"}, "p2"); err != nil || moved != 1 {
+	if moved, _, err := d.RemoveFromPerson("p1", []string{"B"}, "p2"); err != nil || moved != 1 {
 		t.Fatalf("p1's last face: %d, %v", moved, err)
 	}
-	if moved, err := d.RemoveFromPerson("p2", []string{"B", "C", "D"}, ""); err != nil || moved != 3 {
+	if moved, _, err := d.RemoveFromPerson("p2", []string{"B", "C", "D"}, ""); err != nil || moved != 3 {
 		t.Fatalf("all of Ana's: %d, %v", moved, err)
 	}
 	if got := people(); got != "[p2:0 p3:1]" {

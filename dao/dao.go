@@ -2565,12 +2565,26 @@ func (dao *Dao) SetPersonCover(personID, faceID string, image []byte) error {
 //
 // quality is how good the face looks (images_quality.FaceQuality), for
 // the face the device chooses for its person (BestFaces).
+//
+// The person's face takes the place of their row added by hand in the
+// content (people_by_hand.go), in the same transaction: a person is in a
+// content once.
 func (dao *Dao) AddFace(id, hash, personID string, x, y, w, h int, embedding, thumbnail []byte, quality float64) (err error) {
-	_, err = dao.db.Exec(
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err = tx.Exec(
 		"insert into `faces` (`id`, `hash`, `person_id`, `bbox_x`, `bbox_y`, `bbox_w`, `bbox_h`, `embedding`, `thumbnail`, `created`, `quality`) "+
 			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, now(), ?)",
-		id, hash, personID, x, y, w, h, embedding, thumbnail, quality)
-	return
+		id, hash, personID, x, y, w, h, embedding, thumbnail, quality); err != nil {
+		return err
+	}
+	if _, err = execIfByHand(tx, "delete from `people_by_hand` where `person_id` = ? and `hash` = ?", personID, hash); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // RawFace is one face row's id plus its two encrypted-at-rest blobs, for
@@ -2669,6 +2683,15 @@ func (dao *Dao) faceEmbeddings(query string, args ...any) (faces []FaceEmbedding
 	return faces, rows.Err()
 }
 
+// personCoverSQL is the face People shows for the person `p`, as stored
+// (encrypted at rest): the picture the owner chose, else the face chosen
+// (cover_face_id; NULL when that face is gone), else their oldest face.
+// ListPeople's, and Info's for a person added by hand (PeopleByHandIn).
+const personCoverSQL = "coalesce(`p`.`cover_image`, case when `p`.`cover_face_id` is not null and `p`.`cover_face_id` <> '' " +
+	"then (select `c`.`thumbnail` from `faces` as `c` where `c`.`id` = `p`.`cover_face_id`) " +
+	"else (select `o`.`thumbnail` from `faces` as `o` where `o`.`person_id` = `p`.`id` order by `o`.`created` asc limit 1) " +
+	"end)"
+
 // ListPeople returns every recognized person (issue #52), legitimate and
 // well-photographed people first, each with its face count and one
 // representative face thumbnail - the picture or face the owner chose for
@@ -2699,13 +2722,13 @@ func (dao *Dao) ListPeople(cohesionThreshold float64) (people []*pb.Person, err 
 	// face that is gone reads NULL (no thumbnail), as its lookup did. The
 	// count is of the faces in photos a file holds: an edited photo's
 	// original keeps its faces, hidden (edited.go), and is no photo more.
-	rows, err := dao.db.Query(
+	// The photos and videos they were added to by hand count as theirs
+	// too (people_by_hand.go): never also a face of theirs.
+	rows, err := dao.byHandQuery(
 		"select `p`.`id`, `p`.`name`, "+
-			"(select count(*) from `faces` as `f` where `f`.`person_id` = `p`.`id` and exists (select 1 from `files` as `fl` where `fl`.`hash` = `f`.`hash`)) as `face_count`, "+
-			"coalesce(`p`.`cover_image`, case when `p`.`cover_face_id` is not null and `p`.`cover_face_id` <> '' "+
-			"then (select `c`.`thumbnail` from `faces` as `c` where `c`.`id` = `p`.`cover_face_id`) "+
-			"else (select `o`.`thumbnail` from `faces` as `o` where `o`.`person_id` = `p`.`id` order by `o`.`created` asc limit 1) "+
-			"end) as `cover_thumbnail`, `p`.`cover_chosen` "+
+			"(select count(*) from `faces` as `f` where `f`.`person_id` = `p`.`id` and exists (select 1 from `files` as `fl` where `fl`.`hash` = `f`.`hash`)) + "+
+			"(select count(*) from "+cByHand+" as `b` where `b`.`person_id` = `p`.`id` and exists (select 1 from `files` as `fb` where `fb`.`hash` = `b`.`hash`)) as `face_count`, "+
+			personCoverSQL+" as `cover_thumbnail`, `p`.`cover_chosen` "+
 			"from `people` as `p` "+
 			"order by (`p`.`cohesion` is null or `p`.`cohesion` >= ?) desc, `face_count` desc, `p`.`created` desc",
 		cohesionThreshold)
@@ -2744,7 +2767,8 @@ func (dao *Dao) RenamePerson(id, name string) (err error) {
 //
 // The empty id is no one (faces taken off their person, see
 // RemoveFromPerson): deleting it would delete those faces, and the photos
-// they were found in would be analysed again.
+// they were found in would be analysed again. The photos and videos they
+// were added to by hand lose them too (people_by_hand.go).
 func (dao *Dao) DeletePerson(id string) (err error) {
 	if id == "" {
 		return nil
@@ -2757,6 +2781,9 @@ func (dao *Dao) DeletePerson(id string) (err error) {
 
 	if _, err = tx.Exec("delete from `faces` where `person_id` = ?", id); err != nil {
 		return fmt.Errorf("deleting person's faces: %w", err)
+	}
+	if _, err = execIfByHand(tx, "delete from `people_by_hand` where `person_id` = ?", id); err != nil {
+		return fmt.Errorf("deleting where the person was added by hand: %w", err)
 	}
 	if _, err = tx.Exec("delete from `people` where `id` = ?", id); err != nil {
 		return fmt.Errorf("deleting person: %w", err)
@@ -2771,7 +2798,10 @@ func (dao *Dao) DeletePerson(id string) (err error) {
 // error) so a client doesn't need to de-duplicate before calling this.
 // The empty id is no one (faces taken off their person, see
 // RemoveFromPerson): never merged into, nor merged into someone - that
-// would hand every such face back to a person.
+// would hand every such face back to a person. Where the sources were
+// added by hand goes to targetID too (people_by_hand.go), each content
+// once: where targetID is already, by hand or by a face, the source's row
+// goes.
 func (dao *Dao) MergePeople(targetID string, sourceIDs []string) (err error) {
 	if targetID == "" {
 		return nil
@@ -2802,6 +2832,9 @@ func (dao *Dao) MergePeople(targetID string, sourceIDs []string) (err error) {
 
 	if _, err = tx.Exec("update `faces` set `person_id` = ? where `person_id` in ("+ph+")", args...); err != nil {
 		return fmt.Errorf("reassigning merged faces: %w", err)
+	}
+	if _, err = moveByHand(tx, targetID, ids, ""); err != nil {
+		return err
 	}
 	if _, err = tx.Exec("delete from `people` where `id` in ("+ph+")", args[1:]...); err != nil {
 		return fmt.Errorf("deleting merged people: %w", err)
@@ -2906,18 +2939,23 @@ func searchMediaOnlyClauses(path string, tags []string, personIDs []string, grou
 		ph := strings.Repeat("?,", len(personIDs))
 		ph = ph[:len(ph)-1]
 		// A face taken off its person ("Not this person", person_id '')
-		// is no one's: an empty id finds no photo.
+		// is no one's: an empty id finds no photo. A person added to the
+		// content by hand is in it as a face of theirs makes them
+		// (people_by_hand.go).
 		cut := ""
 		if only != nil {
 			cut = " and `hash` in (" + onlyPh + ")"
 		}
-		from += " join (select `hash` from `faces` where `person_id` in (" + ph + ") and `person_id` <> ''" + cut + " group by `hash`" +
+		from += " join (select `hash` from (select `hash`, `person_id` from `faces` where `person_id` in (" + ph + ") and `person_id` <> ''" + cut +
+			" union all select `hash`, `person_id` from " + cByHand + " as `b` where `person_id` in (" + ph + ")" + cut + ") as `pf` group by `hash`" +
 			fmt.Sprintf(" having count(distinct `person_id`) = %d) as `fc` on `fc`.`hash` = `f`.`hash`", len(personIDs))
-		for _, p := range personIDs {
-			args = append(args, p)
-		}
-		if only != nil {
-			args = append(args, onlyArgs...)
+		for range 2 {
+			for _, p := range personIDs {
+				args = append(args, p)
+			}
+			if only != nil {
+				args = append(args, onlyArgs...)
+			}
 		}
 	}
 
@@ -3025,7 +3063,7 @@ func (dao *Dao) SearchMediaRated(area *MediaArea, path string, tags []string, pe
 	query := "select `f`.`hash`, `f`.`mime`, `f`.`created`, `f`.`modified`, `f`.`path`, `f`.`size`" + selectExtra + " " +
 		from + where + orderBy
 
-	rows, err := dao.db.Query(query, args...)
+	rows, err := dao.byHandQuery(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -3113,7 +3151,7 @@ func (dao *Dao) SearchMediaDateBucketsWithin(area *MediaArea, tags []string, per
 		"select `f`.`hash`, min(`f`.`created`) as `created` " + from + where + " group by `f`.`hash`" +
 		") as `month_src` group by `bucket` order by `bucket` desc"
 
-	rows, err := dao.db.Query(query, args...)
+	rows, err := dao.byHandQuery(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -3452,7 +3490,8 @@ func (dao *Dao) MarkStaleReprocessStopped() (err error) {
 // faces: a stale person cluster from a since-fixed detection bug (a false
 // positive on a pet, a garbled crop) is worse than useless, and every
 // person gets freshly re-clustered as reprocessing goes rather than
-// reconciled against old, possibly-wrong ones.
+// reconciled against old, possibly-wrong ones - and the people added by
+// hand go with the people they were (people_by_hand.go).
 func (dao *Dao) WipeTagsAndFaces() (err error) {
 	tx, err := dao.db.Begin()
 	if err != nil {
@@ -3465,6 +3504,9 @@ func (dao *Dao) WipeTagsAndFaces() (err error) {
 	}
 	if _, err = tx.Exec("delete from `faces`"); err != nil {
 		return fmt.Errorf("wiping faces: %w", err)
+	}
+	if _, err = execIfByHand(tx, "delete from `people_by_hand`"); err != nil {
+		return fmt.Errorf("wiping the people added by hand: %w", err)
 	}
 	if _, err = tx.Exec("delete from `people`"); err != nil {
 		return fmt.Errorf("wiping people: %w", err)

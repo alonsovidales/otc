@@ -147,7 +147,7 @@ func expectDropped(mock sqlmock.Sqlmock, kept ...string) {
 	}
 	mock.ExpectExec("insert ignore into `skipped_analysis`").WillReturnResult(sqlmock.NewResult(0, int64(len(kept))))
 	mock.ExpectExec("delete from `file_tags` where `hash` in").WithArgs(args...).WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("select `id`, `person_id`, `hash` from `faces` where `hash` in").WithArgs(args...).
+	mock.ExpectQuery("select `id`, `person_id`, `hash` from `faces` where `hash` in").WithArgs(append(args, args...)...).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "person_id", "hash"}))
 }
 
@@ -445,7 +445,7 @@ func TestKeepingOutDropsAnalysisOfContentOnlyThere(t *testing.T) {
 	mock.ExpectQuery(reVisible).WillReturnRows(hashRows(both))
 	mock.ExpectExec("insert ignore into `skipped_analysis`").WithArgs(only, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec("delete from `file_tags` where `hash` in").WithArgs(only).WillReturnResult(sqlmock.NewResult(0, 3))
-	mock.ExpectQuery("select `id`, `person_id`, `hash` from `faces` where `hash` in").WithArgs(only).
+	mock.ExpectQuery("select `id`, `person_id`, `hash` from `faces` where `hash` in").WithArgs(only, only).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "person_id", "hash"}).AddRow(gone, "p1", only))
 	mock.ExpectBegin()
 	mock.ExpectExec("update `people` set `cover_face_id` = null, `cover_chosen` = \\(`cover_image` is not null\\) where `cover_face_id` in").WithArgs(only).WillReturnResult(sqlmock.NewResult(0, 0))

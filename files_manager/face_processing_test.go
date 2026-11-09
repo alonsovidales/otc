@@ -386,7 +386,7 @@ func TestDropFacesOfHashUpdatesTheMatchingSetInPlace(t *testing.T) {
 		"carol": {{0.7, 0.7}},
 	})}
 
-	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs("nofaces").
+	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs("nofaces", "nofaces").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "person_id"}))
 	mg.dropFacesOfHash("nofaces")
 	if mg.faceRefs == nil || len(mg.faceRefsStale) != 0 {
@@ -396,7 +396,7 @@ func TestDropFacesOfHashUpdatesTheMatchingSetInPlace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs("withfaces").
+	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs("withfaces", "withfaces").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "person_id"}).
 			AddRow("alice-1", "alice").AddRow("bob-7", "bob").AddRow("carol-1", "carol"))
 	mock.ExpectBegin()
@@ -452,7 +452,7 @@ func TestDropFacesOfHashUpdatesTheMatchingSetInPlace(t *testing.T) {
 
 	// A delete that failed may or may not have happened: the set is
 	// built again from what is stored.
-	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs("broken").
+	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs("broken", "broken").
 		WillReturnError(fmt.Errorf("database gone"))
 	mg.dropFacesOfHash("broken")
 	if mg.faceRefs != nil {

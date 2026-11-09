@@ -19,27 +19,32 @@ import (
 // (ListFaceEmbeddings leaves it out).
 
 // ErrNoSuchPerson is RemoveFromPerson's answer when the person the faces
-// were to go to isn't there (deleted or merged meanwhile). Nothing moved.
+// were to go to isn't there (deleted or merged meanwhile), and
+// AddToPerson's when the person to add is not. Nothing changed.
 var ErrNoSuchPerson = errors.New("no such person")
 
 // RemoveFromPerson takes every face of personID found in the contents
 // hashes off that person, in one transaction: to toPersonID when it is
 // set (that person must exist, else ErrNoSuchPerson and nothing changes),
-// else to no one (""). It returns how many faces moved; hashes without a
-// face of personID add nothing. A person whose cover was one of the moved
-// faces gets none (ListPeople then shows their oldest face, until
-// files_manager works out a new one), and personID, left with no face,
-// goes when unnamed - as after DelFacesByHash; a named one stays: the name
-// is the owner's.
-func (dao *Dao) RemoveFromPerson(personID string, hashes []string, toPersonID string) (moved int, err error) {
+// else to no one (""). The people added by hand go the same way
+// (people_by_hand.go): taken off, or moved to toPersonID - a row of
+// theirs that toPersonID has already there, or where a face of theirs is,
+// goes instead. It returns how many faces moved and how many of personID's
+// rows added by hand left them; hashes without either add nothing. A
+// person whose cover was one of the moved faces gets none (ListPeople then
+// shows their oldest face, until files_manager works out a new one), and
+// personID, left with no face, goes when unnamed and added by hand to
+// nothing - as after DelFacesByHash; a named one stays: the name is the
+// owner's.
+func (dao *Dao) RemoveFromPerson(personID string, hashes []string, toPersonID string) (faces, byHand int, err error) {
 	// The empty id is no one: never a person to take faces from, and
 	// moving faces to themselves changes nothing.
 	if personID == "" || personID == toPersonID || len(hashes) == 0 {
-		return 0, nil
+		return 0, 0, nil
 	}
 	tx, err := dao.db.Begin()
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	defer tx.Rollback()
 
@@ -49,10 +54,10 @@ func (dao *Dao) RemoveFromPerson(personID string, hashes []string, toPersonID st
 		var one int
 		err := tx.QueryRow("select 1 from `people` where `id` = ? for update", toPersonID).Scan(&one)
 		if errors.Is(err, sql.ErrNoRows) {
-			return 0, ErrNoSuchPerson
+			return 0, 0, ErrNoSuchPerson
 		}
 		if err != nil {
-			return 0, fmt.Errorf("looking up the person: %w", err)
+			return 0, 0, fmt.Errorf("looking up the person: %w", err)
 		}
 	}
 
@@ -69,40 +74,55 @@ func (dao *Dao) RemoveFromPerson(personID string, hashes []string, toPersonID st
 		ph, args := inPlaceholders(chunk)
 		rows, err := tx.Query("select `id` from `faces` where `person_id` = ? and `hash` in ("+ph+") for update", append([]any{personID}, args...)...)
 		if err != nil {
-			return 0, fmt.Errorf("listing the person's faces: %w", err)
+			return 0, 0, fmt.Errorf("listing the person's faces: %w", err)
 		}
 		for rows.Next() {
 			var id string
 			if err := rows.Scan(&id); err != nil {
 				rows.Close()
-				return 0, err
+				return 0, 0, err
 			}
 			ids = append(ids, id)
 		}
 		err = rows.Err()
 		rows.Close()
 		if err != nil {
-			return 0, err
+			return 0, 0, err
 		}
-	}
-	if len(ids) == 0 {
-		return 0, nil
 	}
 
 	for _, chunk := range hashChunks(ids) {
 		ph, args := inPlaceholders(chunk)
 		if _, err := tx.Exec("update `faces` set `person_id` = ? where `id` in ("+ph+")", append([]any{toPersonID}, args...)...); err != nil {
-			return 0, fmt.Errorf("moving faces: %w", err)
+			return 0, 0, fmt.Errorf("moving faces: %w", err)
 		}
 		if _, err := tx.Exec("update `people` set `cover_face_id` = null, `cover_chosen` = (`cover_image` is not null) where `cover_face_id` in ("+ph+")", args...); err != nil {
-			return 0, fmt.Errorf("clearing covers: %w", err)
+			return 0, 0, fmt.Errorf("clearing covers: %w", err)
 		}
 	}
-	if _, err := tx.Exec("delete from `people` where `id` = ? and `name` = '' and not exists (select 1 from `faces` where `faces`.`person_id` = `people`.`id`)", personID); err != nil {
-		return 0, fmt.Errorf("deleting a person left with no face: %w", err)
+	// After the faces: a face moved to toPersonID takes the place of their
+	// row in its content.
+	for _, chunk := range hashChunks(unique) {
+		ph, args := inPlaceholders(chunk)
+		var n int
+		if toPersonID == "" {
+			n, err = execIfByHand(tx, "delete from `people_by_hand` where `person_id` = ? and `hash` in ("+ph+")", append([]any{personID}, args...)...)
+		} else {
+			n, err = moveByHand(tx, toPersonID, []string{personID}, " and `hash` in ("+ph+")", args...)
+		}
+		if err != nil {
+			return 0, 0, fmt.Errorf("taking off the people added by hand: %w", err)
+		}
+		byHand += n
+	}
+	if len(ids) == 0 && byHand == 0 {
+		return 0, 0, nil
+	}
+	if _, err := byHandExec(tx, "delete from `people` where `id` = ?"+cNoOtherRefs, personID); err != nil {
+		return 0, 0, fmt.Errorf("deleting a person left with no face: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	return len(ids), nil
+	return len(ids), byHand, nil
 }

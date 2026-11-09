@@ -15,20 +15,23 @@ import (
 
 // RemoveFromPerson is People's "Not this person" (toPersonID empty) and
 // "Someone else…" (toPersonID set): the faces of personID found in the
-// contents hashes leave that person - see dao.RemoveFromPerson and the
-// RemoveFromPerson proto message. The photos are never touched.
+// contents hashes leave that person, as does their being added to them by
+// hand - see dao.RemoveFromPerson and the RemoveFromPerson proto message.
+// The photos are never touched.
 //
 // Under faceRefsMu, as every change to faces is: processFaces can't match
 // a new face against references this is changing, nor add one to a person
-// it deletes. Then both people's references are built again from their own
-// faces - a moved face is no longer the person's it left, and may become
-// the other's; one given to no one is nobody's reference - and their covers
-// worked out again over them, as processFaces does whenever a person's
-// references change. A person left with no face keeps no references.
+// it deletes. Then, when faces moved, both people's references are built
+// again from their own faces - a moved face is no longer the person's it
+// left, and may become the other's; one given to no one is nobody's
+// reference - and their covers worked out again over them, as processFaces
+// does whenever a person's references change. A person left with no face
+// keeps no references. Rows added by hand have no face: moving only those
+// changes no reference and no cover, and nothing is built again.
 func (mg *Manager) RemoveFromPerson(ses *session.Session, personID string, hashes []string, toPersonID string) error {
 	mg.faceRefsMu.Lock()
 	defer mg.faceRefsMu.Unlock()
-	moved, err := mg.dao.RemoveFromPerson(personID, hashes, toPersonID)
+	faces, byHand, err := mg.dao.RemoveFromPerson(personID, hashes, toPersonID)
 	if err != nil {
 		if !errors.Is(err, dao.ErrNoSuchPerson) {
 			// Rolled back, or a commit whose outcome is unknown: the set
@@ -37,7 +40,7 @@ func (mg *Manager) RemoveFromPerson(ses *session.Session, personID string, hashe
 		}
 		return err
 	}
-	if moved == 0 {
+	if faces+byHand == 0 {
 		return nil
 	}
 	// The apps take the photos out of the person's grid and lower their
@@ -45,9 +48,57 @@ func (mg *Manager) RemoveFromPerson(ses *session.Session, personID string, hashe
 	// across this (searchCursor.resume), or they would come back.
 	mg.searchTokens.noteDelete()
 	mg.memories.changed()
-	log.Debug("moved", moved, "face(s) off a person")
-	mg.rebuildPeopleLocked(ses, personID, toPersonID)
+	log.Debug("moved", faces, "face(s) and", byHand, "added by hand off a person")
+	if faces > 0 {
+		mg.rebuildPeopleLocked(ses, personID, toPersonID)
+	}
 	return nil
+}
+
+// ErrPersonAddGone: none of the contents a person was to be added to is a
+// photo or video on the device (deleted meanwhile).
+var ErrPersonAddGone = errors.New("none of those photos or videos is on the device") // i18n-ignore: the websocket layer answers dev.files.person_add_gone
+
+// AddToPerson is Info's Add: personID is put in the contents hashes by
+// hand - a photo face recognition didn't find them in, or a video - see
+// dao.AddToPerson and the AddToPerson proto message. ErrPersonAddGone when
+// none of hashes is a photo or video on the device, dao.ErrNoSuchPerson
+// when the person is gone, dao.ErrSchemaBehind on a database without the
+// table. Under faceRefsMu, as every change to a person is: processFaces
+// can't store a face of theirs in one of the contents meanwhile (it would
+// take the row's place). Nothing is built again: a row has no face to
+// learn from, nor to be a cover.
+func (mg *Manager) AddToPerson(personID string, hashes []string) error {
+	mg.faceRefsMu.Lock()
+	defer mg.faceRefsMu.Unlock()
+	added, held, err := mg.dao.AddToPerson(personID, hashes)
+	if err != nil {
+		return err
+	}
+	if !held {
+		return ErrPersonAddGone
+	}
+	if added == 0 {
+		return nil // in every one of them already
+	}
+	// The memories name the people in their photos. The person's grid and
+	// count are read afresh by the apps after it: a search started before
+	// it keeps its list, as it does after an upload.
+	mg.memories.changed()
+	log.Debug("added a person by hand to", added, "photo(s) or video(s)")
+	return nil
+}
+
+// copyPeopleByHand gives the edit to of from the people added to from by
+// hand - copied, as CopyFaces copies its faces, so a kept original keeps
+// its own - under faceRefsMu, as AddToPerson. Only logged when it fails:
+// the edit is saved.
+func (mg *Manager) copyPeopleByHand(from, to string) {
+	mg.faceRefsMu.Lock()
+	defer mg.faceRefsMu.Unlock()
+	if _, err := mg.dao.CopyPeopleByHand(from, to); err != nil {
+		log.Error("could not give an edit the people added to its photo or video by hand:", err)
+	}
 }
 
 // rebuildPeopleLocked builds these people's references afresh from their

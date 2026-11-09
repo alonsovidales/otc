@@ -674,6 +674,8 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     off is dropped. `processFaces` then finds them and detects nothing; with none, it detects as
     for any photo. Tags, quality and Smart search are worked out anew (`enqueueMedia`). People's
     counts are of faces in photos a file holds (`ListPeople`), so a hidden original isn't counted.
+    The people added by hand (release 179, `people_by_hand`) are copied to every edit, cut and
+    compress (`CopyPeopleByHand`, no box to move), and a revert copies the edit's back to the original.
   - **Revert** puts the original back (its name too, `original_ext`, when free), and the edit
     goes once no path holds it. Turning an edit back to the original's very bytes is a revert,
     with no edit row.
@@ -2592,6 +2594,38 @@ start takes its file.
   and the photo's `hash`); none while face recognition is off; no one's faces aren't listed
   (`dao.FacesInPhoto`, `filesmanager.PhotoFaces`). A face's × in Info is `RemoveFromPerson` with its
   person and that hash (both faces when one person has two in the photo). The demo allows the list.
+  People added by hand (release 179; owner, 2026-11-09: "add people to the photos and videos by hand
+  ... select one of the faces that are not already in the photo"): `AddToPerson{person_id, hashes}`
+  (req 170, Ack; refused before any read by `websocket/people.go`'s `addToPersonRefusal` - no person,
+  no hash, more than 10000, face recognition off - then `dev.files.person_gone`, or
+  `dev.files.person_add_gone` when none is a photo or video a file holds). Rows of `people_by_hand`
+  (db.sql: `hash`, `person_id`, `created`, PK (`person_id`, `hash`), key `hash`; `updates/179.sh` and
+  install.sh's release 179 block, `updater/release179_test.go`), never `faces` rows: no box, crop,
+  embedding or quality, so matching, covers, medoids, the looks pass and `HashHasFaces` never see one.
+  `dao.AddToPerson` (the person locked `for update`) adds a row per distinct hash a `files` row holds
+  as image/* or video/*, but where the person has a face, is already, or the content is kept out of
+  Images (`skipped_analysis`: no people, as no faces). A row makes the content theirs wherever a face
+  does (`dao/people_by_hand.go`): the person search (`searchMediaOnlyClauses`' union, `estimateMedia`'s
+  count and driver, `personIn` in `rowClauses` and `RankMedia`), People's `face_count`, `FacesOfHashes`
+  (the memories, hiding a person) and Info (`PeopleByHandIn`: after the faces, in the order added,
+  `by_hand`, x/y/w/h 0, the crop `personCoverSQL`, ListPeople's own; a person with a face there isn't
+  listed twice; `adds_people` always set; a video answered too). They follow the content and the
+  person: `RemoveFromPerson` takes them off (to "") or moves them (`moveByHand`: dropped where the
+  other person is already, by hand or by a face) and counts them apart from faces, so
+  `filesmanager.RemoveFromPerson` rebuilds no references when only rows moved; `MergePeople` moves them
+  so; `DeletePerson` and `WipeTagsAndFaces` delete them; `DelFacesByHash`/`DelFacesByHashes` (content
+  gone, kept out of Images - not given back when shown again) and the orphan sweep delete a content's;
+  an unnamed person goes only with no face and no row (`cNoOtherRefs`); a face of the person stored in
+  the content (`AddFace`, `CopyFaces`, the moves: `dropByHandUnderFaces`) takes the row's place; an
+  edit, cut or compress copies them to the new content (`CopyPeopleByHand` in `saveEdit`; the original
+  keeps its own) and a revert copies the edit's to the original (one added after the edit isn't lost).
+  Face recognition turned off keeps them, as it keeps faces. A database without the table reads as no
+  one added (`cByHand` -> `byHandNone`, an empty derived table of `faces`' columns, by `byHandQuery`),
+  deletes nothing, and `AddToPerson` is `ErrSchemaBehind`. Under `faceRefsMu`, `memories.changed()`
+  after a change; the demo refuses it. Tests: `dao/people_by_hand_test.go`,
+  `dao/people_by_hand_mysql_test.go` (`OTC_TEST_MYSQL_DSN`), `files_manager/people_by_hand_mysql_test.go`
+  (`OTC_TEST_DEVICE_MYSQL_DSN`: an edit, a revert, a cut), `files_manager/person_faces_test.go`,
+  `websocket/people_test.go`, `websocket/photo_faces_test.go`.
   Issue #181 (release 74): image tagging has the same kind of switch, `settings.image_tagging_enabled`
   (`SetImageTaggingEnabled`, read per file in the slow lane by `imageTaggingEnabled`); when off
   only the place tags from a file's own location data are written. Web, iOS and Android show it
@@ -3306,16 +3340,29 @@ and lists the people again. With them the bar's labels give way to icons below 1
 from collection too (Use this face counted even unshown, so a second pick doesn't relayout the bar;
 `barCompact`, `.pg-selbar[data-crowd]`). **A photo's faces** (release 159's `GetPhotoFaces`) are in every
 `MediaViewer`'s Info, under the details once those are in, so nothing above them moves (`photoFaces.ts`,
-`node web/scripts/photo-faces-test.mjs`): asked while Info is open on a photo - never a video, nor while
-`faceRecognition.ts` says off - and after a face's ×; nothing until the device answers, none while it says
-face recognition is off, and none for the page's life after `unknown_payload`. A row is the crop (a blank
+`node web/scripts/photo-faces-test.mjs`): asked while Info is open on a photo or a video (a video's
+people added by hand; an older device answers none) - never while `faceRecognition.ts` says off - and
+after a face's × or an Add; nothing until the device answers, none while it says face recognition is
+off, and none for the page's life after `unknown_payload`. A row is the crop (a blank
 circle without one) and the name or Unnamed - one button, `face_photos` its tip, that closes the viewer
 and opens that person's photos (photoFilter's `showPersonPhotos`: the menu's Images, then `showPerson`;
 Images already on exactly them keeps its grid) - and an × (`not_this_person`, described by the name):
 `refuseOnDemo`, then `RemoveFromPersonDialog` with the face's name and the answer's hash. Opened on that
 person's photos it is the viewer's own Not this person (`onPersonFixed`: the photo leaves the grid);
 elsewhere the photo stays, its faces are asked again, the viewer's note says `removed`, People is listed
-again, and from the keyboard the focus goes to the next ×. **A collection's Rating on the web** (release 163;
+again, and from the keyboard the focus goes to the next × (else Add). **Add a person** (2026-11-09,
+`AddToPerson`, envelope 170): with the answer's `adds_people` (never while face recognition is off) and a
+hash, the block shows even with no face and ends with a row-like button (`face_add`, `AddPersonIcon`
+in a dashed gold circle, `.pg-info-face-add`): `refuseOnDemo`, then `AddToPersonDialog` (`personFix.tsx`;
+Someone else…'s list is now `PickPersonDialog`, shared by both): People but for everyone in the answer
+(`notInIt`), titled `face_add_title_photo`/`_video`, `face_add_none`/`face_add_all` when it offers no one,
+errors in it (the device's words, else `face_add_failed`; the bridge's answer or none, `error.unreachable`).
+On the Ack it closes, the item's faces are asked again (by-hand rows come after the faces, in the order
+added), the focus goes to the new row once that answer is in (else Add) and People is listed again;
+stepped to another item meanwhile, only People is. A by-hand row (`by_hand`: no box, their People face
+as the crop) opens their photos like a face; its × is `common.remove` and takes them off at once, no
+question (`RemoveFromPerson` to "": face recognition learnt nothing from them), then as after a face's
+× (the note says the device's words, else `remove_failed`, if refused). **A collection's Rating on the web** (release 163;
 rules in `rating.ts`, `node web/scripts/rating-test.mjs`; UI in `RatingPanel.tsx` + `Rating.css`, words in
 `ratingText.ts`, texts `web.images.rating.*`): an open collection's header has a Rating button before Share
 (a star, filled while on; named "Rating on"/"Rating off"; `SetImageGroupRating`, `refuseOnDemo` first; the first
@@ -5299,20 +5346,36 @@ debug-only `FavouritesPreviewActivity` (`--es device demo|old|silent`, `--es sho
 sample data. Tests: `PhotoGalleryFavouritesTest.kt`, `PageSortTest.kt`.
 **A photo's faces on Android** (2026-11-01, from a user; the device side under `face_recognition` above;
 `ui/gallery/PhotoFacesInfo.kt`; iOS must match): every viewer's Info (`ImageModal`: Images, Files, Places, a
-memory's See all) asks `GetPhotoFaces` for the photo open as it shows (`openInfo` -> `askPhotoFaces`; never
-for a video; `unknown_payload`: nothing until the next sign-in, quietly; a refusal or no answer leaves the
-rest of Info) and lists them after the details under People (`app.shell.section_people`), left to right:
+memory's See all) asks `GetPhotoFaces` for the photo or video open as it shows (`openInfo` -> `askPhotoFaces`;
+a device before `adds_people` answers a video with no one; `unknown_payload`: nothing until the next sign-in,
+quietly; a refusal or no answer leaves the rest of Info) and lists them after the details under People
+(`app.shell.section_people`), left to right, then the people added by hand (`by_hand`) in the order added:
 the crop at 36 dp (a blank circle without one), the name or `app.shell.search_unnamed`, and a 48 dp ×
 named `app.shell.not_this_person`. Nothing while the device says `face_recognition` false or
 `FaceRecognition` is off. A face opens that person's photos: the viewer closes, `PersonNav` (the person
 asked for, like `FilesNav`) makes MainView show Images, and its gallery takes it (`showPerson`, as from
 People; a memory's grid closes). The × asks Not this person's question (`notThisPersonTitle(person, 1)`,
 `remove_text`, Remove), then sends `RemoveFromPerson{person_id, [PhotoFaces.hash]}` (`removeInfoFace`,
-busy `NOT_PERSON`): the note `person.removed`/`removed_unnamed`, else `remove_failed`; People is listed
+busy `NOT_PERSON`): the note `person.removed`/`removed_unnamed` (a video's `removed_video`/
+`removed_video_unnamed`, `infoTakenOffNote`), else `remove_failed`; People is listed
 again (not by a viewer of its own). Among that person's photos (`selectedPeople` holds them) the photo
 leaves the grid and the viewer moves on, as after the viewer's Not this person (Info closes with the move);
 otherwise Info drops their faces at once and asks the device again. The map's and a memory's viewers show
-their notes (`ViewerAlert`). Debug-only `PhotoFacesPreviewActivity` (`--es device demo|old|off`). Tests:
+their notes (`ViewerAlert`). **People added by hand** (owner, 2026-11-09; `AddToPerson`): a `by_hand` row looks
+and opens as a face's, its crop their People face; its × (`app.shell.search_remove`/`search_remove_person`)
+sends the same `RemoveFromPerson` at once, no question (it is about face recognition; re-adding is a tap). People
+shows with someone in it or, where `adds_people` and a hash (`PhotoFacesInfo.adds`), with Add a person alone
+at its end (`app.photos.viewer.face_add`, Material `PersonAdd` in a 36 dp circle, 48 dp row): `openInfoAdd`
+(`State.infoAdd`, People asked again) opens `AddPersonSheet` over Info - `PersonPickSheet`, the sheet
+Someone else… now shares (`PersonMove.kt`: rows, a `face_add_find` field past 8 offered - `wantsNameFilter`,
+iOS `filterAbove`; Someone else… had it from 8 -, `withName`), titled `face_add_title_photo`/`_video`,
+`peopleToAdd` (People's order minus everyone in it), `face_add_none` (nobody found) / `face_add_all`,
+`face_add_no_match`, a bar while busy, Cancel. A pick (`addInfoPerson`, busy `ADD_PERSON`) sends
+`AddToPerson{person_id, [hash]}`: taken, the sheet closes, People is listed again (not by a viewer of its own)
+and Info asks `GetPhotoFaces` again - only if the viewer is still on that item (`open` clears `infoAdd`; the
+ask's counter drops an old answer); refused, the sheet says the device's words or `face_add_failed`
+(`addToPersonRefusal`; `unknown_payload` too), or the note does if the sheet was closed meanwhile.
+Debug-only `PhotoFacesPreviewActivity` (`--es device demo|noadd|old|off`; a video and a dozen people). Tests:
 `PhotoGalleryFacesTest.kt`.
 **A collection's Rating on Android** (release 163; owner, 2026-11-02; the contract is `proto/messages.proto`'s
 "Rating (release 163)"; `ui/gallery/Rating.kt` (rules) + `RatingViews.kt`; texts `app.photos.rating.*`,
@@ -5348,7 +5411,7 @@ alert's `group_id`) sets `collectionRequested`, MainView shows Images and its ga
 `PhotoGalleryRatingTest.kt`, `AlertsTest.kt`.
 **A photo's faces on iOS** (2026-11-01, Android's rules above; `PhotoFaces.swift`, tests
 `PhotoFacesTests.swift`): `FileInfoView` shows People after the details and the map, once they have
-loaded (`loadInfoFaces` when Info opens; not for a video or a photo only on the phone; any error,
+loaded (`loadInfoFaces` when Info opens, for a video too; not for a photo only on the phone; any error,
 `unknown_payload` included, hides it quietly; an answer for another photo is dropped). The crop is 36 pt
 (growing with the text size up to 72), the × grey with a 44 pt target, a spinner while it is on its way
 and the others disabled meanwhile. A face opens that person (`showPerson` in Images; from Files, the map or
@@ -5356,7 +5419,17 @@ a memory, `PersonNav` makes MainView show Images on them and closes an open memo
 person's question for one photo, `RemoveFromPerson`; among that person's photos the photo leaves the grid
 (`leavePerson`, shared with the viewer's Not this person) and Info closes with the result over the viewer;
 elsewhere the face leaves the list at once and it is asked for again. Alerts raised while Info is open show
-over Info (nothing the viewer presents can cover its own sheet).
+over Info (nothing the viewer presents can cover its own sheet). People added by hand (2026-11-09,
+`AddToPerson`; the rules are `PhotoFacesState`'s): with `PhotoFaces.adds_people` (and face recognition on, a
+hash) People shows even empty and ends with Add a person (`face_add`, `person.badge.plus`, 44 pt), opening
+`PersonAddSheet` over Info (`openFaceAdd`, People asked again): `face_add_title_photo`/`_video`, People's
+list minus everyone in it (`addChoices`/`addList`, `PersonMove.choices` with a Set) in Someone else…'s rows
+(`PersonPickRow`, shared), `NameFilter` with `face_add_find` past 8, `face_add_none`/`_all`/`_no_match`, a
+spinner on the row picked and the others disabled, a refusal above the list (`addFailure`: the device's
+words, else `face_add_failed`; `unknown_payload` and the bridge's unreachable too), Cancel. `addPerson`: on
+the Ack the sheet closes, People is asked again and so is the item's list unless the viewer moved on
+(`faceAddAsk`; `clearInfoFaces` and `openInfo` close the sheet). A `by_hand` row is a face's; its × (named
+`app.shell.search_remove`/`search_remove_person`) skips the question and goes through `removeFace`.
 **Sort by and Back to the map on iOS** (2026-10-30, the owner's request after user feedback;
 `SortBy.swift`, `AreaBackButton` in `Places.swift`, tests `SortByTests.swift`; Android's rules above,
 case for case): People and Collections have a Sort by menu (`SortByMenu`: the sort icon at the

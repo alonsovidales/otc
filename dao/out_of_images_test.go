@@ -35,12 +35,12 @@ func TestOutsideFoldersCollapsesNestedFolders(t *testing.T) {
 }
 
 // Every filter at once: the args follow the ?s left to right - joins
-// (tags, people, group), then the path, the folders kept out, and the
-// date last.
+// (tags, people - their faces', then where they were added by hand -,
+// group), then the path, the folders kept out, and the date last.
 func TestSearchMediaClausesArgOrderWithKeptOutFolders(t *testing.T) {
 	before := time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC)
 	_, where, _, _, args := searchMediaClauses("/Photos/", []string{"beach"}, []string{"p1", "p2"}, "g1", true, &before, []string{"/Photos/Private/"}, nil)
-	want := []any{"beach", "p1", "p2", "g1",
+	want := []any{"beach", "p1", "p2", "p1", "p2", "g1",
 		"/Photos/", "/Photos/", "/Photos/%", "/Photos/%/%",
 		"/Photos/Private/", "/Photos/Private/", "/Photos/Private/%",
 		before}

@@ -45,7 +45,7 @@ func TestMemoriesRequests(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"kind", "value"}).AddRow("person", "someone"))
 	mock.ExpectQuery("from `file_tags` where `hash` in").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "tag", "score"}).AddRow(h(1), "beach", 0.9).AddRow(h(1), "Valencia", 1).AddRow(h(2), "Valencia", 1))
-	mock.ExpectQuery("from `faces` as `f`").
+	mock.ExpectQuery("from \\(select `hash`, `person_id` from `faces` where `person_id` <> '' and `hash` in .* union all select `hash`, `person_id` from `people_by_hand`").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "person", "name"}).AddRow(h(2), "p1", "Lucía"))
 	mock.ExpectQuery("from `image_group_files`").WillReturnRows(sqlmock.NewRows([]string{"hash"}))
 	mock.ExpectQuery("from `social_publications_files`").WillReturnRows(sqlmock.NewRows([]string{"hash", "p", "l", "c"}))
