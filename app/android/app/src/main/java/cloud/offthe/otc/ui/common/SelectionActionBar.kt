@@ -73,6 +73,8 @@ import cloud.offthe.otc.i18n.commonUpload
 /** Which action is waiting on the device, if any. */
 enum class SelectionActionTask {
     SHARE, DOWNLOAD, OUT_OF_IMAGES, UNCOLLECT, NOT_PERSON, MOVE_PERSON, PERSON_COVER,
+    /** Info's Add a person: AddToPerson for the photo or video open (the viewer's, never the bar's). */
+    ADD_PERSON,
     /** Deleting the selection, one item at a time: through the bridge a few hundred take minutes, and a second Delete meanwhile sent the same paths again. */
     DELETE,
 }

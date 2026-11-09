@@ -43,9 +43,10 @@
             android:name=".PersonCoverPreviewActivity"
             android:exported="true"
             android:theme="@style/Theme.OffTheCloud" />
-        <!-- A photo's faces: the viewer's Info with its People on sample data
+        <!-- A photo's faces: the viewer's Info with its People (faces, people
+             added by hand, Add a person) on sample data
              (adb shell am start -n cloud.offthe.otc/.PhotoFacesPreviewActivity
-             [- -es device demo|old|off]). -->
+             [- -es device demo|noadd|old|off]). -->
         <activity
             android:name=".PhotoFacesPreviewActivity"
             android:exported="true"

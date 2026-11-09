@@ -371,11 +371,14 @@ class PhotoGalleryViewModel(
         val infoOpen: Boolean = false,
         val infoLoading: Boolean = false,
         val infoData: FileExifInfo? = null,
-        // Info's People (PhotoFacesInfo.kt): the open photo's faces as
-        // GetPhotoFaces listed them; null until they come, and while there
-        // is nothing to show (a video, face recognition off, no face, a
+        // Info's People (PhotoFacesInfo.kt): the open photo's or video's
+        // faces and people added by hand as GetPhotoFaces listed them; null
+        // until they come, and while there is nothing to show (face
+        // recognition off, no one in it on a device that adds no one, a
         // device from before).
         val infoFaces: PhotoFacesInfo? = null,
+        // Info's Add a person: its list, open over Info (null: closed).
+        val infoAdd: InfoAdd? = null,
         // Issue #194, after a jump: newer photos are still to come above
         // (the top keeps their room, RoomAbove), one of their pages is on
         // its way, or the last one failed (and is asked again meanwhile).
@@ -2104,7 +2107,7 @@ class PhotoGalleryViewModel(
         _state.value.ratingDraft?.path?.let { d -> if (d != _state.value.items[index].path) leaveRatingDraft(d) }
         photoFacesAsk++
         dropVideoCopy()
-        _state.update { it.copy(openIndex = index, videoUrl = null, infoOpen = false, infoLoading = false, infoData = null, infoFaces = null, ratingNote = null) }
+        _state.update { it.copy(openIndex = index, videoUrl = null, infoOpen = false, infoLoading = false, infoData = null, infoFaces = null, infoAdd = null, ratingNote = null) }
         // Alone: its neighbours wait until it is on screen (readyNeighbours).
         scope.launch { fetchHiRes(index) }
         askFavourites(index)
@@ -2469,7 +2472,7 @@ class PhotoGalleryViewModel(
         // spinner early.
         val ask = ++infoAsk
         fun current() = ask == infoAsk && _state.value.infoOpen && openPath() == path
-        _state.update { it.copy(infoOpen = true, infoLoading = true, infoData = null, infoFaces = null) }
+        _state.update { it.copy(infoOpen = true, infoLoading = true, infoData = null, infoFaces = null, infoAdd = null) }
         scope.launch {
             try {
                 val resp = call { it.setReqGetFileInfo(GetFileInfo.newBuilder().setPath(path)) }
@@ -2488,7 +2491,7 @@ class PhotoGalleryViewModel(
     fun closeInfo() {
         photoFacesAsk++
         infoAsk++
-        _state.update { it.copy(infoOpen = false, infoLoading = false, infoData = null, infoFaces = null) }
+        _state.update { it.copy(infoOpen = false, infoLoading = false, infoData = null, infoFaces = null, infoAdd = null) }
     }
 
     // Info's People: the latest GetPhotoFaces (an answer to an older one,
@@ -2499,11 +2502,12 @@ class PhotoGalleryViewModel(
     private var photoFacesOffAt: Int? = null
 
     /**
-     * Info's People: the faces in [item] (GetPhotoFaces), asked as Info
-     * shows and again once a face was taken off. None for a video, nor on
-     * a device that answered unknown_payload since this sign-in (quietly).
-     * No answer, or a refusal, leaves what Info shows as it was - nothing
-     * at first: the rest of Info stands.
+     * Info's People: the faces in [item] and the people added to it by hand
+     * (GetPhotoFaces), asked as Info shows and again once someone was taken
+     * off or added - for a video too (a device from before answers no one).
+     * None on a device that answered unknown_payload since this sign-in
+     * (quietly). No answer, or a refusal, leaves what Info shows as it was
+     * - nothing at first: the rest of Info stands.
      */
     private fun askPhotoFaces(item: Item) {
         if (!asksPhotoFaces(item) || !photoFacesAsked()) return
@@ -2580,13 +2584,63 @@ class PhotoGalleryViewModel(
             _state.update { s -> s.copy(infoFaces = s.infoFaces?.takeIf { it.path == info.path }?.without(face.personId)) }
         }
         if (!fixedList) scope.launch { loadPeople() }
-        alert(personTakenOffNote(1, facePerson(face), null))
+        alert(infoTakenOffNote(face, video = VideoEdit.isVideo(item)))
         if (leaves) {
             // Not if it was closed meanwhile.
             if (_state.value.openIndex == null) return
             val left = _state.value.items
             if (left.isEmpty()) closeModal() else open(minOf(at.coerceAtLeast(0), left.size - 1))
         } else if (_state.value.infoOpen && openPath() == item.path) askPhotoFaces(item)
+    }
+
+    /**
+     * Info's Add a person: its list, for the photo or video Info shows,
+     * where the device takes AddToPerson ([PhotoFacesInfo.adds]). The people
+     * are asked again as it opens, as for Someone else….
+     */
+    fun openInfoAdd() {
+        val st = _state.value
+        val info = st.infoFaces ?: return
+        if (!info.adds || !st.infoOpen || openPath() != info.path) return
+        _state.update { it.copy(infoAdd = InfoAdd(info.path)) }
+        scope.launch { loadPeople() }
+    }
+
+    fun closeInfoAdd() = _state.update { it.copy(infoAdd = null) }
+
+    /**
+     * Add a person's pick: [person] put in the photo or video open by hand
+     * - AddToPerson with its hash (busy ADD_PERSON). Done, the list closes,
+     * the people are asked again (their counts; not by a viewer of its
+     * own), and Info asks for the item's people again - the device's word
+     * on the row, their face and by_hand - unless the viewer has moved on
+     * or Info closed meanwhile (that item's answer is never drawn under
+     * another). Refused, or no answer: the list says the device's words,
+     * else face_add_failed (addToPersonRefusal) - or the note does, the
+     * list closed meanwhile.
+     */
+    fun addInfoPerson(person: Person) = scope.launch {
+        val st = _state.value
+        val info = st.infoFaces ?: return@launch
+        val item = st.openIndex?.let { st.items.getOrNull(it) } ?: return@launch
+        if (item.path != info.path || !info.adds || st.preparing != null || info.faces.any { it.personId == person.id }) return@launch
+        fun listOpen() = _state.value.infoAdd?.path == info.path
+        _state.update { s -> s.copy(preparing = SelectionActionTask.ADD_PERSON, infoAdd = s.infoAdd?.let { if (it.path == info.path) it.copy(error = null) else it }) }
+        try {
+            val r = try {
+                call { it.setReqAddToPerson(addToPersonRequest(person.id, listOf(info.hash))) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) { null }
+            val refused = addToPersonRefusal(r)
+            if (refused != null) {
+                if (listOpen()) _state.update { s -> s.copy(infoAdd = s.infoAdd?.copy(error = refused)) } else alert(refused)
+                return@launch
+            }
+            if (listOpen()) _state.update { it.copy(infoAdd = null) }
+            if (!fixedList) scope.launch { loadPeople() }
+            if (_state.value.infoOpen && openPath() == item.path) askPhotoFaces(item)
+        } finally { _state.update { it.copy(preparing = null) } }
     }
 
     /** prefetch: a neighbour readied for the slide (readyNeighbours) - its image is fetched, a video is not started until opened. */

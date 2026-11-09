@@ -2308,10 +2308,11 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
             onPick = { p -> pickPerson = false; vm.takeOpenOffPerson(to = p) }, onDismiss = { pickPerson = false },
         )
     }
-    // Info's People (PhotoFacesInfo.kt): the open photo's faces - none for
-    // a video, nor once face recognition is off. A face opens that
-    // person's photos in Images (PersonNav), the viewer closing; its × asks
-    // Not this person's question first.
+    // Info's People (PhotoFacesInfo.kt): the open photo's or video's faces
+    // and people added by hand, then Add a person where the device takes it
+    // - nothing once face recognition is off. A face opens that person's
+    // photos in Images (PersonNav), the viewer closing; its × asks Not this
+    // person's question first, one added by hand's goes at once.
     val infoFaces = st.infoFaces?.takeIf { f -> faces != false && f.path == openItem?.path && asksPhotoFaces(openItem) }
     // Fully open, and scrollable (FileInfoView): half-open, the location
     // map - the last thing in the sheet - sat below the visible part, so
@@ -2323,9 +2324,17 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
         FileInfoView(
             st.infoLoading, st.infoData, infoFaces, busy = st.preparing != null, compressed = PhotoEdit.compressedNote(openItem),
             onShowPerson = { f -> vm.closeInfo(); vm.closeModal(); PersonNav.show(f.personId) },
-            onRemoveFace = { f -> confirmFace = f },
+            onRemoveFace = { f -> if (f.byHand) vm.removeInfoFace(f) else confirmFace = f },
+            onAddPerson = vm::openInfoAdd,
         )
     }
+    // Add a person's list, over Info: while Info shows that item and still
+    // offers Add (the people asked again may have turned it off).
+    val adding = st.infoAdd?.takeIf { a -> st.infoOpen && infoFaces != null && infoFaces.adds && a.path == infoFaces.path }
+    if (adding != null && infoFaces != null) AddPersonSheet(
+        st.allPeople, st.peopleLoaded, infoFaces, video = openItem?.let { VideoEdit.isVideo(it) } == true,
+        busy = st.preparing != null, error = adding.error, onPick = { p -> vm.addInfoPerson(p) }, onDismiss = vm::closeInfoAdd,
+    )
     LaunchedEffect(st.infoOpen) { if (!st.infoOpen) confirmFace = null }
     confirmFace?.let { f ->
         ConfirmDialog(
@@ -2657,7 +2666,7 @@ private fun InfoRow(label: String, value: String) {
 @Composable
 private fun FileInfoView(
     loading: Boolean, info: FileExifInfo?, faces: PhotoFacesInfo?, busy: Boolean, compressed: Boolean,
-    onShowPerson: (PhotoFace) -> Unit, onRemoveFace: (PhotoFace) -> Unit,
+    onShowPerson: (PhotoFace) -> Unit, onRemoveFace: (PhotoFace) -> Unit, onAddPerson: () -> Unit,
 ) {
     val context = LocalContext.current
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
@@ -2693,7 +2702,7 @@ private fun FileInfoView(
                 if (cam.isEmpty() && !info.hasGps && info.exposureTime.isEmpty()) Text(S.appPhotosViewerInfoNoExif().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        if (!loading && faces != null) PhotoFacesSection(faces, busy, onShow = onShowPerson, onRemove = onRemoveFace)
+        if (!loading && faces != null) PhotoFacesSection(faces, busy, onShow = onShowPerson, onRemove = onRemoveFace, onAdd = onAddPerson)
         Spacer(Modifier.height(24.dp))
     }
 }

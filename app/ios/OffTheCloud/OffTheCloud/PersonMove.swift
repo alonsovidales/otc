@@ -9,7 +9,8 @@
 //  person in the filter (PhotoGalleryVM.removeFromPerson). Not this person
 //  asks whether to remove them; Someone else… lists the other people the
 //  device found - their faces, names and counts, with a field to find a
-//  name in a long list - and files the photos under the one picked.
+//  name in a long list - and files the photos under the one picked. Info's
+//  Add a person lists people with the same rows (PhotoFaces.swift).
 //
 
 import SwiftUI
@@ -26,7 +27,13 @@ enum PersonMove {
     /// with `filter`, those whose name holds it, case and accents aside (an
     /// unnamed person goes by app.shell.search_unnamed).
     static func choices(_ all: [Msg_Person], excluding person: String, filter: String = "") -> [Msg_Person] {
-        let others = PeopleOrder.shown(all).filter { $0.id != person }
+        choices(all, excluding: [person], filter: filter)
+    }
+
+    /// The same without any of `people`: Info's Add a person leaves out
+    /// everyone in the photo or video already.
+    static func choices(_ all: [Msg_Person], excluding people: Set<String>, filter: String = "") -> [Msg_Person] {
+        let others = PeopleOrder.shown(all).filter { !people.contains($0.id) }
         let q = FoldedText(filter.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !q.isEmpty else { return others }
         return others.filter { FoldedText(shownName($0)).contains(q) }
@@ -116,7 +123,9 @@ struct PersonMoveSheet: View {
                     }
                 } else {
                     List(PersonMove.choices(vm.allPeople, excluding: ask.person, filter: filter), id: \.id) { p in
-                        row(p)
+                        PersonPickRow(person: p, face: vm.face(for: p)) {
+                            Task { await vm.removeFromPerson(ask, to: p) }
+                        }
                     }
                     .listStyle(.plain)
                 }
@@ -135,15 +144,25 @@ struct PersonMoveSheet: View {
         // under a glass sheet makes grey text hard to read.
         .presentationBackground(Color(.systemBackground))
     }
+}
 
-    private func row(_ p: Msg_Person) -> some View {
+/// One person to pick in a list of them (Someone else…, Info's Add a
+/// person): their face, their name (Unnamed, in italics, without one) and
+/// how many photos show them; a spinner at its end while what picking them
+/// sent is on its way.
+struct PersonPickRow: View {
+    let person: Msg_Person
+    let face: UIImage?
+    var sending = false
+    let pick: () -> Void
+
+    var body: some View {
+        let p = person
         let named = !PeopleOrder.tidy(p.name).isEmpty
-        return Button {
-            Task { await vm.removeFromPerson(ask, to: p) }
-        } label: {
+        Button(action: pick) {
             HStack(spacing: 12) {
                 Group {
-                    if let img = vm.face(for: p) {
+                    if let img = face {
                         Image(uiImage: img).resizable().scaledToFill()
                     } else {
                         Color(.tertiarySystemFill)
@@ -164,6 +183,7 @@ struct PersonMoveSheet: View {
                         .monospacedDigit()
                 }
                 Spacer(minLength: 0)
+                if sending { ProgressView() }
             }
             .contentShape(Rectangle())
         }
@@ -174,14 +194,16 @@ struct PersonMoveSheet: View {
     }
 }
 
-/// A field to find a name in, over a long list of people.
-private struct NameFilter: ViewModifier {
+/// A field to find a name in, over a long list of people. `prompt` is its
+/// placeholder, and what VoiceOver calls it.
+struct NameFilter: ViewModifier {
     let on: Bool
     @Binding var text: String
+    var prompt = S.commonSearch
 
     func body(content: Content) -> some View {
         if on {
-            content.searchable(text: $text, placement: .navigationBarDrawer(displayMode: .always), prompt: Text(S.commonSearch))
+            content.searchable(text: $text, placement: .navigationBarDrawer(displayMode: .always), prompt: Text(prompt))
         } else {
             content
         }

@@ -746,13 +746,24 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var infoOpen = false
     @Published var infoLoading = false
     @Published var infoData: Msg_FileExifInfo? = nil
-    /// Info's People: the open photo's faces (PhotoFaces.swift).
+    /// Info's People: the open photo's or video's faces and the people
+    /// added to it by hand (PhotoFaces.swift).
     @Published var infoFaces: PhotoFacesState = .hidden
     /// The face whose × is waiting on the device (its row's id).
     @Published var faceRemoving: Int?
     /// Bumped by each ask for the faces: an answer to an earlier one is
     /// dropped.
     private var facesAsk = 0
+    /// Info's Add a person: its list of people, while it is open
+    /// (PersonAddSheet).
+    @Published var faceAddOpen = false
+    /// The person picked there, while the device answers.
+    @Published private(set) var faceAddSending: String?
+    /// What came of the last pick when it wasn't added, said in the list.
+    @Published private(set) var faceAddError: String?
+    /// Bumped as the list opens and goes: an answer to a pick made in an
+    /// earlier one changes nothing in it.
+    private var faceAddAsk = 0
     /// Info's details: the latest GetFileInfo (openInfo).
     private var infoAsk = 0
 
@@ -1864,20 +1875,24 @@ final class PhotoGalleryVM: ObservableObject {
 
     // MARK: A photo's faces, in the viewer's Info (GetPhotoFaces)
     //
-    // Info lists the open photo's faces under People (PhotoFaces.swift):
-    // a tap opens that person's photos, the × takes the face off its
-    // person as Not this person does. The same on Android.
+    // Info lists the open photo's or video's faces under People, then the
+    // people added to it by hand (PhotoFaces.swift): a tap opens that
+    // person's photos, the × takes the face off its person as Not this
+    // person does, and Add a person (AddToPerson) puts someone else in it.
+    // The same on Android.
 
     /// No faces in Info, and an answer still on its way dropped.
     private func clearInfoFaces() {
         facesAsk &+= 1
         infoFaces = .hidden
         faceRemoving = nil
+        closeFaceAdd()
     }
 
-    /// Asks for the open photo's faces. Nothing is asked for a video or a
-    /// photo only on this phone; no answer leaves what shows (nothing, the
-    /// first time); an answer for a photo no longer open is dropped.
+    /// Asks for the open item's faces and the people added to it. Nothing
+    /// is asked for a photo only on this phone; no answer leaves what shows
+    /// (nothing, the first time); an answer for an item no longer open is
+    /// dropped.
     func loadInfoFaces() async {
         facesAsk &+= 1
         let ask = facesAsk
@@ -1916,8 +1931,13 @@ final class PhotoGalleryVM: ObservableObject {
     /// once Info has gone; elsewhere the face leaves the list at once, the
     /// list is asked for again, and it is said over Info. A refusal, or no
     /// answer, is said over Info.
+    ///
+    /// Someone added by hand goes the same way, only without the question;
+    /// taken off a video, the note says video.
     func removeFace(_ face: PhotoFaceRow) async {
-        guard faceRemoving == nil, case .faces(_, let path, let hash) = infoFaces else { return }
+        guard faceRemoving == nil, case .faces(_, let path, let hash, _) = infoFaces else { return }
+        // Asked now: among the person's photos the viewer moves on.
+        let video = items.first { $0.path == path }?.mime.hasPrefix("video/") ?? false
         faceRemoving = face.id
         var r = Msg_RemoveFromPerson()
         r.personID = face.person
@@ -1942,7 +1962,60 @@ final class PhotoGalleryVM: ObservableObject {
             if !fixedList { Task { await loadPeople() } }
             Task { await loadInfoFaces() }
         }
-        say(.personRemoved(1, face.name))
+        say(video ? .personRemovedVideo(face.name) : .personRemoved(1, face.name))
+    }
+
+    /// Add a person tapped: the list of the people not in the open item,
+    /// People asked for again meanwhile so it has the faces found since
+    /// (as Someone else…'s).
+    func openFaceAdd() {
+        guard infoFaces.adds, faceRemoving == nil else { return }
+        closeFaceAdd()
+        faceAddOpen = true
+        Task { await loadPeople() }
+    }
+
+    /// Add a person's list put away (Cancel, a swipe, the viewer moving on,
+    /// Info opened again): an answer to its pick still on its way changes
+    /// nothing in the next one.
+    func closeFaceAdd() {
+        faceAddAsk &+= 1
+        faceAddOpen = false
+        faceAddSending = nil
+        faceAddError = nil
+    }
+
+    /// A person picked in Add a person: AddToPerson with the open item's
+    /// hash. Once the device says so the list goes and Info asks for the
+    /// item's people again - the device's list has their row, with their
+    /// face - and People's counts are asked for again, as after Someone
+    /// else…. A refusal, or no answer, stays in the list: the device's
+    /// words, else face_add_failed. An answer that comes once the viewer is
+    /// on another item lists nothing there.
+    func addPerson(_ p: Msg_Person) async {
+        guard faceAddSending == nil, infoFaces.adds, let path = infoFaces.path, let hash = infoFaces.hash,
+              !infoFaces.people.contains(p.id) else { return }
+        faceAddAsk &+= 1
+        let ask = faceAddAsk
+        faceAddSending = p.id
+        faceAddError = nil
+        var r = Msg_AddToPerson()
+        r.personID = p.id
+        r.hashes = [hash]
+        let resp = try? await peopleRequest(.reqAddToPerson(r), nil)
+        let failure = PhotoFacesState.addFailure(resp)
+        let current = ask == faceAddAsk
+        if current { faceAddSending = nil }
+        if let failure {
+            if current { faceAddError = failure }
+            return
+        }
+        if current { faceAddOpen = false }
+        // In it now, wherever the viewer has got to: their count, for
+        // Images' search, People and the next Add a person.
+        Task { await loadPeople() }
+        guard infoOpen, openPath == path else { return }
+        await loadInfoFaces()
     }
 
     // MARK: A person's face (SetPersonCover)
@@ -3022,6 +3095,7 @@ final class PhotoGalleryVM: ObservableObject {
             }
             infoLoading = false
         }
+        closeFaceAdd()
         Task { await loadInfoFaces() }
     }
     func closeInfo() {
@@ -3765,6 +3839,9 @@ enum GalleryNotice {
     case personRemoveFailed, personMoveFailed
     /// This many photos taken off the person of this name ("": unnamed).
     case personRemoved(Int, String)
+    /// A video taken off the person of this name ("": unnamed): someone
+    /// added to it by hand, from its Info.
+    case personRemovedVideo(String)
     /// This many photos moved to the person of this name ("": unnamed).
     case personMoved(Int, String)
     /// A person's face changed (PersonCover).
@@ -3811,6 +3888,8 @@ enum GalleryNotice {
         case .personMoveFailed: return S.appPhotosPersonMoveFailed
         case .personRemoved(let n, let name):
             return name.isEmpty ? S.appPhotosPersonRemovedUnnamed(count: n) : S.appPhotosPersonRemoved(count: n, name: name)
+        case .personRemovedVideo(let name):
+            return name.isEmpty ? S.appPhotosPersonRemovedVideoUnnamed : S.appPhotosPersonRemovedVideo(name: name)
         case .personMoved(let n, let name):
             return name.isEmpty ? S.appPhotosPersonMovedUnnamed(count: n) : S.appPhotosPersonMoved(count: n, name: name)
         case .coverDone: return S.appPhotosPersonCoverDone
@@ -5962,7 +6041,7 @@ private struct LowResBadge: View {
 }
 
 /// Issue #41: camera/EXIF metadata panel, with a native map for GPS; the
-/// photo's faces after it, under People (PhotoFaces.swift).
+/// photo's or video's people after it, under People (PhotoFaces.swift).
 private struct FileInfoView: View {
     @ObservedObject var vm: PhotoGalleryVM
     /// The face whose × was tapped, while Not this person's question asks.
@@ -5970,14 +6049,14 @@ private struct FileInfoView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        let faces = vm.infoFaces.rows
+        let people = vm.infoFaces
         // Compressed on the device: said in place of Revert to Original.
         let compressed = vm.openItem.map(CompressRules.compressedNote) ?? false
         NavigationStack {
             Group {
                 if vm.infoLoading {
                     ProgressView()
-                } else if vm.infoData == nil && faces.isEmpty && !compressed {
+                } else if vm.infoData == nil && !people.shown && !compressed {
                     Text(S.appPhotosViewerInfoNone).foregroundColor(.secondary)
                 } else {
                     List {
@@ -5997,12 +6076,23 @@ private struct FileInfoView: View {
                         }
                         // Last, as on Android and the web: faces that come
                         // after the details move nothing above them.
-                        if !faces.isEmpty {
+                        if people.shown {
                             PhotoFacesSection(
-                                rows: faces,
+                                rows: people.rows,
+                                adds: people.adds,
                                 removing: vm.faceRemoving,
                                 open: { vm.showFacePerson($0.person) },
-                                remove: { faceAsk = $0 }
+                                remove: { f in
+                                    // Someone added by hand goes at once:
+                                    // the question is about face
+                                    // recognition, and Add puts them back.
+                                    if f.byHand {
+                                        Task { await vm.removeFace(f) }
+                                    } else {
+                                        faceAsk = f
+                                    }
+                                },
+                                add: { vm.openFaceAdd() }
                             )
                         }
                     }
@@ -6030,6 +6120,13 @@ private struct FileInfoView: View {
         // What came of it, over Info: the viewer's own alert can't show
         // over this sheet.
         .alert(vm.notice?.text ?? "", isPresented: vm.infoAlertBinding) { Button(S.commonOk, role: .cancel) {} }
+        // Add a person's list, over Info (nothing under it shows over it).
+        .sheet(isPresented: Binding(
+            get: { vm.faceAddOpen },
+            set: { if !$0, vm.faceAddOpen { vm.closeFaceAdd() } }
+        )) {
+            PersonAddSheet(vm: vm, video: vm.openItem?.mime.hasPrefix("video/") ?? false)
+        }
     }
 
     @ViewBuilder

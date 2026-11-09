@@ -29,6 +29,8 @@ import cloud.offthe.otc.proto.Ack
 import cloud.offthe.otc.proto.File
 import cloud.offthe.otc.proto.FileExifInfo
 import cloud.offthe.otc.proto.ListOfFiles
+import cloud.offthe.otc.proto.People
+import cloud.offthe.otc.proto.Person
 import cloud.offthe.otc.proto.PhotoFace
 import cloud.offthe.otc.proto.PhotoFaces
 import cloud.offthe.otc.proto.ReqEnvelope
@@ -48,27 +50,48 @@ import kotlinx.coroutines.delay
 /**
  * Debug builds only: the viewer's Info with its People on sample data, no
  * device needed (adb shell am start -n cloud.offthe.otc/.PhotoFacesPreviewActivity):
- * three pretend photos opened with Info showing - the first with four
- * faces (one unnamed, one without its crop, one with a long name), the
- * second with one, the third with none. A face's × takes it off (the
- * faces are asked again); `--es device demo` refuses it as the demo
- * device does, `--es device old` is a device before GetPhotoFaces (no
- * People), `--es device off` one with face recognition off. A face tapped
- * closes the viewer, and the person whose photos Images would show is
- * named under Open.
+ * three pretend photos and a video opened with Info showing - the first
+ * with four faces (one unnamed, one without its crop, one with a long
+ * name) and someone added by hand, the second with one face, the third
+ * with no one (Add a person alone; its list has the field to find a name),
+ * the video with one person added by hand. A face's × takes it off (the
+ * faces are asked again), one added by hand's without a question; Add a
+ * person's list adds whoever is picked. `--es device demo` refuses both
+ * as the demo device does, `--es device noadd` is a device before people
+ * added by hand (faces, no Add, no one in the video), `--es device old`
+ * one before GetPhotoFaces (no People), `--es device off` one with face
+ * recognition off. A face tapped closes the viewer, and the person whose
+ * photos Images would show is named under Open.
  */
 class PhotoFacesPreviewActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         val device = intent.getStringExtra("device") ?: ""
-        val library = (0 until 3).map { File.newBuilder().setPath("/Photos/f$it.jpg").setHash("f$it").setMime("image/jpeg").build() }
+        val library = (0 until 3).map { File.newBuilder().setPath("/Photos/f$it.jpg").setHash("f$it").setMime("image/jpeg").build() } +
+            File.newBuilder().setPath("/Photos/clip.mp4").setHash("clip").setMime("video/mp4").build()
+        val adds = device != "noadd"
+        // People: a dozen, so a list with no one taken out has its field
+        // (one without a face of their own: People shows none).
+        val names = listOf("Ana", "", "Leo", "María José Fernández de la Vega", "Zoe", "Bruno", "Carmen", "", "Diego", "Elena", "Félix", "Grace")
+        val people = names.mapIndexed { i, n ->
+            Person.newBuilder().setId("p${i + 1}").setName(n).setFaceCount(40 - i * 3)
+                .also { if (i != 5) it.coverThumbnail = ByteString.copyFrom(MemoriesPreviewActivity.picture("face-p${i + 1}", 96, 96)) }.build()
+        }
         fun face(id: String, name: String, x: Int, crop: Boolean = true) = PhotoFace.newBuilder().setPersonId(id).setName(name).setX(x).setY(80).setW(60).setH(60)
             .also { if (crop) it.thumbnail = ByteString.copyFrom(MemoriesPreviewActivity.picture("face-$id", 96, 96)) }.build()
-        val faces = ConcurrentHashMap<String, List<PhotoFace>>().apply {
-            put(library[0].path, listOf(face("p1", "Ana", 40), face("p2", "", 200), face("p3", "Leo", 380, crop = false), face("p4", "María José Fernández de la Vega", 560)))
-            put(library[1].path, listOf(face("p1", "Ana", 120)))
+        // Added by hand: no box, their People face as the crop.
+        fun byHand(id: String): PhotoFace {
+            val p = people.first { it.id == id }
+            return PhotoFace.newBuilder().setPersonId(id).setName(p.name).setThumbnail(p.coverThumbnail).setByHand(true).build()
         }
+        val faces = ConcurrentHashMap<String, List<PhotoFace>>().apply {
+            put(library[0].path, listOf(face("p1", "Ana", 40), face("p2", "", 200), face("p3", "Leo", 380, crop = false), face("p4", "María José Fernández de la Vega", 560)) +
+                if (adds) listOf(byHand("p5")) else emptyList())
+            put(library[1].path, listOf(face("p1", "Ana", 120)))
+            if (adds) put(library[3].path, listOf(byHand("p1")))
+        }
+        val demo = RespEnvelope.newBuilder().setError(true).setErrorCode("demo").setErrorMessage("This is a demo device: changes aren't kept.").build()
         val unknown = RespEnvelope.newBuilder().setError(true).setErrorCode("unknown_payload").setErrorMessage("unknown payload").build()
         val send: GalleryRequest = { _, _, build ->
             val req = ReqEnvelope.newBuilder().also(build).build()
@@ -77,14 +100,25 @@ class PhotoFacesPreviewActivity : ComponentActivity() {
                     delay(500)
                     val path = req.reqGetPhotoFaces.path
                     RespEnvelope.newBuilder().setRespPhotoFaces(
-                        PhotoFaces.newBuilder().setFaceRecognition(device != "off").setHash(library.first { it.path == path }.hash)
+                        PhotoFaces.newBuilder().setFaceRecognition(device != "off").setHash(library.first { it.path == path }.hash).setAddsPeople(adds)
                             .addAllFaces(if (device == "off") emptyList() else faces[path].orEmpty()),
                     ).build()
                 }
+                ReqEnvelope.PayloadCase.REQ_LIST_PEOPLE -> RespEnvelope.newBuilder().setRespPeople(People.newBuilder().addAllPeople(people)).build()
+                ReqEnvelope.PayloadCase.REQ_ADD_TO_PERSON -> {
+                    delay(700)
+                    if (device == "demo") demo
+                    else {
+                        val r = req.reqAddToPerson
+                        for (f in library.filter { it.hash in r.hashesList }) faces.compute(f.path) { _, fs ->
+                            if (fs.orEmpty().any { it.personId == r.personId }) fs else fs.orEmpty() + byHand(r.personId)
+                        }
+                        RespEnvelope.newBuilder().setRespAck(Ack.newBuilder().setOk(true)).build()
+                    }
+                }
                 ReqEnvelope.PayloadCase.REQ_REMOVE_FROM_PERSON -> {
                     delay(400)
-                    if (device == "demo") RespEnvelope.newBuilder().setError(true).setErrorCode("demo")
-                        .setErrorMessage("This is a demo device: changes aren't kept.").build()
+                    if (device == "demo") demo
                     else {
                         val r = req.reqRemoveFromPerson
                         for (f in library.filter { it.hash in r.hashesList }) faces.computeIfPresent(f.path) { _, fs -> fs.filter { it.personId != r.personId } }

@@ -3,6 +3,7 @@ package cloud.offthe.otc.ui.gallery
 
 import cloud.offthe.otc.i18n.english
 import cloud.offthe.otc.proto.Ack
+import cloud.offthe.otc.proto.AddToPerson
 import cloud.offthe.otc.proto.File
 import cloud.offthe.otc.proto.FileExifInfo
 import cloud.offthe.otc.proto.ListOfFiles
@@ -40,10 +41,13 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 
 // A photo's faces in the viewer's Info (owner, 2026-11-01, from a user):
-// GetPhotoFaces as Info shows - not for a video, nothing while face
+// GetPhotoFaces as Info shows - for a video too, nothing while face
 // recognition is off or on a device from before - and a face's × taking it
 // off its person with RemoveFromPerson and the photo's hash, the photo
-// leaving the grid only among that person's photos.
+// leaving the grid only among that person's photos. People added by hand
+// (owner, 2026-11-09): Add a person where the device takes AddToPerson
+// (PhotoFaces.adds_people), its list without those in it already, and the
+// item's people asked again once the device took one.
 class PhotoGalleryFacesTest {
     private val executor = Executors.newSingleThreadExecutor()
     private val dispatcher = executor.asCoroutineDispatcher()
@@ -63,6 +67,9 @@ class PhotoGalleryFacesTest {
     private val ana = face("p1", "Ana", 10)
     private val leo = face("p2", "Leo", 200)
     private val nobody = face("p3", "", 400)
+    // Someone added by hand: no box, their People face as the crop.
+    private fun byHand(personId: String) = PhotoFace.newBuilder().setPersonId(personId).setName(people.first { it.id == personId }.name)
+        .setThumbnail(ByteString.copyFromUtf8("cover-$personId")).setByHand(true).build()
 
     private fun file(path: String, at: String, mime: String = "image/jpeg"): File {
         val t = java.time.Instant.parse(at)
@@ -77,15 +84,18 @@ class PhotoGalleryFacesTest {
 
     /**
      * A device whose photos a, b and c (and a video) show [faces] by path;
-     * [facesOn]: face recognition. [photoFaces] answers GetPhotoFaces in
-     * the device's place when set; [gate] holds that answer until completed.
-     * [remove] answers RemoveFromPerson (null: no answer), held by
-     * [removeGate] until completed; one it took takes the person's faces
-     * off the photo with that hash.
+     * [facesOn]: face recognition; [adds]: it takes AddToPerson
+     * (adds_people). [photoFaces] answers GetPhotoFaces in the device's
+     * place when set; [gate] holds that answer until completed. [remove]
+     * answers RemoveFromPerson (null: no answer), held by [removeGate]
+     * until completed; one it took takes the person's faces off the photo
+     * with that hash. [add] answers AddToPerson the same way, held by
+     * [addGate]; one it took puts the person in by hand.
      */
     private inner class Device(
         val remove: RespEnvelope? = ok, val facesOn: Boolean = true, val photoFaces: RespEnvelope? = null,
         val gate: CompletableDeferred<Unit>? = null, val removeGate: CompletableDeferred<Unit>? = null,
+        val adds: Boolean = false, val add: RespEnvelope? = ok, val addGate: CompletableDeferred<Unit>? = null,
     ) {
         val sent = CopyOnWriteArrayList<ReqEnvelope>()
         @Volatile var members = listOf(a, b, c, clip)
@@ -103,7 +113,7 @@ class PhotoGalleryFacesTest {
                     gate?.await()
                     val path = req.reqGetPhotoFaces.path
                     photoFaces ?: RespEnvelope.newBuilder().setRespPhotoFaces(
-                        PhotoFaces.newBuilder().setFaceRecognition(facesOn).setHash(hx(path)).addAllFaces(if (facesOn) faces[path].orEmpty() else emptyList()),
+                        PhotoFaces.newBuilder().setFaceRecognition(facesOn).setHash(hx(path)).setAddsPeople(adds).addAllFaces(if (facesOn) faces[path].orEmpty() else emptyList()),
                     ).build()
                 }
                 ReqEnvelope.PayloadCase.REQ_REMOVE_FROM_PERSON -> {
@@ -112,12 +122,22 @@ class PhotoGalleryFacesTest {
                     if (remove == ok) faces = faces.mapValues { (p, fs) -> if (hx(p) in r.hashesList) fs.filter { it.personId != r.personId } else fs }
                     remove ?: throw IOException("no answer")
                 }
+                ReqEnvelope.PayloadCase.REQ_ADD_TO_PERSON -> {
+                    addGate?.await()
+                    val r = req.reqAddToPerson
+                    if (add == ok) faces = members.map { it.path }.associateWith { p ->
+                        val fs = faces[p].orEmpty()
+                        if (hx(p) in r.hashesList && fs.none { it.personId == r.personId }) fs + byHand(r.personId) else fs
+                    }
+                    add ?: throw IOException("no answer")
+                }
                 ReqEnvelope.PayloadCase.REQ_GET_INSTANCE_ROLE -> RespEnvelope.newBuilder().setRespInstanceRole(RespInstanceRole.newBuilder().setIsPrimary(true)).build()
                 else -> throw IOException("not answered")
             }
         }
         fun facesAsked(): List<String> = sent.filter { it.payloadCase == ReqEnvelope.PayloadCase.REQ_GET_PHOTO_FACES }.map { it.reqGetPhotoFaces.path }
         fun removes(): List<RemoveFromPerson> = sent.filter { it.payloadCase == ReqEnvelope.PayloadCase.REQ_REMOVE_FROM_PERSON }.map { it.reqRemoveFromPerson }
+        fun addsSent(): List<AddToPerson> = sent.filter { it.payloadCase == ReqEnvelope.PayloadCase.REQ_ADD_TO_PERSON }.map { it.reqAddToPerson }
         fun listings() = sent.count { it.payloadCase == ReqEnvelope.PayloadCase.REQ_LIST_PEOPLE }
     }
 
@@ -157,7 +177,8 @@ class PhotoGalleryFacesTest {
     @Test fun theRules() {
         val item = PhotoGalleryViewModel.Item("a#1", "a", "image/heic", 1, null)
         assertTrue(asksPhotoFaces(item))
-        assertFalse(asksPhotoFaces(item.copy(mime = "video/quicktime")))
+        // A video too: its people added by hand (a device from before answers no one).
+        assertTrue(asksPhotoFaces(item.copy(mime = "video/quicktime")))
         assertFalse(asksPhotoFaces(null))
         val answer = PhotoFaces.newBuilder().setFaceRecognition(true).setHash("h").addAllFaces(listOf(ana, leo, ana)).build()
         val info = photoFacesOf("a", answer)!!
@@ -175,6 +196,11 @@ class PhotoGalleryFacesTest {
         assertEquals("Remove this photo from ⁨Ana⁩?", notThisPersonTitle(facePerson(ana), 1).english())
         assertEquals("Remove this photo from this person?", notThisPersonTitle(facePerson(nobody), 1).english())
         assertEquals("Removed 1 photo from ⁨Leo⁩", personTakenOffNote(1, facePerson(leo), null).english())
+        // Info's note: a photo's is Not this person's; a video's says it is a video.
+        assertEquals("Removed 1 photo from ⁨Leo⁩", infoTakenOffNote(leo, video = false).english())
+        assertEquals("Removed 1 photo from this person", infoTakenOffNote(nobody, video = false).english())
+        assertEquals("Removed this video from ⁨Ana⁩", infoTakenOffNote(byHand("p1"), video = true).english())
+        assertEquals("Removed this video from this person", infoTakenOffNote(byHand("p3"), video = true).english())
     }
 
     @Test fun infoListsThePhotosFacesLeftToRight() {
@@ -198,17 +224,18 @@ class PhotoGalleryFacesTest {
         assertNull(vm.state.value.infoFaces)
     }
 
-    @Test fun nothingForAVideoNorWithoutFaces() {
-        // A video: nothing asked.
+    @Test fun nothingForAVideoNorWithoutFacesOnADeviceThatAddsNoOne() {
+        // A video: asked, and a device from before adds_people answers no one.
         val dev = Device()
         val vm = infoOn(dev, 3)
+        await("the question") { dev.facesAsked().isNotEmpty() }
         settle()
-        assertTrue(dev.facesAsked().isEmpty())
+        assertEquals(listOf("clip"), dev.facesAsked())
         assertNull(vm.state.value.infoFaces)
         // A photo nobody is in.
         dev.faces = emptyMap()
         on { vm.open(0); vm.openInfo() }
-        await("the question") { dev.facesAsked().isNotEmpty() }
+        await("the question") { dev.facesAsked().size == 2 }
         settle()
         assertNull(vm.state.value.infoFaces)
         // Face recognition off.
@@ -368,5 +395,221 @@ class PhotoGalleryFacesTest {
         // Nobody's list to refresh in a viewer of its own.
         assertEquals(0, dev.listings())
         await("the faces again") { dev.facesAsked().size == 2 }
+    }
+
+    @Test fun theRulesForPeopleAddedByHand() {
+        val leoByHand = byHand("p2")
+        val answer = PhotoFaces.newBuilder().setFaceRecognition(true).setHash("h").setAddsPeople(true).build()
+        // No one in it yet: People shows, with Add alone.
+        val empty = photoFacesOf("clip", answer)!!
+        assertTrue(empty.faces.isEmpty())
+        assertTrue(empty.adds)
+        // Not without a hash to name it by, nor with face recognition off, nor on a device that adds no one.
+        assertNull(photoFacesOf("clip", answer.toBuilder().setHash("").build()))
+        assertNull(photoFacesOf("clip", answer.toBuilder().setFaceRecognition(false).build()))
+        assertNull(photoFacesOf("clip", answer.toBuilder().setAddsPeople(false).build()))
+        val older = photoFacesOf("a", answer.toBuilder().setAddsPeople(false).addFaces(ana).build())!!
+        assertFalse(older.adds)
+        // Faces left to right, then those added by hand, as the device lists them.
+        val info = photoFacesOf("a", answer.toBuilder().addAllFaces(listOf(ana, leoByHand)).build())!!
+        assertEquals(listOf(false, true), info.faces.map { it.byHand })
+        // Everyone taken off, Add stays; on a device that adds no one, People goes.
+        assertEquals(PhotoFacesInfo("a", "h", emptyList(), addsPeople = true), info.without("p1")!!.without("p2"))
+        assertNull(older.without("p1"))
+        // The list: everyone but those in it already (a face, or by hand), in the People page's order.
+        val all = listOf(
+            person("p1", "Ana"), Person.newBuilder().setId("p4").setFaceCount(9).build(), person("p2", "Leo"),
+            Person.newBuilder().setId("p5").setName("Léonie").setFaceCount(7).build(), person("p3", ""),
+        )
+        assertEquals(listOf("p5", "p4", "p3"), peopleToAdd(all, info).map { it.id })
+        assertEquals(listOf("p5", "p1", "p2", "p4", "p3"), peopleToAdd(all, empty).map { it.id })
+        // A name typed: case and accents aside; the unnamed go.
+        assertEquals(listOf("p5"), peopleToAdd(all, info, "LEON").map { it.id })
+        assertEquals(listOf("p5", "p2"), peopleToAdd(all, empty, " le ").map { it.id })
+        assertTrue(peopleToAdd(all, info, "zoe").isEmpty())
+        // No one to offer: nobody found yet, or everyone in it already.
+        assertEquals("No one has been found yet.", addPersonNone(emptyList()).english())
+        assertEquals("Everyone found so far is in it already.", addPersonNone(all).english())
+        // The field past 8 people (iOS PersonMove.filterAbove).
+        assertFalse(wantsNameFilter(8))
+        assertTrue(wantsNameFilter(9))
+        // The request: one person, the content's hash.
+        val req = addToPersonRequest("p3", listOf("h"))
+        assertEquals("p3", req.personId)
+        assertEquals(listOf("h"), req.hashesList)
+        // The answers: taken; the device's words; else Couldn't add.
+        assertNull(addToPersonRefusal(ok))
+        assertEquals("The demo can't change that", addToPersonRefusal(RespEnvelope.newBuilder().setError(true).setErrorMessage("The demo can't change that").build())?.english())
+        assertEquals("No such person", addToPersonRefusal(RespEnvelope.newBuilder().setRespAck(Ack.newBuilder().setOk(false).setErrorMsg("No such person")).build())?.english())
+        for (failed in listOf(null, unknown, RespEnvelope.newBuilder().setError(true).build(), RespEnvelope.newBuilder().setRespAck(Ack.newBuilder().setOk(false)).build())) {
+            assertEquals("Couldn't add this person. Try again.", addToPersonRefusal(failed)?.english())
+        }
+    }
+
+    @Test fun aVideoShowsThePeopleAddedToIt() {
+        val dev = Device(adds = true)
+        dev.faces = dev.faces + ("clip" to listOf(byHand("p1")))
+        val vm = infoOn(dev, 3)
+        await("the people") { vm.state.value.infoFaces != null }
+        val info = vm.state.value.infoFaces!!
+        assertEquals("clip", info.path)
+        assertEquals(hx("clip"), info.hash)
+        assertEquals(listOf("p1"), info.faces.map { it.personId })
+        assertTrue(info.faces.single().byHand)
+        assertTrue(info.adds)
+        // Nobody in it: Add alone.
+        on { vm.open(2) }
+        dev.faces = dev.faces - "c"
+        on { vm.openInfo() }
+        await("c's") { vm.state.value.infoFaces != null }
+        assertTrue(vm.state.value.infoFaces!!.faces.isEmpty())
+        assertTrue(vm.state.value.infoFaces!!.adds)
+    }
+
+    @Test fun addingSomeoneSendsAddToPersonAndAsksAgain() {
+        val dev = Device(adds = true)
+        val vm = infoOn(dev, 0)
+        await("the faces") { vm.state.value.infoFaces != null }
+        val listed = dev.listings()
+        on { vm.openInfoAdd() }
+        assertEquals(InfoAdd("a"), vm.state.value.infoAdd)
+        // The people are asked again as the list opens.
+        await("the people again") { dev.listings() > listed }
+        on { vm.addInfoPerson(people[1]) }
+        await("the list closed") { vm.state.value.infoAdd == null && vm.state.value.preparing == null }
+        val sent = dev.addsSent().single()
+        assertEquals("p2", sent.personId)
+        assertEquals(listOf(hx("a")), sent.hashesList)
+        // Info asks again: the device's row for them, by hand.
+        await("the people in it again") { vm.state.value.infoFaces?.faces?.size == 2 }
+        assertEquals(listOf("a", "a"), dev.facesAsked())
+        assertEquals(listOf("p1", "p2"), vm.state.value.infoFaces!!.faces.map { it.personId })
+        assertTrue(vm.state.value.infoFaces!!.faces[1].byHand)
+        await("the people listed again") { dev.listings() > listed + 1 }
+        assertNull(vm.state.value.alert)
+        assertTrue(vm.state.value.infoOpen)
+        // Someone in it already isn't sent again.
+        on { vm.openInfoAdd() }
+        on { vm.addInfoPerson(people[1]).join() }
+        assertEquals(1, dev.addsSent().size)
+    }
+
+    @Test fun aRefusalStaysInTheList() {
+        val words = RespEnvelope.newBuilder().setError(true).setErrorMessage("The demo can't change that").build()
+        for ((answer, said) in listOf(words to "The demo can't change that", null to "Couldn't add this person. Try again.")) {
+            val dev = Device(adds = true, add = answer)
+            val vm = infoOn(dev, 0)
+            await("the faces") { vm.state.value.infoFaces != null }
+            on { vm.openInfoAdd() }
+            on { vm.addInfoPerson(people[2]) }
+            await("the answer") { vm.state.value.infoAdd?.error != null }
+            assertEquals(said, vm.state.value.infoAdd?.error?.english())
+            assertEquals("a", vm.state.value.infoAdd?.path)
+            assertNull(vm.state.value.preparing)
+            assertNull(vm.state.value.alert)
+            assertEquals(listOf("p1"), vm.state.value.infoFaces?.faces?.map { it.personId })
+            assertEquals(1, dev.facesAsked().size)
+            // Tried again: the old words go while it is on its way.
+            on { vm.addInfoPerson(people[2]) }
+            await("the second answer") { dev.addsSent().size == 2 && vm.state.value.preparing == null }
+            assertEquals(said, vm.state.value.infoAdd?.error?.english())
+        }
+        // The list closed meanwhile: the note says it.
+        val gate = CompletableDeferred<Unit>()
+        val dev = Device(adds = true, add = words, addGate = gate)
+        val vm = infoOn(dev, 0)
+        await("the faces") { vm.state.value.infoFaces != null }
+        on { vm.openInfoAdd() }
+        on { vm.addInfoPerson(people[2]) }
+        await("the request") { dev.addsSent().isNotEmpty() }
+        assertEquals(SelectionActionTask.ADD_PERSON, vm.state.value.preparing)
+        on { vm.closeInfoAdd() }
+        gate.complete(Unit)
+        await("the note") { vm.state.value.alert != null }
+        assertEquals("The demo can't change that", vm.state.value.alert?.english())
+        assertNull(vm.state.value.infoAdd)
+    }
+
+    @Test fun addOnlyWhereTheDeviceTakesIt() {
+        val dev = Device()
+        val vm = infoOn(dev, 1)
+        await("the faces") { vm.state.value.infoFaces != null }
+        assertFalse(vm.state.value.infoFaces!!.adds)
+        on { vm.openInfoAdd() }
+        assertNull(vm.state.value.infoAdd)
+        on { vm.addInfoPerson(person("p9", "Zoe")).join() }
+        assertTrue(dev.addsSent().isEmpty())
+    }
+
+    @Test fun anAddForAnItemLeftIsNeverDrawnUnderTheNextOne() {
+        val gate = CompletableDeferred<Unit>()
+        val dev = Device(adds = true, addGate = gate)
+        val vm = infoOn(dev, 0)
+        await("the faces") { vm.state.value.infoFaces != null }
+        on { vm.openInfoAdd() }
+        on { vm.addInfoPerson(people[1]) }
+        await("the request") { dev.addsSent().isNotEmpty() }
+        // On to c, whose Info shows meanwhile.
+        on { vm.open(2); vm.openInfo() }
+        assertNull(vm.state.value.infoAdd)
+        await("c's faces") { vm.state.value.infoFaces?.path == "c" }
+        gate.complete(Unit)
+        await("the add done") { vm.state.value.preparing == null }
+        settle()
+        assertEquals("c", vm.state.value.infoFaces!!.path)
+        assertEquals(listOf("p2"), vm.state.value.infoFaces!!.faces.map { it.personId })
+        assertEquals(listOf("a", "c"), dev.facesAsked())
+        assertNull(vm.state.value.infoAdd)
+        assertNull(vm.state.value.alert)
+    }
+
+    @Test fun someoneAddedByHandIsTakenOffAsAFaceIs() {
+        val dev = Device(adds = true)
+        dev.faces = dev.faces + ("a" to listOf(ana, byHand("p2")))
+        val vm = infoOn(dev, 0)
+        await("the people") { vm.state.value.infoFaces?.faces?.size == 2 }
+        val leoByHand = vm.state.value.infoFaces!!.faces[1]
+        on { vm.removeInfoFace(leoByHand) }
+        await("the note") { vm.state.value.alert != null }
+        val sent = dev.removes().single()
+        assertEquals("p2", sent.personId)
+        assertEquals(listOf(hx("a")), sent.hashesList)
+        assertEquals("", sent.toPersonId)
+        assertEquals("Removed 1 photo from ⁨Leo⁩", vm.state.value.alert?.english())
+        assertEquals(listOf("p1"), vm.state.value.infoFaces?.faces?.map { it.personId })
+        // The last one gone, Add stays.
+        on { vm.dismissAlert() }
+        await("the faces again") { dev.facesAsked().size == 2 }
+        on { vm.removeInfoFace(ana) }
+        await("the note") { vm.state.value.alert != null }
+        await("asked again") { dev.facesAsked().size == 3 }
+        settle()
+        assertTrue(vm.state.value.infoFaces!!.faces.isEmpty())
+        assertTrue(vm.state.value.infoFaces!!.adds)
+        // Among their photos, the item leaves the grid.
+        val dev2 = Device(adds = true)
+        dev2.faces = dev2.faces + ("a" to listOf(byHand("p2")))
+        val vm2 = infoOn(dev2, 0, who = "p2")
+        await("the people") { vm2.state.value.infoFaces != null }
+        on { vm2.removeInfoFace(vm2.state.value.infoFaces!!.faces.single()) }
+        await("the note") { vm2.state.value.alert != null && paths(vm2) == listOf("b", "c", "clip") }
+        assertFalse(vm2.state.value.infoOpen)
+    }
+
+    @Test fun someoneTakenOffAVideoIsSaidOfTheVideo() {
+        val dev = Device(adds = true)
+        dev.faces = dev.faces + ("clip" to listOf(byHand("p1"), byHand("p3")))
+        val vm = infoOn(dev, 3)
+        await("the people") { vm.state.value.infoFaces?.faces?.size == 2 }
+        on { vm.removeInfoFace(vm.state.value.infoFaces!!.faces[0]) }
+        await("the note") { vm.state.value.alert != null }
+        assertEquals(listOf(hx("clip")), dev.removes().single().hashesList)
+        assertEquals("Removed this video from ⁨Ana⁩", vm.state.value.alert?.english())
+        assertEquals(listOf("p3"), vm.state.value.infoFaces?.faces?.map { it.personId })
+        on { vm.dismissAlert() }
+        await("asked again") { dev.facesAsked().size == 2 }
+        on { vm.removeInfoFace(vm.state.value.infoFaces!!.faces.single()) }
+        await("the note") { vm.state.value.alert != null }
+        assertEquals("Removed this video from this person", vm.state.value.alert?.english())
     }
 }
