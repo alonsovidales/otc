@@ -1210,7 +1210,8 @@
 /* The photo's faces (MediaViewer.tsx, photoFaces.ts), after the details: a
    row each - the crop round as People shows faces (a blank circle without
    one) and the name, one button that opens their photos, then an × for Not
-   this person. Rows are 44px tall, the × a 40px circle, for a finger. */
+   this person (Remove for one added by hand). Rows are 44px tall, the × a
+   40px circle, for a finger. */
 .pg-info-faces { padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 4px; }
 .pg-info-faces-title { margin: 0; font-weight: inherit; }
 .pg-info-face-list { list-style: none; margin: 0 -8px; padding: 0; display: flex; flex-direction: column; }
@@ -1238,6 +1239,17 @@
 }
 .pg-info-face-open:active, .pg-info-face-remove:active { background: rgba(234, 242, 239, .14); }
 .pg-info-face-open:focus-visible { outline-offset: -2px; }
+/* A by-hand row's × on its way (no question first): dimmed until the device
+   has answered, still focusable. */
+.pg-info-face-remove[aria-busy="true"] { opacity: .5; cursor: progress; }
+/* Add a person, last: a row of the list's, its circle dashed round the
+   icon in the gold of Add to collection's New collection. */
+.pg-info-face-add { flex: none; margin: 0 -8px; }
+.pg-info-face-list + .pg-info-face-add { margin-top: -4px; }
+.pg-info-face-add .pg-info-face-img {
+  box-sizing: border-box; display: grid; place-items: center;
+  background: none; border: 1.5px dashed rgba(234, 242, 239, .28); color: var(--gold);
+}
 @media (prefers-reduced-motion: reduce) {
   .pg-info-face-open, .pg-info-face-remove { transition: none; }
 }

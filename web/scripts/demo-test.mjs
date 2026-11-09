@@ -93,8 +93,10 @@ describe("a change on a demo device", () => {
     assert.equal(del.errorCode, "demo");
     assert.equal(del.errorMessage, "refused");
     assert.equal(del.payload.respAck.code, "demo");
-    // People's Not this person / Someone else… changes the device too.
+    // People's Not this person / Someone else… changes the device too, as
+    // does Info's Add a person.
     assert.equal(m.demoRequestReply(req("reqRemoveFromPerson"), "refused").errorCode, "demo");
+    assert.equal(m.demoRequestReply(req("reqAddToPerson"), "refused").errorCode, "demo");
     // So does choosing a person's face (Use this face, Upload a photo…,
     // Choose automatically).
     assert.equal(m.demoRequestReply(req("reqSetPersonCover"), "refused").errorCode, "demo");

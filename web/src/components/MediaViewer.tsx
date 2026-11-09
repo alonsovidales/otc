@@ -4,7 +4,8 @@
 // it opens photos and videos from Files too, its own component, so both
 // open them the same way - full-size image (pinch or trackpad zoom), a
 // video streamed from the device, swiping or arrows between items, the
-// Info panel (issue #41) with the photo's faces (photoFaces.ts), Download,
+// Info panel (issue #41) with the photo's faces and the people added to it
+// by hand (photoFaces.ts), Download,
 // and Delete where the caller allows it (issue #199) - and, opened on one
 // person's photos, Not this person, Someone else… and Use this face
 // (personFix.tsx); on this device's own library, the heart that puts a
@@ -23,7 +24,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSy
 import { dateTimeFields, fmtDate, useT } from "../i18n";
 import { useWS } from "../net/useWS";
 import { requestStreamURL, canStream } from "../net/media";
-import type { ReqEnvelope, RespEnvelope, FileExifInfo, PhotoFace } from "../proto/messages";
+import type { ReqEnvelope, RespEnvelope, FileExifInfo, Person, PhotoFace } from "../proto/messages";
 import "./PhotoGallery.css";
 import LowResBadge from "./LowResBadge";
 import { fullSizeCache } from "./fullSizeCache";
@@ -35,13 +36,16 @@ import { asIs, say, type UiText } from "./uiText";
 import { copiesChoice, delFileFields, deleteOutcome, refusedText } from "./photoCopies";
 import { refuseOnDemo } from "../net/demo";
 import { useBackLayer } from "./backStack";
-import { MoveToPersonDialog, NotThisPersonIcon, RemoveFromPersonDialog, SomeoneElseIcon, UseFaceIcon } from "./personFix";
+import { AddPersonIcon, AddToPersonDialog, MoveToPersonDialog, NotThisPersonIcon, RemoveFromPersonDialog, SomeoneElseIcon, UseFaceIcon } from "./personFix";
 import { named, personFixText, type PersonFixDone } from "./personFixDone";
 import { faceHash } from "./personCover";
 import { favourites, useFavourite, useNoFavourites } from "./useFavourites";
 import { choosePersonCover, groupsChanged, personLabel, reloadPeople } from "./libraryStore";
 import { useFaceRecognition } from "./faceRecognition";
-import { asksFaces, faceKey, facesAnswer, facesPayload, focusAfterRemoval, leavesGrid, removalHash, withoutPerson } from "./photoFaces";
+import {
+  ackOutcome, addedAt, asksFaces, byHandRemovalPayload, faceKey, facesAnswer, facesPayload, focusAfterRemoval, leavesGrid,
+  offersAdd, removalHash, showsPeople, withoutPerson, type AckOutcome,
+} from "./photoFaces";
 import { showPersonPhotos } from "./photoFilter";
 import { cNoRating, type RatingRefusal, type Ratings, type ShownRating } from "./rating";
 import { ratingRefusalText } from "./ratingText";
@@ -205,8 +209,8 @@ async function smallThumbOf(path: string): Promise<Blob | null> {
 }
 
 // How long a note over the photo stays: a heart the device refused, a face
-// chosen or not (Use this face), a face taken off the photo in Info, a copy
-// of an edit saved.
+// chosen or not (Use this face), a face taken off the photo in Info (or a
+// person added by hand, or why not), a copy of an edit saved.
 const cNoteMs = 6000;
 
 // A device from before GetPhotoFaces ("unknown_payload"): Info shows no
@@ -571,14 +575,22 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   const closeInfo = useCallback(() => { setInfoOpen(false); setInfoData(null); }, []);
 
   // The photo's faces, under its details (photoFaces.ts): asked when Info
-  // opens, again for another photo while it stays open and after a face
-  // was taken off (facesTick), never while it is closed nor for a video.
-  // Until the device has answered nothing shows, and an answer that came
-  // to nothing leaves what showed (nothing, or the list before a removal);
-  // `path` is the photo they are of.
+  // opens, again for another photo or video while it stays open and after
+  // a face was taken off or a person added (facesTick, `tick` the ask an
+  // answer is for), never while it is closed. A video has only the people
+  // added to it by hand (a device from before answers it with none). Until
+  // the device has answered nothing shows, and an answer that came to
+  // nothing leaves what showed (nothing, or the list before a removal);
+  // `path` is the item they are of.
   const faceRecognition = useFaceRecognition();
-  const [faces, setFaces] = useState<{ path: string; faces: PhotoFace[]; hash: string } | null>(null);
+  const [faces, setFaces] = useState<{ path: string; faces: PhotoFace[]; hash: string; addsPeople: boolean; tick: number } | null>(null);
   const [facesTick, setFacesTick] = useState(0);
+  const facesTickRef = useRef(0);
+  const askFacesAgain = () => {
+    facesTickRef.current += 1;
+    setFacesTick(facesTickRef.current);
+    return facesTickRef.current;
+  };
   const facesPath = infoOpen && item && asksFaces(item, faceRecognition, noPhotoFaces) ? item.path : null;
   useEffect(() => {
     if (facesPath == null) { setFaces(null); return; }
@@ -588,7 +600,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
         const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => { e.payload = facesPayload(facesPath); });
         if (!live) return;
         const got = facesAnswer(resp);
-        if (got.kind === "faces") setFaces({ path: facesPath, faces: got.faces, hash: got.hash });
+        if (got.kind === "faces") setFaces({ path: facesPath, faces: got.faces, hash: got.hash, addsPeople: got.addsPeople, tick: facesTick });
         else if (got.kind === "unknown") {
           noPhotoFaces = true;
           setFaces(null);
@@ -793,29 +805,99 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   // demo device refuses it before asking. `at`: the face's row, and
   // `keys`: pressed from the keyboard, whose focus then goes to the next
   // face's × (or Info's ×) rather than falling out of the panel.
-  const [unfacing, setUnfacing] = useState<{ face: PhotoFace; hash: string; at: number; keys: boolean } | null>(null);
+  const [unfacing, setUnfacing] = useState<{ face: PhotoFace; path: string; hash: string; at: number; keys: boolean } | null>(null);
   const facesListRef = useRef<HTMLUListElement>(null);
   const infoCloseRef = useRef<HTMLButtonElement>(null);
+  const faceAddRef = useRef<HTMLButtonElement>(null);
   const refocusFaceRef = useRef<number | null>(null);
+  // A person added: the row to focus once the device's answer for `tick`
+  // lists them (see adding).
+  const refocusAddedRef = useRef<{ path: string; personId: string; tick: number } | null>(null);
   const faceHashNow = faces ? removalHash(faces.hash, item?.hash) : "";
   const askUnface = (face: PhotoFace, at: number, keys: boolean) => {
-    if (faceHashNow && !refuseOnDemo()) setUnfacing({ face, hash: faceHashNow, at, keys });
+    if (!faceHashNow || !item || refuseOnDemo()) return;
+    refocusAddedRef.current = null;
+    setUnfacing({ face, path: item.path, hash: faceHashNow, at, keys });
+  };
+  // A person taken off the item on screen (`path`, the one asked about):
+  // out of the grid of their photos, as above; else off the list at once,
+  // the faces asked again, the note and People listed again - nothing of
+  // it painted on another item stepped to meanwhile.
+  const faceGone = (face: PhotoFace, path: string, at: number, keys: boolean, done: PersonFixDone) => {
+    if (leavesGrid(personId, face.personId) && onPersonFixedRef.current) {
+      personFixed(done);
+      return;
+    }
+    setNote({ text: (t) => personFixText(t, done), seq: Date.now(), done: true });
+    // Their count and maybe their face changed (People, the search).
+    void reloadPeople().catch(() => {});
+    if (itemPathRef.current !== path) return;
+    const left = withoutPerson(shownFaces, face.personId);
+    setFaces((cur) => (cur && cur.path === path ? { ...cur, faces: withoutPerson(cur.faces, face.personId) } : cur));
+    askFacesAgain();
+    if (keys) refocusFaceRef.current = focusAfterRemoval(at, left.length);
   };
   const faceRemoved = (done: PersonFixDone) => {
     const u = unfacing;
     if (!mountedRef.current || !u) return;
-    if (leavesGrid(personId, u.face.personId) && onPersonFixedRef.current) {
-      personFixed(done);
+    setUnfacing(null);
+    faceGone(u.face, u.path, u.at, u.keys, done);
+  };
+  // A by-hand row's × (PhotoFace.by_hand): off them at once, with no
+  // question - Not this person's is about face recognition, which never
+  // learnt anything from them, and Add puts them back. RemoveFromPerson to
+  // no one, then as after a face's × (a video's note says video);
+  // refused, the note says why (the device's words, else ours). One at a
+  // time; a demo device refuses it.
+  const [unhanding, setUnhanding] = useState<string | null>(null);
+  const removeByHand = async (face: PhotoFace, at: number, keys: boolean) => {
+    const hash = faceHashNow;
+    if (!hash || !item || unhanding != null || refuseOnDemo()) return;
+    const path = item.path;
+    const video = isVideoFile(item);
+    refocusAddedRef.current = null;
+    setUnhanding(face.personId);
+    setNote(null);
+    let got: AckOutcome;
+    try {
+      got = ackOutcome(await useWS.request((e: Partial<ReqEnvelope>) => { e.payload = byHandRemovalPayload(face.personId, hash); }));
+    } catch {
+      got = { kind: "unreachable" };
+    }
+    if (!mountedRef.current) return;
+    setUnhanding(null);
+    if (got.kind !== "done") {
+      const said = got.kind === "refused" ? got.said : "";
+      setNote({ text: said ? asIs(said) : say(got.kind === "unreachable" ? "web.images.error.unreachable" : "web.images.person.remove_failed"), seq: Date.now() });
       return;
     }
-    setUnfacing(null);
-    const left = withoutPerson(shownFaces, u.face.personId);
-    setFaces((cur) => (cur ? { ...cur, faces: withoutPerson(cur.faces, u.face.personId) } : cur));
-    setFacesTick((n) => n + 1);
-    if (u.keys) refocusFaceRef.current = focusAfterRemoval(u.at, left.length);
-    setNote({ text: (t) => personFixText(t, done), seq: Date.now(), done: true });
-    // Their count and maybe their face changed (People, the search).
+    faceGone(face, path, at, keys, { hashes: new Set([hash]), from: { id: face.personId, name: face.name }, moved: false, video });
+  };
+  // Add a person, at the end of Info's People where the device takes
+  // AddToPerson (PhotoFaces.adds_people) and face recognition is on:
+  // People's people but for those in the item already (personFix.tsx's
+  // AddToPersonDialog), about the item on screen when it opened - drawn
+  // inside the box, its keys its own. Once the device took the one
+  // picked, the item's faces are asked again (its answer brings their crop
+  // and by_hand, and where it puts them), the focus goes to their row as
+  // it comes (else to Add), and People is listed again (their count).
+  // Stepped to another item meanwhile, only People is. A demo device
+  // refuses it before the list.
+  const [adding, setAdding] = useState<{ path: string; hash: string; video: boolean; inIt: PhotoFace[] } | null>(null);
+  const shownAnswer = faces && faces.path === facesPath ? faces : null;
+  const canAdd = !!shownAnswer && offersAdd(shownAnswer.addsPeople, faceRecognition, faceHashNow);
+  const askAdd = () => {
+    if (!canAdd || !item || refuseOnDemo()) return;
+    refocusAddedRef.current = null;
+    setAdding({ path: item.path, hash: faceHashNow, video: isVideoFile(item), inIt: shownFaces });
+  };
+  const personAdded = (p: Person) => {
+    const a = adding;
+    if (!mountedRef.current || !a) return;
+    setAdding(null);
     void reloadPeople().catch(() => {});
+    if (itemPathRef.current !== a.path) return;
+    refocusAddedRef.current = { path: a.path, personId: p.id, tick: askFacesAgain() };
   };
   // A face in Info: Images on that person's photos, as a face on the
   // People page opens them; the viewer closes.
@@ -919,7 +1001,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
 
   // The question gone, the viewer has the focus again if it fell out of it
   // (a click on Delete leaves it on nothing once the dialog goes).
-  const dialogOpen = asking != null || fixing != null || unfacing != null || editing != null || reverting != null;
+  const dialogOpen = asking != null || fixing != null || unfacing != null || adding != null || editing != null || reverting != null;
   const wasAskingRef = useRef(false);
   useEffect(() => {
     const was = wasAskingRef.current;
@@ -935,8 +1017,21 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     if (at == null || unfacing) return;
     refocusFaceRef.current = null;
     const next = at >= 0 ? facesListRef.current?.querySelectorAll<HTMLElement>("[data-face-remove]")[at] : null;
-    (next ?? infoCloseRef.current)?.focus({ preventScroll: true });
+    (next ?? faceAddRef.current ?? infoCloseRef.current)?.focus({ preventScroll: true });
   }, [unfacing, faces]);
+  // And a person added: their row once the device's answer lists them,
+  // else Add (see adding); dropped once Info closed (a step closes it) or
+  // for another item's answer, never kept for a later opening.
+  useEffect(() => {
+    const r = refocusAddedRef.current;
+    if (!r || adding) return;
+    if (!faces || faces.path !== r.path) { refocusAddedRef.current = null; return; }
+    if (faces.tick < r.tick) return;
+    refocusAddedRef.current = null;
+    const at = addedAt(faces.faces, r.personId);
+    const row = at >= 0 ? facesListRef.current?.querySelectorAll<HTMLElement>("[data-face-open]")[at] : null;
+    (row ?? faceAddRef.current)?.focus({ preventScroll: true });
+  }, [adding, faces]);
 
   // The viewer's Tab stops, in order (cFocusable), without the guard.
   const guardRef = useRef<HTMLSpanElement>(null);
@@ -1416,42 +1511,58 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
             {/* The photo's faces, after the details once those are in, so
                 they arrive below and move nothing: each face (its crop and
                 name) opens that person's photos, its × is Not this person
-                for this photo. */}
-            {!infoLoading && shownFaces.length > 0 && (
+                for this photo; then the people added by hand (their People
+                face, their × takes them off at once), and Add a person. */}
+            {!infoLoading && showsPeople(shownFaces, canAdd) && (
               <section className="pg-info-faces" aria-labelledby={facesTitleId}>
                 <h3 id={facesTitleId} className="pg-info-label pg-info-faces-title">{t("web.images.people.title")}</h3>
-                <ul ref={facesListRef} className="pg-info-face-list">
-                  {shownFaces.map((f, i) => {
-                    const nameId = `${facesTitleId}-${i}`;
-                    const crop = faceURLs[i];
-                    return (
-                      <li key={faceKey(f)} className="pg-info-face">
-                        <button
-                          type="button"
-                          className="pg-info-face-open"
-                          data-tip={t("web.images.viewer.face_photos")}
-                          aria-description={t("web.images.viewer.face_photos")}
-                          onClick={() => showFacePerson(f.personId)}
-                        >
-                          {crop ? <img className="pg-info-face-img" src={crop} alt="" /> : <span className="pg-info-face-img" aria-hidden="true" />}
-                          <span id={nameId} className={"pg-info-face-name" + (named(f) ? "" : " unnamed")}>{personLabel(f)}</span>
-                        </button>
-                        {faceHashNow && (
+                {shownFaces.length > 0 && (
+                  <ul ref={facesListRef} className="pg-info-face-list">
+                    {shownFaces.map((f, i) => {
+                      const nameId = `${facesTitleId}-${i}`;
+                      const crop = faceURLs[i];
+                      const removeLabel = f.byHand ? t("common.remove") : t("web.images.select.not_this_person");
+                      return (
+                        <li key={faceKey(f)} className="pg-info-face">
                           <button
                             type="button"
-                            className="pg-info-face-remove"
-                            data-face-remove
-                            data-tip={t("web.images.select.not_this_person")}
-                            aria-label={t("web.images.select.not_this_person")}
-                            aria-describedby={nameId}
-                            aria-haspopup="dialog"
-                            onClick={(e) => askUnface(f, i, e.currentTarget.matches(":focus-visible"))}
-                          >×</button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
+                            className="pg-info-face-open"
+                            data-face-open
+                            data-tip={t("web.images.viewer.face_photos")}
+                            aria-description={t("web.images.viewer.face_photos")}
+                            onClick={() => showFacePerson(f.personId)}
+                          >
+                            {crop ? <img className="pg-info-face-img" src={crop} alt="" /> : <span className="pg-info-face-img" aria-hidden="true" />}
+                            <span id={nameId} className={"pg-info-face-name" + (named(f) ? "" : " unnamed")}>{personLabel(f)}</span>
+                          </button>
+                          {faceHashNow && (
+                            <button
+                              type="button"
+                              className="pg-info-face-remove"
+                              data-face-remove
+                              data-tip={removeLabel}
+                              aria-label={removeLabel}
+                              aria-describedby={nameId}
+                              aria-haspopup={f.byHand ? undefined : "dialog"}
+                              aria-busy={f.byHand && unhanding === f.personId ? true : undefined}
+                              onClick={(e) => {
+                                const keys = e.currentTarget.matches(":focus-visible");
+                                if (f.byHand) void removeByHand(f, i, keys);
+                                else askUnface(f, i, keys);
+                              }}
+                            >×</button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {canAdd && (
+                  <button ref={faceAddRef} type="button" className="pg-info-face-open pg-info-face-add" aria-haspopup="dialog" onClick={askAdd}>
+                    <span className="pg-info-face-img" aria-hidden="true"><AddPersonIcon size={20} /></span>
+                    <span className="pg-info-face-name">{t("web.images.viewer.face_add")}</span>
+                  </button>
+                )}
               </section>
             )}
           </div>
@@ -1459,7 +1570,8 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
 
         <DownloadNote failed={saveError} />
         {/* The heart the device didn't take, back as it was; the face
-            chosen, or why not; a face taken off the photo in Info. */}
+            chosen, or why not; a face (or a person added by hand) taken
+            off the photo in Info, or why not. */}
         {note && (
           <div className={"pg-modal-toast" + (note.done ? " done" : "")} role={note.done ? "status" : "alert"} key={note.seq}>
             <span>{note.text(t)}</span>
@@ -1496,6 +1608,16 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
             name={unfacing.face.name}
             onCancel={() => setUnfacing(null)}
             onDone={faceRemoved}
+          />
+        )}
+        {/* Info's Add a person: whom to put in this photo or video. */}
+        {adding && (
+          <AddToPersonDialog
+            hash={adding.hash}
+            video={adding.video}
+            inIt={adding.inIt}
+            onCancel={() => setAdding(null)}
+            onDone={personAdded}
           />
         )}
         {/* Revert to original's question: all of the edit's copies or

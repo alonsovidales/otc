@@ -10,7 +10,10 @@
 // one picked. Images then drops the photos from the person's grid, as after
 // a delete, and says what was done (personFixDone.ts). A face's × in the
 // viewer's Info asks the same about that one photo, for any photo (Info's
-// faces, photoFaces.ts). Use this face, beside
+// faces, photoFaces.ts). Info's Add a person (AddToPerson, owner
+// 2026-11-09) lists People's people but for those in the photo or video
+// already, in Someone else…'s list (PickPersonDialog), and puts the one
+// picked in it by hand. Use this face, beside
 // them for one photo, makes that photo's face of theirs the one People shows
 // (libraryStore.ts' choosePersonCover, its rules in personCover.ts; its icon
 // is here; the header's face takes a picture of the owner's own:
@@ -20,12 +23,13 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useT } from "../i18n";
 import { useWS } from "../net/useWS";
-import type { Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
+import type { Person, PhotoFace, ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { ConfirmDialog, Modal } from "./ConfirmDialog";
 import { personLabel, reloadPeople, usePeople } from "./libraryStore";
 import Spinner from "./Spinner";
-import { say, type UiText } from "./uiText";
+import { asIs, say, type UiText } from "./uiText";
 import { named, type PersonFixDone } from "./personFixDone";
+import { ackOutcome, addNone, addPayload, notInIt } from "./photoFaces";
 
 // With more people than this, the list gets a field to find a name.
 const cFindFrom = 8;
@@ -39,8 +43,8 @@ async function removeFromPerson(personId: string, hashes: string[], toPersonId: 
 }
 
 // Icons in Images' style (PhotoGallery.tsx's Svg): 24px box, round 1.6
-// strokes. A head and shoulders with a minus, with an arrow, and in a
-// round frame.
+// strokes. A head and shoulders with a minus, with an arrow, with a plus,
+// and in a round frame.
 function Glyph({ size, children }: { size: number; children: ReactNode }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}
@@ -54,6 +58,10 @@ export const NotThisPersonIcon = ({ size = 22 }: { size?: number }) => (
 );
 export const SomeoneElseIcon = ({ size = 22 }: { size?: number }) => (
   <Glyph size={size}><circle cx="10" cy="8.5" r="3.5" /><path d="M3.5 19.5c1-3.3 3.4-5 6.5-5 1.4 0 2.6.3 3.6 1" /><path d="M15.5 17.5h5.5M18.5 15l2.5 2.5-2.5 2.5" /></Glyph>
+);
+// Add a person (Info's People).
+export const AddPersonIcon = ({ size = 22 }: { size?: number }) => (
+  <Glyph size={size}><circle cx="10" cy="8.5" r="3.5" /><path d="M3.5 19.5c1-3.3 3.4-5 6.5-5 1.4 0 2.6.3 3.6 1" /><path d="M16 17.5h5M18.5 15v5" /></Glyph>
 );
 // Use this face: a face in its round frame, as People shows it.
 export const UseFaceIcon = ({ size = 22 }: { size?: number }) => (
@@ -112,6 +120,89 @@ export function MoveToPersonDialog({ personId, hashes, onCancel, onDone }: {
   onDone: (done: PersonFixDone) => void;
 }) {
   const t = useT();
+  const people = usePeople();
+  const from = people.items.find((p) => p.id === personId);
+  const others = useMemo(() => people.items.filter((p) => p.id !== personId), [people.items, personId]);
+  const pick = async (to: Person): Promise<UiText | null> => {
+    try {
+      if (await removeFromPerson(personId, hashes, to.id)) {
+        onDone({ hashes: new Set(hashes), from, to, moved: true });
+        return null;
+      }
+    } catch {
+      return say("web.images.error.unreachable");
+    }
+    // The person picked may have gone (deleted or merged elsewhere).
+    void reloadPeople().catch(() => {});
+    return say("web.images.person.move_failed");
+  };
+  return (
+    <PickPersonDialog
+      title={t("web.images.person.move_title", { count: hashes.length })}
+      offered={others}
+      none={t("web.images.person.move_none")}
+      onPick={pick}
+      onCancel={onCancel}
+    />
+  );
+}
+
+/** Info's Add a person: People's people but for those in the photo or
+ *  video already (`inIt`: the answer's faces, by-hand rows too), and
+ *  AddToPerson for this one content when one is picked. Its errors show in
+ *  it, in the device's words when it gave some; onDone closes it. */
+export function AddToPersonDialog({ hash, video, inIt, onCancel, onDone }: {
+  hash: string;
+  video: boolean;
+  inIt: readonly Pick<PhotoFace, "personId">[];
+  onCancel: () => void;
+  onDone: (person: Person) => void;
+}) {
+  const t = useT();
+  const people = usePeople();
+  const offered = useMemo(() => notInIt(people.items, inIt), [people.items, inIt]);
+  const pick = async (p: Person): Promise<UiText | null> => {
+    let resp: RespEnvelope;
+    try {
+      resp = await useWS.request((e: Partial<ReqEnvelope>) => { e.payload = addPayload(p.id, hash); });
+    } catch {
+      return say("web.images.error.unreachable");
+    }
+    const got = ackOutcome(resp);
+    if (got.kind === "done") {
+      onDone(p);
+      return null;
+    }
+    if (got.kind === "unreachable") return say("web.images.error.unreachable");
+    // The person picked may have gone (deleted or merged elsewhere).
+    void reloadPeople().catch(() => {});
+    return got.kind === "refused" ? asIs(got.said) : say("web.images.viewer.face_add_failed");
+  };
+  return (
+    <PickPersonDialog
+      title={t(video ? "web.images.viewer.face_add_title_video" : "web.images.viewer.face_add_title_photo")}
+      offered={offered}
+      none={t(addNone(people.items.length) === "none" ? "web.images.viewer.face_add_none" : "web.images.viewer.face_add_all")}
+      onPick={pick}
+      onCancel={onCancel}
+    />
+  );
+}
+
+/** The people to pick one from, for Someone else… and Add a person: those
+ *  `offered` (out of People's, with their faces and counts), a field to
+ *  find a name when there are many, a skeleton until People is listed,
+ *  `none` when no one is offered, and Cancel. One pick at a time: its row
+ *  spins until onPick says - null once done (the caller closes it), else
+ *  the error to show here. */
+function PickPersonDialog({ title, offered, none, onPick, onCancel }: {
+  title: string;
+  offered: Person[];
+  none: string;
+  onPick: (p: Person) => Promise<UiText | null>;
+  onCancel: () => void;
+}) {
+  const t = useT();
   const titleId = useId();
   const people = usePeople();
   // Fresh counts and faces (and anyone found meanwhile) when the list was
@@ -120,41 +211,31 @@ export function MoveToPersonDialog({ personId, hashes, onCancel, onDone }: {
   useEffect(() => {
     if (loadedAtStart.current) void reloadPeople().catch(() => {});
   }, []);
-  const from = people.items.find((p) => p.id === personId);
-  const others = useMemo(() => people.items.filter((p) => p.id !== personId), [people.items, personId]);
   const [find, setFind] = useState("");
   const shown = useMemo(() => {
     const q = find.trim().toLocaleLowerCase();
-    return q ? others.filter((p) => personLabel(p).toLocaleLowerCase().includes(q)) : others;
-  }, [others, find]);
+    return q ? offered.filter((p) => personLabel(p).toLocaleLowerCase().includes(q)) : offered;
+  }, [offered, find]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<UiText | null>(null);
   // A mouse and keyboard start in the field; a touch screen's keyboard
   // stays down until the field is tapped.
   const [typeFirst] = useState(() => window.matchMedia("(hover: hover)").matches);
 
-  const pick = async (to: Person) => {
+  const pick = async (p: Person) => {
     if (busy) return;
-    setBusy(to.id);
+    setBusy(p.id);
     setError(null);
-    try {
-      if (await removeFromPerson(personId, hashes, to.id)) {
-        onDone({ hashes: new Set(hashes), from, to, moved: true });
-        return;
-      }
-      setError(() => say("web.images.person.move_failed"));
-      // The person picked may have gone (deleted or merged elsewhere).
-      void reloadPeople().catch(() => {});
-    } catch {
-      setError(() => say("web.images.error.unreachable"));
-    }
+    const failed = await onPick(p);
+    if (!failed) return;
+    setError(() => failed);
     setBusy(null);
   };
 
-  const showFind = others.length > cFindFrom;
+  const showFind = offered.length > cFindFrom;
   return (
     <Modal labelledBy={titleId} busy={busy != null} onClose={onCancel}>
-      <h2 id={titleId} className="pg-dlg-title">{t("web.images.person.move_title", { count: hashes.length })}</h2>
+      <h2 id={titleId} className="pg-dlg-title">{title}</h2>
       {showFind && (
         <input
           type="text"
@@ -182,8 +263,8 @@ export function MoveToPersonDialog({ personId, hashes, onCancel, onDone }: {
             <li key={i} className="pg-pick pg-pick-face pg-pick-skel"><span className="pg-pick-cover" /><span className="pg-pick-text"><span /><span /></span></li>
           ))}
         </ul>
-      ) : others.length === 0 ? (
-        <p className="pg-dlg-text" role="status">{t("web.images.person.move_none")}</p>
+      ) : offered.length === 0 ? (
+        <p className="pg-dlg-text" role="status">{none}</p>
       ) : shown.length === 0 ? (
         <p className="pg-dlg-text" role="status">{t("web.images.person.move_no_match")}</p>
       ) : (

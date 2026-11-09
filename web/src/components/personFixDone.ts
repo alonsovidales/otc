@@ -9,12 +9,14 @@ import type { Person } from "../proto/messages";
 /** What was done: the photos (content hashes) that left `from`, for no
  *  one (removed) or for `to` (moved). A person not in the list (yet) is
  *  undefined, and worded as an unnamed one - unless the caller knows their
- *  name (a face in the viewer's Info). */
+ *  name (a face in the viewer's Info). `video`: what left them is one
+ *  video (a person added to it by hand, taken off in Info), said as one. */
 export type PersonFixDone = {
   hashes: ReadonlySet<string>;
   from?: Pick<Person, "id" | "name">;
   to?: Pick<Person, "id" | "name">;
   moved: boolean;
+  video?: boolean;
 };
 
 /** Every photo once: the content hashes a selection holds. */
@@ -32,5 +34,6 @@ export function personFixText(t: TFunction, done: PersonFixDone): string {
     return name ? t("web.images.person.moved", { count, name }) : t("web.images.person.moved_unnamed", { count });
   }
   const name = named(done.from);
+  if (done.video) return name ? t("web.images.person.removed_video", { name }) : t("web.images.person.removed_video_unnamed");
   return name ? t("web.images.person.removed", { count, name }) : t("web.images.person.removed_unnamed", { count });
 }
