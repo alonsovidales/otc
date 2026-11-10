@@ -21,7 +21,8 @@
     a{color:var(--gold)}
     header{border-bottom:1px solid var(--line);background:var(--ink-2)}
     .nav{max-width:860px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
-    .brand{color:var(--mist);text-decoration:none;font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px}
+    .brand{display:flex;align-items:center;gap:10px;color:var(--mist);text-decoration:none;font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px}
+    .brand img{width:36px;height:36px}
     .lang{font-size:14px}
     main{max-width:860px;margin:0 auto;padding:32px 20px 72px}
     h1{font-family:'Unbounded',sans-serif;font-size:1.6rem;margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
@@ -35,7 +36,7 @@
 <body>
   <header>
     <div class="nav">
-      <a class="brand" href="/raffle-numberer">Raffle Numberer</a>
+      <a class="brand" href="/raffle-numberer"><img src="/raffle-numberer/icon.png?v=1" alt="" width="36" height="36">Raffle Numberer</a>
       <a class="lang" href="/raffle-numberer/es/privacy" hreflang="es" lang="es">Español</a>
     </div>
   </header>
