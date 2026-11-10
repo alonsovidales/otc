@@ -3457,7 +3457,11 @@ CSP with a nonce per response (docs/i18n.md "bridge"). An address the host doesn
 site's own 404 page (`notfound.html`, noindex, in the path's language or `Accept-Language`'s) for
 a browser asking for a page (`Accept: text/html`), the bare 404 for anything else. They are never read from `/var/www`, where older deploys left copies (an
 old `account.html` there is never served). `bridge/static/` holds privacy, terms, the admin panel
-and the assets, copied to `/var/www` by the deploy. For search: the
+and the assets, copied to `/var/www` by the deploy - and Raffle Numberer's support and privacy pages
+(another app of the owner's, a Mac app in English and Spanish, which App Store Connect links to):
+`raffle-numberer.html` at `/raffle-numberer`, `raffle-numberer/privacy.html`, and the Spanish ones at
+`/raffle-numberer/es` and `/raffle-numberer/es/privacy` (`/es/...` is the site's own: a 404 there).
+Plain static files, in no sitemap or llms.txt. For search: the
 three comparison pages (`social.html` at `/private-social-network`, `alternative.html` at
 `/google-photos-alternative`, `drive.html` at `/google-drive-alternative`, each also under
 `/<code>/...`, routed like `/account`), the Raspberry Pi page (`pi.html` at
