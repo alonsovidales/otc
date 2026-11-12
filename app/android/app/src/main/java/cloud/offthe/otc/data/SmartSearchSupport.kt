@@ -119,10 +119,20 @@ sealed interface SmartSearchAnnouncement {
  * stands in (the same prefs file as face recognition's). null (never
  * answered, or Log Out): off. The model isn't kept: [SmartSearchModelState.Ready]
  * until the device says otherwise.
+ *
+ * Text in photos (release 180, Settings.text_in_photos_enabled: on unless
+ * turned off) is kept here too ([textInPhotos]), from the same answers and
+ * set at once by its own switch in Settings: while it is on the device
+ * answers the words with the photos whose text holds them first, then
+ * Smart search's - those photos alone with Smart search off or its model
+ * not there yet -, so the text search is offered while either can answer
+ * it. A refusal says neither can: Text in photos is off there too
+ * ([textRefused]). iOS's SmartSearchSupport.textInPhotos.
  */
 object SmartSearchSupport {
     private const val PREFS = "otc_device_state"
     private const val KEY = "smart_search"
+    private const val TEXT_KEY = "text_in_photos"
 
     /** How often Settings asks where the model is while it downloads. */
     const val POLL_EVERY_MS = 3_000L
@@ -144,19 +154,27 @@ object SmartSearchSupport {
     /** Where the model is: Ready for a device before release 152, and after Log Out. */
     val model: StateFlow<SmartSearchModelState> = _model
 
-    private fun remembered(): Boolean? = try {
+    private val _textInPhotos = MutableStateFlow(remembered(TEXT_KEY))
+    /** Text in photos' switch: true or false as the device said (or last said here); null: not known yet. False too on a device before it. */
+    val textInPhotos: StateFlow<Boolean?> = _textInPhotos
+
+    private fun remembered(key: String = KEY): Boolean? = try {
         val p = prefs()
-        if (p.contains(KEY)) p.getBoolean(KEY, false) else null
+        if (p.contains(key)) p.getBoolean(key, false) else null
     } catch (_: Exception) { null }
 
-    /** The free-text search is offered: on, with the model there. */
-    fun searchable(on: Boolean?, model: SmartSearchModelState): Boolean = on == true && model == SmartSearchModelState.Ready
+    /**
+     * The free-text search is offered: Smart search on with its model
+     * there, or Text in photos on ([text]) - either answers the words.
+     */
+    fun searchable(on: Boolean?, model: SmartSearchModelState, text: Boolean? = null): Boolean =
+        (on == true && model == SmartSearchModelState.Ready) || text == true
 
     /** [searchable] now. */
-    val searchable: Boolean get() = searchable(enabled.value, model.value)
+    val searchable: Boolean get() = searchable(enabled.value, model.value, textInPhotos.value)
 
     /** [searchable] as it changes. */
-    val searchableFlow: Flow<Boolean> get() = combine(enabled, model) { on, m -> searchable(on, m) }.distinctUntilChanged()
+    val searchableFlow: Flow<Boolean> get() = combine(enabled, model, textInPhotos) { on, m, text -> searchable(on, m, text) }.distinctUntilChanged()
 
     /**
      * Settings asks again (every [POLL_EVERY_MS]) while the switch is on and
@@ -185,16 +203,35 @@ object SmartSearchSupport {
     /** What the device's Settings say: on or off - false for a device before Smart search (no smart_search_enabled). */
     fun verdict(s: Settings): Boolean = s.hasSmartSearchEnabled() && s.smartSearchEnabled
 
-    /** A Settings answer: the switch and where the model is. */
+    /** What the device's Settings say of Text in photos: on or off - false for a device before it (no text_in_photos_enabled). */
+    fun textVerdict(s: Settings): Boolean = s.hasTextInPhotosEnabled() && s.textInPhotosEnabled
+
+    /** A Settings answer: the switch and where the model is - and Text in photos' switch. */
     fun deviceSaid(s: Settings) {
         set(verdict(s))
         _model.value = SmartSearchModelState.of(s)
+        setTextInPhotos(textVerdict(s))
     }
 
     /** The device's answer: its Settings, Settings' switch acknowledged, or a search told "smart_search_off". */
     fun set(on: Boolean) {
         try { prefs().edit().putBoolean(KEY, on).apply() } catch (_: Exception) {}
         _enabled.value = on
+    }
+
+    /** Text in photos' switch: the device's Settings, or Settings' switch acknowledged. */
+    fun setTextInPhotos(on: Boolean) {
+        try { prefs().edit().putBoolean(TEXT_KEY, on).apply() } catch (_: Exception) {}
+        _textInPhotos.value = on
+    }
+
+    /**
+     * The device refused a search's words (any of [Refused]): with Text in
+     * photos on it would have answered them by the photos' text, so it is
+     * off there - turned off on another app. Not known (null) stays so.
+     */
+    fun textRefused() {
+        if (_textInPhotos.value == true) setTextInPhotos(false)
     }
 
     /**
@@ -243,9 +280,10 @@ object SmartSearchSupport {
 
     /** Log Out: the next device says for itself. */
     fun reset() {
-        try { prefs().edit().remove(KEY).apply() } catch (_: Exception) {}
+        try { prefs().edit().remove(KEY).remove(TEXT_KEY).apply() } catch (_: Exception) {}
         _enabled.value = null
         _model.value = SmartSearchModelState.Ready
+        _textInPhotos.value = null
         focusAskedAt = null
     }
 }

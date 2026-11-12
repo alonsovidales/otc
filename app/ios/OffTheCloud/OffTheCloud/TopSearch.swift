@@ -496,9 +496,9 @@ final class TopSearchModel: ObservableObject {
         suggestions(tags: [], inSearch: [], people: [], faces: false, noFileSearch: noFileSearch)
     }
 
-    /// `smart`: Smart search is on and its model there
-    /// (SmartSearchSupport.searchable), so its row comes first - never in
-    /// Files' own field.
+    /// `smart`: Smart search is on and its model there, or Text in photos
+    /// is on (SmartSearchSupport.searchable), so its row comes first - never
+    /// in Files' own field.
     func suggestions(tags: [String], inSearch: [String], people: [Msg_Person], faces: Bool, noFileSearch: Bool,
                      smart: Bool = false) -> SearchSuggestions {
         let typed = self.typed

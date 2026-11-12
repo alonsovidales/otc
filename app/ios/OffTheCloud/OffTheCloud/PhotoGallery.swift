@@ -1066,7 +1066,8 @@ final class PhotoGalleryVM: ObservableObject {
 
     /// Smart search: the photos that best match these words, within the
     /// other chips. Only while it is on (a device without it would answer
-    /// the whole library) and its model is there.
+    /// the whole library) and its model is there - or while Text in photos
+    /// is on, which answers them by the photos' text (release 180).
     func searchText(_ typed: String) {
         guard SmartSearchSupport.shared.searchable, let t = SmartSearchSupport.text(typed), t != smartText else { return }
         smartText = t
@@ -2646,8 +2647,10 @@ final class PhotoGalleryVM: ObservableObject {
         }
         // Smart search refused the words: they go, with the device's words.
         // Only off turns the switch off here; a model still on its way
-        // takes the row away until the device says it is there.
+        // takes the row away until the device says it is there. Text in
+        // photos, which would have answered them, is off there too.
         if text != nil, let refused = SmartSearchSupport.refusal(resp) {
+            SmartSearchSupport.shared.textRefused()
             switch refused.why {
             case .off:
                 SmartSearchSupport.shared.set(false)
@@ -3931,7 +3934,8 @@ struct PhotoGalleryView: View {
     @ObservedObject private var placesSupport = PlacesSupport.shared
     /// On this day: the memories over the whole library (Memories.swift).
     @ObservedObject private var memories = MemoriesModel.shared
-    /// Smart search: its words go when it is turned off.
+    /// Smart search: its words go when it is turned off (and Text in photos
+    /// with it).
     @ObservedObject private var smartSearch = SmartSearchSupport.shared
     // A wide window: the search is in the top bar and People and
     // Collections are in the menu, so this view shows neither - only an
@@ -4300,7 +4304,9 @@ struct PhotoGalleryView: View {
             vm.onAppearInitial()
             memories.appeared()
         }
-        .onChange(of: smartSearch.isOn) { _, on in
+        // Neither Smart search nor Text in photos answers the words any
+        // more (turned off here or on another app): they go.
+        .onChange(of: smartSearch.searchable) { _, on in
             if !on { vm.clearSmartText() }
         }
         // Hidden from the memories (Undo), or why not.
@@ -6041,7 +6047,9 @@ private struct LowResBadge: View {
 }
 
 /// Issue #41: camera/EXIF metadata panel, with a native map for GPS; the
-/// photo's or video's people after it, under People (PhotoFaces.swift).
+/// text the device read in the photo under Text in this photo, with Copy
+/// (release 180, TextInPhotos.swift); the photo's or video's people after
+/// it, under People (PhotoFaces.swift).
 private struct FileInfoView: View {
     @ObservedObject var vm: PhotoGalleryVM
     /// The face whose × was tapped, while Not this person's question asks.
@@ -6073,6 +6081,11 @@ private struct FileInfoView: View {
                             } else {
                                 Text(S.appPhotosViewerInfoNone).foregroundColor(.secondary)
                             }
+                        }
+                        // Text in photos: what the device read in it, after
+                        // the details and before the people, as on Android.
+                        if let text = PhotoText.shown(vm.infoData) {
+                            PhotoTextSection(text: text)
                         }
                         // Last, as on Android and the web: faces that come
                         // after the details move nothing above them.

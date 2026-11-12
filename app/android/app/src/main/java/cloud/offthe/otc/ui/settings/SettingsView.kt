@@ -194,6 +194,13 @@ import cloud.offthe.otc.i18n.appSettingsMemoriesShowHidden
 import cloud.offthe.otc.i18n.appSettingsMemoriesTitle
 import cloud.offthe.otc.i18n.appSettingsMemoriesToggle
 import cloud.offthe.otc.i18n.appSettingsFacesToggle
+import cloud.offthe.otc.i18n.appSettingsPetsFooter
+import cloud.offthe.otc.i18n.appSettingsPetsToggle
+import cloud.offthe.otc.i18n.appSettingsTextPhotosFooter
+import cloud.offthe.otc.i18n.appSettingsTextPhotosOffConfirm
+import cloud.offthe.otc.i18n.appSettingsTextPhotosOffText
+import cloud.offthe.otc.i18n.appSettingsTextPhotosOffTitle
+import cloud.offthe.otc.i18n.appSettingsTextPhotosTitle
 import cloud.offthe.otc.i18n.appSettingsLanguage
 import cloud.offthe.otc.i18n.appSettingsLargestHint
 import cloud.offthe.otc.i18n.appSettingsLargestOpen
@@ -396,10 +403,22 @@ internal fun Section(title: String, footer: String? = null, below: (@Composable 
             title.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 6.dp).semantics { heading(); contentDescription = title },
         )
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(12.dp)) { content() }
-        footer?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp)) }
+        SectionCard { content() }
+        footer?.let { SectionFooter(it) }
         below?.invoke()
     }
+}
+
+/** A section's rounded card ([Section]) - or another one under its footer, with [modifier]'s room above it. */
+@Composable
+internal fun SectionCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(12.dp)) { content() }
+}
+
+/** The words under a section's card ([Section]). */
+@Composable
+internal fun SectionFooter(text: String) {
+    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
 }
 
 /**
@@ -731,12 +750,11 @@ fun SettingsView(secrets: SecretsStore) {
                 if (dst.imageTaggingHeavy) Caption(S.appSettingsTaggingHeavy().resolve())
             }
 
-            Section(S.appSettingsFacesTitle().resolve(), S.appSettingsFacesFooter().resolve()) {
-                SwitchRow(
-                    S.appSettingsFacesToggle().resolve(), checked = dst.faceRecognitionEnabled, enabled = !dst.savingFaceRecognition,
-                    onChange = { v -> scope.launch { device.toggleFaceRecognition(v) } },
-                )
-            }
+            // People: Face Recognition, and Pets below it (release 180).
+            PeopleSection(
+                dst.faceRecognitionEnabled, savingFaces = dst.savingFaceRecognition, onFaces = { v -> scope.launch { device.toggleFaceRecognition(v) } },
+                dst.petsEnabled, savingPets = dst.savingPets, onPets = { v -> scope.launch { device.togglePets(v) } },
+            )
 
             // Places, the map in Images: only on a device that has it, off
             // unless turned on (the footer says the positions are kept
@@ -770,6 +788,17 @@ fun SettingsView(secrets: SecretsStore) {
                     on, saving = dst.savingSmartSearch, confirmOff = dst.confirmSmartOff, model = smartModel,
                     onToggle = { v -> device.askSmartSearch(v) { work -> scope.launch { work() } } },
                     onConfirmOff = { scope.launch { device.setSmartSearch(false) } }, onCancelOff = { device.cancelSmartOff() },
+                )
+            }
+
+            // Text in photos (release 180), after Smart search: only on a
+            // device that has it, on unless turned off; turning it off asks
+            // first (the text the device read is deleted).
+            dst.textInPhotosEnabled?.let { on ->
+                TextInPhotosSection(
+                    on, saving = dst.savingTextInPhotos, confirmOff = dst.confirmTextOff,
+                    onToggle = { v -> device.askTextInPhotos(v) { work -> scope.launch { work() } } },
+                    onConfirmOff = { scope.launch { device.setTextInPhotos(false) } }, onCancelOff = { device.cancelTextOff() },
                 )
             }
 
@@ -1621,6 +1650,53 @@ internal fun SmartSearchSection(
     if (confirmOff) {
         cloud.offthe.otc.ui.gallery.ConfirmDialog(
             S.appSettingsSmartSearchOffTitle().resolve(), S.appSettingsSmartSearchOffText().resolve(), S.appSettingsSmartSearchOffConfirm().resolve(),
+            onConfirm = onConfirmOff, onDismiss = onCancelOff,
+        )
+    }
+}
+
+/**
+ * Settings > People: the Face Recognition switch with its footer, and below
+ * it - on a device that has it ([petsOn] not null, release 180) - Pets'
+ * switch with its own footer under it. iOS's PeopleSettingsSection.
+ */
+@Composable
+internal fun PeopleSection(
+    facesOn: Boolean, savingFaces: Boolean, onFaces: (Boolean) -> Unit,
+    petsOn: Boolean?, savingPets: Boolean, onPets: (Boolean) -> Unit,
+) {
+    Section(
+        S.appSettingsFacesTitle().resolve(), S.appSettingsFacesFooter().resolve(),
+        below = {
+            petsOn?.let { on ->
+                SectionCard(Modifier.padding(top = 12.dp)) {
+                    SwitchRow(S.appSettingsPetsToggle().resolve(), checked = on, enabled = !savingPets, onChange = onPets)
+                }
+                SectionFooter(S.appSettingsPetsFooter().resolve())
+            }
+        },
+    ) {
+        SwitchRow(S.appSettingsFacesToggle().resolve(), checked = facesOn, enabled = !savingFaces, onChange = onFaces)
+    }
+}
+
+/**
+ * Text in photos' section (release 180): its switch, named as the section,
+ * and the footer; off asks first ([confirmOff]: the device deletes the text
+ * it read in the photos). iOS's TextInPhotosSettingsSection.
+ */
+@Composable
+internal fun TextInPhotosSection(
+    on: Boolean, saving: Boolean, confirmOff: Boolean,
+    onToggle: (Boolean) -> Unit, onConfirmOff: () -> Unit, onCancelOff: () -> Unit,
+) {
+    val title = S.appSettingsTextPhotosTitle().resolve()
+    Section(title, S.appSettingsTextPhotosFooter().resolve()) {
+        SwitchRow(title, checked = on, onChange = onToggle, enabled = !saving)
+    }
+    if (confirmOff) {
+        cloud.offthe.otc.ui.gallery.ConfirmDialog(
+            S.appSettingsTextPhotosOffTitle().resolve(), S.appSettingsTextPhotosOffText().resolve(), S.appSettingsTextPhotosOffConfirm().resolve(),
             onConfirm = onConfirmOff, onDismiss = onCancelOff,
         )
     }

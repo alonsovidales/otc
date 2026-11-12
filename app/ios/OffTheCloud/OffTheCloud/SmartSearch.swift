@@ -37,6 +37,13 @@
 //      comes without a visit to Settings. A search told
 //      smart_search_downloading drops the words as smart_search_unavailable
 //      does, keeps the switch on and asks where the model is.
+//    - Text in photos (device release 180, Settings.text_in_photos_enabled;
+//      absent = a device before it): while it is on the device answers the
+//      words with the photos whose text holds them first, then Smart
+//      search's - those photos alone with Smart search off or its model not
+//      there yet - so the row is offered while either can answer
+//      (TextInPhotos.swift). A refusal says neither can: Text in photos is
+//      off there too.
 //
 
 import Combine
@@ -147,21 +154,29 @@ final class SmartSearchSupport: ObservableObject {
     /// Where the model is: `ready` for a device before release 152, and
     /// after Log Out.
     @Published private(set) var model: SmartSearchModelState = .ready
+    /// Text in photos' switch (release 180), from the same answers and set
+    /// at once by its own switch in Settings: while it is on the device
+    /// answers the words too, by the text it read in the photos. nil: not
+    /// known yet, or a device before it.
+    @Published private(set) var textInPhotos: Bool?
 
     /// The switch is on.
     var isOn: Bool { enabled == true }
 
-    /// The free-text search is offered: on, with the model there.
-    var searchable: Bool { Self.searchable(on: enabled, model: model) }
+    /// The free-text search is offered: on, with the model there - or Text
+    /// in photos on.
+    var searchable: Bool { Self.searchable(on: enabled, model: model, text: textInPhotos) }
 
-    static func searchable(on: Bool?, model: SmartSearchModelState) -> Bool {
-        on == true && model == .ready
+    /// Smart search on with its model there, or Text in photos on (`text`):
+    /// either answers the words. Android's searchable().
+    static func searchable(on: Bool?, model: SmartSearchModelState, text: Bool? = nil) -> Bool {
+        (on == true && model == .ready) || text == true
     }
 
     /// `searchable` as it changes, for a view that doesn't observe the rest.
     var searchableChanges: AnyPublisher<Bool, Never> {
-        $enabled.combineLatest($model)
-            .map { Self.searchable(on: $0, model: $1) }
+        Publishers.CombineLatest3($enabled, $model, $textInPhotos)
+            .map { Self.searchable(on: $0, model: $1, text: $2) }
             .removeDuplicates()
             .eraseToAnyPublisher()
     }
@@ -202,10 +217,25 @@ final class SmartSearchSupport: ObservableObject {
         let m = SmartSearchModelState(s)
         if model != m { model = m }
         set(s.hasSmartSearchEnabled ? s.smartSearchEnabled : nil)
+        setTextInPhotos(s.hasTextInPhotosEnabled ? s.textInPhotosEnabled : nil)
     }
 
     func set(_ on: Bool?) {
         if enabled != on { enabled = on }
+    }
+
+    /// Text in photos' switch: the device's Settings, or Settings' switch
+    /// acknowledged.
+    func setTextInPhotos(_ on: Bool?) {
+        if textInPhotos != on { textInPhotos = on }
+    }
+
+    /// The device refused a search's words (any of `Refused`): with Text in
+    /// photos on it would have answered them by the photos' text, so it is
+    /// off there - turned off on another app. A device before it stays as
+    /// it was (nil).
+    func textRefused() {
+        if textInPhotos == true { textInPhotos = false }
     }
 
     /// Turned on where the model isn't, or a search told
@@ -228,6 +258,7 @@ final class SmartSearchSupport: ObservableObject {
     func reset() {
         enabled = nil
         model = .ready
+        textInPhotos = nil
         focusAsked = nil
     }
 

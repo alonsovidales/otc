@@ -85,5 +85,14 @@
             android:name=".CompressPreviewActivity"
             android:exported="true"
             android:theme="@style/Theme.OffTheCloud" />
+        <!-- Text in photos and Pets: Settings' People section with Pets under
+             Face Recognition, then Smart search's and Text in photos'
+             sections, on sample data (adb shell am start -n
+             cloud.offthe.otc/.TextInPhotosPreviewActivity [- -es show info]:
+             Info's Text in this photo with Copy). -->
+        <activity
+            android:name=".TextInPhotosPreviewActivity"
+            android:exported="true"
+            android:theme="@style/Theme.OffTheCloud" />
     </application>
 </manifest>

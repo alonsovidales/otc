@@ -2658,8 +2658,9 @@ private fun InfoRow(label: String, value: String) {
 
 /**
  * The viewer's Info: the photo's details ([info], [loading] while they
- * come), and under them its People ([faces], PhotoFacesSection) once the
- * details are in. [busy]: a change is on its way (a face's × waits).
+ * come), the text the device read in it (Text in photos, release 180:
+ * PhotoTextSection), and under them its People ([faces], PhotoFacesSection)
+ * once the details are in. [busy]: a change is on its way (a face's × waits).
  * [compressed]: the device compressed it and deleted its original
  * (File.original_removed) - said first, where Revert to Original would be.
  */
@@ -2702,6 +2703,9 @@ private fun FileInfoView(
                 if (cam.isEmpty() && !info.hasGps && info.exposureTime.isEmpty()) Text(S.appPhotosViewerInfoNoExif().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        // Text in photos: what the device read in it, after the details and
+        // before the people, as on iOS.
+        if (!loading) photoText(info)?.let { PhotoTextSection(it) }
         if (!loading && faces != null) PhotoFacesSection(faces, busy, onShow = onShowPerson, onRemove = onRemoveFace, onAdd = onAddPerson)
         Spacer(Modifier.height(24.dp))
     }

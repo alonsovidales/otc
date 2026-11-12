@@ -81,6 +81,16 @@ final class DeviceSettingsViewModel: ObservableObject {
     // answered yet), with no switch.
     @Published var smartSearchEnabled: Bool?
     @Published var savingSmartSearch = false
+    // Text in photos (release 180): on unless turned off - the device reads
+    // the text in the photos and keeps it encrypted; off deletes it all.
+    // nil: a device before it (or not answered yet), with no section.
+    @Published var textInPhotosEnabled: Bool?
+    @Published var savingTextInPhotos = false
+    // Pets (release 180), in People under Face Recognition: on unless
+    // turned off. nil: a device before it (or not answered yet), with no
+    // switch.
+    @Published var petsEnabled: Bool?
+    @Published var savingPets = false
 
     // Issue #73: full-library reprocess - re-runs tagging/face detection
     // against every already-uploaded photo/video (e.g. after a detection
@@ -208,8 +218,9 @@ final class DeviceSettingsViewModel: ObservableObject {
                 imageTaggingEnabled = s.imageTaggingEnabled
                 imageTaggingAvailable = MemoryTiers.taggingAvailable(s)
                 imageTaggingHeavy = MemoryTiers.taggingHeavy(s)
-                // People shows only while it is on (FaceRecognition.swift).
-                FaceRecognition.shared.set(s.faceRecognitionEnabled)
+                // People shows only while it is on - or Pets is
+                // (FaceRecognition.swift).
+                FaceRecognition.shared.deviceSaid(settings: s)
                 // Places likewise (PlacesSupport), on a device that has it.
                 placesEnabled = s.hasPlacesEnabled ? s.placesEnabled : nil
                 PlacesSupport.shared.set(s.hasPlacesEnabled && s.placesEnabled)
@@ -218,6 +229,10 @@ final class DeviceSettingsViewModel: ObservableObject {
                 MemoriesModel.shared.deviceSaid(settings: s)
                 // And Smart search (SmartSearchSupport).
                 smartSearchEnabled = s.hasSmartSearchEnabled ? s.smartSearchEnabled : nil
+                // And Text in photos, whose words the search takes too
+                // (SmartSearchSupport, from the same Settings), and Pets.
+                textInPhotosEnabled = s.hasTextInPhotosEnabled ? s.textInPhotosEnabled : nil
+                petsEnabled = s.hasPetsEnabled ? s.petsEnabled : nil
                 SmartSearchSupport.shared.deviceSaid(settings: s)
                 LanguageSettings.shared.deviceSaid(settings: s)
             }
@@ -334,6 +349,64 @@ final class DeviceSettingsViewModel: ObservableObject {
             }
         } catch {
             smartSearchEnabled = !enabled
+            showToast(.say { S.appSettingsErrorSetting })
+        }
+    }
+
+    /// Text in photos' switch. Off deletes every text the device read
+    /// before it answers; the search's free-text row comes and goes at once
+    /// (SmartSearchSupport.textInPhotos). The demo device refuses it, with
+    /// its own words.
+    func toggleTextInPhotos(_ enabled: Bool) async {
+        savingTextInPhotos = true
+        defer { savingTextInPhotos = false }
+        var req = Msg_SetTextInPhotosEnabled()
+        req.enabled = enabled
+        do {
+            let resp = try await ws.request { $0.payload = .reqSetTextInPhotosEnabled(req) }
+            if case .respAck(let ack) = resp.payload, ack.ok {
+                textInPhotosEnabled = enabled
+                SmartSearchSupport.shared.setTextInPhotos(enabled)
+            } else {
+                // Revert the optimistic toggle - see the Toggle binding.
+                textInPhotosEnabled = !enabled
+                if case .respAck(let ack) = resp.payload {
+                    showToast(.asIs(ack.errorMsg, or: { S.appSettingsErrorUpdateFailed }))
+                } else if resp.error {
+                    showToast(.asIs(resp.errorMessage, or: { S.appSettingsErrorUpdateFailed }))
+                }
+            }
+        } catch {
+            textInPhotosEnabled = !enabled
+            showToast(.say { S.appSettingsErrorSetting })
+        }
+    }
+
+    /// Pets' switch: off, the device finds no more pets (those found stay
+    /// in People). People comes and goes at once with it where face
+    /// recognition is off (FaceRecognition). The demo device refuses it,
+    /// with its own words.
+    func togglePets(_ enabled: Bool) async {
+        savingPets = true
+        defer { savingPets = false }
+        var req = Msg_SetPetsEnabled()
+        req.enabled = enabled
+        do {
+            let resp = try await ws.request { $0.payload = .reqSetPetsEnabled(req) }
+            if case .respAck(let ack) = resp.payload, ack.ok {
+                petsEnabled = enabled
+                FaceRecognition.shared.setPets(enabled)
+            } else {
+                // Revert the optimistic toggle - see the Toggle binding.
+                petsEnabled = !enabled
+                if case .respAck(let ack) = resp.payload {
+                    showToast(.asIs(ack.errorMsg, or: { S.appSettingsErrorUpdateFailed }))
+                } else if resp.error {
+                    showToast(.asIs(resp.errorMessage, or: { S.appSettingsErrorUpdateFailed }))
+                }
+            }
+        } catch {
+            petsEnabled = !enabled
             showToast(.say { S.appSettingsErrorSetting })
         }
     }
@@ -679,19 +752,8 @@ struct SettingsView: View {
                     }
                 }
 
-                Section(
-                    header: Text(S.appSettingsFacesTitle),
-                    footer: Text(S.appSettingsFacesFooter)
-                ) {
-                    Toggle(
-                        S.appSettingsFacesToggle,
-                        isOn: Binding(
-                            get: { device.faceRecognitionEnabled },
-                            set: { newValue in Task { await device.toggleFaceRecognition(newValue) } }
-                        )
-                    )
-                    .disabled(device.savingFaceRecognition)
-                }
+                // People: Face Recognition, and Pets below it (release 180).
+                PeopleSettingsSection(device: device)
 
                 // Places, next to People: on a device that has it.
                 if let placesOn = device.placesEnabled {
@@ -719,6 +781,12 @@ struct SettingsView: View {
                 // has it.
                 if let smartOn = device.smartSearchEnabled {
                     SmartSearchSettingsSection(device: device, on: smartOn)
+                }
+
+                // Text in photos (release 180), after Smart search: on a
+                // device that has it.
+                if let textOn = device.textInPhotosEnabled {
+                    TextInPhotosSettingsSection(device: device, on: textOn)
                 }
 
                 ConnectionSettingsSection(secrets: secrets) { confirmLogout = true }
@@ -1422,6 +1490,41 @@ private struct RaidUsageBar: View {
     }
 }
 
+
+/// Settings > People: the Face Recognition switch with its footer, and
+/// below it - on a device that has it (release 180) - Pets' switch with its
+/// own footer under it.
+struct PeopleSettingsSection: View {
+    @ObservedObject var device: DeviceSettingsViewModel
+
+    var body: some View {
+        Section(
+            header: Text(S.appSettingsFacesTitle),
+            footer: Text(S.appSettingsFacesFooter)
+        ) {
+            Toggle(
+                S.appSettingsFacesToggle,
+                isOn: Binding(
+                    get: { device.faceRecognitionEnabled },
+                    set: { newValue in Task { await device.toggleFaceRecognition(newValue) } }
+                )
+            )
+            .disabled(device.savingFaceRecognition)
+        }
+        if let petsOn = device.petsEnabled {
+            Section(footer: Text(S.appSettingsPetsFooter)) {
+                Toggle(
+                    S.appSettingsPetsToggle,
+                    isOn: Binding(
+                        get: { petsOn },
+                        set: { newValue in Task { await device.togglePets(newValue) } }
+                    )
+                )
+                .disabled(device.savingPets)
+            }
+        }
+    }
+}
 
 /// Settings > Memories: On this day's switch, and "Show hidden memories
 /// again" while something is hidden.

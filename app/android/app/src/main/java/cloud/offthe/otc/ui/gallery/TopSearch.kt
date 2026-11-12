@@ -436,10 +436,12 @@ fun rememberSearchOptions(search: TopSearchViewModel, st: PhotoGalleryViewModel.
     val faces by FaceRecognition.enabled.collectAsState()
     val noFileSearch by FilesNav.noFileSearch.collectAsState()
     // Smart search's row: while it is on with its model there (release 152:
-    // none while the model is still on its way).
+    // none while the model is still on its way) - or while Text in photos
+    // is on (release 180), which answers the words by the photos' text.
     val smartOn by SmartSearchSupport.enabled.collectAsState()
     val smartModel by SmartSearchSupport.model.collectAsState()
-    val smart = SmartSearchSupport.searchable(smartOn, smartModel)
+    val textOn by SmartSearchSupport.textInPhotos.collectAsState()
+    val smart = SmartSearchSupport.searchable(smartOn, smartModel, textOn)
     val tagIndex = remember(st.tags) { st.tags.map { it to FilesNav.fold(it) } }
     val named = remember(st.allPeople) { st.allPeople.filter { it.name.isNotBlank() }.map { it to FilesNav.fold(it.name.trim()) } }
     val query = search.query

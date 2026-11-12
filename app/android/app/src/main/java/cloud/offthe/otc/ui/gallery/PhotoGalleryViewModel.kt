@@ -234,15 +234,18 @@ class PhotoGalleryViewModel(
     // device was found unable to do holds until the next one.
     private val signIns: () -> Int = { OTCConnection.signIns.value },
     // Smart search (SmartSearchSupport): whether the device has it on with
-    // its model there (searchable) - only then is a text taken and sent -,
-    // what turns it off here when a search is told "smart_search_off", and
-    // what a search told "smart_search_downloading" does: the model is on
-    // its way, the device is asked where it is (the switch stays on).
+    // its model there, or Text in photos on (searchable) - only then is a
+    // text taken and sent -, what turns it off here when a search is told
+    // "smart_search_off", and what a search told "smart_search_downloading"
+    // does: the model is on its way, the device is asked where it is (the
+    // switch stays on).
     private val smartOn: () -> Boolean = { SmartSearchSupport.searchable },
     // The same as it changes: turned off (or the model gone), a text searched for goes.
     private val smartSearchable: kotlinx.coroutines.flow.Flow<Boolean> = SmartSearchSupport.searchableFlow,
     private val smartOff: () -> Unit = { SmartSearchSupport.set(false) },
     private val smartDownloading: suspend () -> Unit = { SmartSearchSupport.modelRequested(); SmartSearchSupport.refresh() },
+    // Any refusal of a text: Text in photos, which would have answered it, is off there too.
+    private val textRefused: () -> Unit = { SmartSearchSupport.textRefused() },
     // Rating: true the first time it is turned on from this phone (its note says what it does then).
     private val ratingHintFirst: () -> Boolean = { RatingHint.firstTime() },
     // The photos and videos the device accepted to delete, as they were
@@ -810,7 +813,9 @@ class PhotoGalleryViewModel(
     /**
      * Smart search: the photos that best match [text], described in words,
      * within the chips (SearchPhotos.text) - only while the device has it
-     * on, with its model there. A new text replaces the one searched for.
+     * on, with its model there, or has Text in photos on (release 180),
+     * which answers it by the photos' text. A new text replaces the one
+     * searched for.
      */
     fun searchText(text: String) {
         val x = text.trim()
@@ -2015,8 +2020,11 @@ class PhotoGalleryViewModel(
             // goes, saying so in the device's words, and the chips' photos
             // come by date. Only "off" turns the switch off here; a model on
             // its way takes the row away until the device says it is there.
+            // Text in photos, which would have answered the text, is off
+            // there too.
             val refused = if (text != null) SmartSearchSupport.refusal(got) else null
             if (refused != null) {
+                textRefused()
                 if (refused.why == SmartSearchSupport.Refused.OFF) smartOff()
                 _state.update { it.copy(smartText = null, smartReading = false) }
                 if (refused.why == SmartSearchSupport.Refused.DOWNLOADING) scope.launch { smartDownloading() }

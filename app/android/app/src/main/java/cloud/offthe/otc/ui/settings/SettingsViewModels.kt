@@ -39,6 +39,8 @@ import cloud.offthe.otc.proto.SetPlacesEnabled
 import cloud.offthe.otc.proto.Settings
 import cloud.offthe.otc.proto.SetMemoriesEnabled
 import cloud.offthe.otc.proto.SetSmartSearchEnabled
+import cloud.offthe.otc.proto.SetTextInPhotosEnabled
+import cloud.offthe.otc.proto.SetPetsEnabled
 import cloud.offthe.otc.proto.HideMemory
 import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.data.MemoriesSupport
@@ -294,6 +296,15 @@ class DeviceSettingsViewModel : ViewModel() {
         // not answered yet), with no switch. confirmSmartOff: turning it off
         // is asked first (the device deletes what it learned).
         val smartSearchEnabled: Boolean? = null, val savingSmartSearch: Boolean = false, val confirmSmartOff: Boolean = false,
+        // Text in photos (release 180): on unless turned off - the device
+        // reads the text in the photos and keeps it encrypted; off deletes
+        // it all. null: a device before it (or not answered yet), with no
+        // section. confirmTextOff: turning it off is asked first.
+        val textInPhotosEnabled: Boolean? = null, val savingTextInPhotos: Boolean = false, val confirmTextOff: Boolean = false,
+        // Pets (release 180), in People under Face Recognition: on unless
+        // turned off. null: a device before it (or not answered yet), with
+        // no switch.
+        val petsEnabled: Boolean? = null, val savingPets: Boolean = false,
         val reprocessStatus: String = "", val reprocessTotal: Int = 0, val reprocessProcessed: Int = 0,
         val startingReprocess: Boolean = false, val cancellingReprocess: Boolean = false, val reprocessConfirm: ReprocessConfirm? = null,
     ) {
@@ -316,6 +327,8 @@ class DeviceSettingsViewModel : ViewModel() {
                 placesEnabled = if (s.hasPlacesEnabled()) s.placesEnabled else null,
                 memoriesEnabled = if (s.hasMemoriesEnabled()) s.memoriesEnabled else null,
                 smartSearchEnabled = if (s.hasSmartSearchEnabled()) s.smartSearchEnabled else null,
+                textInPhotosEnabled = if (s.hasTextInPhotosEnabled()) s.textInPhotosEnabled else null,
+                petsEnabled = if (s.hasPetsEnabled()) s.petsEnabled else null,
             )
         }
     }
@@ -377,8 +390,9 @@ class DeviceSettingsViewModel : ViewModel() {
                 // the section never shows with the model of before.
                 SmartSearchSupport.deviceSaid(s)
                 state.update { it.withSettings(s) }
-                // The one place the rest of the app reads it from (People in the search).
-                FaceRecognition.set(s.faceRecognitionEnabled)
+                // The one place the rest of the app reads it from (People in
+                // the search) - with Pets, which shows People too.
+                FaceRecognition.deviceSaid(s)
                 // Places likewise (PlacesSupport), on a device that has it.
                 PlacesSupport.set(PlacesSupport.verdict(s))
                 // And On this day's (MemoriesSupport), with what is hidden from it.
@@ -479,6 +493,55 @@ class DeviceSettingsViewModel : ViewModel() {
         finally { state.update { it.copy(savingSmartSearch = false) } }
         // Where the model is now, while it isn't there: a download started, or one stopped.
         if (changed && SmartSearchSupport.model.value != SmartSearchModelState.Ready) refreshSmartSearch()
+    }
+
+    /** Text in photos' switch, as touched: on at once; off asks first (confirmTextOff). */
+    fun askTextInPhotos(enabled: Boolean, launch: (suspend () -> Unit) -> Unit) {
+        if (enabled) launch { setTextInPhotos(true) } else state.update { it.copy(confirmTextOff = true) }
+    }
+
+    fun cancelTextOff() = state.update { it.copy(confirmTextOff = false) }
+
+    /**
+     * Text in photos' switch. On: the device reads the text of the photos it
+     * holds in the background; off: it deletes every text it read before it
+     * answers. The search's text comes and goes at once
+     * (SmartSearchSupport.textInPhotos). The demo device refuses it, in its
+     * own words.
+     */
+    suspend fun setTextInPhotos(enabled: Boolean) {
+        state.update { it.copy(confirmTextOff = false, savingTextInPhotos = true, textInPhotosEnabled = enabled) }
+        try {
+            val resp = OTCConnection.request { it.setReqSetTextInPhotosEnabled(SetTextInPhotosEnabled.newBuilder().setEnabled(enabled)) }
+            if (resp.ackOk()) SmartSearchSupport.setTextInPhotos(enabled)
+            else {
+                state.update { it.copy(textInPhotosEnabled = !enabled) }
+                toast(if (resp.error) deviceOr(resp.errorMessage, S.appSettingsErrorUpdateFailed()) else resp.ackError(S.appSettingsErrorUpdateFailed()))
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) { state.update { it.copy(textInPhotosEnabled = !enabled) }; toast(S.appSettingsErrorSetting()) }
+        finally { state.update { it.copy(savingTextInPhotos = false) } }
+    }
+
+    /**
+     * Pets' switch: off, the device finds no more pets (those found stay in
+     * People). People comes and goes at once with it where face recognition
+     * is off (FaceRecognition). The demo device refuses it, in its own words.
+     */
+    suspend fun togglePets(enabled: Boolean) {
+        state.update { it.copy(savingPets = true, petsEnabled = enabled) }
+        try {
+            val resp = OTCConnection.request { it.setReqSetPetsEnabled(SetPetsEnabled.newBuilder().setEnabled(enabled)) }
+            if (resp.ackOk()) FaceRecognition.setPets(enabled)
+            else {
+                state.update { it.copy(petsEnabled = !enabled) }
+                toast(if (resp.error) deviceOr(resp.errorMessage, S.appSettingsErrorUpdateFailed()) else resp.ackError(S.appSettingsErrorUpdateFailed()))
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) { state.update { it.copy(petsEnabled = !enabled) }; toast(S.appSettingsErrorSetting()) }
+        finally { state.update { it.copy(savingPets = false) } }
     }
 
     /** Show hidden memories again: everything hidden comes back (HideMemory show_all); Images asks again. */
