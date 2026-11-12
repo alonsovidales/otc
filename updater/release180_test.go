@@ -47,7 +47,8 @@ func TestTextAndPetsAreTheSameInInstallAndRelease180(t *testing.T) {
 			}
 		}
 	}
-	for _, column := range []string{"`text_in_photos_enabled` tinyint(1) not null default 1", "`pets_enabled` tinyint(1) not null default 1", "`kind` tinyint not null default 0"} {
+	// Pets has been off by default since release 182 (release182_test.go).
+	for _, column := range []string{"`text_in_photos_enabled` tinyint(1) not null default 1", "`pets_enabled` tinyint(1) not null default 0", "`kind` tinyint not null default 0"} {
 		if !strings.Contains(schema, column) {
 			t.Errorf("db.sql has no %s", column)
 		}

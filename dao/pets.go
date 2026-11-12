@@ -24,8 +24,8 @@ const (
 )
 
 // PetsEnabled is whether Pets is on for this library (settings.pets_enabled,
-// on unless the user turns it off). ErrSchemaBehind before the release that
-// added it, which callers read as off.
+// off unless the user turns it on since release 182). ErrSchemaBehind before
+// the release that added it, which callers read as off.
 func (dao *Dao) PetsEnabled() (on bool, err error) {
 	err = dao.db.QueryRow("select `pets_enabled` from `settings`").Scan(&on)
 	return on, schemaBehind(err)

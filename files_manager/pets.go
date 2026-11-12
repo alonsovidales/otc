@@ -26,8 +26,9 @@ import (
 // (owner, 2026-11-12: "they should be faces in the same way as people"):
 // named, merged, taken off a photo, added by hand, searched by name and in
 // On this day as anyone. While the user has Pets on (settings.pets_enabled,
-// on by default) the slow lane looks at each new photo after Smart search,
-// and the background pass at what the device held before (BackfillVision):
+// off by default since release 182) the slow lane looks at each new photo
+// after Smart search, and the background pass at what the device held
+// before (BackfillVision):
 //
 //  1. Whether it may show a pet, for nothing: its Smart search vector
 //     against "a photo of a dog", "... of a cat", "... of a pet" (petGate).

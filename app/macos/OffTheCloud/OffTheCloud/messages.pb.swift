@@ -4314,17 +4314,19 @@ public nonisolated struct Msg_Settings: @unchecked Sendable {
   /// Clears the value of `textInPhotosEnabled`. Subsequent reads from it will return its default value.
   public mutating func clearTextInPhotosEnabled() {_uniqueStorage()._textInPhotosEnabled = nil}
 
-  /// Pets (release 180): on unless the user turns it off (SetPetsEnabled),
-  /// for their own library. While it is on the device finds the dogs and
-  /// cats in the photos and tells them apart as it tells people apart by
-  /// their faces: each pet is a person in People (ListPeople), its face a
-  /// PhotoFace like anyone's - named, merged, taken off a photo (Not this
-  /// person), added to a photo or video by hand, searched by name and
-  /// remembered in On this day as people are. The photos the device held
-  /// before are looked at in the background (Status.background_tasks, kind
-  /// "pets"). Off, no more pets are found; those found stay in People until
-  /// deleted there. Always set by devices that have it; absent means the
-  /// device predates it, and the apps show no switch.
+  /// Pets (release 180): off unless the user turns it on (SetPetsEnabled),
+  /// for their own library - on in every library in releases 180 and 181,
+  /// and kept on by 182 only where it had found pets. While it is on the
+  /// device finds the dogs and cats in the photos and tells them apart as
+  /// it tells people apart by their faces: each pet is a person in People
+  /// (ListPeople), its face a PhotoFace like anyone's - named, merged,
+  /// taken off a photo (Not this person), added to a photo or video by
+  /// hand, searched by name and remembered in On this day as people are.
+  /// The photos the device held before are looked at in the background
+  /// (Status.background_tasks, kind "pets"). Off, no more pets are found;
+  /// those found stay in People until deleted there. Always set by devices
+  /// that have it; absent means the device predates it, and the apps show
+  /// no switch.
   public var petsEnabled: Bool {
     get {_storage._petsEnabled ?? false}
     set {_uniqueStorage()._petsEnabled = newValue}

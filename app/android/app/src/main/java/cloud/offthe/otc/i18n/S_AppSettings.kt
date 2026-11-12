@@ -378,7 +378,7 @@ fun S.appSettingsPasswordTitle(): UiText =
 fun S.appSettingsPetsFooter(): UiText =
     UiText.Res(R.string.app_settings_pets_footer)
 
-/** "Pets": Switch in Settings > People, below Face Recognition: the device finds the dogs and cats in the photos and shows each pet in People like a person. On unless the user turns it off. The feature's name (web.settings.pets.title). */
+/** "Pets": Switch in Settings > People, below Face Recognition: the device finds the dogs and cats in the photos and shows each pet in People like a person. Off unless the user turns it on. The feature's name (web.settings.pets.title). */
 fun S.appSettingsPetsToggle(): UiText =
     UiText.Res(R.string.app_settings_pets_toggle)
 

@@ -19,7 +19,7 @@ import { clearPeople } from "./photoFilter";
 // says: it is off on most devices, and People appearing is gentler than
 // People vanishing.
 //
-// Pets (release 180, Settings.pets_enabled, on by default) finds the dogs
+// Pets (release 180, Settings.pets_enabled, off by default) finds the dogs
 // and cats in the photos, each a person in People: People is there while
 // face recognition or Pets is on (usePeopleOn) - else a new device's pets
 // would be found but out of reach. Pets' switch is read with face

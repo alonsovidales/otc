@@ -242,9 +242,10 @@ func TestReleasesStopWhenTheUsersCantBeRead(t *testing.T) {
 func TestReleasesStopWhenADatabaseCantBeChecked(t *testing.T) {
 	down := "ERROR 2002 (HY000): Can't connect to local server through socket '/run/mysqld/mysqld.sock' (2)"
 	// 168 also drives Tailscale, which a test has none of; 169 adds its
-	// month counts again and 170 turns Places on, read the same way.
+	// month counts again, 170 turns Places on and 182 Pets off, read the
+	// same way.
 	scripts := map[string]string{"158": "../scripts/updates/corrected/158.sh"}
-	for _, v := range []string{"1", "74", "92", "93", "108", "118", "148", "152", "157", "163", "169", "170"} {
+	for _, v := range []string{"1", "74", "92", "93", "108", "118", "148", "152", "157", "163", "169", "170", "182"} {
 		scripts[v] = "../scripts/updates/" + v + ".sh"
 	}
 	for v, script := range scripts {

@@ -1636,15 +1636,23 @@ SQL
     CREATE TABLE IF NOT EXISTS people_by_hand (`hash` VARCHAR(64) NOT NULL, `person_id` VARCHAR(36) NOT NULL, `created` DATETIME NOT NULL, PRIMARY KEY (`person_id`, `hash`), KEY (`hash`)) ENGINE=InnoDB;
 SQL
     # Release 180 (updates/180.sh): Text in photos and Pets - their switches
-    # (on by default), the text read in each photo, what a face is of, and
-    # the photos looked at for pets (see db.sql's photo_text, pet_scans and
-    # faces.kind).
+    # (on by default; Pets off since 182, below), the text read in each
+    # photo, what a face is of, and the photos looked at for pets (see
+    # db.sql's photo_text, pet_scans and faces.kind).
     mysql "$db" <<'SQL'
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS text_in_photos_enabled TINYINT(1) NOT NULL DEFAULT 1;
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS pets_enabled TINYINT(1) NOT NULL DEFAULT 1;
     ALTER TABLE faces ADD COLUMN IF NOT EXISTS `kind` TINYINT NOT NULL DEFAULT 0;
     CREATE TABLE IF NOT EXISTS photo_text (`hash` VARCHAR(64) NOT NULL, `model` VARCHAR(64) NOT NULL, `text` MEDIUMBLOB NULL, `made` DATETIME NOT NULL, PRIMARY KEY (`hash`)) ENGINE=InnoDB;
     CREATE TABLE IF NOT EXISTS pet_scans (`hash` VARCHAR(64) NOT NULL, `model` VARCHAR(64) NOT NULL, `made` DATETIME NOT NULL, PRIMARY KEY (`hash`)) ENGINE=InnoDB;
+SQL
+    # Release 182 (updates/182.sh): Pets off by default. A database whose
+    # column still defaults to on (180's) is turned off once where Pets
+    # found no pet, then defaults to off - the default is the mark, so a
+    # later run never turns off a library its user turned on.
+    mysql "$db" <<'SQL'
+    UPDATE settings SET pets_enabled = 0 WHERE (SELECT COLUMN_DEFAULT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'settings' AND COLUMN_NAME = 'pets_enabled') = '1' AND NOT EXISTS (SELECT 1 FROM faces WHERE kind <> 0);
+    ALTER TABLE settings ALTER COLUMN pets_enabled SET DEFAULT 0;
 SQL
 }
 

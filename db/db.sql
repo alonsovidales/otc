@@ -495,12 +495,13 @@ create table settings
   -- each photo (photo_text) and SearchPhotos.text finds photos by it;
   -- turning it off deletes every text in the same transaction.
   `text_in_photos_enabled` tinyint(1) not null default 1,
-  -- Pets (release 180): on unless the user turns it off (SetPetsEnabled).
-  -- While it is on the device finds the dogs and cats in each photo and
-  -- files each pet in People like a person (faces.kind, pet_scans).
-  -- Turning it off deletes nothing: the pets found stay until deleted in
-  -- People.
-  `pets_enabled` tinyint(1) not null default 1
+  -- Pets (release 180): off unless the user turns it on (SetPetsEnabled) -
+  -- on in every library in releases 180 and 181, and left on by 182 only
+  -- where it had found pets (updates/182.sh). While it is on the device
+  -- finds the dogs and cats in each photo and files each pet in People
+  -- like a person (faces.kind, pet_scans). Turning it off deletes
+  -- nothing: the pets found stay until deleted in People.
+  `pets_enabled` tinyint(1) not null default 0
 ) engine=InnoDB;
 
 -- Release 168 (issue #206): Images' month counts (the date scrubber), kept

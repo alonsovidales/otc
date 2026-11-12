@@ -6,7 +6,7 @@
 //
 //  Whether People shows: while face recognition is on
 //  (Settings.face_recognition_enabled, off by default) or, since device
-//  release 180, Pets (Settings.pets_enabled, on by default: the pets it
+//  release 180, Pets (Settings.pets_enabled, off by default: the pets it
 //  finds are people in People, unreachable otherwise) - People in the
 //  search, a person in the Images search, and the People page. A device
 //  whose Settings lack pets_enabled is as before: face recognition alone.

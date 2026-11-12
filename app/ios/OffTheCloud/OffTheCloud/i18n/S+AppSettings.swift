@@ -519,7 +519,7 @@ extension S {
 
     /// Pets
     ///
-    /// Switch in Settings > People, below Face Recognition: the device finds the dogs and cats in the photos and shows each pet in People like a person. On unless the user turns it off. The feature's name (web.settings.pets.title).
+    /// Switch in Settings > People, below Face Recognition: the device finds the dogs and cats in the photos and shows each pet in People like a person. Off unless the user turns it on. The feature's name (web.settings.pets.title).
     static var appSettingsPetsToggle: String { L("app.settings.pets.toggle", table: "AppSettings") }
 
     /// All photos
