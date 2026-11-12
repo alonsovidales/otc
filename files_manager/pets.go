@@ -37,7 +37,11 @@ import (
 //  2. Where: pet_finder's D-FINE small, on the photo at up to 4 MP.
 //  3. Which pet: DINOv2 small's embedding of the animal, matched against
 //     each pet's references as a face is against people's (face_refs.go) -
-//     a dog against dogs, a cat against cats - at cPetSame at least.
+//     a dog against dogs, a cat against cats - at petSame at least, each
+//     pet at most once in a photo (assignPets).
+//  4. And then grouped (pet_groups.go): the pets that are one - a pet's
+//     photos far apart, filed as several - become one, as a merge in People
+//     makes them.
 //
 // A pet's face is a faces row of its kind (dao.AddPetFace): the whole
 // animal's crop and embedding, sealed as faces are; pet_scans keeps the
@@ -68,14 +72,29 @@ const (
 	// there twice at 0.87, and four people close together overlapped at
 	// 0.42 at most.
 	cSamePersonIoU = 0.7
-	// cPetSame: the least cosine at which two pets' embeddings are the same
-	// pet. Measured on whole-animal crops (D-FINE boxes padded 10%):
-	// Biscuit's photos against each other kept 73% of the pairs, and 12% of
-	// the pairs of different dogs - most of them golden retrievers and
-	// labradors, as he is - were over it. Matching is to the nearest of a
-	// pet's references, so most of a pet's photos join them; a lookalike
-	// that joins is taken off with Not this person, as with people.
-	cPetSame = 0.60
+	// cDogSame and cCatSame: the least cosine to one of a pet's references
+	// at which a pet just found is that pet, filed one photo at a time
+	// (filePets) - seldom another animal: the grouping that follows
+	// (pet_groups.go) joins pets, and parts one only where it is twice in
+	// a photo. cDogGroup and
+	// cCatGroup: the least average cosine between two pets' photos at which
+	// they are one (pet_groups.go), and between a photo and a pet's
+	// references at which it is like that pet as a whole (kept as a
+	// reference once it has cMaxFaceRefsPerPerson, a candidate for its
+	// face). Measured on whole-animal crops (D-FINE boxes padded 10%):
+	// libraries of 1 to 3 pets with all their photos (11 dogs and 7 cats
+	// of Wikimedia Commons, 10 to 25 photos each) among 40 animals seen
+	// once (Oxford-IIIT Pet), filed in random order. Release 180's filing
+	// alone (0.60, no grouping) left a dog's photos in 5.3 pets, 63% in the
+	// largest; filed at 0.60 and grouped at 0.35, in 1.6 pets, 91% in the
+	// largest (2% of it another animal's). A cat looks more like any cat
+	// to the model: release 180 left a cat's photos in 4.3 pets, 68% in
+	// the largest (9% of it other cats); filed at 0.65 and grouped at 0.50,
+	// in 3.2 pets, 77% in the largest (9% others').
+	cDogSame  = 0.60
+	cCatSame  = 0.65
+	cDogGroup = 0.35
+	cCatGroup = 0.50
 )
 
 // petPrompts are what a photo with a pet is like, to Smart search's model.
@@ -90,6 +109,13 @@ type petState struct {
 	// model, made once per process (nil until then).
 	promptsMu sync.Mutex
 	prompts   [][]float32
+	// sinceGrouped counts the pets filed since they were last grouped
+	// (pet_groups.go); backfilling is whether the background pass is
+	// running, which groups them when it is done; groupedOnce whether it
+	// grouped them since the device started.
+	sinceGrouped atomic.Int64
+	backfilling  atomic.Bool
+	groupedOnce  atomic.Bool
 }
 
 // loadPets reads the switch from the database once, as loadTexts does.
@@ -297,7 +323,8 @@ func (mg *Manager) filePets(ses *session.Session, hash string, found petfinder.F
 			log.Error("pets: error listing the pets found before:", err)
 			return
 		}
-		for _, p := range pets {
+		who := assignPets(pets, refs)
+		for i, p := range pets {
 			kind := int(p.Kind)
 			if kind != dao.FaceKindDog && kind != dao.FaceKindCat {
 				continue
@@ -307,7 +334,7 @@ func (mg *Manager) filePets(ses *session.Session, hash string, found petfinder.F
 				kr = faceRefs{}
 				refs[kind] = kr
 			}
-			personID := matchIn(p.Embedding, kr, isSamePet)
+			personID := who[i]
 			if personID == "" {
 				personID = uuid.New().String()
 				if err := mg.dao.CreatePerson(personID); err != nil {
@@ -322,14 +349,20 @@ func (mg *Manager) filePets(ses *session.Session, hash string, found petfinder.F
 				log.Error("pets: error storing a pet just found:", err)
 				continue
 			}
-			kept := kr.addSame(personID, faceID, p.Embedding, cPetSame)
+			kept := kr.addPet(kind, personID, faceID, p.Embedding)
 			if pr := kr[personID]; coverMayChange(pr, kept, quality) {
 				mg.chooseCoverLocked(ses, personID, pr)
 			}
+			mg.pets.sinceGrouped.Add(1)
 		}
 		mg.takeOffPetsOwnFacesLocked(hash, found)
 	}
 	mg.markPetScanned(hash)
+	// The background pass groups them when it is done; the slow lane does
+	// every cPetRegroupEvery pets.
+	if !mg.pets.backfilling.Load() && mg.pets.sinceGrouped.Load() >= cPetRegroupEvery {
+		mg.regroupPetsLocked(ses)
+	}
 }
 
 // takeOffPetsOwnFacesLocked takes off their person the faces of hash the
@@ -494,8 +527,75 @@ func coverage(f, p image.Rectangle) float64 {
 
 func boxArea(r image.Rectangle) float64 { return float64(r.Dx()) * float64(r.Dy()) }
 
-// isSamePet is cPetSame's test.
-func isSamePet(score float32) bool { return score >= cPetSame }
+// petSame is the least cosine to one of a pet's references at which a pet
+// of kind just found is them (cDogSame, cCatSame).
+func petSame(kind int) float32 {
+	if kind == dao.FaceKindCat {
+		return cCatSame
+	}
+	return cDogSame
+}
+
+// petGroupAt is the least average cosine at which two pets of kind are one
+// (cDogGroup, cCatGroup).
+func petGroupAt(kind int) float32 {
+	if kind == dao.FaceKindCat {
+		return cCatGroup
+	}
+	return cDogGroup
+}
+
+// addPet offers a pet's face to its references in kr, a kind's set.
+func (kr faceRefs) addPet(kind int, personID, faceID string, emb []float32) bool {
+	return kr.addWith(personID, faceID, emb, petSame(kind), petGroupAt(kind))
+}
+
+// assignPets is who each of a photo's pets is, of the pets already found
+// (refs, by kind): the pet of its kind it is closest to - its closest
+// reference at petSame or more - the closest pairs first, and each pet
+// once: one animal is never twice in a photo, so two dogs alike side by
+// side (in a kennel, on a sofa) are two pets. "" for a pet left: a new one.
+func assignPets(pets []petfinder.Pet, refs map[int]faceRefs) []string {
+	type pair struct {
+		pet    int
+		person string
+		score  float32
+	}
+	var pairs []pair
+	for i, p := range pets {
+		for personID, pr := range refs[int(p.Kind)] {
+			if personID == "" {
+				continue // no one's faces are never references
+			}
+			best := float32(-2)
+			for _, r := range pr.refs {
+				if s := facerecognition.CosineSimilarity(p.Embedding, r.emb); s > best {
+					best = s
+				}
+			}
+			if pr.isSame(best) {
+				pairs = append(pairs, pair{i, personID, best})
+			}
+		}
+	}
+	sort.Slice(pairs, func(a, b int) bool {
+		if pairs[a].score != pairs[b].score {
+			return pairs[a].score > pairs[b].score
+		}
+		if pairs[a].pet != pairs[b].pet {
+			return pairs[a].pet < pairs[b].pet
+		}
+		return pairs[a].person < pairs[b].person
+	})
+	out := make([]string, len(pets))
+	taken := map[string]bool{}
+	for _, pr := range pairs {
+		if out[pr.pet] == "" && !taken[pr.person] {
+			out[pr.pet], taken[pr.person] = pr.person, true
+		}
+	}
+	return out
+}
 
 // loadPetRefsLocked is the pets' matching set by kind, as loadFaceRefsLocked
 // is the people's: built from every stored pet face at first use, and
@@ -521,7 +621,7 @@ func (mg *Manager) loadPetRefsLocked(ses *session.Session) (map[int]faceRefs, er
 			kr = faceRefs{}
 			refs[e.Kind] = kr
 		}
-		kr.addSame(e.PersonID, e.ID, facerecognition.DecodeEmbedding(plain), cPetSame)
+		kr.addPet(e.Kind, e.PersonID, e.ID, facerecognition.DecodeEmbedding(plain))
 	}
 	mg.petRefs = refs
 	return refs, nil

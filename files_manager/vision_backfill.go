@@ -65,6 +65,21 @@ func (mg *Manager) BackfillVision(ses *session.Session) {
 	if !textOn && !petsOn {
 		return
 	}
+	if petsOn {
+		// The pets are grouped once a start - what an update changed in how
+		// they are grouped - and again when this pass filed some
+		// (pet_groups.go); the slow lane leaves it to this pass meanwhile.
+		mg.pets.backfilling.Store(true)
+		defer mg.pets.backfilling.Store(false)
+		if mg.pets.groupedOnce.CompareAndSwap(false, true) {
+			mg.regroupPets(ses)
+		}
+		defer func() {
+			if mg.pets.sinceGrouped.Load() > 0 && mg.PetsEnabled() {
+				mg.regroupPets(ses)
+			}
+		}()
+	}
 	excluded, err := mg.OutOfImagesFolders()
 	if err != nil {
 		log.Error("text and pets: could not read the folders kept out of Images, nothing read:", err)

@@ -189,8 +189,9 @@ func TestDateBucketsCountEachPhotoOnceMySQL(t *testing.T) {
 	}
 }
 
-// A collection counts a photo once however many copies it has; People's
-// count is its faces, which copies don't add to.
+// A collection counts a photo once however many copies it has; so does
+// People, however many faces of someone it has (a pet's body and its
+// face; p1 is twice in A).
 func TestCollectionsAndPeopleCountEachPhotoOnceMySQL(t *testing.T) {
 	d := copiesLibrary(t)
 	for _, excluded := range [][]string{nil, {"/Private/"}} {
@@ -214,8 +215,8 @@ func TestCollectionsAndPeopleCountEachPhotoOnceMySQL(t *testing.T) {
 	for _, p := range people {
 		got[p.Id] = p.FaceCount
 	}
-	if got["p1"] != 3 || got["p2"] != 2 {
-		t.Errorf("face counts %v, want p1 3 (A twice, B), p2 2", got)
+	if got["p1"] != 2 || got["p2"] != 2 {
+		t.Errorf("photo counts %v, want p1 2 (A, B), p2 2", got)
 	}
 }
 

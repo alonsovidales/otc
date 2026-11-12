@@ -2722,13 +2722,16 @@ func (dao *Dao) ListPeople(cohesionThreshold float64) (people []*pb.Person, err 
 	// One statement: the cover thumbnail used to be one more query per
 	// person, and every unmatched stranger in a crowd is a person. A cover
 	// face that is gone reads NULL (no thumbnail), as its lookup did. The
-	// count is of the faces in photos a file holds: an edited photo's
-	// original keeps its faces, hidden (edited.go), and is no photo more.
-	// The photos and videos they were added to by hand count as theirs
-	// too (people_by_hand.go): never also a face of theirs.
+	// count is of the photos a file holds with a face of theirs: an edited
+	// photo's original keeps its faces, hidden (edited.go), and is no photo
+	// more; and a photo where they have two faces - a pet's whole body and
+	// its face the face model found, kept with a merge or a name - is one
+	// photo, as their page lists it. The photos and videos they were added
+	// to by hand count as theirs too (people_by_hand.go): never also a
+	// face of theirs.
 	rows, err := dao.byHandQuery(
 		"select `p`.`id`, `p`.`name`, "+
-			"(select count(*) from `faces` as `f` where `f`.`person_id` = `p`.`id` and exists (select 1 from `files` as `fl` where `fl`.`hash` = `f`.`hash`)) + "+
+			"(select count(distinct `f`.`hash`) from `faces` as `f` where `f`.`person_id` = `p`.`id` and exists (select 1 from `files` as `fl` where `fl`.`hash` = `f`.`hash`)) + "+
 			"(select count(*) from "+cByHand+" as `b` where `b`.`person_id` = `p`.`id` and exists (select 1 from `files` as `fb` where `fb`.`hash` = `b`.`hash`)) as `face_count`, "+
 			personCoverSQL+" as `cover_thumbnail`, `p`.`cover_chosen` "+
 			"from `people` as `p` "+

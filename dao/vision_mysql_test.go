@@ -4,6 +4,8 @@ package dao
 
 import (
 	"bytes"
+	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -202,5 +204,88 @@ func TestPetFacesMySQL(t *testing.T) {
 	}
 	if faces, err := d.PersonFacesIn("h1"); err != nil || len(faces) != 2 || !faces[0].Named || faces[1].Named {
 		t.Errorf("once Alice is named: %+v %v", faces, err)
+	}
+}
+
+// Pets grouped (files_manager/pet_groups.go): every pet face of someone
+// with its photo and whether its pet has a name; a pet's faces given to
+// another - never a person's face, nor one taken off - its cover gone with
+// them, and a pet left with none deleted. People counts each photo once.
+func TestPetGroupingMySQL(t *testing.T) {
+	d := visionTestDB(t)
+	for _, id := range []string{"biscuit", "rex", "alice"} {
+		if err := d.CreatePerson(id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, f := range []struct {
+		id, hash, person string
+	}{{"pf1", "h1", "biscuit"}, {"pf2", "h2", "biscuit"}, {"pf3", "h1", "biscuit"}, {"pf4", "h4", "rex"}, {"pf5", "h2", ""}} {
+		if err := d.AddPetFace(f.id, f.hash, f.person, FaceKindDog, 1, 2, 30, 40, []byte("e"+f.id), []byte("pt"), 0.7); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := d.AddFace("ff1", "h1", "alice", 5, 5, 10, 10, []byte("fe"), []byte("ft"), 0.5); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.RenamePerson("rex", "Rex"); err != nil {
+		t.Fatal(err)
+	}
+	if named, err := d.PeopleNamed([]string{"biscuit", "rex", "gone"}); err != nil || fmt.Sprint(named) != "map[biscuit:false rex:true]" {
+		t.Errorf("PeopleNamed = %v %v, want biscuit unnamed, Rex named, no one gone", named, err)
+	}
+	faces, err := d.ListPetFaces()
+	got := []string{}
+	for _, f := range faces {
+		got = append(got, fmt.Sprintf("%s:%s:%s:%d:%v:%s", f.ID, f.PersonID, f.Hash, f.Kind, f.Named, f.Embedding))
+	}
+	if want := "[pf1:biscuit:h1:1:false:epf1 pf2:biscuit:h2:1:false:epf2 pf3:biscuit:h1:1:false:epf3 pf4:rex:h4:1:true:epf4]"; err != nil || fmt.Sprint(got) != want {
+		t.Errorf("ListPetFaces = %v %v, want %s", got, err, want)
+	}
+	counts := func() map[string]int32 {
+		t.Helper()
+		people, err := d.ListPeople(0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]int32{}
+		for _, p := range people {
+			out[p.Id] = p.FaceCount
+		}
+		return out
+	}
+	// Biscuit is twice in h1: one photo.
+	if c := counts(); c["biscuit"] != 2 || c["rex"] != 1 {
+		t.Errorf("counts %v, want biscuit 2 (h1, h2) and rex 1", c)
+	}
+	if err := d.SetPersonCoverFace("biscuit", "pf3", 0.5); err != nil {
+		t.Fatal(err)
+	}
+	// pf3 is Rex; Alice's face ff1 and no one's pf5 never move.
+	if err := d.GivePetFaces([]string{"pf3", "ff1", "pf5"}, "rex"); err != nil {
+		t.Fatal(err)
+	}
+	if c := counts(); c["biscuit"] != 2 || c["rex"] != 2 || c["alice"] != 1 {
+		t.Errorf("counts %v, want biscuit 2, rex 2 (h1, h4), alice 1", c)
+	}
+	var cover sql.NullString
+	if err := d.db.QueryRow("select `cover_face_id` from `people` where `id` = 'biscuit'").Scan(&cover); err != nil || cover.Valid {
+		t.Errorf("Biscuit's cover is still the face he gave: %v %v", cover, err)
+	}
+	var owner string
+	if err := d.db.QueryRow("select `person_id` from `faces` where `id` = 'pf5'").Scan(&owner); err != nil || owner != "" {
+		t.Errorf("a face taken off went to %q: %v", owner, err)
+	}
+	// Biscuit's last faces: he is gone.
+	if err := d.GivePetFaces([]string{"pf1", "pf2"}, "rex"); err != nil {
+		t.Fatal(err)
+	}
+	if c := counts(); c["rex"] != 3 {
+		t.Errorf("counts %v, want rex 3 (h1, h2, h4)", c)
+	} else if _, ok := c["biscuit"]; ok {
+		t.Errorf("Biscuit stayed with no face: %v", c)
+	}
+	if named, err := d.PeopleNamed([]string{"biscuit"}); err != nil || len(named) != 0 {
+		t.Errorf("PeopleNamed = %v %v, want Biscuit gone", named, err)
 	}
 }

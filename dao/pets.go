@@ -5,6 +5,8 @@ package dao
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"sort"
 	"time"
 )
 
@@ -161,4 +163,127 @@ func (dao *Dao) petEmbeddings(query string, args ...any) ([]PetEmbedding, error)
 		out = append(out, p)
 	}
 	return out, rows.Err()
+}
+
+// PetFace is a pet's face as Pets groups them (files_manager/pet_groups.go):
+// whose it is, whether they have a name, its photo, its kind and its
+// embedding (sealed).
+type PetFace struct {
+	ID, PersonID, Hash string
+	Kind               int
+	Named              bool
+	Embedding          []byte
+}
+
+// ListPetFaces is every pet face of someone (person_id "" is no one's,
+// never grouped), in id order.
+func (dao *Dao) ListPetFaces() ([]PetFace, error) {
+	rows, err := dao.db.Query("select `f`.`id`, `f`.`person_id`, `f`.`hash`, `f`.`kind`, coalesce(`p`.`name`, '') <> '', `f`.`embedding` from `faces` as `f`" +
+		" left join `people` as `p` on `p`.`id` = `f`.`person_id`" +
+		" where `f`.`person_id` <> '' and `f`.`kind` <> 0 order by `f`.`id`")
+	if err != nil {
+		return nil, schemaBehind(err)
+	}
+	defer rows.Close()
+	var out []PetFace
+	for rows.Next() {
+		var f PetFace
+		if err := rows.Scan(&f.ID, &f.PersonID, &f.Hash, &f.Kind, &f.Named, &f.Embedding); err != nil {
+			return nil, err
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
+}
+
+// GivePetFaces makes the pet faces ids personID's: some of a pet's faces
+// another pet's, as Pets groups them (files_manager/pet_groups.go). Only
+// pets' faces of someone move (a person's face, or one taken off its
+// person, never does). As RemoveFromPerson moves faces: where personID was
+// added by hand to one of their photos that row goes (a face of theirs is
+// there now, never both), a face that was its pet's cover is no one's
+// cover now, and a pet left with no face, no name and nowhere added by
+// hand goes.
+func (dao *Dao) GivePetFaces(ids []string, personID string) error {
+	if personID == "" || len(ids) == 0 {
+		return nil
+	}
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	from := map[string]bool{}
+	for _, chunk := range hashChunks(ids) {
+		ph, args := inPlaceholders(chunk)
+		rows, err := tx.Query("select `person_id` from `faces` where `id` in ("+ph+") and `person_id` <> '' and `kind` <> 0 for update", args...)
+		if err != nil {
+			return schemaBehind(err)
+		}
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return err
+			}
+			from[id] = true
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return err
+		}
+		if _, err := execIfByHand(tx, "delete from `people_by_hand` where `person_id` = ? and `hash` in (select `hash` from `faces` where `id` in ("+ph+"))", append([]any{personID}, args...)...); err != nil {
+			return fmt.Errorf("dropping where the pet was added by hand: %w", err)
+		}
+		if _, err := tx.Exec("update `faces` set `person_id` = ? where `id` in ("+ph+") and `person_id` <> '' and `kind` <> 0", append([]any{personID}, args...)...); err != nil {
+			return fmt.Errorf("moving the pet's faces: %w", err)
+		}
+		if _, err := tx.Exec("update `people` set `cover_face_id` = null, `cover_chosen` = (`cover_image` is not null) where `cover_face_id` in ("+ph+") and `id` <> ?", append(args, personID)...); err != nil {
+			return fmt.Errorf("clearing covers: %w", err)
+		}
+	}
+	delete(from, personID)
+	if len(from) > 0 {
+		left := make([]string, 0, len(from))
+		for id := range from {
+			left = append(left, id)
+		}
+		sort.Strings(left)
+		ph, args := inPlaceholders(left)
+		if _, err := byHandExec(tx, "delete from `people` where `id` in ("+ph+")"+cNoOtherRefs, args...); err != nil {
+			return fmt.Errorf("deleting the pets left with no face: %w", err)
+		}
+	}
+	return tx.Commit()
+}
+
+// PeopleNamed is which of ids are people now, each with whether they have
+// a name: Pets checks a grouping still holds before it files it
+// (files_manager/pet_groups.go) - the owner may have named, merged or
+// deleted a pet meanwhile.
+func (dao *Dao) PeopleNamed(ids []string) (map[string]bool, error) {
+	out := map[string]bool{}
+	for _, chunk := range hashChunks(ids) {
+		ph, args := inPlaceholders(chunk)
+		rows, err := dao.db.Query("select `id`, `name` <> '' from `people` where `id` in ("+ph+")", args...)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var id string
+			var named bool
+			if err := rows.Scan(&id, &named); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			out[id] = named
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }

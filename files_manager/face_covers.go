@@ -107,7 +107,7 @@ func (mg *Manager) bestLookingFace(ses *session.Session, personID string, p *per
 
 // clearlyThem says whether a face with this embedding is as close to the
 // person's references, on average, as cCoverTypicality of their medoid is,
-// and at least as close as a face must be to join them.
+// and like them as a whole (isTypical).
 func clearlyThem(emb []float32, p *personFaceRefs, cohesion float32) bool {
 	if len(emb) == 0 || len(p.refs) == 0 {
 		return false
@@ -125,7 +125,7 @@ func clearlyThem(emb []float32, p *personFaceRefs, cohesion float32) bool {
 		return false
 	}
 	avg := total / float32(n)
-	return p.isSame(avg) && avg >= cCoverTypicality*cohesion
+	return p.isTypical(avg) && avg >= cCoverTypicality*cohesion
 }
 
 // coverMayChange says whether a face just stored for a person can change

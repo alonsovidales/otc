@@ -40,8 +40,17 @@ type personFaceRefs struct {
 	coverKnown   bool
 	coverQuality float64
 	// same is the least cosine of the same one: 0 for a person's faces
-	// (face_recognition's threshold), cPetSame for a pet's (pets.go).
+	// (face_recognition's threshold), their kind's for a pet's (pets.go).
 	same float32
+	// typical is the least average cosine to their references of a face
+	// like them as a whole - kept as a reference once they have
+	// cMaxFaceRefsPerPerson, and a candidate for their face (clearlyThem):
+	// 0 for a person's (same's test, as it always was), their kind's for a
+	// pet's (pets.go). A pet's photos are far apart - lying down, running,
+	// wet, the puppy and the dog it grew into - and at same, once a pet had
+	// its first references hardly another photo was ever kept: its later
+	// looks became pets of their own.
+	typical float32
 }
 
 // isSame is whether score is the same person's (or pet's) by p's threshold.
@@ -52,6 +61,15 @@ func (p *personFaceRefs) isSame(score float32) bool {
 	return facerecognition.IsSamePersonScore(score)
 }
 
+// isTypical is whether avg, a face's average cosine to p's references, is
+// of a face like them as a whole (typical's test).
+func (p *personFaceRefs) isTypical(avg float32) bool {
+	if p.typical > 0 {
+		return avg >= p.typical
+	}
+	return p.isSame(avg)
+}
+
 // faceRefs is the whole library's matching set, person id -> references.
 // Built once per process from the database (see Manager.loadFaceRefs) and
 // then kept up to date incrementally by processFaces and dropFacesOfHash.
@@ -60,7 +78,7 @@ type faceRefs map[string]*personFaceRefs
 // add offers a face to this person's references and reports whether it
 // was kept. Below cMaxFaceRefsPerPerson it's always kept. At the cap:
 //   - an outlier (average similarity to the current references below the
-//     same-person threshold) is not kept - a misclustered or poor-quality
+//     typical one, see isTypical) is not kept - a misclustered or poor-quality
 //     face shouldn't displace a good one or pull future matches toward
 //     it. Its face row is still stored by the caller either way;
 //   - otherwise it's kept and the most redundant reference is dropped:
@@ -77,7 +95,7 @@ func (p *personFaceRefs) add(id string, emb []float32) bool {
 		sims[i] = facerecognition.CosineSimilarity(emb, r.emb)
 		total += sims[i]
 	}
-	if len(p.refs) >= cMaxFaceRefsPerPerson && !p.isSame(total/float32(len(p.refs))) {
+	if len(p.refs) >= cMaxFaceRefsPerPerson && !p.isTypical(total/float32(len(p.refs))) {
 		return false
 	}
 
@@ -136,18 +154,19 @@ func (p *personFaceRefs) identified() []facerecognition.IdentifiedEmbedding {
 // never a reference: matching would file new faces under no one, or as
 // a new person each, through it.
 func (fr faceRefs) add(personID, faceID string, emb []float32) bool {
-	return fr.addSame(personID, faceID, emb, 0)
+	return fr.addWith(personID, faceID, emb, 0, 0)
 }
 
-// addSame is add for a set whose people are the same at same (0: a
-// person's faces; cPetSame: a pet's, pets.go).
-func (fr faceRefs) addSame(personID, faceID string, emb []float32, same float32) bool {
+// addWith is add for a set whose people are the same at same and like
+// them as a whole at typical (0, 0: a person's faces; a pet's kind's,
+// pets.go).
+func (fr faceRefs) addWith(personID, faceID string, emb []float32, same, typical float32) bool {
 	if personID == "" {
 		return false
 	}
 	p := fr[personID]
 	if p == nil {
-		p = &personFaceRefs{same: same}
+		p = &personFaceRefs{same: same, typical: typical}
 		fr[personID] = p
 	}
 	return p.add(faceID, emb)

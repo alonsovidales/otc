@@ -44,27 +44,45 @@ func TestPetGate(t *testing.T) {
 	}
 }
 
-// A pet joins the pet it is closest to at cPetSame or more, of its own
-// kind's set; under it, it is a new pet. A person's faces never take
-// part.
-func TestPetMatching(t *testing.T) {
-	dogs := faceRefs{}
-	dogs.addSame("biscuit", "f1", normalised([]float32{1, 0.1, 0}), cPetSame)
-	dogs.addSame("rex", "f2", normalised([]float32{0, 1, 0.2}), cPetSame)
-	if got := matchIn(normalised([]float32{1, 0.3, 0.1}), dogs, isSamePet); got != "biscuit" {
-		t.Errorf("a photo of Biscuit matched %q", got)
+// A photo's pets are each the pet of their kind they are closest to, at
+// its threshold or more - the closest pairs first, and each pet once: two
+// dogs alike side by side (in a kennel) are two pets, not one twice. Under
+// the threshold a pet is a new one; a cat is never a dog.
+func TestAssignPets(t *testing.T) {
+	refs := map[int]faceRefs{dao.FaceKindDog: {}, dao.FaceKindCat: {}}
+	refs[dao.FaceKindDog].addWith("biscuit", "f1", normalised([]float32{1, 0.1, 0}), 0.6, 0.45)
+	refs[dao.FaceKindDog].addWith("rex", "f2", normalised([]float32{0, 1, 0.2}), 0.6, 0.45)
+	refs[dao.FaceKindCat].addWith("tom", "f3", normalised([]float32{0.2, 0, 1}), 0.6, 0.45)
+	dog := func(v ...float32) petfinder.Pet { return petfinder.Pet{Kind: petfinder.Dog, Embedding: normalised(v)} }
+	cat := func(v ...float32) petfinder.Pet { return petfinder.Pet{Kind: petfinder.Cat, Embedding: normalised(v)} }
+	for _, c := range []struct {
+		what string
+		pets []petfinder.Pet
+		want []string
+	}{
+		{"Biscuit", []petfinder.Pet{dog(1, 0.3, 0.1)}, []string{"biscuit"}},
+		// Cosine 0.5 to Biscuit: under his threshold.
+		{"a stranger", []petfinder.Pet{dog(0.5, 0, 0.866)}, []string{""}},
+		{"Biscuit and Rex", []petfinder.Pet{dog(0, 1, 0.1), dog(1, 0.2, 0)}, []string{"rex", "biscuit"}},
+		// Both like Biscuit: the closer is him, the other a new pet.
+		{"two dogs like Biscuit side by side", []petfinder.Pet{dog(1, 0.5, 0.3), dog(1, 0.15, 0)}, []string{"", "biscuit"}},
+		{"Tom", []petfinder.Pet{cat(0.1, 0, 1)}, []string{"tom"}},
+		// Just like Biscuit, but a cat.
+		{"a cat like Biscuit", []petfinder.Pet{cat(1, 0.1, 0)}, []string{""}},
+	} {
+		got := assignPets(c.pets, refs)
+		if fmt.Sprint(got) != fmt.Sprint(c.want) {
+			t.Errorf("%s: %q, want %q", c.what, got, c.want)
+		}
 	}
-	// Cosine 0.5 to Biscuit: a person's face would match at that, a pet
-	// doesn't.
-	if got := matchIn(normalised([]float32{0.5, 0, 0.866}), dogs, isSamePet); got != "" {
-		t.Errorf("a stranger matched %q", got)
-	}
-	if p := dogs["biscuit"]; p.same != cPetSame || !p.isSame(0.61) || p.isSame(0.59) {
-		t.Errorf("a pet's references don't hold its threshold: %v", p.same)
+	// A pet's references hold their kind's thresholds; a person's face
+	// recognition's.
+	if p := refs[dao.FaceKindDog]["biscuit"]; !p.isSame(0.61) || p.isSame(0.59) || !p.isTypical(0.46) || p.isTypical(0.44) {
+		t.Errorf("a pet's references don't hold its thresholds: %v %v", p.same, p.typical)
 	}
 	people := faceRefs{}
-	people.add("alice", "f3", normalised([]float32{1, 0, 0}))
-	if p := people["alice"]; p.same != 0 || !p.isSame(0.4) {
+	people.add("alice", "f4", normalised([]float32{1, 0, 0}))
+	if p := people["alice"]; p.same != 0 || p.typical != 0 || !p.isSame(0.4) || !p.isTypical(0.4) {
 		t.Error("a person's references lost face recognition's threshold")
 	}
 }
