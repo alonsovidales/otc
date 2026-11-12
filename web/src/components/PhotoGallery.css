@@ -1207,6 +1207,21 @@
 .pg-info-map { width: 100%; height: 180px; border: 0; border-radius: 8px; margin-top: 4px; }
 /* Before the map is asked for: the button in its place. */
 .pg-info-showmap { margin-top: 4px; align-self: flex-start; }
+/* Text in this photo (MediaViewer.tsx, photoText.ts), after the details and
+   before the people: its heading beside a small Copy, then the text as the
+   device read it - its lines kept, a long word broken rather than running
+   out of the panel, selectable, a little larger than the details for
+   reading. A long one scrolls with the panel. */
+.pg-info-text { padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 6px; }
+.pg-info-text-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pg-info-text-title { margin: 0; font-weight: inherit; }
+.pg-info-text-copy { flex: none; }
+.pg-info-text-body {
+  margin: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+  color: var(--mist); font-size: 14px; line-height: 20px;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  -webkit-user-select: text; user-select: text; cursor: text;
+}
 /* The photo's faces (MediaViewer.tsx, photoFaces.ts), after the details: a
    row each - the crop round as People shows faces (a blank circle without
    one) and the name, one button that opens their photos, then an × for Not

@@ -57,6 +57,7 @@ import Part from "./Part";
 import { canEdit, canRevert, copiesAsk, copiesFrom, editAnswer, editStatePayload, leafOf, refusalOf, revertPayload, type EditDone } from "./photoEdit";
 import { canCut, revertTextKey } from "./videoEdit";
 import { compressedNote } from "./compress";
+import { photoText } from "./photoText";
 
 // The editors: chunks of their own, each loaded when Edit is first pressed
 // on a photo, or on a video.
@@ -260,6 +261,47 @@ function downloadItem(it: ViewerItem) {
     stream: canStream(it.mime) ? { path } : null,
     read: async (progress) => (await readFileInPieces(path, progress)) as BlobPart[] | null,
   });
+}
+
+// Text in this photo (Text in photos, photoText.ts), in Info after the
+// details: the text as the device read it - its lines kept, selectable, at
+// a size for reading; a long one scrolls with the panel. Copy says Copied
+// for 2 s; a browser that won't let the page write to the clipboard gets
+// the text selected instead, for its own copy (as the logs and a friend's
+// address are left to copy by hand).
+const cCopiedMs = 2000;
+
+function PhotoTextBlock({ text }: { text: string }) {
+  const t = useT();
+  const titleId = useId();
+  const bodyRef = useRef<HTMLParagraphElement>(null);
+  const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (copiedTimer.current != null) window.clearTimeout(copiedTimer.current);
+  }, []);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      if (copiedTimer.current != null) window.clearTimeout(copiedTimer.current);
+      copiedTimer.current = window.setTimeout(() => setCopied(false), cCopiedMs);
+    } catch {
+      // Selected: the system's own copy takes it.
+      if (bodyRef.current) window.getSelection()?.selectAllChildren(bodyRef.current);
+    }
+  };
+  return (
+    <section className="pg-info-text" aria-labelledby={titleId}>
+      <div className="pg-info-text-head">
+        <h3 id={titleId} className="pg-info-label pg-info-text-title">{t("web.images.viewer.text_title")}</h3>
+        <button type="button" className="pg-btn outline small pg-info-text-copy" aria-describedby={titleId} aria-live="polite" onClick={() => void copy()}>
+          {copied ? t("web.images.viewer.text_copied") : t("web.images.viewer.text_copy")}
+        </button>
+      </div>
+      <p ref={bodyRef} className="pg-info-text-body" dir="auto">{text}</p>
+    </section>
+  );
 }
 
 export default function MediaViewer({ items, index, onIndexChange, onClose, onDeleted, onDeleteChanged, deleteBlocked, inCollection = false, personId, onPersonFixed, canFavourite = false, rating, onEdited, onEditChanged }: {
@@ -1160,6 +1202,8 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   };
   if (!item) return null;
   const name = items[index].path.split("/").pop();
+  // Info's Text in this photo: none (no block) while the details load.
+  const infoText = infoLoading ? "" : photoText(infoData?.text);
   // The picture on screen, for the editor: the full size (unless the
   // browser couldn't draw it), else the big thumbnail or the grid's.
   const shownPicture = (stuck === item.path ? null : hiURL) || (bigThumb?.path === item.path ? bigThumb.url : "") || item.thumbURL || ownThumb;
@@ -1508,6 +1552,9 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
                 )}
               </div>
             )}
+            {/* The text the device read in the photo (Text in photos), after
+                its details and before its people. */}
+            {infoText && <PhotoTextBlock key={item.path} text={infoText} />}
             {/* The photo's faces, after the details once those are in, so
                 they arrive below and move nothing: each face (its crop and
                 name) opens that person's photos, its × is Not this person

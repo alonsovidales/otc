@@ -54,7 +54,7 @@ import { ratingDescription, ratingRefusalText } from "./ratingText";
 import { RatingBadge, RatingTools, StarGlyph } from "./RatingPanel";
 import { openSlideshow } from "./slideshowState";
 import { dropPlaces } from "./places";
-import { refreshSmartSearch, setSmartSearchOn } from "./smartSearch";
+import { refreshSmartSearch, setSmartSearchOn, setTextInPhotosOn } from "./smartSearch";
 import MemoriesStrip from "./MemoriesStrip";
 import { nameCollator } from "./filesSort";
 import { sortCollections } from "./librarySort";
@@ -604,9 +604,12 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
         // which searches the chips by date again; turned off, the app's
         // switch follows; downloading, it stays on and the model's state is
         // asked again (the search offers descriptions once it is there).
+        // Text in photos is off too then: on, it would have answered the
+        // words alone (release 180) - turned off on another app.
         const refused = resp.errorCode;
         if (refused === "smart_search_off" || refused === "smart_search_unavailable" || refused === "smart_search_downloading") {
           setSmartRefused(resp.errorMessage);
+          setTextInPhotosOn(false);
           if (refused === "smart_search_off") setSmartSearchOn(false);
           else clearText();
           if (refused === "smart_search_downloading") void refreshSmartSearch();

@@ -18,11 +18,13 @@ import { showSection } from "./showSection";
 // are not, as before. A collection is an image group in the protocol
 // (ImageGroup, groupId), so the code here says group. With Smart search on
 // (smartSearch.ts), `text` is a description to find photos by
-// (SearchPhotos.text), ranked best first within the rest; kept only for the
-// page's session, and gone when Smart search is off. Inside a collection
-// whose Rating is on (rating.ts), `rating` is its Show and Sort by - the
-// photos with some stars, the best rated first...; every photo by date
-// again whenever another collection opens, and while Rating is off.
+// (SearchPhotos.text), ranked best first within the rest - and with Text in
+// photos on (release 180), words to find in the text read in the photos,
+// those photos first; kept only for the page's session, and gone once
+// neither can answer it. Inside a collection whose Rating is on
+// (rating.ts), `rating` is its Show and Sort by - the photos with some
+// stars, the best rated first...; every photo by date again whenever
+// another collection opens, and while Rating is off.
 
 /** An open collection; `favourites`: the one every device has
  *  (ImageGroup.favourites), which can't be renamed or deleted; `rating`:
@@ -79,15 +81,16 @@ export function addTag(tag: string) {
   set({ ...state, tags: [...state.tags, t] });
 }
 
-/** Smart search: the photos best matching this description, within the
- *  chips. */
+/** Smart search, or Text in photos: the photos best matching these
+ *  words, within the chips. */
 export function searchText(text: string) {
   const t = text.trim();
   if (!t || t === state.text) return;
   set({ ...state, text: t });
 }
 
-/** The description's chip closed, or Smart search off: no free text. */
+/** The description's chip closed, or nothing to answer it (Smart search
+ *  and Text in photos off): no free text. */
 export function clearText() {
   if (!state.text) return;
   set({ ...state, text: "" });

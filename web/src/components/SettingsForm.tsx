@@ -21,8 +21,8 @@ import { setFaceRecognition, useFaceRecognition } from "./faceRecognition";
 import { setPlacesOn, usePlacesOn } from "./places";
 import { localDay, setMemoriesOn, showAllMemories } from "./memories";
 import {
-  announcement, applySmartSearchSettings, followSmartSearch, modelView, refreshSmartSearch, setSmartSearchOn,
-  useSmartSearchModel, useSmartSearchOn, type Announcement, type ModelView, type SmartModel,
+  announcement, applySmartSearchSettings, followSmartSearch, modelView, refreshSmartSearch, setSmartSearchOn, setTextInPhotosOn,
+  useSmartSearchModel, useSmartSearchOn, useTextInPhotosOn, type Announcement, type ModelView, type SmartModel,
 } from "./smartSearch";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useT, type TFunction } from "../i18n";
@@ -130,6 +130,17 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   const [smartOffAsk, setSmartOffAsk] = useState(false);
   const followSmart = smartKnown && smartOn && smartModel.downloading;
   useEffect(() => (followSmart ? followSmartSearch() : undefined), [followSmart]);
+  // Text in photos' switch (release 180; smartSearch.ts keeps it, as the
+  // search offers the words while it is on), on a device that has it: on
+  // at once, off after the confirmation (the text the device read goes).
+  const textOn = useTextInPhotosOn() === true;
+  const [textKnown, setTextKnown] = useState(false);
+  const [textBusy, setTextBusy] = useState(false);
+  const [textOffAsk, setTextOffAsk] = useState(false);
+  // Pets' switch (release 180), on a device that has it (null elsewhere):
+  // the pets found are people in People, so nothing else here follows it.
+  const [petsOn, setPetsOnHere] = useState<boolean | null>(null);
+  const [petsBusy, setPetsBusy] = useState(false);
   // Issue #153: the space friends' posts may take (GB in the field, MB on
   // the device), and what they take now.
   const [socialLimitGB, setSocialLimitGB] = useState("");
@@ -244,6 +255,59 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
     const said = await sendSmartSearch(true);
     setSmartBusy(false);
     if (said) setStatus({ kind: "error", text: said });
+  };
+
+  // Text in photos, as Smart search: the device's answer to its switch -
+  // null once done (the search follows at once), else its words (or ours
+  // when it gave none). Turned off, the device deletes the text it read
+  // before it answers.
+  const sendTextInPhotos = async (enabled: boolean): Promise<UiText | null> => {
+    try {
+      const resp: RespEnvelope = await useWS.request((e) => {
+        e.payload = { $case: "reqSetTextInPhotosEnabled", reqSetTextInPhotosEnabled: { enabled } };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        setTextInPhotosOn(enabled);
+        return null;
+      }
+      const said = resp.errorMessage || (resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "");
+      return said ? asIs(said) : say("web.settings.general.update_failed");
+    } catch (err) {
+      return asIs(err instanceof Error ? err.message : String(err));
+    }
+  };
+  const toggleTextInPhotos = async () => {
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
+    setStatus(null);
+    if (textOn) { setTextOffAsk(true); return; }
+    setTextBusy(true);
+    const said = await sendTextInPhotos(true);
+    setTextBusy(false);
+    if (said) setStatus({ kind: "error", text: said });
+  };
+
+  // Pets: while it is on the device looks for pets in the photos; off, it
+  // finds no more (those found stay in People until deleted there).
+  const togglePets = async () => {
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
+    setPetsBusy(true);
+    setStatus(null);
+    const next = !petsOn;
+    try {
+      const resp: RespEnvelope = await useWS.request((e) => {
+        e.payload = { $case: "reqSetPetsEnabled", reqSetPetsEnabled: { enabled: next } };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        setPetsOnHere(next);
+      } else {
+        const said = resp.errorMessage || (resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "");
+        setStatus({ kind: "error", text: said ? asIs(said) : say("web.settings.general.update_failed") });
+      }
+    } catch (err) {
+      setStatus({ kind: "error", text: asIs(err instanceof Error ? err.message : String(err)) });
+    } finally {
+      setPetsBusy(false);
+    }
   };
 
   const showHiddenMemories = async () => {
@@ -463,7 +527,12 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
         // Absent: a device before Smart search, with no switch (and
         // its model: a device before release 152, which had it).
         setSmartKnown(s.smartSearchEnabled !== undefined);
-        if (s.smartSearchEnabled !== undefined) applySmartSearchSettings(s);
+        // Absent: a device before Text in photos (release 180), with no
+        // switch - its search is Smart search's alone.
+        setTextKnown(s.textInPhotosEnabled !== undefined);
+        if (s.smartSearchEnabled !== undefined || s.textInPhotosEnabled !== undefined) applySmartSearchSettings(s);
+        // Absent: a device before Pets (release 180).
+        setPetsOnHere(s.petsEnabled ?? null);
         if (s.memoriesEnabled) void countHiddenMemories();
         const limitMb = s.socialStorageLimitMb || 5120;
         setSocialLimitGB(String(Math.round((limitMb / 1024) * 10) / 10));
@@ -681,6 +750,18 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
         </button>
       </section>
 
+      {/* Pets (release 180): the dogs and cats the device finds, each a
+          person in People. Only on a device whose Settings say. */}
+      {petsOn !== null && (
+        <section className="sf-section">
+          <h3>{t("web.settings.pets.title")}</h3>
+          <p className="sf-hint">{t("web.settings.pets.hint")}</p>
+          <button className="sf-btn" disabled={petsBusy} onClick={() => void togglePets()}>
+            {petsBusy ? t("web.settings.general.working") : petsOn ? t("web.settings.pets.disable") : t("web.settings.pets.enable")}
+          </button>
+        </section>
+      )}
+
       {placesKnown && (
         <section className="sf-section">
           <h3>{t("web.settings.places.title")}</h3>
@@ -733,6 +814,33 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
             return said;
           }}
           onCancel={() => setSmartOffAsk(false)}
+        />
+      )}
+
+      {/* Text in photos (release 180): the text the device reads in the
+          photos, for the search and Info. Only on a device whose Settings
+          say; off after a confirmation, as Smart search. */}
+      {textKnown && (
+        <section className="sf-section">
+          <h3>{t("web.settings.text_photos.title")}</h3>
+          <p className="sf-hint">{t("web.settings.text_photos.hint")}</p>
+          <button className="sf-btn" disabled={textBusy} onClick={() => void toggleTextInPhotos()}>
+            {textBusy ? t("web.settings.general.working") : textOn ? t("web.settings.text_photos.disable") : t("web.settings.text_photos.enable")}
+          </button>
+        </section>
+      )}
+      {textOffAsk && (
+        <ConfirmDialog
+          title={t("web.settings.text_photos.off_title")}
+          text={t("web.settings.text_photos.off_text")}
+          confirm={t("web.settings.text_photos.off_confirm")}
+          busyText={t("web.settings.general.working")}
+          onConfirm={async () => {
+            const said = await sendTextInPhotos(false);
+            if (!said) setTextOffAsk(false);
+            return said;
+          }}
+          onCancel={() => setTextOffAsk(false)}
         />
       )}
 

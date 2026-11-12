@@ -20,14 +20,17 @@
 // Enter takes unless they are exactly a tag or a named person's name; the
 // description then shows as a chip of its own. Not while the device is
 // still downloading Smart search's model: the row comes once it is there
-// (the field asks where it is as it gets the focus).
+// (the field asks where it is as it gets the focus) - unless Text in photos
+// is on (release 180), which offers the row too, Smart search on or not:
+// the device then answers the photos whose text holds the words first,
+// then Smart search's (those alone without it).
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { File as PbFile, Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { useWS } from "../net/useWS";
 import { collectionName, personLabel, reloadPeople, reloadTags, usePeople, useTags } from "./libraryStore";
 import { addTag, clearSearch, clearText, leaveArea, leaveGroup, removeTag, searchText, togglePerson, usePhotoFilter } from "./photoFilter";
-import { smartSearchFocused, useSmartSearchOffered } from "./smartSearch";
+import { smartSearchFocused, useSearchTextOffered } from "./smartSearch";
 import { useFaceRecognition } from "./faceRecognition";
 import {
   asFolder, deviceCantSearchFiles, fold, foundParts, matchIn, parentFolder, searchInFiles, showInFiles, useNoFileSearch,
@@ -168,9 +171,10 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
   const people = usePeople();
   const tags = useTags();
   const faces = useFaceRecognition() === true;
-  // Smart search on, with its model on the device: the typed words can be
-  // searched as a description.
-  const smart = useSmartSearchOffered();
+  // Smart search on, with its model on the device, or Text in photos on:
+  // the typed words can be searched for in the photos (smartSearch.ts'
+  // offersSearchText) - as a description, and in the text read in them.
+  const smart = useSearchTextOffered();
 
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);

@@ -21,12 +21,24 @@
 // Settings' switch and a search told "smart_search_off" (turned off on
 // another app) set it at once. Until the device has answered, the answer
 // this browser had last time stands in (otc_smart_search), as places.ts
-// does. While it isn't on, the search has no free text (photoFilter.ts).
-// While it is on and the model is downloading, Settings asks the device
-// again every 3 s (followSmartSearch); elsewhere the state is what the last
-// answer said (sign-in, Settings, a refused search), and the search field
-// asks once as it gets the focus while the model isn't there
-// (smartSearchFocused, at most every 5 s), as on the phones.
+// does. While it isn't on, the search has no free text (photoFilter.ts) -
+// unless Text in photos answers it (below). While it is on and the model
+// is downloading, Settings asks the device again every 3 s
+// (followSmartSearch); elsewhere the state is what the last answer said
+// (sign-in, Settings, a refused search), and the search field asks once as
+// it gets the focus while the model isn't there (smartSearchFocused, at
+// most every 5 s), as on the phones.
+//
+// Text in photos (release 180, Settings.text_in_photos_enabled) is kept
+// here too, its switch asked with Smart search's, remembered for the next
+// load (otc_text_in_photos) and set by Settings' switch as Smart search's
+// is: while it is on the device reads the text in the photos, and
+// SearchPhotos.text answers the photos whose text holds the words first,
+// then Smart search's - or those alone while Smart search is off or its
+// model isn't there. So the search offers the free text while either can
+// answer it (offersSearchText), and the free text goes once neither can. A
+// device before it doesn't say: the search is Smart search's alone, as
+// before.
 
 import { useSyncExternalStore } from "react";
 import { useWS } from "../net/useWS";
@@ -34,14 +46,19 @@ import type { RespEnvelope, Settings, SmartSearchModel } from "../proto/messages
 import { clearText } from "./photoFilter";
 
 const cKey = "otc_smart_search";
+const cTextKey = "otc_text_in_photos";
 
-function remembered(): boolean | null {
+function remembered(key: string): boolean | null {
   try {
-    const v = localStorage.getItem(cKey);
+    const v = localStorage.getItem(key);
     return v === "1" ? true : v === "0" ? false : null;
   } catch {
     return null;
   }
+}
+
+function remember(key: string, v: boolean) {
+  try { localStorage.setItem(key, v ? "1" : "0"); } catch { /* private mode */ }
 }
 
 // ---- the model's state, and what follows from it (pure) ----------------------
@@ -62,9 +79,17 @@ export function modelFrom(m: SmartSearchModel | undefined): SmartModel {
 const sameModel = (a: SmartModel, b: SmartModel) =>
   a.ready === b.ready && a.downloading === b.downloading && a.percent === b.percent && a.problem === b.problem;
 
-/** Whether the search offers "Search photos for …" (and Enter takes it):
- *  on, with the model there. */
+/** Whether Smart search can answer "Search photos for …": on, with the
+ *  model there. */
 export const offersSmartSearch = (isOn: boolean | null, m: SmartModel) => isOn === true && m.ready;
+
+/** Whether the search offers "Search photos for …" (and Enter takes it):
+ *  Smart search can answer it, or Text in photos is on (release 180: the
+ *  device answers the photos whose text holds the words, alone while Smart
+ *  search can't). textOn null (not known yet) or false (off, or a device
+ *  before it): as Smart search alone. */
+export const offersSearchText = (isOn: boolean | null, m: SmartModel, textOn: boolean | null) =>
+  offersSmartSearch(isOn, m) || textOn === true;
 
 /** What Settings' section says under its hint:
  *  - ready: nothing (the model is there, or the device doesn't say);
@@ -104,7 +129,8 @@ export function announcement(before: ModelView | null, now: ModelView): Announce
 
 // ---- the store ------------------------------------------------------------------
 
-let on: boolean | null = remembered();
+let on: boolean | null = remembered(cKey);
+let textOn: boolean | null = remembered(cTextKey);
 let model: SmartModel = cModelReady;
 const listeners = new Set<() => void>();
 const subscribe = (l: () => void) => {
@@ -119,42 +145,60 @@ const changed = () => {
  *  known yet. */
 export const getSmartSearchOn = () => on;
 export const useSmartSearchOn = () => useSyncExternalStore(subscribe, getSmartSearchOn);
+/** Text in photos' switch, likewise: true while on; false while off or on
+ *  a device before it; null: not known yet. */
+export const getTextInPhotosOn = () => textOn;
+export const useTextInPhotosOn = () => useSyncExternalStore(subscribe, getTextInPhotosOn);
 export const getSmartSearchModel = () => model;
 export const useSmartSearchModel = () => useSyncExternalStore(subscribe, getSmartSearchModel);
-/** Whether the search offers the description now (offersSmartSearch). */
-export const useSmartSearchOffered = () =>
-  useSyncExternalStore(subscribe, () => offersSmartSearch(on, model));
+/** Whether the search offers the free text now (offersSearchText). */
+export const useSearchTextOffered = () =>
+  useSyncExternalStore(subscribe, () => offersSearchText(on, model, textOn));
 
-function setOn(next: boolean) {
-  try { localStorage.setItem(cKey, next ? "1" : "0"); } catch { /* private mode */ }
-  if (!next) clearText();
-  if (next === on) return;
-  on = next;
-  changed();
+// What the device said, or a change the app made: the parts given, each
+// switch remembered for the next load, all at once (no moment with only
+// one of them). Once neither Smart search nor Text in photos can answer
+// the free text, it goes - not while the other one still does.
+function apply(next: { on?: boolean; textOn?: boolean; model?: SmartModel }) {
+  let moved = false;
+  if (next.on !== undefined) {
+    remember(cKey, next.on);
+    if (next.on !== on) { on = next.on; moved = true; }
+  }
+  if (next.textOn !== undefined) {
+    remember(cTextKey, next.textOn);
+    if (next.textOn !== textOn) { textOn = next.textOn; moved = true; }
+  }
+  if (next.model && !sameModel(next.model, model)) { model = next.model; moved = true; }
+  if (!offersSearchText(on, model, textOn)) clearText();
+  if (moved) changed();
 }
 
 // Bumped by every change made here (a switch the device acknowledged, a
-// search told "smart_search_off"): a Settings answer to a question asked
-// before it is older than what the app knows, and is dropped.
+// search it refused): a Settings answer to a question asked before it is
+// older than what the app knows, and is dropped.
 let changes = 0;
 
 /** A change the device acknowledged (Settings' switch), or a search it
- *  told "smart_search_off". Not on: the free text goes. */
+ *  told "smart_search_off". Off: the free text goes, unless Text in photos
+ *  answers it. */
 export function setSmartSearchOn(next: boolean) {
   changes++;
-  setOn(next);
+  apply({ on: next });
 }
 
-function setModel(next: SmartModel) {
-  if (sameModel(next, model)) return;
-  model = next;
-  changed();
+/** Text in photos' switch as the device acknowledged it (Settings), or off
+ *  for a search whose text it refused (which it answers while Text in
+ *  photos is on). Off: the free text goes, unless Smart search answers
+ *  it. */
+export function setTextInPhotosOn(next: boolean) {
+  changes++;
+  apply({ textOn: next });
 }
 
-/** A Settings answer's switch and model (absent: a device before them). */
+/** A Settings answer's switches and model (absent: a device before them). */
 export function applySmartSearchSettings(s: Settings) {
-  setOn(s.smartSearchEnabled === true);
-  setModel(modelFrom(s.smartSearchModel));
+  apply({ on: s.smartSearchEnabled === true, textOn: s.textInPhotosEnabled === true, model: modelFrom(s.smartSearchModel) });
 }
 
 // A sign-in's answers only: one that comes after a sign-out or another
@@ -248,9 +292,9 @@ export function smartSearchFocused(now = Date.now()): boolean {
 const cRetryFirstMs = 1000;
 const cRetryMaxMs = 30_000;
 
-/** Asks the device while signed in whether Smart search is on: at once,
- *  then again after a failure (1 s doubling to 30 s) until it answers.
- *  Returns the stop. */
+/** Asks the device while signed in whether Smart search (and Text in
+ *  photos) is on: at once, then again after a failure (1 s doubling to
+ *  30 s) until it answers. Returns the stop. */
 export function watchSmartSearch(): () => void {
   const gen = ++generation;
   let timer: ReturnType<typeof setTimeout> | undefined;
