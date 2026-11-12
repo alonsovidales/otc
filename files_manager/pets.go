@@ -42,6 +42,14 @@ import (
 // animal's crop and embedding, sealed as faces are; pet_scans keeps the
 // photos looked at. The two kinds of embeddings never meet: a person's are
 // matched against people's faces (kind 0) alone.
+//
+// The face model takes many dogs' faces for people's (YuNet: on the demo
+// library most photos of its dog made an unnamed "person"), so a dog showed
+// twice in People. A person's face found inside a pet's box and inside no
+// person the pet detector saw is that pet's own: once the pet is filed it is
+// taken off its person as Not this person does (petsOwnFaces) - the row
+// stays, so the photo isn't analysed again. A named person's faces are never
+// touched: who the owner named stays as they named it.
 
 const (
 	// cPetGate: a photo whose vector is at least this close to one of
@@ -246,20 +254,21 @@ func (mg *Manager) processPets(ses *session.Session, file *pb.File, img image.Im
 		return
 	}
 	started := time.Now()
-	pets, err := mg.findPets(img)
+	found, err := mg.findPets(img)
 	if err != nil {
 		log.Debug("pets: could not look at", file.Hash, ":", err)
 		return
 	}
-	mg.filePets(ses, file.Hash, pets)
-	log.Debug("pets:", len(pets), "in", file.Hash, "in", time.Since(started).Round(time.Millisecond))
+	mg.filePets(ses, file.Hash, found)
+	log.Debug("pets:", len(found.Pets), "in", file.Hash, "in", time.Since(started).Round(time.Millisecond))
 }
 
 // filePets stores the pets found in hash, each as the pet it is most like
 // or a new one, and records that hash was looked at - under faceRefsMu, as
 // processFaces stores faces, and only if no other analysis of the same
 // content did meanwhile.
-func (mg *Manager) filePets(ses *session.Session, hash string, pets []petfinder.Pet) {
+func (mg *Manager) filePets(ses *session.Session, hash string, found petfinder.Found) {
+	pets := found.Pets
 	mg.faceRefsMu.Lock()
 	defer mg.faceRefsMu.Unlock()
 	if mg.petScanned(hash) {
@@ -301,8 +310,68 @@ func (mg *Manager) filePets(ses *session.Session, hash string, pets []petfinder.
 				mg.chooseCoverLocked(ses, personID, pr)
 			}
 		}
+		mg.takeOffPetsOwnFacesLocked(hash, found)
 	}
 	mg.markPetScanned(hash)
+}
+
+// takeOffPetsOwnFacesLocked takes off their person the faces of hash the
+// face model found on its pets (petsOwnFaces), each unnamed person's at
+// once, as Not this person does; their references are built again before
+// the next match. The caller holds faceRefsMu.
+func (mg *Manager) takeOffPetsOwnFacesLocked(hash string, found petfinder.Found) {
+	faces, err := mg.dao.UnnamedFacesIn(hash)
+	if err != nil || len(faces) == 0 {
+		if err != nil && !errors.Is(err, dao.ErrSchemaBehind) {
+			log.Error("pets: could not read the faces of", hash, ":", err)
+		}
+		return
+	}
+	for _, personID := range petsOwnFaces(faces, found) {
+		if _, _, err := mg.dao.RemoveFromPerson(personID, []string{hash}, ""); err != nil {
+			log.Error("pets: could not take a pet's face off its person in", hash, ":", err)
+			continue
+		}
+		if mg.faceRefsStale == nil {
+			mg.faceRefsStale = map[string]bool{}
+		}
+		mg.faceRefsStale[personID] = true
+		log.Debug("pets: took a pet's own face off an unnamed person in", hash)
+	}
+	mg.memories.changed()
+}
+
+// petsOwnFaces is the people whose face in a photo is one of its pets':
+// the face's centre inside a pet's box and in no person's box the pet
+// detector saw. Each person once, in the order of faces.
+func petsOwnFaces(faces []dao.PlacedFace, found petfinder.Found) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, f := range faces {
+		c := image.Pt(f.Box.X+f.Box.W/2, f.Box.Y+f.Box.H/2)
+		onPet := false
+		for _, p := range found.Pets {
+			if c.In(image.Rect(p.X, p.Y, p.X+p.W, p.Y+p.H)) {
+				onPet = true
+				break
+			}
+		}
+		if !onPet {
+			continue
+		}
+		onPerson := false
+		for _, r := range found.People {
+			if c.In(r) {
+				onPerson = true
+				break
+			}
+		}
+		if !onPerson && !seen[f.PersonID] {
+			seen[f.PersonID] = true
+			out = append(out, f.PersonID)
+		}
+	}
+	return out
 }
 
 // isSamePet is cPetSame's test.

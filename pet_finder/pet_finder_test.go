@@ -261,3 +261,20 @@ func TestResizeMatchesPillow(t *testing.T) {
 		}
 	}
 }
+
+// The people the detector sees come with the pets, in the photo's pixels
+// and within it; a box that is only a pet's isn't one of them.
+func TestPeopleBoxes(t *testing.T) {
+	classes := 80
+	logits := make([]float32, 2*classes)
+	for i := range logits {
+		logits[i] = -10
+	}
+	logits[0*classes+personClass] = 3 // a person
+	logits[1*classes+dogClass] = 3    // a dog
+	boxes := []float32{0.5, 0.5, 0.5, 1.2, 0.2, 0.2, 0.1, 0.1}
+	got := peopleBoxes(logits, boxes, classes, 100, 50)
+	if len(got) != 1 || got[0] != image.Rect(25, 0, 75, 50) {
+		t.Errorf("peopleBoxes = %v, want [(25,0)-(75,50)]", got)
+	}
+}

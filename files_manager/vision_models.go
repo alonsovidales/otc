@@ -303,7 +303,7 @@ type visionReader interface {
 }
 
 type visionFinder interface {
-	Find(ctx context.Context, img image.Image) ([]petfinder.Pet, error)
+	FindAll(ctx context.Context, img image.Image) (petfinder.Found, error)
 	Close()
 }
 
@@ -368,8 +368,8 @@ func (m *visionModels) ReadText(ctx context.Context, img image.Image) ([]textrea
 	return r.Read(ctx, img)
 }
 
-// FindPets is the pet models' pets in img.
-func (m *visionModels) FindPets(ctx context.Context, img image.Image) ([]petfinder.Pet, error) {
+// FindPets is the pet models' pets in img, and the people they saw.
+func (m *visionModels) FindPets(ctx context.Context, img image.Image) (petfinder.Found, error) {
 	var f visionFinder
 	done, err := m.begin(func() error {
 		if m.finder == nil {
@@ -385,12 +385,12 @@ func (m *visionModels) FindPets(ctx context.Context, img image.Image) ([]petfind
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return petfinder.Found{}, err
 	}
 	defer done()
 	m.run.Lock()
 	defer m.run.Unlock()
-	return f.Find(ctx, img)
+	return f.FindAll(ctx, img)
 }
 
 // releaseIdle releases the models once nothing has used them for idle.
@@ -564,28 +564,31 @@ func (mg *Manager) readText(img image.Image) ([]textreader.Line, error) {
 	return lines, nil
 }
 
-// findPets is the pets in img, by this instance's pet models
-// (errVisionUnavailable without them), img brought down to cPetMaxPixels;
-// their boxes in img's own pixels.
-func (mg *Manager) findPets(img image.Image) ([]petfinder.Pet, error) {
+// findPets is the pets in img and the people around them, by this
+// instance's pet models (errVisionUnavailable without them), img brought
+// down to cPetMaxPixels; their boxes in img's own pixels.
+func (mg *Manager) findPets(img image.Image) (petfinder.Found, error) {
 	v := mg.visionModel()
 	if v == nil {
-		return nil, errVisionUnavailable
+		return petfinder.Found{}, errVisionUnavailable
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), cVisionTimeout)
 	defer cancel()
 	small := shrinkTo(img, cPetMaxPixels)
-	pets, err := v.FindPets(ctx, small)
+	found, err := v.FindPets(ctx, small)
 	if err != nil {
-		return nil, err
+		return petfinder.Found{}, err
 	}
 	if b, s := img.Bounds(), small.Bounds(); s.Dx() != b.Dx() && s.Dx() > 0 {
 		kx, ky := float64(b.Dx())/float64(s.Dx()), float64(b.Dy())/float64(s.Dy())
-		for i := range pets {
-			p := &pets[i]
+		for i := range found.Pets {
+			p := &found.Pets[i]
 			p.X, p.Y = int(float64(p.X)*kx), int(float64(p.Y)*ky)
 			p.W, p.H = int(float64(p.W)*kx), int(float64(p.H)*ky)
 		}
+		for i, r := range found.People {
+			found.People[i] = image.Rect(int(float64(r.Min.X)*kx), int(float64(r.Min.Y)*ky), int(float64(r.Max.X)*kx), int(float64(r.Max.Y)*ky))
+		}
 	}
-	return pets, nil
+	return found, nil
 }

@@ -20,9 +20,12 @@ func (f *fakeVision) ReadText(_ context.Context, img image.Image) ([]textreader.
 	return []textreader.Line{{Text: "GTS-04-R", Score: 0.97, Quad: [8]float32{1, 2, 3, 4, 5, 6, 7, 8}}}, nil
 }
 
-func (f *fakeVision) FindPets(_ context.Context, img image.Image) ([]petfinder.Pet, error) {
+func (f *fakeVision) FindPets(_ context.Context, img image.Image) (petfinder.Found, error) {
 	f.img = img
-	return []petfinder.Pet{{Kind: petfinder.Dog, Score: 0.9, X: 1, Y: 2, W: 30, H: 40, Embedding: []float32{0.6, 0.8}, Thumbnail: []byte{0xff, 0xd8}}}, nil
+	return petfinder.Found{
+		Pets:   []petfinder.Pet{{Kind: petfinder.Dog, Score: 0.9, X: 1, Y: 2, W: 30, H: 40, Embedding: []float32{0.6, 0.8}, Thumbnail: []byte{0xff, 0xd8}}},
+		People: []image.Rectangle{image.Rect(5, 6, 20, 40)},
+	}, nil
 }
 
 // Text in photos and Pets: a child's photo is read and looked at by the
@@ -47,9 +50,13 @@ func TestClientReadsAndFindsWithThePrimarysModels(t *testing.T) {
 	if !ok || got.Rect.Dx() != 64 || got.RGBAAt(9, 4) != (color.RGBA{R: 7, G: 8, B: 9, A: 255}) {
 		t.Error("the model didn't get the child's picture")
 	}
-	pets, err := c.FindPets(context.Background(), img)
+	found, err := c.FindPets(context.Background(), img)
+	pets := found.Pets
 	if err != nil || len(pets) != 1 || pets[0].Kind != petfinder.Dog || pets[0].H != 40 || len(pets[0].Embedding) != 2 || len(pets[0].Thumbnail) != 2 {
-		t.Fatalf("FindPets = %+v %v", pets, err)
+		t.Fatalf("FindPets = %+v %v", found, err)
+	}
+	if len(found.People) != 1 || found.People[0] != image.Rect(5, 6, 20, 40) {
+		t.Errorf("the people seen came back as %v", found.People)
 	}
 }
 

@@ -108,7 +108,7 @@ var ErrNoEmbedder = errors.New("the smart search model is not available") // i18
 // capped it. files_manager's, or Client.
 type Vision interface {
 	ReadText(ctx context.Context, img image.Image) ([]textreader.Line, error)
-	FindPets(ctx context.Context, img image.Image) ([]petfinder.Pet, error)
+	FindPets(ctx context.Context, img image.Image) (petfinder.Found, error)
 }
 
 // ErrNoVision is the answer to reading text or finding pets while the
@@ -229,12 +229,12 @@ type response struct {
 	// EmbedderFetch (info, "embed-fetch") is where the model's download is
 	// while the primary hasn't it; zero from a primary older than that.
 	EmbedderFetch EmbedderState
-	// Lines ("text") and Pets ("pets") are the vision models' answers;
+	// Lines ("text") and Found ("pets") are the vision models' answers;
 	// HasVision (info, "vision-fetch"): the primary has them, and
 	// VisionFetch where their download is while it hasn't. Unset by a
 	// primary older than them.
 	Lines       []textreader.Line
-	Pets        []petfinder.Pet
+	Found       petfinder.Found
 	HasVision   bool
 	VisionFetch EmbedderState
 }
@@ -361,7 +361,7 @@ func serveConn(conn net.Conn, models Models, slots chan struct{}) {
 		if req.Op == "text" {
 			resp.Lines, err = vision.ReadText(context.Background(), img)
 		} else {
-			resp.Pets, err = vision.FindPets(context.Background(), img)
+			resp.Found, err = vision.FindPets(context.Background(), img)
 		}
 		if err != nil {
 			resp.Err = err.Error()
@@ -724,17 +724,17 @@ func (c *Client) ReadText(ctx context.Context, img image.Image) ([]textreader.Li
 	return resp.Lines, nil
 }
 
-// FindPets is the primary's pet models' pets in img: ErrNoVision when the
-// primary hasn't the models.
-func (c *Client) FindPets(ctx context.Context, img image.Image) ([]petfinder.Pet, error) {
+// FindPets is the primary's pet models' pets in img, and the people they
+// saw: ErrNoVision when the primary hasn't the models.
+func (c *Client) FindPets(ctx context.Context, img image.Image) (petfinder.Found, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return petfinder.Found{}, err
 	}
 	resp, err := c.imageCall("pets", rgba(img), imagestagger.RAMOptions{})
 	if err != nil {
-		return nil, err
+		return petfinder.Found{}, err
 	}
-	return resp.Pets, nil
+	return resp.Found, nil
 }
 
 // EmbedResized is the primary's Smart search vector of img, already through

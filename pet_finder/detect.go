@@ -42,6 +42,27 @@ func candidates(logits, boxes []float32, classes, w, h int) []candidate {
 	return out
 }
 
+// peopleBoxes is every box of D-FINE's answer whose person probability is
+// at least minScore, in a w x h photo's pixels, within it, in the
+// detector's order (a person may be there twice: only whether a point is in
+// one counts).
+func peopleBoxes(logits, boxes []float32, classes, w, h int) []image.Rectangle {
+	var out []image.Rectangle
+	for q := 0; q < len(boxes)/4; q++ {
+		if sigmoid(logits[q*classes+personClass]) < minScore {
+			continue
+		}
+		cx, cy, bw, bh := boxes[4*q], boxes[4*q+1], boxes[4*q+2], boxes[4*q+3]
+		fw, fh := float64(w), float64(h)
+		r := image.Rect(int(math.Floor(float64(cx-bw/2)*fw)), int(math.Floor(float64(cy-bh/2)*fh)),
+			int(math.Ceil(float64(cx+bw/2)*fw)), int(math.Ceil(float64(cy+bh/2)*fh))).Intersect(image.Rect(0, 0, w, h))
+		if !r.Empty() {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 func sigmoid(x float32) float32 {
 	return float32(1 / (1 + math.Exp(-float64(x))))
 }

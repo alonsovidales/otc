@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alonsovidales/otc/dao"
 	petfinder "github.com/alonsovidales/otc/pet_finder"
 	textreader "github.com/alonsovidales/otc/text_reader"
 )
@@ -76,8 +77,8 @@ func (f *fakeReader) Close() { *f.closed++ }
 
 type fakeFinder struct{ closed *int }
 
-func (f *fakeFinder) Find(ctx context.Context, img image.Image) ([]petfinder.Pet, error) {
-	return []petfinder.Pet{{Kind: petfinder.Dog, W: 10, H: 10}}, nil
+func (f *fakeFinder) FindAll(ctx context.Context, img image.Image) (petfinder.Found, error) {
+	return petfinder.Found{Pets: []petfinder.Pet{{Kind: petfinder.Dog, W: 10, H: 10}}, People: []image.Rectangle{image.Rect(2, 4, 6, 10)}}, nil
 }
 func (f *fakeFinder) Close() { *f.closed++ }
 
@@ -156,14 +157,43 @@ func TestFindPetsScalesBack(t *testing.T) {
 	mg.setVision(&visionModels{run: &sync.Mutex{}, idle: time.Hour, now: time.Now,
 		loadFinder: func() (visionFinder, error) { return &fakeFinder{closed: &closes}, nil }})
 	big := image.NewNRGBA(image.Rect(0, 0, 4000, 3000)) // 12 MP: halved to 3 MP
-	pets, err := mg.findPets(big)
+	found, err := mg.findPets(big)
+	pets := found.Pets
 	if err != nil || len(pets) != 1 {
-		t.Fatalf("findPets = %v, %v", pets, err)
+		t.Fatalf("findPets = %v, %v", found, err)
 	}
 	if pets[0].W != 20 || pets[0].H != 20 {
 		t.Errorf("box %dx%d, want 20x20 in the photo's pixels", pets[0].W, pets[0].H)
 	}
+	if len(found.People) != 1 || found.People[0] != image.Rect(4, 8, 12, 20) {
+		t.Errorf("the people seen are at %v, want (4,8)-(12,20) in the photo's pixels", found.People)
+	}
 	if _, err := (&Manager{}).findPets(big); !errors.Is(err, errVisionUnavailable) {
 		t.Errorf("without models: %v", err)
+	}
+}
+
+// A person's face on a pet - the face model's on a dog's face - is the
+// pet's own, unless a person the detector saw is there too; each person
+// once.
+func TestPetsOwnFaces(t *testing.T) {
+	face := func(id, person string, x, y, w, h int) dao.PlacedFace {
+		return dao.PlacedFace{ID: id, PersonID: person, Box: dao.FaceBox{X: x, Y: y, W: w, H: h}}
+	}
+	found := petfinder.Found{
+		Pets:   []petfinder.Pet{{Kind: petfinder.Dog, X: 100, Y: 100, W: 400, H: 300}},
+		People: []image.Rectangle{image.Rect(380, 50, 700, 600)},
+	}
+	faces := []dao.PlacedFace{
+		face("f1", "dogface", 150, 120, 60, 60),  // on the dog, no one there
+		face("f2", "kid", 400, 120, 60, 60),      // on the dog, but on the kid hugging it
+		face("f3", "stranger", 800, 100, 50, 50), // nowhere near the dog
+		face("f4", "dogface", 200, 150, 40, 40),  // the same person again
+	}
+	if got := petsOwnFaces(faces, found); len(got) != 1 || got[0] != "dogface" {
+		t.Errorf("petsOwnFaces = %v, want [dogface]", got)
+	}
+	if got := petsOwnFaces(faces, petfinder.Found{}); got != nil {
+		t.Errorf("no pet: %v", got)
 	}
 }

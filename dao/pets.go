@@ -94,6 +94,34 @@ func (dao *Dao) AddPetFace(id, hash, personID string, kind, x, y, w, h int, embe
 	return tx.Commit()
 }
 
+// PlacedFace is a person's face in a photo: its id, whose it is and where.
+type PlacedFace struct {
+	ID, PersonID string
+	Box          FaceBox
+}
+
+// UnnamedFacesIn is the faces the face model found in hash (kind 0) that
+// belong to a person with no name - the faces Pets may take off for being
+// a pet's own (files_manager/pets.go).
+func (dao *Dao) UnnamedFacesIn(hash string) ([]PlacedFace, error) {
+	rows, err := dao.db.Query("select `f`.`id`, `f`.`person_id`, `f`.`bbox_x`, `f`.`bbox_y`, `f`.`bbox_w`, `f`.`bbox_h` from `faces` as `f`"+
+		" join `people` as `p` on `p`.`id` = `f`.`person_id`"+
+		" where `f`.`hash` = ? and `f`.`kind` = 0 and `p`.`name` = '' order by `f`.`id`", hash)
+	if err != nil {
+		return nil, schemaBehind(err)
+	}
+	defer rows.Close()
+	var out []PlacedFace
+	for rows.Next() {
+		var f PlacedFace
+		if err := rows.Scan(&f.ID, &f.PersonID, &f.Box.X, &f.Box.Y, &f.Box.W, &f.Box.H); err != nil {
+			return nil, err
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
+}
+
 // PetEmbedding is a stored pet face's identity, for matching a pet newly
 // found against: FaceEmbedding with its kind.
 type PetEmbedding struct {

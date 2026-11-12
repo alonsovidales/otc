@@ -187,4 +187,15 @@ func TestPetFacesMySQL(t *testing.T) {
 	if theirs, err := d.ListPersonFaceEmbeddings("biscuit"); err != nil || len(theirs) != 0 {
 		t.Errorf("a pet's faces among a person's: %+v %v", theirs, err)
 	}
+	// The faces Pets may take off: a person's (not a pet's), of someone
+	// with no name.
+	if faces, err := d.UnnamedFacesIn("h1"); err != nil || len(faces) != 1 || faces[0].ID != "ff1" || faces[0].PersonID != "alice" || faces[0].Box != (FaceBox{5, 5, 10, 10}) {
+		t.Errorf("UnnamedFacesIn = %+v %v", faces, err)
+	}
+	if err := d.RenamePerson("alice", "Alice"); err != nil {
+		t.Fatal(err)
+	}
+	if faces, err := d.UnnamedFacesIn("h1"); err != nil || len(faces) != 0 {
+		t.Errorf("a named person's faces offered: %+v %v", faces, err)
+	}
 }

@@ -45,7 +45,8 @@ const Model = "dfine-s+dinov2-s-int8"
 
 const (
 	detSize      = 640 // D-FINE's input: detSize x detSize
-	catClass     = 15  // COCO's cat in D-FINE's 80 classes
+	personClass  = 0   // COCO's person in D-FINE's 80 classes
+	catClass     = 15  // its cat
 	dogClass     = 16  // and its dog
 	minScore     = 0.5 // a box is a pet at this probability
 	sameAnimal   = 0.5 // boxes overlapping this much (IoU) are one animal
@@ -82,6 +83,15 @@ type Pet struct {
 	// Thumbnail is a square JPEG of it for People: centred on the box, as
 	// wide as its longer side.
 	Thumbnail []byte
+}
+
+// Found is what Find saw in a photo: its pets, and where the people in it
+// are (the detector's person boxes at minScore, in the photo's pixels from
+// its bounds' top-left corner) - for the device to tell a pet's face from
+// a person's, as the face model takes some animals' faces for people's.
+type Found struct {
+	Pets   []Pet
+	People []image.Rectangle
 }
 
 // Files are the models' files.
@@ -186,16 +196,23 @@ func (f *Finder) Close() {
 // detector sees it at 640x640, each pet is described and shown from it at
 // full size. ctx is checked before each model run.
 func (f *Finder) Find(ctx context.Context, img image.Image) ([]Pet, error) {
+	found, err := f.FindAll(ctx, img)
+	return found.Pets, err
+}
+
+// FindAll is Find with the people the detector saw in img too - only when
+// it found a pet (none: no people either).
+func (f *Finder) FindAll(ctx context.Context, img image.Image) (Found, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return Found{}, err
 	}
 	b := img.Bounds()
 	if b.Dx() < 1 || b.Dy() < 1 {
-		return nil, errors.New("the image is empty") // i18n-ignore: logged only
+		return Found{}, errors.New("the image is empty") // i18n-ignore: logged only
 	}
-	found, err := f.detect(ctx, img)
+	found, people, err := f.detect(ctx, img)
 	if err != nil || len(found) == 0 {
-		return nil, err
+		return Found{}, err
 	}
 	pets := make([]Pet, 0, len(found))
 	for _, c := range found {
@@ -203,38 +220,40 @@ func (f *Finder) Find(ctx context.Context, img image.Image) ([]Pet, error) {
 		p := Pet{Kind: c.kind, Score: c.score, X: x0, Y: y0,
 			W: int(math.Round(c.box[2])) - x0, H: int(math.Round(c.box[3])) - y0}
 		if p.Embedding, err = f.embed(ctx, img, cropBox(c.box, b.Dx(), b.Dy())); err != nil {
-			return nil, err
+			return Found{}, err
 		}
 		if p.Thumbnail, err = thumbnail(img, thumbSquare(p.X, p.Y, p.W, p.H, b.Dx(), b.Dy())); err != nil {
-			return nil, err
+			return Found{}, err
 		}
 		pets = append(pets, p)
 	}
-	return pets, nil
+	return Found{Pets: pets, People: people}, nil
 }
 
-// detect runs D-FINE on img: its pets, the likeliest first.
-func (f *Finder) detect(ctx context.Context, img image.Image) ([]candidate, error) {
+// detect runs D-FINE on img: its pets, the likeliest first, and the
+// people it saw.
+func (f *Finder) detect(ctx context.Context, img image.Image) ([]candidate, []image.Rectangle, error) {
 	b := img.Bounds()
 	x, err := ort.NewTensor(ort.NewShape(1, 3, detSize, detSize), detPixels(resizeRGB(img, b, detSize, detSize, bilinear)))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer x.Destroy()
 	logits, err := ort.NewEmptyTensor[float32](ort.NewShape(1, int64(f.queries), int64(f.classes)))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer logits.Destroy()
 	boxes, err := ort.NewEmptyTensor[float32](ort.NewShape(1, int64(f.queries), 4))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer boxes.Destroy()
 	if err := f.det.run(ctx, []ort.Value{x}, []ort.Value{logits, boxes}); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return choose(candidates(logits.GetData(), boxes.GetData(), f.classes, b.Dx(), b.Dy()), b.Dx(), b.Dy()), nil
+	pets := choose(candidates(logits.GetData(), boxes.GetData(), f.classes, b.Dx(), b.Dy()), b.Dx(), b.Dy())
+	return pets, peopleBoxes(logits.GetData(), boxes.GetData(), f.classes, b.Dx(), b.Dy()), nil
 }
 
 // embed is the DINOv2 vector of img's pixels in r (relative to its
