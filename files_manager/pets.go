@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"image"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -45,16 +46,28 @@ import (
 //
 // The face model takes many dogs' faces for people's (YuNet: on the demo
 // library most photos of its dog made an unnamed "person"), so a dog showed
-// twice in People. A person's face found inside a pet's box and inside no
-// person the pet detector saw is that pet's own: once the pet is filed it is
-// taken off its person as Not this person does (petsOwnFaces) - the row
-// stays, so the photo isn't analysed again. A named person's faces are never
-// touched: who the owner named stays as they named it.
+// twice in People. Once a photo's pets are filed, each person the pet
+// detector saw there is given one of its faces - the faces on no pet
+// first, then the highest in the person (petsOwn) - and a face on a pet
+// that no person was given is that pet's own: taken off its person as Not
+// this person does (petsOwnFaces) - the row stays, so the photo isn't
+// analysed again. The people are there in most photos of a dog (someone
+// holding it, sitting with it, the family around it), so being in a
+// person's box alone isn't being theirs. A named person's faces are never
+// taken off: who the owner named stays as they named it. The faces are
+// all there by then: the slow lane finds a photo's faces before its pets,
+// and a Reprocess forgets both.
 
 const (
 	// cPetGate: a photo whose vector is at least this close to one of
 	// petPrompts' may show a pet.
 	cPetGate = 0.05
+	// cSamePersonIoU: two of the pet detector's person boxes overlapping at
+	// least this much (intersection over union) are one person seen twice,
+	// as it sometimes does: on the demo library a woman holding the dog was
+	// there twice at 0.87, and four people close together overlapped at
+	// 0.42 at most.
+	cSamePersonIoU = 0.7
 	// cPetSame: the least cosine at which two pets' embeddings are the same
 	// pet. Measured on whole-animal crops (D-FINE boxes padded 10%):
 	// Biscuit's photos against each other kept 73% of the pairs, and 12% of
@@ -324,13 +337,14 @@ func (mg *Manager) filePets(ses *session.Session, hash string, found petfinder.F
 // once, as Not this person does; their references are built again before
 // the next match. The caller holds faceRefsMu.
 func (mg *Manager) takeOffPetsOwnFacesLocked(hash string, found petfinder.Found) {
-	faces, err := mg.dao.UnnamedFacesIn(hash)
-	if err != nil || len(faces) == 0 {
-		if err != nil && !errors.Is(err, dao.ErrSchemaBehind) {
+	faces, err := mg.dao.PersonFacesIn(hash)
+	if err != nil {
+		if !errors.Is(err, dao.ErrSchemaBehind) {
 			log.Error("pets: could not read the faces of", hash, ":", err)
 		}
 		return
 	}
+	took := false
 	for _, personID := range petsOwnFaces(faces, found) {
 		if _, _, err := mg.dao.RemoveFromPerson(personID, []string{hash}, ""); err != nil {
 			log.Error("pets: could not take a pet's face off its person in", hash, ":", err)
@@ -340,43 +354,145 @@ func (mg *Manager) takeOffPetsOwnFacesLocked(hash string, found petfinder.Found)
 			mg.faceRefsStale = map[string]bool{}
 		}
 		mg.faceRefsStale[personID] = true
+		took = true
 		log.Debug("pets: took a pet's own face off an unnamed person in", hash)
 	}
-	mg.memories.changed()
+	if took {
+		mg.memories.changed()
+	}
 }
 
-// petsOwnFaces is the people whose face in a photo is one of its pets':
-// the face's centre inside a pet's box and in no person's box the pet
-// detector saw. Each person once, in the order of faces.
+// petsOwnFaces is the unnamed people whose face in a photo is one of its
+// pets' own (petsOwn), of faces - every face the face model found there,
+// anyone's: each once, in the order of faces, and only someone whose every
+// face there is a pet's.
 func petsOwnFaces(faces []dao.PlacedFace, found petfinder.Found) []string {
+	boxes := make([]image.Rectangle, len(faces))
+	for i, f := range faces {
+		boxes[i] = image.Rect(f.Box.X, f.Box.Y, f.Box.X+f.Box.W, f.Box.Y+f.Box.H)
+	}
+	pets := make([]image.Rectangle, len(found.Pets))
+	for i, p := range found.Pets {
+		pets[i] = image.Rect(p.X, p.Y, p.X+p.W, p.Y+p.H)
+	}
+	own := petsOwn(boxes, pets, found.People)
+	keep := map[string]bool{}
+	for i, f := range faces {
+		if !own[i] {
+			keep[f.PersonID] = true
+		}
+	}
 	var out []string
-	seen := map[string]bool{}
-	for _, f := range faces {
-		c := image.Pt(f.Box.X+f.Box.W/2, f.Box.Y+f.Box.H/2)
-		onPet := false
-		for _, p := range found.Pets {
-			if c.In(image.Rect(p.X, p.Y, p.X+p.W, p.Y+p.H)) {
-				onPet = true
-				break
-			}
-		}
-		if !onPet {
-			continue
-		}
-		onPerson := false
-		for _, r := range found.People {
-			if c.In(r) {
-				onPerson = true
-				break
-			}
-		}
-		if !onPerson && !seen[f.PersonID] {
-			seen[f.PersonID] = true
+	for i, f := range faces {
+		if own[i] && f.PersonID != "" && !f.Named && !keep[f.PersonID] {
+			keep[f.PersonID] = true // once
 			out = append(out, f.PersonID)
 		}
 	}
 	return out
 }
+
+// petsOwn is which of a photo's faces (the face model's boxes) are one of
+// its pets' own (pets: their boxes). Each person the pet detector saw
+// there (people, a person seen twice once) is given one face whose centre
+// is in their box: the faces on no pet first, then those on one; the
+// highest in the box first, and of those on a pet the least on it - a
+// person's face against a dog's is mostly off it. A face whose centre is
+// on a pet that no person was given is the pet's own. One that a person
+// whose face the face model missed (turned away) was given stays theirs:
+// there's no telling.
+func petsOwn(faces, pets, people []image.Rectangle) []bool {
+	own := make([]bool, len(faces))
+	if len(faces) == 0 || len(pets) == 0 {
+		return own
+	}
+	people = distinctPeople(people)
+	type claim struct {
+		face, person int
+		onPet        bool
+		cost         float64
+	}
+	var claims []claim
+	onPet := make([]bool, len(faces))
+	for i, f := range faces {
+		c := image.Pt((f.Min.X+f.Max.X)/2, (f.Min.Y+f.Max.Y)/2)
+		on := 0.0
+		for _, p := range pets {
+			if c.In(p) {
+				onPet[i] = true
+			}
+			on = max(on, coverage(f, p))
+		}
+		for j, r := range people {
+			if !c.In(r) {
+				continue
+			}
+			cost := float64(c.Y-r.Min.Y) / float64(r.Dy())
+			if onPet[i] {
+				cost += on
+			}
+			claims = append(claims, claim{i, j, onPet[i], cost})
+		}
+	}
+	sort.SliceStable(claims, func(a, b int) bool {
+		if claims[a].onPet != claims[b].onPet {
+			return !claims[a].onPet
+		}
+		return claims[a].cost < claims[b].cost
+	})
+	given := make([]bool, len(faces))
+	taken := make([]bool, len(people))
+	for _, c := range claims {
+		if !given[c.face] && !taken[c.person] {
+			given[c.face], taken[c.person] = true, true
+		}
+	}
+	for i := range faces {
+		own[i] = onPet[i] && !given[i]
+	}
+	return own
+}
+
+// distinctPeople is people with a person seen twice (two boxes at
+// cSamePersonIoU or more) once, the first box kept.
+func distinctPeople(people []image.Rectangle) []image.Rectangle {
+	var out []image.Rectangle
+	for _, r := range people {
+		if r.Empty() {
+			continue
+		}
+		twice := false
+		for _, o := range out {
+			if overlap(r, o) >= cSamePersonIoU {
+				twice = true
+				break
+			}
+		}
+		if !twice {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// overlap is a and b's intersection over their union.
+func overlap(a, b image.Rectangle) float64 {
+	in := boxArea(a.Intersect(b))
+	if in == 0 {
+		return 0
+	}
+	return in / (boxArea(a) + boxArea(b) - in)
+}
+
+// coverage is how much of f is in p.
+func coverage(f, p image.Rectangle) float64 {
+	if a := boxArea(f); a > 0 {
+		return boxArea(f.Intersect(p)) / a
+	}
+	return 0
+}
+
+func boxArea(r image.Rectangle) float64 { return float64(r.Dx()) * float64(r.Dy()) }
 
 // isSamePet is cPetSame's test.
 func isSamePet(score float32) bool { return score >= cPetSame }

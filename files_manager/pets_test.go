@@ -5,6 +5,7 @@ package filesmanager
 import (
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"sync"
 	"testing"
@@ -174,28 +175,85 @@ func TestFindPetsScalesBack(t *testing.T) {
 	}
 }
 
-// A person's face on a pet - the face model's on a dog's face - is the
-// pet's own, unless a person the detector saw is there too; each person
-// once.
+// A face on a pet - the face model's on a dog's face - is the pet's own
+// unless a person the pet detector saw there is given it: each person one
+// face, the faces on no pet first, then the highest in them. An unnamed
+// person goes once, and only when all their faces there are a pet's.
 func TestPetsOwnFaces(t *testing.T) {
-	face := func(id, person string, x, y, w, h int) dao.PlacedFace {
-		return dao.PlacedFace{ID: id, PersonID: person, Box: dao.FaceBox{X: x, Y: y, W: w, H: h}}
+	face := func(id, person string, named bool, x0, y0, x1, y1 int) dao.PlacedFace {
+		return dao.PlacedFace{ID: id, PersonID: person, Named: named, Box: dao.FaceBox{X: x0, Y: y0, W: x1 - x0, H: y1 - y0}}
 	}
-	found := petfinder.Found{
-		Pets:   []petfinder.Pet{{Kind: petfinder.Dog, X: 100, Y: 100, W: 400, H: 300}},
-		People: []image.Rectangle{image.Rect(380, 50, 700, 600)},
+	dog := func(x0, y0, x1, y1 int) []petfinder.Pet {
+		return []petfinder.Pet{{Kind: petfinder.Dog, X: x0, Y: y0, W: x1 - x0, H: y1 - y0}}
 	}
-	faces := []dao.PlacedFace{
-		face("f1", "dogface", 150, 120, 60, 60),  // on the dog, no one there
-		face("f2", "kid", 400, 120, 60, 60),      // on the dog, but on the kid hugging it
-		face("f3", "stranger", 800, 100, 50, 50), // nowhere near the dog
-		face("f4", "dogface", 200, 150, 40, 40),  // the same person again
-	}
-	if got := petsOwnFaces(faces, found); len(got) != 1 || got[0] != "dogface" {
-		t.Errorf("petsOwnFaces = %v, want [dogface]", got)
-	}
-	if got := petsOwnFaces(faces, petfinder.Found{}); got != nil {
-		t.Errorf("no pet: %v", got)
+	for _, c := range []struct {
+		what  string
+		faces []dao.PlacedFace
+		found petfinder.Found
+		want  []string
+	}{
+		// Three of the demo library's photos, as the models saw them.
+		{
+			"held by someone the detector saw twice",
+			[]dao.PlacedFace{face("f1", "dogface", false, 1104, 980, 1489, 1471), face("f2", "mum", true, 1499, 357, 1795, 717)},
+			petfinder.Found{Pets: dog(328, 717, 1594, 1412), People: []image.Rectangle{image.Rect(417, 205, 1982, 1500), image.Rect(588, 208, 1980, 1529)}},
+			[]string{"dogface"},
+		},
+		{
+			"beside the face of the one holding it",
+			[]dao.PlacedFace{face("f1", "kid", false, 1037, 664, 1216, 895), face("f2", "dogface", false, 1222, 670, 1414, 909)},
+			petfinder.Found{Pets: dog(1182, 657, 2084, 1564), People: []image.Rectangle{image.Rect(769, 597, 1407, 1612)}},
+			[]string{"dogface"},
+		},
+		{
+			"four people and the dog",
+			[]dao.PlacedFace{
+				face("a", "p1", false, 855, 296, 1060, 580), face("b", "p2", false, 890, 993, 1089, 1235), face("c", "p3", false, 1365, 708, 1556, 948),
+				face("d", "p4", false, 1440, 193, 1655, 518), face("e", "dogface", false, 1887, 967, 2114, 1276)},
+			petfinder.Found{Pets: dog(1774, 978, 2268, 1780), People: []image.Rectangle{
+				image.Rect(499, 207, 1226, 1777), image.Rect(1146, 553, 1851, 1781), image.Rect(657, 891, 1298, 1778), image.Rect(1179, 73, 2038, 1239)}},
+			[]string{"dogface"},
+		},
+		{
+			"a kid cheek to cheek with the dog, its face a little higher: the kid keeps theirs",
+			[]dao.PlacedFace{face("f1", "kid", false, 420, 120, 480, 180), face("f2", "dogface", false, 300, 100, 360, 160)},
+			petfinder.Found{Pets: dog(250, 100, 460, 400), People: []image.Rectangle{image.Rect(300, 80, 700, 600)}},
+			[]string{"dogface"},
+		},
+		{
+			"held by someone turned away: no telling, kept",
+			[]dao.PlacedFace{face("f1", "dogface", false, 150, 120, 210, 180)},
+			petfinder.Found{Pets: dog(100, 100, 500, 400), People: []image.Rectangle{image.Rect(80, 50, 600, 700)}},
+			nil,
+		},
+		{
+			"named by the owner: kept",
+			[]dao.PlacedFace{face("f1", "biscuit", true, 150, 120, 210, 180)},
+			petfinder.Found{Pets: dog(100, 100, 500, 400)},
+			nil,
+		},
+		{
+			"someone with another face there, on no pet: kept",
+			[]dao.PlacedFace{face("f1", "mixed", false, 150, 120, 210, 180), face("f2", "mixed", false, 800, 100, 850, 150)},
+			petfinder.Found{Pets: dog(100, 100, 500, 400)},
+			nil,
+		},
+		{
+			"each person once, and no one's face is no one to take off",
+			[]dao.PlacedFace{face("f1", "dogface", false, 150, 120, 210, 180), face("f2", "dogface", false, 200, 150, 240, 190), face("f3", "", false, 300, 200, 340, 240)},
+			petfinder.Found{Pets: dog(100, 100, 500, 400)},
+			[]string{"dogface"},
+		},
+		{
+			"no pet",
+			[]dao.PlacedFace{face("f1", "someone", false, 150, 120, 210, 180)},
+			petfinder.Found{People: []image.Rectangle{image.Rect(80, 50, 600, 700)}},
+			nil,
+		},
+	} {
+		if got := petsOwnFaces(c.faces, c.found); fmt.Sprint(got) != fmt.Sprint(c.want) {
+			t.Errorf("%s: petsOwnFaces = %v, want %v", c.what, got, c.want)
+		}
 	}
 }
 

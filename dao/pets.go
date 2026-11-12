@@ -94,19 +94,22 @@ func (dao *Dao) AddPetFace(id, hash, personID string, kind, x, y, w, h int, embe
 	return tx.Commit()
 }
 
-// PlacedFace is a person's face in a photo: its id, whose it is and where.
+// PlacedFace is a face the face model found in a photo: its id, whose it
+// is (PersonID "": no one's), whether that person has a name, and where.
 type PlacedFace struct {
 	ID, PersonID string
+	Named        bool
 	Box          FaceBox
 }
 
-// UnnamedFacesIn is the faces the face model found in hash (kind 0) that
-// belong to a person with no name - the faces Pets may take off for being
-// a pet's own (files_manager/pets.go).
-func (dao *Dao) UnnamedFacesIn(hash string) ([]PlacedFace, error) {
-	rows, err := dao.db.Query("select `f`.`id`, `f`.`person_id`, `f`.`bbox_x`, `f`.`bbox_y`, `f`.`bbox_w`, `f`.`bbox_h` from `faces` as `f`"+
-		" join `people` as `p` on `p`.`id` = `f`.`person_id`"+
-		" where `f`.`hash` = ? and `f`.`kind` = 0 and `p`.`name` = '' order by `f`.`id`", hash)
+// PersonFacesIn is the faces the face model found in hash (kind 0),
+// whoever's they are: Pets gives the people its detector saw there one
+// each, and takes off its unnamed person a face that is a pet's own
+// (files_manager/pets.go).
+func (dao *Dao) PersonFacesIn(hash string) ([]PlacedFace, error) {
+	rows, err := dao.db.Query("select `f`.`id`, `f`.`person_id`, coalesce(`p`.`name`, '') <> '', `f`.`bbox_x`, `f`.`bbox_y`, `f`.`bbox_w`, `f`.`bbox_h` from `faces` as `f`"+
+		" left join `people` as `p` on `p`.`id` = `f`.`person_id`"+
+		" where `f`.`hash` = ? and `f`.`kind` = 0 order by `f`.`id`", hash)
 	if err != nil {
 		return nil, schemaBehind(err)
 	}
@@ -114,7 +117,7 @@ func (dao *Dao) UnnamedFacesIn(hash string) ([]PlacedFace, error) {
 	var out []PlacedFace
 	for rows.Next() {
 		var f PlacedFace
-		if err := rows.Scan(&f.ID, &f.PersonID, &f.Box.X, &f.Box.Y, &f.Box.W, &f.Box.H); err != nil {
+		if err := rows.Scan(&f.ID, &f.PersonID, &f.Named, &f.Box.X, &f.Box.Y, &f.Box.W, &f.Box.H); err != nil {
 			return nil, err
 		}
 		out = append(out, f)

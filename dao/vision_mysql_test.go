@@ -187,15 +187,20 @@ func TestPetFacesMySQL(t *testing.T) {
 	if theirs, err := d.ListPersonFaceEmbeddings("biscuit"); err != nil || len(theirs) != 0 {
 		t.Errorf("a pet's faces among a person's: %+v %v", theirs, err)
 	}
-	// The faces Pets may take off: a person's (not a pet's), of someone
-	// with no name.
-	if faces, err := d.UnnamedFacesIn("h1"); err != nil || len(faces) != 1 || faces[0].ID != "ff1" || faces[0].PersonID != "alice" || faces[0].Box != (FaceBox{5, 5, 10, 10}) {
-		t.Errorf("UnnamedFacesIn = %+v %v", faces, err)
+	// The faces Pets weighs: a person's (not a pet's), whoever's - no
+	// one's too - and whether they have a name.
+	if err := d.AddFace("ff2", "h1", "", 50, 5, 10, 10, []byte("fe"), []byte("ft"), 0.5); err != nil {
+		t.Fatal(err)
+	}
+	faces, err := d.PersonFacesIn("h1")
+	if err != nil || len(faces) != 2 || faces[0].ID != "ff1" || faces[0].PersonID != "alice" || faces[0].Named || faces[0].Box != (FaceBox{5, 5, 10, 10}) ||
+		faces[1].ID != "ff2" || faces[1].PersonID != "" || faces[1].Named {
+		t.Errorf("PersonFacesIn = %+v %v", faces, err)
 	}
 	if err := d.RenamePerson("alice", "Alice"); err != nil {
 		t.Fatal(err)
 	}
-	if faces, err := d.UnnamedFacesIn("h1"); err != nil || len(faces) != 0 {
-		t.Errorf("a named person's faces offered: %+v %v", faces, err)
+	if faces, err := d.PersonFacesIn("h1"); err != nil || len(faces) != 2 || !faces[0].Named || faces[1].Named {
+		t.Errorf("once Alice is named: %+v %v", faces, err)
 	}
 }
