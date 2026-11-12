@@ -1718,6 +1718,15 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 		ex, err = mg.readExif(session, file, mg.shownWholeLimit())
 	}
 	if err != nil {
+		// Text in photos: a photo whose metadata can't be read - a
+		// screenshot or a picture saved from the web has none - still has
+		// its text, which Info shows with no camera details.
+		if strings.HasPrefix(file.Mime, "image") {
+			if text := mg.PhotoText(session, file.Hash); text != "" {
+				log.Debug("no metadata in", path, "- answering its text:", err)
+				return &pb.FileExifInfo{Text: text}, nil
+			}
+		}
 		return nil, err
 	}
 
