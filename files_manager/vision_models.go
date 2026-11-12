@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
@@ -20,6 +21,7 @@ import (
 	"github.com/alonsovidales/otc/modelfetch"
 	"github.com/alonsovidales/otc/modelserver"
 	petfinder "github.com/alonsovidales/otc/pet_finder"
+	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/supervisor"
 	textreader "github.com/alonsovidales/otc/text_reader"
 )
@@ -466,6 +468,60 @@ func (mg *Manager) adoptVision() {
 	if mg.visionLocal != nil && mg.visionLocal.ready() {
 		mg.setVision(mg.visionLocal.models())
 		log.Info("text and pets: their models are here")
+		mg.visionArrived()
+	}
+}
+
+// visionWait is the photos the slow lane analysed while the vision models
+// weren't here yet (a new device downloading them, a user's instance whose
+// primary hasn't them): pending says there are some, and ses is the latest
+// signed-in session to read them with - the background pass, which lists
+// what has no text or pet scan, does it once the models arrive
+// (visionArrived) or at the next sign-in (VisionSignedIn). A session from
+// before a password change isn't used (gen).
+type visionWait struct {
+	mu      sync.Mutex
+	ses     *session.Session
+	gen     uint64
+	pending atomic.Bool
+}
+
+// holdForVision keeps ses for the photos left for the models.
+func (mg *Manager) holdForVision(ses *session.Session) {
+	if mg == nil || ses == nil {
+		return
+	}
+	w := &mg.visionHold
+	w.mu.Lock()
+	w.ses, w.gen = ses, session.PasswordGeneration()
+	w.mu.Unlock()
+}
+
+// leftForVision notes a photo analysed without the models.
+func (mg *Manager) leftForVision() { mg.visionHold.pending.Store(true) }
+
+// visionArrived starts the background pass for the photos left for the
+// models, with the session held for them.
+func (mg *Manager) visionArrived() {
+	w := &mg.visionHold
+	w.mu.Lock()
+	ses, gen := w.ses, w.gen
+	w.mu.Unlock()
+	if ses == nil || gen != session.PasswordGeneration() || !w.pending.CompareAndSwap(true, false) {
+		return
+	}
+	visionBackfill(mg, ses)
+}
+
+// VisionSignedIn is told of every sign-in: ses is kept for the photos left
+// for the models, read now when the models are here.
+func (mg *Manager) VisionSignedIn(ses *session.Session) {
+	if mg == nil || ses == nil || mg.visionSrc == nil {
+		return
+	}
+	mg.holdForVision(ses)
+	if mg.visionModel() != nil {
+		mg.visionArrived()
 	}
 }
 
@@ -517,6 +573,7 @@ func (mg *Manager) watchVision() {
 		if st := mg.visionSrc.want(true); st.ready {
 			mg.setVision(mg.visionSrc.models())
 			log.Info("text and pets: their models are here")
+			mg.visionArrived()
 			return
 		}
 	}

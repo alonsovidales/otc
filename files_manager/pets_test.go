@@ -12,6 +12,7 @@ import (
 
 	"github.com/alonsovidales/otc/dao"
 	petfinder "github.com/alonsovidales/otc/pet_finder"
+	"github.com/alonsovidales/otc/session"
 	textreader "github.com/alonsovidales/otc/text_reader"
 )
 
@@ -195,5 +196,31 @@ func TestPetsOwnFaces(t *testing.T) {
 	}
 	if got := petsOwnFaces(faces, petfinder.Found{}); got != nil {
 		t.Errorf("no pet: %v", got)
+	}
+}
+
+// Photos the slow lane analysed before the models came are read once they
+// arrive, with the session held for them - once.
+func TestVisionLeftForTheModels(t *testing.T) {
+	var started []*session.Session
+	old := visionBackfill
+	visionBackfill = func(mg *Manager, ses *session.Session) { started = append(started, ses) }
+	defer func() { visionBackfill = old }()
+	mg := &Manager{}
+	ses := faceTestSession(t)
+	mg.visionArrived() // nothing held, nothing left
+	mg.holdForVision(ses)
+	mg.visionArrived() // nothing left
+	if len(started) != 0 {
+		t.Fatalf("started with nothing left: %d", len(started))
+	}
+	mg.leftForVision()
+	mg.visionArrived()
+	if len(started) != 1 || started[0] != ses {
+		t.Fatalf("started %d time(s), want once with the session held", len(started))
+	}
+	mg.visionArrived()
+	if len(started) != 1 {
+		t.Errorf("started again with nothing left: %d", len(started))
 	}
 }

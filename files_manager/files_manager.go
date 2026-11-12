@@ -168,6 +168,7 @@ type Manager struct {
 	// until built, under faceRefsMu); visionBackfillMu, one background pass
 	// at a time (vision_backfill.go).
 	vision           atomic.Pointer[visionBox]
+	visionHold       visionWait
 	visionSrc        visionSource
 	visionLocal      *localVision
 	watchVisionOnce  sync.Once

@@ -240,7 +240,11 @@ func (mg *Manager) markPetScanned(hash string) {
 // the caller has it (nil: the one kept, if any). Looked at once per
 // content.
 func (mg *Manager) processPets(ses *session.Session, file *pb.File, img image.Image, vec []float32) {
-	if ses == nil || img == nil || !strings.HasPrefix(file.Mime, "image") || !mg.PetsEnabled() || mg.visionModel() == nil {
+	if ses == nil || img == nil || !strings.HasPrefix(file.Mime, "image") || !mg.PetsEnabled() {
+		return
+	}
+	if mg.visionModel() == nil {
+		mg.leftForVision()
 		return
 	}
 	if mg.petScanned(file.Hash) {

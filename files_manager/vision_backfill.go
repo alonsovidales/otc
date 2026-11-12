@@ -27,8 +27,12 @@ const (
 )
 
 // visionBackfill runs BackfillVision with ses in the background; tests
-// replace it.
-var visionBackfill = func(mg *Manager, ses *session.Session) { go mg.BackfillVision(ses) }
+// replace it. Set in init: BackfillVision leads back to it (visionArrived).
+var visionBackfill func(mg *Manager, ses *session.Session)
+
+func init() {
+	visionBackfill = func(mg *Manager, ses *session.Session) { go mg.BackfillVision(ses) }
+}
 
 // BackfillVision reads the text of the photos the device held before Text
 // in photos was on, and looks for pets in them while Pets is on - once, in
@@ -50,6 +54,9 @@ func (mg *Manager) BackfillVision(ses *session.Session) {
 	if mg == nil || mg.dao == nil || ses == nil || !cfg.HasSection("otc") {
 		return
 	}
+	// Kept for the photos the slow lane may analyse before the models are
+	// here (visionArrived).
+	mg.holdForVision(ses)
 	if !mg.visionBackfillMu.TryLock() {
 		return
 	}

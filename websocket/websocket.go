@@ -320,8 +320,9 @@ func (mg *Manager) startBackfillOnce(ses *session.Session) {
 	})
 	// Smart search: what its model's download left for a sign-in - every
 	// sign-in, not only the first (smart_model.go) - never holding up the
-	// answer.
+	// answer. The same for Text in photos and Pets (vision_models.go).
 	go mg.filesManager.SmartSearchSignedIn(ses)
+	go mg.filesManager.VisionSignedIn(ses)
 }
 
 // Media is read by api's /media/{token} handler.

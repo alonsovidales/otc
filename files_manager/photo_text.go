@@ -220,7 +220,11 @@ func joinLines(lines []storedLine) string {
 // second pass of the same content leaves it. A failure leaves no row: the
 // next start's background pass reads it.
 func (mg *Manager) storeText(ses *session.Session, file *pb.File, img image.Image) {
-	if ses == nil || img == nil || !strings.HasPrefix(file.Mime, "image") || !mg.TextInPhotosEnabled() || mg.visionModel() == nil {
+	if ses == nil || img == nil || !strings.HasPrefix(file.Mime, "image") || !mg.TextInPhotosEnabled() {
+		return
+	}
+	if mg.visionModel() == nil {
+		mg.leftForVision()
 		return
 	}
 	if _, read, err := mg.dao.PhotoText(file.Hash, textreader.Model); err != nil || read {
