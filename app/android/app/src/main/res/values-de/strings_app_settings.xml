@@ -112,6 +112,8 @@
     <string name="app_settings_password_new">Neues Passwort</string>
     <string name="app_settings_password_no_key">Der öffentliche Schlüssel der Verbindung konnte nicht abgerufen werden</string>
     <string name="app_settings_password_title">Passwort ändern</string>
+    <string name="app_settings_pets_footer">Dein Gerät findet deine Hunde und Katzen in deinen Fotos und zeigt jedes Tier unter Personen, damit du ihm einen Namen geben und seine Fotos finden kannst wie die von Menschen. Es macht das selbst, und nichts verlässt das Gerät.</string>
+    <string name="app_settings_pets_toggle">Haustiere</string>
     <string name="app_settings_picker_all">Alle Fotos</string>
     <string name="app_settings_picker_title">Foto auswählen</string>
     <string name="app_settings_places_footer">Zeigt deine Fotos und Videos auf einer Karte, dort, wo sie aufgenommen wurden. Solange es eingeschaltet ist, liest das Gerät aus den Standortdaten, wo jedes aufgenommen wurde, und speichert diese Standorte unverschlüsselt, damit sich die Karte schnell öffnet. Beim Ausschalten werden sie gelöscht. Die Karte selbst kommt von einem Kartendienst, der den Bereich sieht, den du dir ansiehst, aber nie deine Fotos.</string>
@@ -223,6 +225,11 @@
     <string name="app_settings_tailscale_suits">Es eignet sich für ein Gerät, das du rein als dein eigenes privates NAS nutzen möchtest – deine Dateien und Fotos, von überall erreichbar, nichts mit anderen geteilt.</string>
     <string name="app_settings_tailscale_turn_off">Funnel ausschalten</string>
     <string name="app_settings_tailscale_working">Wird ausgeführt…</string>
+    <string name="app_settings_text_photos_footer">Dein Gerät liest den Text in deinen Fotos (Schilder, Dokumente, Screenshots), damit du danach suchen und ihn kopieren kannst. Es macht das selbst und speichert den Text verschlüsselt. Wenn du es ausschaltest, wird gelöscht, was es gelesen hat.</string>
+    <string name="app_settings_text_photos_off_confirm">Ausschalten</string>
+    <string name="app_settings_text_photos_off_text">Dein Gerät löscht den Text, den es in deinen Fotos gelesen hat. Schaltest du es wieder ein, muss es alle erneut lesen, und das dauert eine Weile.</string>
+    <string name="app_settings_text_photos_off_title">Text in Fotos ausschalten?</string>
+    <string name="app_settings_text_photos_title">Text in Fotos</string>
     <string name="app_settings_thumbs_clear">Miniaturen-Cache leeren</string>
     <string name="app_settings_thumbs_footer">Miniaturen werden auf diesem Handy gespeichert, damit „Bilder“ sie beim Öffnen nicht erneut herunterladen muss.</string>
     <string name="app_settings_thumbs_max_size">Maximale Größe</string>

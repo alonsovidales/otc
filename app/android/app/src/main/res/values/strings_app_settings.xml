@@ -111,6 +111,8 @@
     <string name="app_settings_password_new">New password</string>
     <string name="app_settings_password_no_key">Could not fetch the connection\'s public key</string>
     <string name="app_settings_password_title">Change Password</string>
+    <string name="app_settings_pets_footer">Your device finds your dogs and cats in your photos and shows each one in People, so you can name them and find their photos as you do people\'s. It does this itself, and nothing leaves it.</string>
+    <string name="app_settings_pets_toggle">Pets</string>
     <string name="app_settings_picker_all">All photos</string>
     <string name="app_settings_picker_title">Choose a photo</string>
     <string name="app_settings_places_footer">Show your photos and videos on a map, at the places they were taken. While it is on, the device reads where each one was taken from its location data and keeps those locations unencrypted, so the map opens quickly. Turning it off deletes them. The map itself comes from a map service, which sees the area you look at but never your photos.</string>
@@ -222,6 +224,11 @@
     <string name="app_settings_tailscale_suits">It suits a device you want purely as your own private NAS — your files and photos, reachable from anywhere, nothing shared with anyone.</string>
     <string name="app_settings_tailscale_turn_off">Turn Funnel off</string>
     <string name="app_settings_tailscale_working">Working…</string>
+    <string name="app_settings_text_photos_footer">Your device reads the text in your photos (signs, documents, screenshots) so you can search for it and copy it. It does this itself and keeps the text encrypted. Turning it off deletes what it read.</string>
+    <string name="app_settings_text_photos_off_confirm">Turn Off</string>
+    <string name="app_settings_text_photos_off_text">Your device deletes the text it read in your photos. Turned on again, it has to read all of them again, which takes a while.</string>
+    <string name="app_settings_text_photos_off_title">Turn off Text in photos?</string>
+    <string name="app_settings_text_photos_title">Text in photos</string>
     <string name="app_settings_thumbs_clear">Clear thumbnail cache</string>
     <string name="app_settings_thumbs_footer">Thumbnails are kept on this phone so Images opens without downloading them again.</string>
     <string name="app_settings_thumbs_max_size">Maximum size</string>

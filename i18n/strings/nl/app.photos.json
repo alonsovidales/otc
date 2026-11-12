@@ -1416,6 +1416,18 @@
     "text": "Opslaan…",
     "en": "Saving…"
   },
+  "app.photos.viewer.text_copied": {
+    "text": "Gekopieerd",
+    "en": "Copied"
+  },
+  "app.photos.viewer.text_copy": {
+    "text": "Kopiëren",
+    "en": "Copy"
+  },
+  "app.photos.viewer.text_title": {
+    "text": "Tekst in deze foto",
+    "en": "Text in this photo"
+  },
   "app.photos.wallpaper.empty": {
     "text": "Deze collectie heeft geen foto’s om te tonen.",
     "en": "This collection has no photos to show."

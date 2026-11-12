@@ -958,6 +958,12 @@ message SearchPhotos {
   // "smart_search_unavailable". Devices before Smart search ignore it and
   // answer the whole library, so never send it to one whose Settings lack
   // smart_search_enabled. "" (or only spaces) is no text.
+  // Text in photos (release 180, Settings.text_in_photos_enabled): while it
+  // is on, the photos whose text holds the words come first - the whole
+  // words before a part of one ("04-R" finds GTS-04-R), case and accents
+  // aside - then Smart search's. With Text in photos on and Smart search
+  // off (or its model not there yet) the answer is those photos alone, so
+  // the apps offer the text while either can answer it.
   string text = 13;
   // Rating (release 163), only with group_id naming a collection whose
   // Rating is on (ImageGroup.rating; ignored otherwise): only the photos
@@ -1930,6 +1936,29 @@ message Settings {
   // more memory and makes photos slower to process. Unset elsewhere and on
   // older devices.
   optional bool image_tagging_heavy = 13;
+  // Text in photos (release 180): on unless the user turns it off
+  // (SetTextInPhotosEnabled), for their own library. While it is on the
+  // device reads the text in each photo - signs, documents, screenshots,
+  // number plates - with a text model of its own, from the photo itself,
+  // and keeps it encrypted with the user's key: SearchPhotos.text finds
+  // photos by it, and Info shows it (FileExifInfo.text). Turning it off
+  // deletes all of it. The photos the device held before are read in the
+  // background (Status.background_tasks, kind "text"). Always set by
+  // devices that have it; absent means the device predates it, and the
+  // apps show neither the switch nor the text.
+  optional bool text_in_photos_enabled = 14;
+  // Pets (release 180): on unless the user turns it off (SetPetsEnabled),
+  // for their own library. While it is on the device finds the dogs and
+  // cats in the photos and tells them apart as it tells people apart by
+  // their faces: each pet is a person in People (ListPeople), its face a
+  // PhotoFace like anyone's - named, merged, taken off a photo (Not this
+  // person), added to a photo or video by hand, searched by name and
+  // remembered in On this day as people are. The photos the device held
+  // before are looked at in the background (Status.background_tasks, kind
+  // "pets"). Off, no more pets are found; those found stay in People until
+  // deleted there. Always set by devices that have it; absent means the
+  // device predates it, and the apps show no switch.
+  optional bool pets_enabled = 15;
 }
 
 // Where Smart search's model is (Settings.smart_search_model). Neither ready
@@ -2182,6 +2211,27 @@ message SetSmartSearchEnabled {
   bool enabled = 1;
 }
 
+// Text in photos' switch (Settings.text_in_photos_enabled), for the user's
+// own library. On: the device reads the text of the photos it holds in the
+// background, with this session's key, once its text model is there (the
+// device downloads it by itself while Text in photos or Pets is on); off:
+// every text it read is deleted before the answer. Answers with the
+// generic Ack. A demo device refuses it, and devices before it answer
+// error_code "unknown_payload".
+message SetTextInPhotosEnabled {
+  bool enabled = 1;
+}
+
+// Pets' switch (Settings.pets_enabled), for the user's own library. On:
+// the device looks for pets in the photos it holds in the background, and
+// in every new one; off: it finds no more, and the pets in People stay
+// (deleting one there deletes it). Answers with the generic Ack. A demo
+// device refuses it, and devices before it answer error_code
+// "unknown_payload".
+message SetPetsEnabled {
+  bool enabled = 1;
+}
+
 // SetImageTaggingEnabled (issue #181) turns the tagging model on or off
 // for what is processed from now on. Answers with the generic Ack.
 message SetImageTaggingEnabled {
@@ -2349,7 +2399,9 @@ message PhotoFace {
 
 // The answer to GetPhotoFaces: the faces, left to right, then the people
 // added by hand, in the order they were added; whether face recognition is
-// on (off: no faces, and the apps show none); and the photo's content
+// on (off: no faces, and the apps show none) - since release 180, or Pets
+// (Settings.pets_enabled): a pet's face is one of the faces; and the
+// photo's content
 // hash, for RemoveFromPerson and AddToPerson. adds_people: the device
 // takes AddToPerson for this photo or video, and answers for a video too
 // (its people added by hand); Info then offers Add while face recognition
@@ -2989,6 +3041,11 @@ message FileExifInfo {
   double longitude = 12;
   string city = 13;
   string country = 14;
+  // Text in photos (release 180): the text the device read in the photo, a
+  // line of it a line here, top to bottom; "" when it found none, hasn't
+  // read the photo yet, or Text in photos is off. Info shows it under "Text
+  // in this photo", with Copy. Devices before it never set it.
+  string text = 15;
 }
 
 message GetFileInfo {
@@ -3515,6 +3572,10 @@ message ReqEnvelope {
     GetCompressJob req_get_compress_job = 169;
     // Info's Add: a person put in a photo or video by hand.
     AddToPerson req_add_to_person = 170;
+    // Release 180: Text in photos' and Pets' switches. Both answer with the
+    // generic Ack.
+    SetTextInPhotosEnabled req_set_text_in_photos_enabled = 171;
+    SetPetsEnabled req_set_pets_enabled = 172;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

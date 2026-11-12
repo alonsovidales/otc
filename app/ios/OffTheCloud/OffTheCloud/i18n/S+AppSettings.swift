@@ -512,6 +512,16 @@ extension S {
     /// Heading of the section of Settings where the owner changes the device's password.
     static var appSettingsPasswordTitle: String { L("app.settings.password.title", table: "AppSettings") }
 
+    /// Your device finds your dogs and cats in your photos and shows each one in People, so you can name them and find their photos as you do people's. It does this itself, and nothing leaves it.
+    ///
+    /// Explanation under the Pets switch in Settings > People: what it does. People is the section listing the people found in the photos (use its name): pets are shown there too, named and searched for like people.
+    static var appSettingsPetsFooter: String { L("app.settings.pets.footer", table: "AppSettings") }
+
+    /// Pets
+    ///
+    /// Switch in Settings > People, below Face Recognition: the device finds the dogs and cats in the photos and shows each pet in People like a person. On unless the user turns it off. The feature's name (web.settings.pets.title).
+    static var appSettingsPetsToggle: String { L("app.settings.pets.toggle", table: "AppSettings") }
+
     /// All photos
     ///
     /// First chip at the top of the screen Choose a photo: every photo on the device (the other chips are the user's collections).
@@ -1084,6 +1094,31 @@ extension S {
     ///
     /// The Tailscale Funnel button while the device turns it on or off.
     static var appSettingsTailscaleWorking: String { L("app.settings.tailscale.working", table: "AppSettings") }
+
+    /// Your device reads the text in your photos (signs, documents, screenshots) so you can search for it and copy it. It does this itself and keeps the text encrypted. Turning it off deletes what it read.
+    ///
+    /// Explanation under the Text in photos switch in Settings: what it does and where the work happens (on the user's own device); turning it off deletes the text read.
+    static var appSettingsTextPhotosFooter: String { L("app.settings.text_photos.footer", table: "AppSettings") }
+
+    /// Turn Off
+    ///
+    /// Confirming button of the question asked before turning Text in photos off (app.settings.text_photos.off_title).
+    static var appSettingsTextPhotosOffConfirm: String { L("app.settings.text_photos.off_confirm", table: "AppSettings") }
+
+    /// Your device deletes the text it read in your photos. Turned on again, it has to read all of them again, which takes a while.
+    ///
+    /// Text of the question asked before turning Text in photos off (app.settings.text_photos.off_title).
+    static var appSettingsTextPhotosOffText: String { L("app.settings.text_photos.off_text", table: "AppSettings") }
+
+    /// Turn off Text in photos?
+    ///
+    /// Title of the question asked before turning Text in photos off in Settings (it deletes the text the device read in the photos).
+    static var appSettingsTextPhotosOffTitle: String { L("app.settings.text_photos.off_title", table: "AppSettings") }
+
+    /// Text in photos
+    ///
+    /// Heading of the section of Settings holding the Text in photos switch, and the switch's own label: the device reads the text in photos (signs, documents, screenshots) so they can be searched for by it, and shows it in a photo's Info. The feature's name, as the device calls it (web.settings.text_photos.title).
+    static var appSettingsTextPhotosTitle: String { L("app.settings.text_photos.title", table: "AppSettings") }
 
     /// Clear thumbnail cache
     ///

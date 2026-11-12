@@ -434,6 +434,14 @@
     "en": "Change Password",
     "reviewed": "claude-backtranslation 2026-10-11 #3e3b02ee"
   },
+  "app.settings.pets.footer": {
+    "text": "Dein Gerät findet deine Hunde und Katzen in deinen Fotos und zeigt jedes Tier unter Personen, damit du ihm einen Namen geben und seine Fotos finden kannst wie die von Menschen. Es macht das selbst, und nichts verlässt das Gerät.",
+    "en": "Your device finds your dogs and cats in your photos and shows each one in People, so you can name them and find their photos as you do people's. It does this itself, and nothing leaves it."
+  },
+  "app.settings.pets.toggle": {
+    "text": "Haustiere",
+    "en": "Pets"
+  },
   "app.settings.picker.all": {
     "text": "Alle Fotos",
     "en": "All photos"
@@ -879,6 +887,26 @@
   "app.settings.tailscale.working": {
     "text": "Wird ausgeführt…",
     "en": "Working…"
+  },
+  "app.settings.text_photos.footer": {
+    "text": "Dein Gerät liest den Text in deinen Fotos (Schilder, Dokumente, Screenshots), damit du danach suchen und ihn kopieren kannst. Es macht das selbst und speichert den Text verschlüsselt. Wenn du es ausschaltest, wird gelöscht, was es gelesen hat.",
+    "en": "Your device reads the text in your photos (signs, documents, screenshots) so you can search for it and copy it. It does this itself and keeps the text encrypted. Turning it off deletes what it read."
+  },
+  "app.settings.text_photos.off_confirm": {
+    "text": "Ausschalten",
+    "en": "Turn Off"
+  },
+  "app.settings.text_photos.off_text": {
+    "text": "Dein Gerät löscht den Text, den es in deinen Fotos gelesen hat. Schaltest du es wieder ein, muss es alle erneut lesen, und das dauert eine Weile.",
+    "en": "Your device deletes the text it read in your photos. Turned on again, it has to read all of them again, which takes a while."
+  },
+  "app.settings.text_photos.off_title": {
+    "text": "Text in Fotos ausschalten?",
+    "en": "Turn off Text in photos?"
+  },
+  "app.settings.text_photos.title": {
+    "text": "Text in Fotos",
+    "en": "Text in photos"
   },
   "app.settings.thumbs.clear": {
     "text": "Miniaturen-Cache leeren",

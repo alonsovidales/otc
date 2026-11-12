@@ -543,5 +543,8 @@
   "web.images.viewer.show_map": "Show on map",
   "web.images.viewer.stalled": "This video is taking too long to load.",
   "web.images.viewer.stalled_hint": "Nothing has arrived from your device for a while - it may be busy or hard to reach right now. Trying again usually works.",
-  "web.images.viewer.taken": "Taken"
+  "web.images.viewer.taken": "Taken",
+  "web.images.viewer.text_copied": "Copied",
+  "web.images.viewer.text_copy": "Copy",
+  "web.images.viewer.text_title": "Text in this photo"
 }

@@ -118,6 +118,8 @@
     <string name="app_settings_password_new">Contraseña nueva</string>
     <string name="app_settings_password_no_key">No se ha podido obtener la clave pública de la conexión</string>
     <string name="app_settings_password_title">Cambiar contraseña</string>
+    <string name="app_settings_pets_footer">Tu dispositivo encuentra a tus perros y gatos en tus fotos y muestra cada uno en Personas, para que puedas ponerles nombre y encontrar sus fotos como las de las personas. Lo hace por sí mismo y nada sale de él.</string>
+    <string name="app_settings_pets_toggle">Mascotas</string>
     <string name="app_settings_picker_all">Todas las fotos</string>
     <string name="app_settings_picker_title">Elige una foto</string>
     <string name="app_settings_places_footer">Muestra tus fotos y vídeos en un mapa, en los lugares donde se tomaron. Mientras está activado, el dispositivo lee de sus datos de ubicación dónde se tomó cada uno y guarda esas ubicaciones sin cifrar, para que el mapa se abra rápido. Al desactivarlo, se borran. El mapa en sí viene de un servicio de mapas, que ve la zona que miras, pero nunca tus fotos.</string>
@@ -231,6 +233,11 @@
     <string name="app_settings_tailscale_suits">Es adecuado para un dispositivo que quieres usar solo como tu propio NAS privado: tus archivos y fotos, accesibles desde cualquier lugar, sin compartir nada con nadie.</string>
     <string name="app_settings_tailscale_turn_off">Desactivar Funnel</string>
     <string name="app_settings_tailscale_working">Procesando…</string>
+    <string name="app_settings_text_photos_footer">Tu dispositivo lee el texto de tus fotos (carteles, documentos, capturas de pantalla) para que puedas buscarlo y copiarlo. Lo hace por sí mismo y guarda el texto cifrado. Al desactivarlo, se borra lo que leyó.</string>
+    <string name="app_settings_text_photos_off_confirm">Desactivar</string>
+    <string name="app_settings_text_photos_off_text">Tu dispositivo borra el texto que leyó en tus fotos. Si lo vuelves a activar, tendrá que leerlas todas de nuevo, y eso lleva un rato.</string>
+    <string name="app_settings_text_photos_off_title">¿Desactivar Texto en fotos?</string>
+    <string name="app_settings_text_photos_title">Texto en fotos</string>
     <string name="app_settings_thumbs_clear">Borrar caché de miniaturas</string>
     <string name="app_settings_thumbs_footer">Las miniaturas se guardan en este teléfono para que Imágenes se abra sin volver a descargarlas.</string>
     <string name="app_settings_thumbs_max_size">Tamaño máximo</string>

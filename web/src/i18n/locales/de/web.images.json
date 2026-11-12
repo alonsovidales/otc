@@ -543,5 +543,8 @@
   "web.images.viewer.show_map": "Auf der Karte zeigen",
   "web.images.viewer.stalled": "Dieses Video braucht zu lange zum Laden.",
   "web.images.viewer.stalled_hint": "Von deinem Gerät kommt seit einer Weile nichts an – es ist vielleicht ausgelastet oder gerade schwer erreichbar. Ein neuer Versuch klappt meistens.",
-  "web.images.viewer.taken": "Aufgenommen"
+  "web.images.viewer.taken": "Aufgenommen",
+  "web.images.viewer.text_copied": "Kopiert",
+  "web.images.viewer.text_copy": "Kopieren",
+  "web.images.viewer.text_title": "Text in diesem Foto"
 }

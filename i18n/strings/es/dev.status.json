@@ -15,6 +15,10 @@
     "text": "Eligiendo la mejor cara de cada persona",
     "en": "Choosing the best face for each person"
   },
+  "dev.status.background.pets": {
+    "text": "Buscando mascotas en tus fotos",
+    "en": "Looking for pets in your photos"
+  },
   "dev.status.background.places": {
     "text": "Buscando dónde se tomaron tus fotos",
     "en": "Finding where your photos were taken"
@@ -26,6 +30,10 @@
   "dev.status.background.smart_search": {
     "text": "Conociendo tus fotos",
     "en": "Getting to know your photos"
+  },
+  "dev.status.background.text": {
+    "text": "Leyendo el texto de tus fotos",
+    "en": "Reading the text in your photos"
   },
   "dev.status.background.thumbnails": {
     "text": "Creando miniaturas",

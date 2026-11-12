@@ -118,6 +118,8 @@
     <string name="app_settings_password_new">Nouveau mot de passe</string>
     <string name="app_settings_password_no_key">Impossible d’obtenir la clé publique de la connexion</string>
     <string name="app_settings_password_title">Modifier le mot de passe</string>
+    <string name="app_settings_pets_footer">Votre appareil trouve vos chiens et vos chats dans vos photos et montre chacun dans Personnes, pour que vous puissiez leur donner un nom et retrouver leurs photos comme celles des personnes. Il le fait lui-même, et rien n’en sort.</string>
+    <string name="app_settings_pets_toggle">Animaux de compagnie</string>
     <string name="app_settings_picker_all">Toutes les photos</string>
     <string name="app_settings_picker_title">Choisir une photo</string>
     <string name="app_settings_places_footer">Affiche vos photos et vidéos sur une carte, là où elles ont été prises. Tant qu’il est activé, l’appareil lit dans leurs données de localisation où chacune a été prise et conserve ces positions non chiffrées, pour que la carte s’ouvre vite. Le désactiver les supprime. La carte elle-même vient d’un service de cartographie, qui voit la zone que vous regardez, mais jamais vos photos.</string>
@@ -231,6 +233,11 @@
     <string name="app_settings_tailscale_suits">Convient à un appareil que vous voulez utiliser uniquement comme NAS privé : vos fichiers et photos, joignables de partout, sans rien partager avec personne.</string>
     <string name="app_settings_tailscale_turn_off">Désactiver Funnel</string>
     <string name="app_settings_tailscale_working">En cours…</string>
+    <string name="app_settings_text_photos_footer">Votre appareil lit le texte de vos photos (panneaux, documents, captures d’écran) pour que vous puissiez le rechercher et le copier. Il le fait lui-même et conserve le texte chiffré. Le désactiver supprime ce qu’il a lu.</string>
+    <string name="app_settings_text_photos_off_confirm">Désactiver</string>
+    <string name="app_settings_text_photos_off_text">Votre appareil supprime le texte qu’il a lu dans vos photos. Si vous le réactivez, il devra toutes les relire, ce qui prend un moment.</string>
+    <string name="app_settings_text_photos_off_title">Désactiver Texte dans les photos ?</string>
+    <string name="app_settings_text_photos_title">Texte dans les photos</string>
     <string name="app_settings_thumbs_clear">Vider le cache des vignettes</string>
     <string name="app_settings_thumbs_footer">Les vignettes sont conservées sur ce téléphone pour qu’Images s’ouvre sans les télécharger de nouveau.</string>
     <string name="app_settings_thumbs_max_size">Taille maximale</string>

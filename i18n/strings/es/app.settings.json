@@ -434,6 +434,14 @@
     "en": "Change Password",
     "reviewed": "claude-backtranslation 2026-10-11 #052b8d27"
   },
+  "app.settings.pets.footer": {
+    "text": "Tu dispositivo encuentra a tus perros y gatos en tus fotos y muestra cada uno en Personas, para que puedas ponerles nombre y encontrar sus fotos como las de las personas. Lo hace por sí mismo y nada sale de él.",
+    "en": "Your device finds your dogs and cats in your photos and shows each one in People, so you can name them and find their photos as you do people's. It does this itself, and nothing leaves it."
+  },
+  "app.settings.pets.toggle": {
+    "text": "Mascotas",
+    "en": "Pets"
+  },
   "app.settings.picker.all": {
     "text": "Todas las fotos",
     "en": "All photos"
@@ -879,6 +887,26 @@
   "app.settings.tailscale.working": {
     "text": "Procesando…",
     "en": "Working…"
+  },
+  "app.settings.text_photos.footer": {
+    "text": "Tu dispositivo lee el texto de tus fotos (carteles, documentos, capturas de pantalla) para que puedas buscarlo y copiarlo. Lo hace por sí mismo y guarda el texto cifrado. Al desactivarlo, se borra lo que leyó.",
+    "en": "Your device reads the text in your photos (signs, documents, screenshots) so you can search for it and copy it. It does this itself and keeps the text encrypted. Turning it off deletes what it read."
+  },
+  "app.settings.text_photos.off_confirm": {
+    "text": "Desactivar",
+    "en": "Turn Off"
+  },
+  "app.settings.text_photos.off_text": {
+    "text": "Tu dispositivo borra el texto que leyó en tus fotos. Si lo vuelves a activar, tendrá que leerlas todas de nuevo, y eso lleva un rato.",
+    "en": "Your device deletes the text it read in your photos. Turned on again, it has to read all of them again, which takes a while."
+  },
+  "app.settings.text_photos.off_title": {
+    "text": "¿Desactivar Texto en fotos?",
+    "en": "Turn off Text in photos?"
+  },
+  "app.settings.text_photos.title": {
+    "text": "Texto en fotos",
+    "en": "Text in photos"
   },
   "app.settings.thumbs.clear": {
     "text": "Borrar caché de miniaturas",

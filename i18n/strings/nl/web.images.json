@@ -1813,5 +1813,17 @@
   "web.images.viewer.taken": {
     "text": "Gemaakt op",
     "en": "Taken"
+  },
+  "web.images.viewer.text_copied": {
+    "text": "Gekopieerd",
+    "en": "Copied"
+  },
+  "web.images.viewer.text_copy": {
+    "text": "Kopiëren",
+    "en": "Copy"
+  },
+  "web.images.viewer.text_title": {
+    "text": "Tekst in deze foto",
+    "en": "Text in this photo"
   }
 }

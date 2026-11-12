@@ -374,6 +374,14 @@ fun S.appSettingsPasswordNoKey(): UiText =
 fun S.appSettingsPasswordTitle(): UiText =
     UiText.Res(R.string.app_settings_password_title)
 
+/** "Your device finds your dogs and cats in your photos and shows each one in People, so you can name them and find their photos as you do people's. It does this itself, and nothing leaves it.": Explanation under the Pets switch in Settings > People: what it does. People is the section listing the people found in the photos (use its name): pets are shown there too, named and searched for like people. */
+fun S.appSettingsPetsFooter(): UiText =
+    UiText.Res(R.string.app_settings_pets_footer)
+
+/** "Pets": Switch in Settings > People, below Face Recognition: the device finds the dogs and cats in the photos and shows each pet in People like a person. On unless the user turns it off. The feature's name (web.settings.pets.title). */
+fun S.appSettingsPetsToggle(): UiText =
+    UiText.Res(R.string.app_settings_pets_toggle)
+
 /** "All photos": First chip at the top of the screen Choose a photo: every photo on the device (the other chips are the user's collections). */
 fun S.appSettingsPickerAll(): UiText =
     UiText.Res(R.string.app_settings_picker_all)
@@ -793,6 +801,26 @@ fun S.appSettingsTailscaleTurnOff(): UiText =
 /** "Working…": The Tailscale Funnel button while the device turns it on or off. */
 fun S.appSettingsTailscaleWorking(): UiText =
     UiText.Res(R.string.app_settings_tailscale_working)
+
+/** "Your device reads the text in your photos (signs, documents, screenshots) so you can search for it and copy it. It does this itself and keeps the text encrypted. Turning it off deletes what it read.": Explanation under the Text in photos switch in Settings: what it does and where the work happens (on the user's own device); turning it off deletes the text read. */
+fun S.appSettingsTextPhotosFooter(): UiText =
+    UiText.Res(R.string.app_settings_text_photos_footer)
+
+/** "Turn Off": Confirming button of the question asked before turning Text in photos off (app.settings.text_photos.off_title). */
+fun S.appSettingsTextPhotosOffConfirm(): UiText =
+    UiText.Res(R.string.app_settings_text_photos_off_confirm)
+
+/** "Your device deletes the text it read in your photos. Turned on again, it has to read all of them again, which takes a while.": Text of the question asked before turning Text in photos off (app.settings.text_photos.off_title). */
+fun S.appSettingsTextPhotosOffText(): UiText =
+    UiText.Res(R.string.app_settings_text_photos_off_text)
+
+/** "Turn off Text in photos?": Title of the question asked before turning Text in photos off in Settings (it deletes the text the device read in the photos). */
+fun S.appSettingsTextPhotosOffTitle(): UiText =
+    UiText.Res(R.string.app_settings_text_photos_off_title)
+
+/** "Text in photos": Heading of the section of Settings holding the Text in photos switch, and the switch's own label: the device reads the text in photos (signs, documents, screenshots) so they can be searched for by it, and shows it in a photo's Info. The feature's name, as the device calls it (web.settings.text_photos.title). */
+fun S.appSettingsTextPhotosTitle(): UiText =
+    UiText.Res(R.string.app_settings_text_photos_title)
 
 /** "Clear thumbnail cache": Button (in red) in Settings > Thumbnail cache that deletes every small picture of the photos kept on this phone; Images downloads them again from the device. */
 fun S.appSettingsThumbsClear(): UiText =

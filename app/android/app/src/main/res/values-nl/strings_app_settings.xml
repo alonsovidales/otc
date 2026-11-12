@@ -112,6 +112,8 @@
     <string name="app_settings_password_new">Nieuw wachtwoord</string>
     <string name="app_settings_password_no_key">Kan de openbare sleutel van de verbinding niet ophalen</string>
     <string name="app_settings_password_title">Wachtwoord wijzigen</string>
+    <string name="app_settings_pets_footer">Je apparaat vindt je honden en katten in je foto’s en toont elk dier bij Personen, zodat je ze een naam kunt geven en hun foto’s kunt vinden zoals die van mensen. Het doet dit zelf, en niets verlaat je apparaat.</string>
+    <string name="app_settings_pets_toggle">Huisdieren</string>
     <string name="app_settings_picker_all">Alle foto’s</string>
     <string name="app_settings_picker_title">Kies een foto</string>
     <string name="app_settings_places_footer">Toont je foto’s en video’s op een kaart, op de plek waar ze zijn gemaakt. Zolang het aanstaat, leest het apparaat uit de locatiegegevens waar elk is gemaakt en bewaart het die locaties onversleuteld, zodat de kaart snel opent. Uitschakelen verwijdert ze. De kaart zelf komt van een kaartdienst, die het gebied ziet waar je naar kijkt, maar nooit je foto’s.</string>
@@ -223,6 +225,11 @@
     <string name="app_settings_tailscale_suits">Het is geschikt voor een apparaat dat je puur als je eigen privé-NAS wilt gebruiken: je bestanden en foto’s, overal bereikbaar, niets gedeeld met anderen.</string>
     <string name="app_settings_tailscale_turn_off">Funnel uitschakelen</string>
     <string name="app_settings_tailscale_working">Bezig…</string>
+    <string name="app_settings_text_photos_footer">Je apparaat leest de tekst in je foto’s (borden, documenten, screenshots), zodat je erop kunt zoeken en hem kunt kopiëren. Het doet dit zelf en bewaart de tekst versleuteld. Uitzetten verwijdert wat het heeft gelezen.</string>
+    <string name="app_settings_text_photos_off_confirm">Uitzetten</string>
+    <string name="app_settings_text_photos_off_text">Je apparaat verwijdert de tekst die het in je foto’s heeft gelezen. Zet je het weer aan, dan moet het ze allemaal opnieuw lezen, en dat duurt even.</string>
+    <string name="app_settings_text_photos_off_title">Tekst in foto’s uitzetten?</string>
+    <string name="app_settings_text_photos_title">Tekst in foto’s</string>
     <string name="app_settings_thumbs_clear">Miniatuurcache wissen</string>
     <string name="app_settings_thumbs_footer">Miniaturen worden op deze telefoon bewaard, zodat Afbeeldingen opent zonder ze opnieuw te downloaden.</string>
     <string name="app_settings_thumbs_max_size">Maximale grootte</string>

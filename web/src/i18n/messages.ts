@@ -673,6 +673,9 @@ export type MessageKey =
   | "web.images.viewer.stalled"
   | "web.images.viewer.stalled_hint"
   | "web.images.viewer.taken"
+  | "web.images.viewer.text_copied"
+  | "web.images.viewer.text_copy"
+  | "web.images.viewer.text_title"
   | "web.settings.background.count"
   | "web.settings.background.footer"
   | "web.settings.background.title"
@@ -759,6 +762,10 @@ export type MessageKey =
   | "web.settings.password.title"
   | "web.settings.password.too_short"
   | "web.settings.password.unexpected"
+  | "web.settings.pets.disable"
+  | "web.settings.pets.enable"
+  | "web.settings.pets.hint"
+  | "web.settings.pets.title"
   | "web.settings.places.disable"
   | "web.settings.places.enable"
   | "web.settings.places.hint"
@@ -849,6 +856,13 @@ export type MessageKey =
   | "web.settings.tailscale.setting_up"
   | "web.settings.tailscale.suits"
   | "web.settings.tailscale.turn_off"
+  | "web.settings.text_photos.disable"
+  | "web.settings.text_photos.enable"
+  | "web.settings.text_photos.hint"
+  | "web.settings.text_photos.off_confirm"
+  | "web.settings.text_photos.off_text"
+  | "web.settings.text_photos.off_title"
+  | "web.settings.text_photos.title"
   | "web.settings.update.check_again"
   | "web.settings.update.check_failed"
   | "web.settings.update.checking"
@@ -1969,6 +1983,9 @@ export interface MessageArgs {
   "web.images.viewer.stalled": undefined;
   "web.images.viewer.stalled_hint": undefined;
   "web.images.viewer.taken": undefined;
+  "web.images.viewer.text_copied": undefined;
+  "web.images.viewer.text_copy": undefined;
+  "web.images.viewer.text_title": undefined;
   "web.settings.background.count": { done: number; total: number };
   "web.settings.background.footer": undefined;
   "web.settings.background.title": undefined;
@@ -2060,6 +2077,10 @@ export interface MessageArgs {
   "web.settings.password.title": undefined;
   "web.settings.password.too_short": undefined;
   "web.settings.password.unexpected": undefined;
+  "web.settings.pets.disable": undefined;
+  "web.settings.pets.enable": undefined;
+  "web.settings.pets.hint": undefined;
+  "web.settings.pets.title": undefined;
   "web.settings.places.disable": undefined;
   "web.settings.places.enable": undefined;
   "web.settings.places.hint": undefined;
@@ -2155,6 +2176,13 @@ export interface MessageArgs {
   "web.settings.tailscale.setting_up": undefined;
   "web.settings.tailscale.suits": undefined;
   "web.settings.tailscale.turn_off": undefined;
+  "web.settings.text_photos.disable": undefined;
+  "web.settings.text_photos.enable": undefined;
+  "web.settings.text_photos.hint": undefined;
+  "web.settings.text_photos.off_confirm": undefined;
+  "web.settings.text_photos.off_text": undefined;
+  "web.settings.text_photos.off_title": undefined;
+  "web.settings.text_photos.title": undefined;
   "web.settings.update.check_again": undefined;
   "web.settings.update.check_failed": undefined;
   "web.settings.update.checking": undefined;

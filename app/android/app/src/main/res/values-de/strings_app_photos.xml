@@ -405,6 +405,9 @@
     <string name="app_photos_viewer_low_res">Vorschau</string>
     <string name="app_photos_viewer_more_info">Weitere Infos</string>
     <string name="app_photos_viewer_saving">Wird gespeichert…</string>
+    <string name="app_photos_viewer_text_copied">Kopiert</string>
+    <string name="app_photos_viewer_text_copy">Kopieren</string>
+    <string name="app_photos_viewer_text_title">Text in diesem Foto</string>
     <string name="app_photos_wallpaper_empty">Diese Sammlung enthält keine Fotos zum Anzeigen.</string>
     <string name="app_photos_wallpaper_failed">Die Fotos konnten nicht gespeichert werden. Versuche es erneut.</string>
     <string name="app_photos_wallpaper_lock_note">Wer deinen Sperrbildschirm sieht, sieht diese Fotos.</string>

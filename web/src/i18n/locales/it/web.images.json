@@ -543,5 +543,8 @@
   "web.images.viewer.show_map": "Mostra sulla mappa",
   "web.images.viewer.stalled": "Il caricamento di questo video sta richiedendo troppo tempo.",
   "web.images.viewer.stalled_hint": "Da un po’ non arriva niente dal tuo dispositivo: potrebbe essere occupato o difficile da raggiungere in questo momento. Di solito riprovare funziona.",
-  "web.images.viewer.taken": "Data di scatto"
+  "web.images.viewer.taken": "Data di scatto",
+  "web.images.viewer.text_copied": "Copiato",
+  "web.images.viewer.text_copy": "Copia",
+  "web.images.viewer.text_title": "Testo in questa foto"
 }

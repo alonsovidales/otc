@@ -2162,6 +2162,12 @@ public nonisolated struct Msg_SearchPhotos: @unchecked Sendable {
   /// "smart_search_unavailable". Devices before Smart search ignore it and
   /// answer the whole library, so never send it to one whose Settings lack
   /// smart_search_enabled. "" (or only spaces) is no text.
+  /// Text in photos (release 180, Settings.text_in_photos_enabled): while it
+  /// is on, the photos whose text holds the words come first - the whole
+  /// words before a part of one ("04-R" finds GTS-04-R), case and accents
+  /// aside - then Smart search's. With Text in photos on and Smart search
+  /// off (or its model not there yet) the answer is those photos alone, so
+  /// the apps offer the text while either can answer it.
   public var text: String {
     get {_storage._text}
     set {_uniqueStorage()._text = newValue}
@@ -4134,46 +4140,64 @@ public nonisolated struct Msg_SetSettings: Sendable {
   public init() {}
 }
 
-public nonisolated struct Msg_Settings: Sendable {
+public nonisolated struct Msg_Settings: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var domain: String = String()
+  public var domain: String {
+    get {_storage._domain}
+    set {_uniqueStorage()._domain = newValue}
+  }
 
   /// bridge_secret is the shared secret this device registers with the
   /// bridge relay (see BridgeRegister below) — exposed so the setup section
   /// can show/update it (issue #40) instead of it only ever being set
   /// implicitly at first boot.
-  public var bridgeSecret: String = String()
+  public var bridgeSecret: String {
+    get {_storage._bridgeSecret}
+    set {_uniqueStorage()._bridgeSecret = newValue}
+  }
 
   /// face_recognition_enabled (issue #52) - off by default. Toggled via
   /// SetFaceRecognitionEnabled below, not SetSettings: same reasoning as
   /// SetBridgeSecret being its own request rather than a field bundled onto
   /// SetSettings (see its own doc comment).
-  public var faceRecognitionEnabled: Bool = false
+  public var faceRecognitionEnabled: Bool {
+    get {_storage._faceRecognitionEnabled}
+    set {_uniqueStorage()._faceRecognitionEnabled = newValue}
+  }
 
   /// Issue #153: how much space friends' posts may take, in MB (5120 by
   /// default; the oldest are removed past it), and how much they take now.
-  public var socialStorageLimitMb: Int32 = 0
+  public var socialStorageLimitMb: Int32 {
+    get {_storage._socialStorageLimitMb}
+    set {_uniqueStorage()._socialStorageLimitMb = newValue}
+  }
 
-  public var socialStorageUsedBytes: Int64 = 0
+  public var socialStorageUsedBytes: Int64 {
+    get {_storage._socialStorageUsedBytes}
+    set {_uniqueStorage()._socialStorageUsedBytes = newValue}
+  }
 
   /// Issue #181: tag photos and videos with what they show (on by default).
   /// Toggled with SetImageTaggingEnabled.
-  public var imageTaggingEnabled: Bool = false
+  public var imageTaggingEnabled: Bool {
+    get {_storage._imageTaggingEnabled}
+    set {_uniqueStorage()._imageTaggingEnabled = newValue}
+  }
 
   /// Localization: the language the user chose for every app, "" for
   /// Automatic (each app follows its system language). Always set by devices
   /// that know it; absent means the device predates localization.
   public var language: String {
-    get {_language ?? String()}
-    set {_language = newValue}
+    get {_storage._language ?? String()}
+    set {_uniqueStorage()._language = newValue}
   }
   /// Returns true if `language` has been explicitly set.
-  public var hasLanguage: Bool {self._language != nil}
+  public var hasLanguage: Bool {_storage._language != nil}
   /// Clears the value of `language`. Subsequent reads from it will return its default value.
-  public mutating func clearLanguage() {self._language = nil}
+  public mutating func clearLanguage() {_uniqueStorage()._language = nil}
 
   /// Places, the map in Images: on unless the user turns it off
   /// (SetPlacesEnabled), for their own library - off by default before
@@ -4185,13 +4209,13 @@ public nonisolated struct Msg_Settings: Sendable {
   /// depend on it. Always set by devices that have Places; absent means the
   /// device predates it, and the apps show neither the map nor the switch.
   public var placesEnabled: Bool {
-    get {_placesEnabled ?? false}
-    set {_placesEnabled = newValue}
+    get {_storage._placesEnabled ?? false}
+    set {_uniqueStorage()._placesEnabled = newValue}
   }
   /// Returns true if `placesEnabled` has been explicitly set.
-  public var hasPlacesEnabled: Bool {self._placesEnabled != nil}
+  public var hasPlacesEnabled: Bool {_storage._placesEnabled != nil}
   /// Clears the value of `placesEnabled`. Subsequent reads from it will return its default value.
-  public mutating func clearPlacesEnabled() {self._placesEnabled = nil}
+  public mutating func clearPlacesEnabled() {_uniqueStorage()._placesEnabled = nil}
 
   /// On this day (Memories): on unless the user turns it off
   /// (SetMemoriesEnabled), for their own library. While it is on the device
@@ -4201,13 +4225,13 @@ public nonisolated struct Msg_Settings: Sendable {
   /// measured. Always set by devices that have it; absent means the device
   /// predates it, and the apps show neither the memories nor the switch.
   public var memoriesEnabled: Bool {
-    get {_memoriesEnabled ?? false}
-    set {_memoriesEnabled = newValue}
+    get {_storage._memoriesEnabled ?? false}
+    set {_uniqueStorage()._memoriesEnabled = newValue}
   }
   /// Returns true if `memoriesEnabled` has been explicitly set.
-  public var hasMemoriesEnabled: Bool {self._memoriesEnabled != nil}
+  public var hasMemoriesEnabled: Bool {_storage._memoriesEnabled != nil}
   /// Clears the value of `memoriesEnabled`. Subsequent reads from it will return its default value.
-  public mutating func clearMemoriesEnabled() {self._memoriesEnabled = nil}
+  public mutating func clearMemoriesEnabled() {_uniqueStorage()._memoriesEnabled = nil}
 
   /// Smart search (beta): on by default since release 152 (off by default in
   /// 151), each user turning it off or on again (SetSmartSearchEnabled) for
@@ -4219,13 +4243,13 @@ public nonisolated struct Msg_Settings: Sendable {
   /// it; absent means the device predates it, and the apps show neither the
   /// switch nor the free-text search.
   public var smartSearchEnabled: Bool {
-    get {_smartSearchEnabled ?? false}
-    set {_smartSearchEnabled = newValue}
+    get {_storage._smartSearchEnabled ?? false}
+    set {_uniqueStorage()._smartSearchEnabled = newValue}
   }
   /// Returns true if `smartSearchEnabled` has been explicitly set.
-  public var hasSmartSearchEnabled: Bool {self._smartSearchEnabled != nil}
+  public var hasSmartSearchEnabled: Bool {_storage._smartSearchEnabled != nil}
   /// Clears the value of `smartSearchEnabled`. Subsequent reads from it will return its default value.
-  public mutating func clearSmartSearchEnabled() {self._smartSearchEnabled = nil}
+  public mutating func clearSmartSearchEnabled() {_uniqueStorage()._smartSearchEnabled = nil}
 
   /// Smart search's model (since release 152 the device downloads it, about
   /// 400 MB, only once Smart search is first turned on, at a capped speed,
@@ -4233,13 +4257,13 @@ public nonisolated struct Msg_Settings: Sendable {
   /// the user's own library; absent means an older device, which had the
   /// model or answered "smart_search_unavailable".
   public var smartSearchModel: Msg_SmartSearchModel {
-    get {_smartSearchModel ?? Msg_SmartSearchModel()}
-    set {_smartSearchModel = newValue}
+    get {_storage._smartSearchModel ?? Msg_SmartSearchModel()}
+    set {_uniqueStorage()._smartSearchModel = newValue}
   }
   /// Returns true if `smartSearchModel` has been explicitly set.
-  public var hasSmartSearchModel: Bool {self._smartSearchModel != nil}
+  public var hasSmartSearchModel: Bool {_storage._smartSearchModel != nil}
   /// Clears the value of `smartSearchModel`. Subsequent reads from it will return its default value.
-  public mutating func clearSmartSearchModel() {self._smartSearchModel = nil}
+  public mutating func clearSmartSearchModel() {_uniqueStorage()._smartSearchModel = nil}
 
   /// Whether this device can have Image Tagging on (release 160; owner,
   /// 2026-11-01): false where image_tagging_enabled is always false and
@@ -4249,13 +4273,13 @@ public nonisolated struct Msg_Settings: Sendable {
   /// 4 GB) only a device under 3 GB says false; one with less than 6 GB may
   /// turn it on, off by default.
   public var imageTaggingAvailable: Bool {
-    get {_imageTaggingAvailable ?? false}
-    set {_imageTaggingAvailable = newValue}
+    get {_storage._imageTaggingAvailable ?? false}
+    set {_uniqueStorage()._imageTaggingAvailable = newValue}
   }
   /// Returns true if `imageTaggingAvailable` has been explicitly set.
-  public var hasImageTaggingAvailable: Bool {self._imageTaggingAvailable != nil}
+  public var hasImageTaggingAvailable: Bool {_storage._imageTaggingAvailable != nil}
   /// Clears the value of `imageTaggingAvailable`. Subsequent reads from it will return its default value.
-  public mutating func clearImageTaggingAvailable() {self._imageTaggingAvailable = nil}
+  public mutating func clearImageTaggingAvailable() {_uniqueStorage()._imageTaggingAvailable = nil}
 
   /// Release 164 (issue #209): this device has less memory than Image
   /// Tagging is comfortable with (under 6 GB): the switch is off until the
@@ -4263,25 +4287,58 @@ public nonisolated struct Msg_Settings: Sendable {
   /// more memory and makes photos slower to process. Unset elsewhere and on
   /// older devices.
   public var imageTaggingHeavy: Bool {
-    get {_imageTaggingHeavy ?? false}
-    set {_imageTaggingHeavy = newValue}
+    get {_storage._imageTaggingHeavy ?? false}
+    set {_uniqueStorage()._imageTaggingHeavy = newValue}
   }
   /// Returns true if `imageTaggingHeavy` has been explicitly set.
-  public var hasImageTaggingHeavy: Bool {self._imageTaggingHeavy != nil}
+  public var hasImageTaggingHeavy: Bool {_storage._imageTaggingHeavy != nil}
   /// Clears the value of `imageTaggingHeavy`. Subsequent reads from it will return its default value.
-  public mutating func clearImageTaggingHeavy() {self._imageTaggingHeavy = nil}
+  public mutating func clearImageTaggingHeavy() {_uniqueStorage()._imageTaggingHeavy = nil}
+
+  /// Text in photos (release 180): on unless the user turns it off
+  /// (SetTextInPhotosEnabled), for their own library. While it is on the
+  /// device reads the text in each photo - signs, documents, screenshots,
+  /// number plates - with a text model of its own, from the photo itself,
+  /// and keeps it encrypted with the user's key: SearchPhotos.text finds
+  /// photos by it, and Info shows it (FileExifInfo.text). Turning it off
+  /// deletes all of it. The photos the device held before are read in the
+  /// background (Status.background_tasks, kind "text"). Always set by
+  /// devices that have it; absent means the device predates it, and the
+  /// apps show neither the switch nor the text.
+  public var textInPhotosEnabled: Bool {
+    get {_storage._textInPhotosEnabled ?? false}
+    set {_uniqueStorage()._textInPhotosEnabled = newValue}
+  }
+  /// Returns true if `textInPhotosEnabled` has been explicitly set.
+  public var hasTextInPhotosEnabled: Bool {_storage._textInPhotosEnabled != nil}
+  /// Clears the value of `textInPhotosEnabled`. Subsequent reads from it will return its default value.
+  public mutating func clearTextInPhotosEnabled() {_uniqueStorage()._textInPhotosEnabled = nil}
+
+  /// Pets (release 180): on unless the user turns it off (SetPetsEnabled),
+  /// for their own library. While it is on the device finds the dogs and
+  /// cats in the photos and tells them apart as it tells people apart by
+  /// their faces: each pet is a person in People (ListPeople), its face a
+  /// PhotoFace like anyone's - named, merged, taken off a photo (Not this
+  /// person), added to a photo or video by hand, searched by name and
+  /// remembered in On this day as people are. The photos the device held
+  /// before are looked at in the background (Status.background_tasks, kind
+  /// "pets"). Off, no more pets are found; those found stay in People until
+  /// deleted there. Always set by devices that have it; absent means the
+  /// device predates it, and the apps show no switch.
+  public var petsEnabled: Bool {
+    get {_storage._petsEnabled ?? false}
+    set {_uniqueStorage()._petsEnabled = newValue}
+  }
+  /// Returns true if `petsEnabled` has been explicitly set.
+  public var hasPetsEnabled: Bool {_storage._petsEnabled != nil}
+  /// Clears the value of `petsEnabled`. Subsequent reads from it will return its default value.
+  public mutating func clearPetsEnabled() {_uniqueStorage()._petsEnabled = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _language: String? = nil
-  fileprivate var _placesEnabled: Bool? = nil
-  fileprivate var _memoriesEnabled: Bool? = nil
-  fileprivate var _smartSearchEnabled: Bool? = nil
-  fileprivate var _smartSearchModel: Msg_SmartSearchModel? = nil
-  fileprivate var _imageTaggingAvailable: Bool? = nil
-  fileprivate var _imageTaggingHeavy: Bool? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 /// Where Smart search's model is (Settings.smart_search_model). Neither ready
@@ -4728,6 +4785,43 @@ public nonisolated struct Msg_SetSmartSearchEnabled: Sendable {
   public init() {}
 }
 
+/// Text in photos' switch (Settings.text_in_photos_enabled), for the user's
+/// own library. On: the device reads the text of the photos it holds in the
+/// background, with this session's key, once its text model is there (the
+/// device downloads it by itself while Text in photos or Pets is on); off:
+/// every text it read is deleted before the answer. Answers with the
+/// generic Ack. A demo device refuses it, and devices before it answer
+/// error_code "unknown_payload".
+public nonisolated struct Msg_SetTextInPhotosEnabled: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var enabled: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Pets' switch (Settings.pets_enabled), for the user's own library. On:
+/// the device looks for pets in the photos it holds in the background, and
+/// in every new one; off: it finds no more, and the pets in People stay
+/// (deleting one there deletes it). Answers with the generic Ack. A demo
+/// device refuses it, and devices before it answer error_code
+/// "unknown_payload".
+public nonisolated struct Msg_SetPetsEnabled: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var enabled: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 /// SetImageTaggingEnabled (issue #181) turns the tagging model on or off
 /// for what is processed from now on. Answers with the generic Ack.
 public nonisolated struct Msg_SetImageTaggingEnabled: Sendable {
@@ -5044,7 +5138,9 @@ public nonisolated struct Msg_PhotoFace: Sendable {
 
 /// The answer to GetPhotoFaces: the faces, left to right, then the people
 /// added by hand, in the order they were added; whether face recognition is
-/// on (off: no faces, and the apps show none); and the photo's content
+/// on (off: no faces, and the apps show none) - since release 180, or Pets
+/// (Settings.pets_enabled): a pet's face is one of the faces; and the
+/// photo's content
 /// hash, for RemoveFromPerson and AddToPerson. adds_people: the device
 /// takes AddToPerson for this photo or video, and answers for a video too
 /// (its people added by hand); Info then offers Add while face recognition
@@ -6359,6 +6455,12 @@ public nonisolated struct Msg_FileExifInfo: Sendable {
   public var city: String = String()
 
   public var country: String = String()
+
+  /// Text in photos (release 180): the text the device read in the photo, a
+  /// line of it a line here, top to bottom; "" when it found none, hasn't
+  /// read the photo yet, or Text in photos is off. Info shows it under "Text
+  /// in this photo", with Copy. Devices before it never set it.
+  public var text: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -8278,6 +8380,24 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqAddToPerson(newValue)}
   }
 
+  /// Release 180: Text in photos' and Pets' switches. Both answer with the
+  /// generic Ack.
+  public var reqSetTextInPhotosEnabled: Msg_SetTextInPhotosEnabled {
+    get {
+      if case .reqSetTextInPhotosEnabled(let v)? = payload {return v}
+      return Msg_SetTextInPhotosEnabled()
+    }
+    set {payload = .reqSetTextInPhotosEnabled(newValue)}
+  }
+
+  public var reqSetPetsEnabled: Msg_SetPetsEnabled {
+    get {
+      if case .reqSetPetsEnabled(let v)? = payload {return v}
+      return Msg_SetPetsEnabled()
+    }
+    set {payload = .reqSetPetsEnabled(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -8571,6 +8691,10 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     case reqGetCompressJob(Msg_GetCompressJob)
     /// Info's Add: a person put in a photo or video by hand.
     case reqAddToPerson(Msg_AddToPerson)
+    /// Release 180: Text in photos' and Pets' switches. Both answer with the
+    /// generic Ack.
+    case reqSetTextInPhotosEnabled(Msg_SetTextInPhotosEnabled)
+    case reqSetPetsEnabled(Msg_SetPetsEnabled)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -15206,93 +15330,167 @@ nonisolated extension Msg_SetSettings: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Settings"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0\u{3}social_storage_limit_mb\0\u{3}social_storage_used_bytes\0\u{3}image_tagging_enabled\0\u{1}language\0\u{3}places_enabled\0\u{3}memories_enabled\0\u{3}smart_search_enabled\0\u{3}smart_search_model\0\u{3}image_tagging_available\0\u{3}image_tagging_heavy\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0\u{3}social_storage_limit_mb\0\u{3}social_storage_used_bytes\0\u{3}image_tagging_enabled\0\u{1}language\0\u{3}places_enabled\0\u{3}memories_enabled\0\u{3}smart_search_enabled\0\u{3}smart_search_model\0\u{3}image_tagging_available\0\u{3}image_tagging_heavy\0\u{3}text_in_photos_enabled\0\u{3}pets_enabled\0")
+
+  fileprivate class _StorageClass {
+    var _domain: String = String()
+    var _bridgeSecret: String = String()
+    var _faceRecognitionEnabled: Bool = false
+    var _socialStorageLimitMb: Int32 = 0
+    var _socialStorageUsedBytes: Int64 = 0
+    var _imageTaggingEnabled: Bool = false
+    var _language: String? = nil
+    var _placesEnabled: Bool? = nil
+    var _memoriesEnabled: Bool? = nil
+    var _smartSearchEnabled: Bool? = nil
+    var _smartSearchModel: Msg_SmartSearchModel? = nil
+    var _imageTaggingAvailable: Bool? = nil
+    var _imageTaggingHeavy: Bool? = nil
+    var _textInPhotosEnabled: Bool? = nil
+    var _petsEnabled: Bool? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _domain = source._domain
+      _bridgeSecret = source._bridgeSecret
+      _faceRecognitionEnabled = source._faceRecognitionEnabled
+      _socialStorageLimitMb = source._socialStorageLimitMb
+      _socialStorageUsedBytes = source._socialStorageUsedBytes
+      _imageTaggingEnabled = source._imageTaggingEnabled
+      _language = source._language
+      _placesEnabled = source._placesEnabled
+      _memoriesEnabled = source._memoriesEnabled
+      _smartSearchEnabled = source._smartSearchEnabled
+      _smartSearchModel = source._smartSearchModel
+      _imageTaggingAvailable = source._imageTaggingAvailable
+      _imageTaggingHeavy = source._imageTaggingHeavy
+      _textInPhotosEnabled = source._textInPhotosEnabled
+      _petsEnabled = source._petsEnabled
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.domain) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.bridgeSecret) }()
-      case 3: try { try decoder.decodeSingularBoolField(value: &self.faceRecognitionEnabled) }()
-      case 4: try { try decoder.decodeSingularInt32Field(value: &self.socialStorageLimitMb) }()
-      case 5: try { try decoder.decodeSingularInt64Field(value: &self.socialStorageUsedBytes) }()
-      case 6: try { try decoder.decodeSingularBoolField(value: &self.imageTaggingEnabled) }()
-      case 7: try { try decoder.decodeSingularStringField(value: &self._language) }()
-      case 8: try { try decoder.decodeSingularBoolField(value: &self._placesEnabled) }()
-      case 9: try { try decoder.decodeSingularBoolField(value: &self._memoriesEnabled) }()
-      case 10: try { try decoder.decodeSingularBoolField(value: &self._smartSearchEnabled) }()
-      case 11: try { try decoder.decodeSingularMessageField(value: &self._smartSearchModel) }()
-      case 12: try { try decoder.decodeSingularBoolField(value: &self._imageTaggingAvailable) }()
-      case 13: try { try decoder.decodeSingularBoolField(value: &self._imageTaggingHeavy) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularStringField(value: &_storage._domain) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._bridgeSecret) }()
+        case 3: try { try decoder.decodeSingularBoolField(value: &_storage._faceRecognitionEnabled) }()
+        case 4: try { try decoder.decodeSingularInt32Field(value: &_storage._socialStorageLimitMb) }()
+        case 5: try { try decoder.decodeSingularInt64Field(value: &_storage._socialStorageUsedBytes) }()
+        case 6: try { try decoder.decodeSingularBoolField(value: &_storage._imageTaggingEnabled) }()
+        case 7: try { try decoder.decodeSingularStringField(value: &_storage._language) }()
+        case 8: try { try decoder.decodeSingularBoolField(value: &_storage._placesEnabled) }()
+        case 9: try { try decoder.decodeSingularBoolField(value: &_storage._memoriesEnabled) }()
+        case 10: try { try decoder.decodeSingularBoolField(value: &_storage._smartSearchEnabled) }()
+        case 11: try { try decoder.decodeSingularMessageField(value: &_storage._smartSearchModel) }()
+        case 12: try { try decoder.decodeSingularBoolField(value: &_storage._imageTaggingAvailable) }()
+        case 13: try { try decoder.decodeSingularBoolField(value: &_storage._imageTaggingHeavy) }()
+        case 14: try { try decoder.decodeSingularBoolField(value: &_storage._textInPhotosEnabled) }()
+        case 15: try { try decoder.decodeSingularBoolField(value: &_storage._petsEnabled) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if !self.domain.isEmpty {
-      try visitor.visitSingularStringField(value: self.domain, fieldNumber: 1)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if !_storage._domain.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._domain, fieldNumber: 1)
+      }
+      if !_storage._bridgeSecret.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._bridgeSecret, fieldNumber: 2)
+      }
+      if _storage._faceRecognitionEnabled != false {
+        try visitor.visitSingularBoolField(value: _storage._faceRecognitionEnabled, fieldNumber: 3)
+      }
+      if _storage._socialStorageLimitMb != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._socialStorageLimitMb, fieldNumber: 4)
+      }
+      if _storage._socialStorageUsedBytes != 0 {
+        try visitor.visitSingularInt64Field(value: _storage._socialStorageUsedBytes, fieldNumber: 5)
+      }
+      if _storage._imageTaggingEnabled != false {
+        try visitor.visitSingularBoolField(value: _storage._imageTaggingEnabled, fieldNumber: 6)
+      }
+      try { if let v = _storage._language {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 7)
+      } }()
+      try { if let v = _storage._placesEnabled {
+        try visitor.visitSingularBoolField(value: v, fieldNumber: 8)
+      } }()
+      try { if let v = _storage._memoriesEnabled {
+        try visitor.visitSingularBoolField(value: v, fieldNumber: 9)
+      } }()
+      try { if let v = _storage._smartSearchEnabled {
+        try visitor.visitSingularBoolField(value: v, fieldNumber: 10)
+      } }()
+      try { if let v = _storage._smartSearchModel {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+      } }()
+      try { if let v = _storage._imageTaggingAvailable {
+        try visitor.visitSingularBoolField(value: v, fieldNumber: 12)
+      } }()
+      try { if let v = _storage._imageTaggingHeavy {
+        try visitor.visitSingularBoolField(value: v, fieldNumber: 13)
+      } }()
+      try { if let v = _storage._textInPhotosEnabled {
+        try visitor.visitSingularBoolField(value: v, fieldNumber: 14)
+      } }()
+      try { if let v = _storage._petsEnabled {
+        try visitor.visitSingularBoolField(value: v, fieldNumber: 15)
+      } }()
     }
-    if !self.bridgeSecret.isEmpty {
-      try visitor.visitSingularStringField(value: self.bridgeSecret, fieldNumber: 2)
-    }
-    if self.faceRecognitionEnabled != false {
-      try visitor.visitSingularBoolField(value: self.faceRecognitionEnabled, fieldNumber: 3)
-    }
-    if self.socialStorageLimitMb != 0 {
-      try visitor.visitSingularInt32Field(value: self.socialStorageLimitMb, fieldNumber: 4)
-    }
-    if self.socialStorageUsedBytes != 0 {
-      try visitor.visitSingularInt64Field(value: self.socialStorageUsedBytes, fieldNumber: 5)
-    }
-    if self.imageTaggingEnabled != false {
-      try visitor.visitSingularBoolField(value: self.imageTaggingEnabled, fieldNumber: 6)
-    }
-    try { if let v = self._language {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 7)
-    } }()
-    try { if let v = self._placesEnabled {
-      try visitor.visitSingularBoolField(value: v, fieldNumber: 8)
-    } }()
-    try { if let v = self._memoriesEnabled {
-      try visitor.visitSingularBoolField(value: v, fieldNumber: 9)
-    } }()
-    try { if let v = self._smartSearchEnabled {
-      try visitor.visitSingularBoolField(value: v, fieldNumber: 10)
-    } }()
-    try { if let v = self._smartSearchModel {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
-    } }()
-    try { if let v = self._imageTaggingAvailable {
-      try visitor.visitSingularBoolField(value: v, fieldNumber: 12)
-    } }()
-    try { if let v = self._imageTaggingHeavy {
-      try visitor.visitSingularBoolField(value: v, fieldNumber: 13)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_Settings, rhs: Msg_Settings) -> Bool {
-    if lhs.domain != rhs.domain {return false}
-    if lhs.bridgeSecret != rhs.bridgeSecret {return false}
-    if lhs.faceRecognitionEnabled != rhs.faceRecognitionEnabled {return false}
-    if lhs.socialStorageLimitMb != rhs.socialStorageLimitMb {return false}
-    if lhs.socialStorageUsedBytes != rhs.socialStorageUsedBytes {return false}
-    if lhs.imageTaggingEnabled != rhs.imageTaggingEnabled {return false}
-    if lhs._language != rhs._language {return false}
-    if lhs._placesEnabled != rhs._placesEnabled {return false}
-    if lhs._memoriesEnabled != rhs._memoriesEnabled {return false}
-    if lhs._smartSearchEnabled != rhs._smartSearchEnabled {return false}
-    if lhs._smartSearchModel != rhs._smartSearchModel {return false}
-    if lhs._imageTaggingAvailable != rhs._imageTaggingAvailable {return false}
-    if lhs._imageTaggingHeavy != rhs._imageTaggingHeavy {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._domain != rhs_storage._domain {return false}
+        if _storage._bridgeSecret != rhs_storage._bridgeSecret {return false}
+        if _storage._faceRecognitionEnabled != rhs_storage._faceRecognitionEnabled {return false}
+        if _storage._socialStorageLimitMb != rhs_storage._socialStorageLimitMb {return false}
+        if _storage._socialStorageUsedBytes != rhs_storage._socialStorageUsedBytes {return false}
+        if _storage._imageTaggingEnabled != rhs_storage._imageTaggingEnabled {return false}
+        if _storage._language != rhs_storage._language {return false}
+        if _storage._placesEnabled != rhs_storage._placesEnabled {return false}
+        if _storage._memoriesEnabled != rhs_storage._memoriesEnabled {return false}
+        if _storage._smartSearchEnabled != rhs_storage._smartSearchEnabled {return false}
+        if _storage._smartSearchModel != rhs_storage._smartSearchModel {return false}
+        if _storage._imageTaggingAvailable != rhs_storage._imageTaggingAvailable {return false}
+        if _storage._imageTaggingHeavy != rhs_storage._imageTaggingHeavy {return false}
+        if _storage._textInPhotosEnabled != rhs_storage._textInPhotosEnabled {return false}
+        if _storage._petsEnabled != rhs_storage._petsEnabled {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -16009,6 +16207,66 @@ nonisolated extension Msg_SetSmartSearchEnabled: SwiftProtobuf.Message, SwiftPro
   }
 
   public static func ==(lhs: Msg_SetSmartSearchEnabled, rhs: Msg_SetSmartSearchEnabled) -> Bool {
+    if lhs.enabled != rhs.enabled {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_SetTextInPhotosEnabled: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetTextInPhotosEnabled"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.enabled) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.enabled != false {
+      try visitor.visitSingularBoolField(value: self.enabled, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_SetTextInPhotosEnabled, rhs: Msg_SetTextInPhotosEnabled) -> Bool {
+    if lhs.enabled != rhs.enabled {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_SetPetsEnabled: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetPetsEnabled"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.enabled) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.enabled != false {
+      try visitor.visitSingularBoolField(value: self.enabled, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_SetPetsEnabled, rhs: Msg_SetPetsEnabled) -> Bool {
     if lhs.enabled != rhs.enabled {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -18823,7 +19081,7 @@ nonisolated extension Msg_SocialPublicationFiles: SwiftProtobuf.Message, SwiftPr
 
 nonisolated extension Msg_FileExifInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FileExifInfo"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}camera_make\0\u{3}camera_model\0\u{3}taken_at\0\u{3}exposure_time\0\u{3}f_number\0\u{1}iso\0\u{3}focal_length\0\u{1}width\0\u{1}height\0\u{3}has_gps\0\u{1}latitude\0\u{1}longitude\0\u{1}city\0\u{1}country\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}camera_make\0\u{3}camera_model\0\u{3}taken_at\0\u{3}exposure_time\0\u{3}f_number\0\u{1}iso\0\u{3}focal_length\0\u{1}width\0\u{1}height\0\u{3}has_gps\0\u{1}latitude\0\u{1}longitude\0\u{1}city\0\u{1}country\0\u{1}text\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -18845,6 +19103,7 @@ nonisolated extension Msg_FileExifInfo: SwiftProtobuf.Message, SwiftProtobuf._Me
       case 12: try { try decoder.decodeSingularDoubleField(value: &self.longitude) }()
       case 13: try { try decoder.decodeSingularStringField(value: &self.city) }()
       case 14: try { try decoder.decodeSingularStringField(value: &self.country) }()
+      case 15: try { try decoder.decodeSingularStringField(value: &self.text) }()
       default: break
       }
     }
@@ -18897,6 +19156,9 @@ nonisolated extension Msg_FileExifInfo: SwiftProtobuf.Message, SwiftProtobuf._Me
     if !self.country.isEmpty {
       try visitor.visitSingularStringField(value: self.country, fieldNumber: 14)
     }
+    if !self.text.isEmpty {
+      try visitor.visitSingularStringField(value: self.text, fieldNumber: 15)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -18915,6 +19177,7 @@ nonisolated extension Msg_FileExifInfo: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs.longitude != rhs.longitude {return false}
     if lhs.city != rhs.city {return false}
     if lhs.country != rhs.country {return false}
+    if lhs.text != rhs.text {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -19960,7 +20223,7 @@ nonisolated extension Msg_LocalEndpoint: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0\u{3}req_set_places_enabled\0\u{3}req_get_memories\0\u{3}req_hide_memory\0\u{3}req_set_memories_enabled\0\u{3}req_set_smart_search_enabled\0\u{3}req_get_favourites\0\u{3}req_set_favourite\0\u{3}req_set_person_cover\0\u{3}req_get_photo_faces\0\u{3}req_set_image_group_rating\0\u{3}req_set_photo_rating\0\u{3}req_rate_shared_gallery_item\0\u{3}req_shut_down_device\0\u{3}req_random_photos\0\u{3}req_edit_image\0\u{3}req_revert_image\0\u{3}req_get_edit_state\0\u{3}req_edit_video\0\u{3}req_list_largest_files\0\u{3}req_get_compress_options\0\u{3}req_compress_files\0\u{3}req_get_compress_job\0\u{3}req_add_to_person\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0\u{3}req_set_places_enabled\0\u{3}req_get_memories\0\u{3}req_hide_memory\0\u{3}req_set_memories_enabled\0\u{3}req_set_smart_search_enabled\0\u{3}req_get_favourites\0\u{3}req_set_favourite\0\u{3}req_set_person_cover\0\u{3}req_get_photo_faces\0\u{3}req_set_image_group_rating\0\u{3}req_set_photo_rating\0\u{3}req_rate_shared_gallery_item\0\u{3}req_shut_down_device\0\u{3}req_random_photos\0\u{3}req_edit_image\0\u{3}req_revert_image\0\u{3}req_get_edit_state\0\u{3}req_edit_video\0\u{3}req_list_largest_files\0\u{3}req_get_compress_options\0\u{3}req_compress_files\0\u{3}req_get_compress_job\0\u{3}req_add_to_person\0\u{3}req_set_text_in_photos_enabled\0\u{3}req_set_pets_enabled\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -22024,6 +22287,32 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqAddToPerson(v)
         }
       }()
+      case 171: try {
+        var v: Msg_SetTextInPhotosEnabled?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSetTextInPhotosEnabled(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSetTextInPhotosEnabled(v)
+        }
+      }()
+      case 172: try {
+        var v: Msg_SetPetsEnabled?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSetPetsEnabled(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSetPetsEnabled(v)
+        }
+      }()
       default: break
       }
     }
@@ -22672,6 +22961,14 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
     case .reqAddToPerson?: try {
       guard case .reqAddToPerson(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 170)
+    }()
+    case .reqSetTextInPhotosEnabled?: try {
+      guard case .reqSetTextInPhotosEnabled(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 171)
+    }()
+    case .reqSetPetsEnabled?: try {
+      guard case .reqSetPetsEnabled(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 172)
     }()
     case nil: break
     }

@@ -24,6 +24,11 @@ func DevStatusBackgroundFaces() Msg {
 	return Msg{Key: "dev.status.background.faces"}
 }
 
+// DevStatusBackgroundPets is dev.status.background.pets: "Looking for pets in your photos".
+func DevStatusBackgroundPets() Msg {
+	return Msg{Key: "dev.status.background.pets"}
+}
+
 // DevStatusBackgroundPlaces is dev.status.background.places: "Finding where your photos were taken".
 func DevStatusBackgroundPlaces() Msg {
 	return Msg{Key: "dev.status.background.places"}
@@ -37,6 +42,11 @@ func DevStatusBackgroundQuality() Msg {
 // DevStatusBackgroundSmartSearch is dev.status.background.smart_search: "Getting to know your photos".
 func DevStatusBackgroundSmartSearch() Msg {
 	return Msg{Key: "dev.status.background.smart_search"}
+}
+
+// DevStatusBackgroundText is dev.status.background.text: "Reading the text in your photos".
+func DevStatusBackgroundText() Msg {
+	return Msg{Key: "dev.status.background.text"}
 }
 
 // DevStatusBackgroundThumbnails is dev.status.background.thumbnails: "Making previews".

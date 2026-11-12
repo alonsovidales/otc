@@ -5249,6 +5249,100 @@
         }
       }
     },
+    "app.settings.pets.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gerät findet deine Hunde und Katzen in deinen Fotos und zeigt jedes Tier unter Personen, damit du ihm einen Namen geben und seine Fotos finden kannst wie die von Menschen. Es macht das selbst, und nichts verlässt das Gerät."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device finds your dogs and cats in your photos and shows each one in People, so you can name them and find their photos as you do people's. It does this itself, and nothing leaves it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu dispositivo encuentra a tus perros y gatos en tus fotos y muestra cada uno en Personas, para que puedas ponerles nombre y encontrar sus fotos como las de las personas. Lo hace por sí mismo y nada sale de él."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre appareil trouve vos chiens et vos chats dans vos photos et montre chacun dans Personnes, pour que vous puissiez leur donner un nom et retrouver leurs photos comme celles des personnes. Il le fait lui-même, et rien n’en sort."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo dispositivo trova i tuoi cani e gatti nelle tue foto e mostra ciascuno in Persone, così puoi dar loro un nome e trovare le loro foto come quelle delle persone. Lo fa da solo e nulla esce dal dispositivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je apparaat vindt je honden en katten in je foto’s en toont elk dier bij Personen, zodat je ze een naam kunt geven en hun foto’s kunt vinden zoals die van mensen. Het doet dit zelf, en niets verlaat je apparaat."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dispositivo encontra os teus cães e gatos nas tuas fotos e mostra cada um em Pessoas, para que lhes possas dar um nome e encontrar as fotos deles como as das pessoas. Fá-lo sozinho, e nada sai do dispositivo."
+          }
+        }
+      }
+    },
+    "app.settings.pets.toggle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haustiere"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pets"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mascotas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Animaux de compagnie"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Animali domestici"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Huisdieren"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Animais de estimação"
+          }
+        }
+      }
+    },
     "app.settings.picker.all" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -10488,6 +10582,241 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "A processar…"
+          }
+        }
+      }
+    },
+    "app.settings.text_photos.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gerät liest den Text in deinen Fotos (Schilder, Dokumente, Screenshots), damit du danach suchen und ihn kopieren kannst. Es macht das selbst und speichert den Text verschlüsselt. Wenn du es ausschaltest, wird gelöscht, was es gelesen hat."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device reads the text in your photos (signs, documents, screenshots) so you can search for it and copy it. It does this itself and keeps the text encrypted. Turning it off deletes what it read."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu dispositivo lee el texto de tus fotos (carteles, documentos, capturas de pantalla) para que puedas buscarlo y copiarlo. Lo hace por sí mismo y guarda el texto cifrado. Al desactivarlo, se borra lo que leyó."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre appareil lit le texte de vos photos (panneaux, documents, captures d’écran) pour que vous puissiez le rechercher et le copier. Il le fait lui-même et conserve le texte chiffré. Le désactiver supprime ce qu’il a lu."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo dispositivo legge il testo nelle tue foto (cartelli, documenti, screenshot) così puoi cercarlo e copiarlo. Lo fa da solo e conserva il testo cifrato. Disattivandolo, si cancella ciò che ha letto."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je apparaat leest de tekst in je foto’s (borden, documenten, screenshots), zodat je erop kunt zoeken en hem kunt kopiëren. Het doet dit zelf en bewaart de tekst versleuteld. Uitzetten verwijdert wat het heeft gelezen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dispositivo lê o texto das tuas fotos (placas, documentos, capturas de ecrã) para que o possas pesquisar e copiar. Fá-lo sozinho e guarda o texto cifrado. Ao desativar, apaga-se o que leu."
+          }
+        }
+      }
+    },
+    "app.settings.text_photos.off_confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ausschalten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn Off"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactiver"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disattiva"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uitzetten"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desativar"
+          }
+        }
+      }
+    },
+    "app.settings.text_photos.off_text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gerät löscht den Text, den es in deinen Fotos gelesen hat. Schaltest du es wieder ein, muss es alle erneut lesen, und das dauert eine Weile."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device deletes the text it read in your photos. Turned on again, it has to read all of them again, which takes a while."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu dispositivo borra el texto que leyó en tus fotos. Si lo vuelves a activar, tendrá que leerlas todas de nuevo, y eso lleva un rato."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre appareil supprime le texte qu’il a lu dans vos photos. Si vous le réactivez, il devra toutes les relire, ce qui prend un moment."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo dispositivo cancella il testo che ha letto nelle tue foto. Se lo riattivi, dovrà rileggerle tutte, e ci vorrà un po’."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je apparaat verwijdert de tekst die het in je foto’s heeft gelezen. Zet je het weer aan, dan moet het ze allemaal opnieuw lezen, en dat duurt even."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dispositivo apaga o texto que leu nas tuas fotos. Se o voltares a ativar, terá de as ler todas outra vez, o que demora algum tempo."
+          }
+        }
+      }
+    },
+    "app.settings.text_photos.off_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text in Fotos ausschalten?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off Text in photos?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Desactivar Texto en fotos?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactiver Texte dans les photos ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disattivare Testo nelle foto?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tekst in foto’s uitzetten?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desativar Texto nas fotos?"
+          }
+        }
+      }
+    },
+    "app.settings.text_photos.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text in Fotos"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text in photos"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Texto en fotos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Texte dans les photos"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Testo nelle foto"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tekst in foto’s"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Texto nas fotos"
           }
         }
       }

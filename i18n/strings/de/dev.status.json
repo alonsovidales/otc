@@ -15,6 +15,10 @@
     "text": "Wählt das beste Gesicht jeder Person aus",
     "en": "Choosing the best face for each person"
   },
+  "dev.status.background.pets": {
+    "text": "Sucht nach Haustieren in deinen Fotos",
+    "en": "Looking for pets in your photos"
+  },
   "dev.status.background.places": {
     "text": "Ermittelt, wo deine Fotos aufgenommen wurden",
     "en": "Finding where your photos were taken"
@@ -26,6 +30,10 @@
   "dev.status.background.smart_search": {
     "text": "Lernt deine Fotos kennen",
     "en": "Getting to know your photos"
+  },
+  "dev.status.background.text": {
+    "text": "Liest den Text in deinen Fotos",
+    "en": "Reading the text in your photos"
   },
   "dev.status.background.thumbnails": {
     "text": "Erstellt Miniaturen",

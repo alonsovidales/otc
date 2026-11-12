@@ -543,5 +543,8 @@
   "web.images.viewer.show_map": "Afficher sur la carte",
   "web.images.viewer.stalled": "Le chargement de cette vidéo prend trop de temps.",
   "web.images.viewer.stalled_hint": "Rien n’est arrivé de votre appareil depuis un moment : il est peut-être occupé ou difficile à joindre pour le moment. Un nouvel essai suffit généralement.",
-  "web.images.viewer.taken": "Prise de vue"
+  "web.images.viewer.taken": "Prise de vue",
+  "web.images.viewer.text_copied": "Copié",
+  "web.images.viewer.text_copy": "Copier",
+  "web.images.viewer.text_title": "Texte dans cette photo"
 }

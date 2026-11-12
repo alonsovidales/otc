@@ -442,6 +442,9 @@
     <string name="app_photos_viewer_low_res">Aperçu</string>
     <string name="app_photos_viewer_more_info">Plus d’infos</string>
     <string name="app_photos_viewer_saving">Enregistrement…</string>
+    <string name="app_photos_viewer_text_copied">Copié</string>
+    <string name="app_photos_viewer_text_copy">Copier</string>
+    <string name="app_photos_viewer_text_title">Texte dans cette photo</string>
     <string name="app_photos_wallpaper_empty">Cette collection ne contient aucune photo à afficher.</string>
     <string name="app_photos_wallpaper_failed">Impossible d’enregistrer les photos. Réessayez.</string>
     <string name="app_photos_wallpaper_lock_note">Toute personne qui voit votre écran verrouillé verra ces photos.</string>

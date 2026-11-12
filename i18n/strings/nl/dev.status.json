@@ -15,6 +15,10 @@
     "text": "Kiest het beste gezicht van elke persoon",
     "en": "Choosing the best face for each person"
   },
+  "dev.status.background.pets": {
+    "text": "Zoekt naar huisdieren in je foto’s",
+    "en": "Looking for pets in your photos"
+  },
   "dev.status.background.places": {
     "text": "Zoekt uit waar je foto’s zijn gemaakt",
     "en": "Finding where your photos were taken"
@@ -26,6 +30,10 @@
   "dev.status.background.smart_search": {
     "text": "Leert je foto’s kennen",
     "en": "Getting to know your photos"
+  },
+  "dev.status.background.text": {
+    "text": "Leest de tekst in je foto’s",
+    "en": "Reading the text in your photos"
   },
   "dev.status.background.thumbnails": {
     "text": "Maakt miniaturen",

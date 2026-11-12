@@ -543,5 +543,8 @@
   "web.images.viewer.show_map": "Op de kaart tonen",
   "web.images.viewer.stalled": "Het laden van deze video duurt te lang.",
   "web.images.viewer.stalled_hint": "Er is al een tijdje niets van je apparaat binnengekomen; het is misschien bezig of nu moeilijk bereikbaar. Opnieuw proberen werkt meestal.",
-  "web.images.viewer.taken": "Gemaakt op"
+  "web.images.viewer.taken": "Gemaakt op",
+  "web.images.viewer.text_copied": "Gekopieerd",
+  "web.images.viewer.text_copy": "Kopiëren",
+  "web.images.viewer.text_title": "Tekst in deze foto"
 }

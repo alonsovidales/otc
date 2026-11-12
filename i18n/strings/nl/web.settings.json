@@ -378,6 +378,22 @@
     "text": "Onverwacht antwoord.",
     "en": "Unexpected response."
   },
+  "web.settings.pets.disable": {
+    "text": "Huisdieren uitschakelen",
+    "en": "Disable Pets"
+  },
+  "web.settings.pets.enable": {
+    "text": "Huisdieren inschakelen",
+    "en": "Enable Pets"
+  },
+  "web.settings.pets.hint": {
+    "text": "Je apparaat vindt je honden en katten in je foto’s en toont elk dier bij Personen, zodat je ze een naam kunt geven en hun foto’s kunt vinden zoals die van mensen. Het doet dit zelf, en niets verlaat je apparaat.",
+    "en": "Your device finds your dogs and cats in your photos and shows each one in People, so you can name them and find their photos as you do people's. It does this itself, and nothing leaves it."
+  },
+  "web.settings.pets.title": {
+    "text": "Huisdieren",
+    "en": "Pets"
+  },
   "web.settings.places.disable": {
     "text": "Plaatsen uitschakelen",
     "en": "Disable Places"
@@ -786,6 +802,34 @@
   "web.settings.tailscale.turn_off": {
     "text": "Funnel uitschakelen",
     "en": "Turn Funnel off"
+  },
+  "web.settings.text_photos.disable": {
+    "text": "Tekst in foto’s uitschakelen",
+    "en": "Disable Text in photos"
+  },
+  "web.settings.text_photos.enable": {
+    "text": "Tekst in foto’s inschakelen",
+    "en": "Enable Text in photos"
+  },
+  "web.settings.text_photos.hint": {
+    "text": "Je apparaat leest de tekst in je foto’s (borden, documenten, screenshots), zodat je erop kunt zoeken en hem kunt kopiëren. Het doet dit zelf en bewaart de tekst versleuteld. Uitzetten verwijdert wat het heeft gelezen.",
+    "en": "Your device reads the text in your photos (signs, documents, screenshots) so you can search for it and copy it. It does this itself and keeps the text encrypted. Turning it off deletes what it read."
+  },
+  "web.settings.text_photos.off_confirm": {
+    "text": "Uitzetten",
+    "en": "Turn Off"
+  },
+  "web.settings.text_photos.off_text": {
+    "text": "Je apparaat verwijdert de tekst die het in je foto’s heeft gelezen. Zet je het weer aan, dan moet het ze allemaal opnieuw lezen, en dat duurt even.",
+    "en": "Your device deletes the text it read in your photos. Turned on again, it has to read all of them again, which takes a while."
+  },
+  "web.settings.text_photos.off_title": {
+    "text": "Tekst in foto’s uitzetten?",
+    "en": "Turn off Text in photos?"
+  },
+  "web.settings.text_photos.title": {
+    "text": "Tekst in foto’s",
+    "en": "Text in photos"
   },
   "web.settings.update.check_again": {
     "text": "Opnieuw controleren",

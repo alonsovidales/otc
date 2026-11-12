@@ -1174,6 +1174,18 @@ fun S.appPhotosViewerMoreInfo(): UiText =
 fun S.appPhotosViewerSaving(): UiText =
     UiText.Res(R.string.app_photos_viewer_saving)
 
+/** "Copied": What the Copy button of Text in this photo (app.photos.viewer.text_copy) says for a moment once the text is copied. */
+fun S.appPhotosViewerTextCopied(): UiText =
+    UiText.Res(R.string.app_photos_viewer_text_copied)
+
+/** "Copy": Button beside the heading Text in this photo (app.photos.viewer.text_title) in the photo viewer's Info: copies the photo's text. */
+fun S.appPhotosViewerTextCopy(): UiText =
+    UiText.Res(R.string.app_photos_viewer_text_copy)
+
+/** "Text in this photo": Heading of a block in the photo viewer's Info: the text the device read in the photo (Text in photos), shown under it as it was read, with a Copy button (app.photos.viewer.text_copy). */
+fun S.appPhotosViewerTextTitle(): UiText =
+    UiText.Res(R.string.app_photos_viewer_text_title)
+
 /** "This collection has no photos to show.": In the wallpaper box when the collection has no photos (empty, or only videos): there is nothing to use as wallpaper. */
 fun S.appPhotosWallpaperEmpty(): UiText =
     UiText.Res(R.string.app_photos_wallpaper_empty)

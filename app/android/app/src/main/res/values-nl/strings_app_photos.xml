@@ -405,6 +405,9 @@
     <string name="app_photos_viewer_low_res">Voorbeeld</string>
     <string name="app_photos_viewer_more_info">Meer info</string>
     <string name="app_photos_viewer_saving">Opslaan…</string>
+    <string name="app_photos_viewer_text_copied">Gekopieerd</string>
+    <string name="app_photos_viewer_text_copy">Kopiëren</string>
+    <string name="app_photos_viewer_text_title">Tekst in deze foto</string>
     <string name="app_photos_wallpaper_empty">Deze collectie heeft geen foto’s om te tonen.</string>
     <string name="app_photos_wallpaper_failed">De foto’s konden niet worden opgeslagen. Probeer het opnieuw.</string>
     <string name="app_photos_wallpaper_lock_note">Iedereen die je vergrendelscherm ziet, ziet deze foto’s.</string>

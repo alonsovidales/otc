@@ -442,6 +442,9 @@
     <string name="app_photos_viewer_low_res">Baja calidad</string>
     <string name="app_photos_viewer_more_info">Más información</string>
     <string name="app_photos_viewer_saving">Guardando…</string>
+    <string name="app_photos_viewer_text_copied">Copiado</string>
+    <string name="app_photos_viewer_text_copy">Copiar</string>
+    <string name="app_photos_viewer_text_title">Texto en esta foto</string>
     <string name="app_photos_wallpaper_empty">Esta colección no tiene fotos que mostrar.</string>
     <string name="app_photos_wallpaper_failed">No se han podido guardar las fotos. Vuelve a intentarlo.</string>
     <string name="app_photos_wallpaper_lock_note">Quien vea tu pantalla bloqueada verá estas fotos.</string>

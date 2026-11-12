@@ -1813,5 +1813,17 @@
   "web.images.viewer.taken": {
     "text": "Data di scatto",
     "en": "Taken"
+  },
+  "web.images.viewer.text_copied": {
+    "text": "Copiato",
+    "en": "Copied"
+  },
+  "web.images.viewer.text_copy": {
+    "text": "Copia",
+    "en": "Copy"
+  },
+  "web.images.viewer.text_title": {
+    "text": "Testo in questa foto",
+    "en": "Text in this photo"
   }
 }

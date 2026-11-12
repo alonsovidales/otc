@@ -1988,5 +1988,20 @@
     "text": "Taken",
     "note": "Label in the photo viewer's details panel, before the date and time the photo was taken.",
     "max": 20
+  },
+  "web.images.viewer.text_copied": {
+    "text": "Copied",
+    "note": "What the Copy button of Text in this photo (web.images.viewer.text_copy) says for a moment once the text is on the clipboard.",
+    "max": 20
+  },
+  "web.images.viewer.text_copy": {
+    "text": "Copy",
+    "note": "Button beside the heading Text in this photo (web.images.viewer.text_title) in the photo viewer's Info panel: copies the photo's text to the clipboard.",
+    "max": 20
+  },
+  "web.images.viewer.text_title": {
+    "text": "Text in this photo",
+    "note": "Heading of a block in the photo viewer's Info panel (web.images.viewer.more_info): the text the device read in the photo (Text in photos), shown under it as it was read, with a Copy button (web.images.viewer.text_copy).",
+    "max": 40
   }
 }

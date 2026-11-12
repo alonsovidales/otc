@@ -1416,6 +1416,18 @@
     "text": "Guardando…",
     "en": "Saving…"
   },
+  "app.photos.viewer.text_copied": {
+    "text": "Copiado",
+    "en": "Copied"
+  },
+  "app.photos.viewer.text_copy": {
+    "text": "Copiar",
+    "en": "Copy"
+  },
+  "app.photos.viewer.text_title": {
+    "text": "Texto en esta foto",
+    "en": "Text in this photo"
+  },
   "app.photos.wallpaper.empty": {
     "text": "Esta colección no tiene fotos que mostrar.",
     "en": "This collection has no photos to show."

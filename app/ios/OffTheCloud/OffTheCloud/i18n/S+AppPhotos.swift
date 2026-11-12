@@ -1645,6 +1645,21 @@ extension S {
     /// Screen-reader name of the viewer's Save button while it shows a spinner: the original photo or video is being downloaded from the device and saved to the phone's own photo library (Photos on an iPhone, the gallery on Android).
     static var appPhotosViewerSaving: String { L("app.photos.viewer.saving", table: "AppPhotos") }
 
+    /// Copied
+    ///
+    /// What the Copy button of Text in this photo (app.photos.viewer.text_copy) says for a moment once the text is copied.
+    static var appPhotosViewerTextCopied: String { L("app.photos.viewer.text_copied", table: "AppPhotos") }
+
+    /// Copy
+    ///
+    /// Button beside the heading Text in this photo (app.photos.viewer.text_title) in the photo viewer's Info: copies the photo's text.
+    static var appPhotosViewerTextCopy: String { L("app.photos.viewer.text_copy", table: "AppPhotos") }
+
+    /// Text in this photo
+    ///
+    /// Heading of a block in the photo viewer's Info: the text the device read in the photo (Text in photos), shown under it as it was read, with a Copy button (app.photos.viewer.text_copy).
+    static var appPhotosViewerTextTitle: String { L("app.photos.viewer.text_title", table: "AppPhotos") }
+
     /// This collection has no photos to show.
     ///
     /// In the wallpaper box when the collection has no photos (empty, or only videos): there is nothing to use as wallpaper.

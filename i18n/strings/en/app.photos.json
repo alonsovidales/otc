@@ -1558,6 +1558,21 @@
     "note": "Screen-reader name of the viewer's Save button while it shows a spinner: the original photo or video is being downloaded from the device and saved to the phone's own photo library (Photos on an iPhone, the gallery on Android).",
     "max": 30
   },
+  "app.photos.viewer.text_copied": {
+    "text": "Copied",
+    "note": "What the Copy button of Text in this photo (app.photos.viewer.text_copy) says for a moment once the text is copied.",
+    "max": 20
+  },
+  "app.photos.viewer.text_copy": {
+    "text": "Copy",
+    "note": "Button beside the heading Text in this photo (app.photos.viewer.text_title) in the photo viewer's Info: copies the photo's text.",
+    "max": 20
+  },
+  "app.photos.viewer.text_title": {
+    "text": "Text in this photo",
+    "note": "Heading of a block in the photo viewer's Info: the text the device read in the photo (Text in photos), shown under it as it was read, with a Copy button (app.photos.viewer.text_copy).",
+    "max": 40
+  },
   "app.photos.wallpaper.empty": {
     "text": "This collection has no photos to show.",
     "note": "In the wallpaper box when the collection has no photos (empty, or only videos): there is nothing to use as wallpaper."

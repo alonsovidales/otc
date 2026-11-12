@@ -404,6 +404,9 @@
     <string name="app_photos_viewer_low_res">Low res</string>
     <string name="app_photos_viewer_more_info">More info</string>
     <string name="app_photos_viewer_saving">Saving…</string>
+    <string name="app_photos_viewer_text_copied">Copied</string>
+    <string name="app_photos_viewer_text_copy">Copy</string>
+    <string name="app_photos_viewer_text_title">Text in this photo</string>
     <string name="app_photos_wallpaper_empty">This collection has no photos to show.</string>
     <string name="app_photos_wallpaper_failed">Couldn\'t store the photos. Try again.</string>
     <string name="app_photos_wallpaper_lock_note">Anyone who sees your lock screen will see these photos.</string>

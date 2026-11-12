@@ -1311,6 +1311,12 @@ export interface SearchPhotos {
    * "smart_search_unavailable". Devices before Smart search ignore it and
    * answer the whole library, so never send it to one whose Settings lack
    * smart_search_enabled. "" (or only spaces) is no text.
+   * Text in photos (release 180, Settings.text_in_photos_enabled): while it
+   * is on, the photos whose text holds the words come first - the whole
+   * words before a part of one ("04-R" finds GTS-04-R), case and accents
+   * aside - then Smart search's. With Text in photos on and Smart search
+   * off (or its model not there yet) the answer is those photos alone, so
+   * the apps offer the text while either can answer it.
    */
   text: string;
   /**
@@ -2512,7 +2518,38 @@ export interface Settings {
    * more memory and makes photos slower to process. Unset elsewhere and on
    * older devices.
    */
-  imageTaggingHeavy?: boolean | undefined;
+  imageTaggingHeavy?:
+    | boolean
+    | undefined;
+  /**
+   * Text in photos (release 180): on unless the user turns it off
+   * (SetTextInPhotosEnabled), for their own library. While it is on the
+   * device reads the text in each photo - signs, documents, screenshots,
+   * number plates - with a text model of its own, from the photo itself,
+   * and keeps it encrypted with the user's key: SearchPhotos.text finds
+   * photos by it, and Info shows it (FileExifInfo.text). Turning it off
+   * deletes all of it. The photos the device held before are read in the
+   * background (Status.background_tasks, kind "text"). Always set by
+   * devices that have it; absent means the device predates it, and the
+   * apps show neither the switch nor the text.
+   */
+  textInPhotosEnabled?:
+    | boolean
+    | undefined;
+  /**
+   * Pets (release 180): on unless the user turns it off (SetPetsEnabled),
+   * for their own library. While it is on the device finds the dogs and
+   * cats in the photos and tells them apart as it tells people apart by
+   * their faces: each pet is a person in People (ListPeople), its face a
+   * PhotoFace like anyone's - named, merged, taken off a photo (Not this
+   * person), added to a photo or video by hand, searched by name and
+   * remembered in On this day as people are. The photos the device held
+   * before are looked at in the background (Status.background_tasks, kind
+   * "pets"). Off, no more pets are found; those found stay in People until
+   * deleted there. Always set by devices that have it; absent means the
+   * device predates it, and the apps show no switch.
+   */
+  petsEnabled?: boolean | undefined;
 }
 
 /**
@@ -2794,6 +2831,31 @@ export interface SetSmartSearchEnabled {
 }
 
 /**
+ * Text in photos' switch (Settings.text_in_photos_enabled), for the user's
+ * own library. On: the device reads the text of the photos it holds in the
+ * background, with this session's key, once its text model is there (the
+ * device downloads it by itself while Text in photos or Pets is on); off:
+ * every text it read is deleted before the answer. Answers with the
+ * generic Ack. A demo device refuses it, and devices before it answer
+ * error_code "unknown_payload".
+ */
+export interface SetTextInPhotosEnabled {
+  enabled: boolean;
+}
+
+/**
+ * Pets' switch (Settings.pets_enabled), for the user's own library. On:
+ * the device looks for pets in the photos it holds in the background, and
+ * in every new one; off: it finds no more, and the pets in People stay
+ * (deleting one there deletes it). Answers with the generic Ack. A demo
+ * device refuses it, and devices before it answer error_code
+ * "unknown_payload".
+ */
+export interface SetPetsEnabled {
+  enabled: boolean;
+}
+
+/**
  * SetImageTaggingEnabled (issue #181) turns the tagging model on or off
  * for what is processed from now on. Answers with the generic Ack.
  */
@@ -2982,7 +3044,9 @@ export interface PhotoFace {
 /**
  * The answer to GetPhotoFaces: the faces, left to right, then the people
  * added by hand, in the order they were added; whether face recognition is
- * on (off: no faces, and the apps show none); and the photo's content
+ * on (off: no faces, and the apps show none) - since release 180, or Pets
+ * (Settings.pets_enabled): a pet's face is one of the faces; and the
+ * photo's content
  * hash, for RemoveFromPerson and AddToPerson. adds_people: the device
  * takes AddToPerson for this photo or video, and answers for a video too
  * (its people added by hand); Info then offers Add while face recognition
@@ -3738,6 +3802,13 @@ export interface FileExifInfo {
   longitude: number;
   city: string;
   country: string;
+  /**
+   * Text in photos (release 180): the text the device read in the photo, a
+   * line of it a line here, top to bottom; "" when it found none, hasn't
+   * read the photo yet, or Text in photos is off. Info shows it under "Text
+   * in this photo", with Copy. Devices before it never set it.
+   */
+  text: string;
 }
 
 export interface GetFileInfo {
@@ -4384,6 +4455,13 @@ export interface ReqEnvelope {
     | //
     /** Info's Add: a person put in a photo or video by hand. */
     { $case: "reqAddToPerson"; reqAddToPerson: AddToPerson }
+    | //
+    /**
+     * Release 180: Text in photos' and Pets' switches. Both answer with the
+     * generic Ack.
+     */
+    { $case: "reqSetTextInPhotosEnabled"; reqSetTextInPhotosEnabled: SetTextInPhotosEnabled }
+    | { $case: "reqSetPetsEnabled"; reqSetPetsEnabled: SetPetsEnabled }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -14674,6 +14752,8 @@ function createBaseSettings(): Settings {
     smartSearchModel: undefined,
     imageTaggingAvailable: undefined,
     imageTaggingHeavy: undefined,
+    textInPhotosEnabled: undefined,
+    petsEnabled: undefined,
   };
 }
 
@@ -14720,6 +14800,12 @@ export const Settings: MessageFns<Settings> = {
     }
     if (message.imageTaggingHeavy !== undefined) {
       writer.uint32(104).bool(message.imageTaggingHeavy);
+    }
+    if (message.textInPhotosEnabled !== undefined) {
+      writer.uint32(112).bool(message.textInPhotosEnabled);
+    }
+    if (message.petsEnabled !== undefined) {
+      writer.uint32(120).bool(message.petsEnabled);
     }
     return writer;
   },
@@ -14835,6 +14921,22 @@ export const Settings: MessageFns<Settings> = {
           message.imageTaggingHeavy = reader.bool();
           continue;
         }
+        case 14: {
+          if (tag !== 112) {
+            break;
+          }
+
+          message.textInPhotosEnabled = reader.bool();
+          continue;
+        }
+        case 15: {
+          if (tag !== 120) {
+            break;
+          }
+
+          message.petsEnabled = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -14864,6 +14966,8 @@ export const Settings: MessageFns<Settings> = {
       : undefined;
     message.imageTaggingAvailable = object.imageTaggingAvailable ?? undefined;
     message.imageTaggingHeavy = object.imageTaggingHeavy ?? undefined;
+    message.textInPhotosEnabled = object.textInPhotosEnabled ?? undefined;
+    message.petsEnabled = object.petsEnabled ?? undefined;
     return message;
   },
 };
@@ -16153,6 +16257,98 @@ export const SetSmartSearchEnabled: MessageFns<SetSmartSearchEnabled> = {
   },
   fromPartial<I extends Exact<DeepPartial<SetSmartSearchEnabled>, I>>(object: I): SetSmartSearchEnabled {
     const message = createBaseSetSmartSearchEnabled();
+    message.enabled = object.enabled ?? false;
+    return message;
+  },
+};
+
+function createBaseSetTextInPhotosEnabled(): SetTextInPhotosEnabled {
+  return { enabled: false };
+}
+
+export const SetTextInPhotosEnabled: MessageFns<SetTextInPhotosEnabled> = {
+  encode(message: SetTextInPhotosEnabled, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== false) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetTextInPhotosEnabled {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetTextInPhotosEnabled();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.enabled = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<SetTextInPhotosEnabled>, I>>(base?: I): SetTextInPhotosEnabled {
+    return SetTextInPhotosEnabled.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetTextInPhotosEnabled>, I>>(object: I): SetTextInPhotosEnabled {
+    const message = createBaseSetTextInPhotosEnabled();
+    message.enabled = object.enabled ?? false;
+    return message;
+  },
+};
+
+function createBaseSetPetsEnabled(): SetPetsEnabled {
+  return { enabled: false };
+}
+
+export const SetPetsEnabled: MessageFns<SetPetsEnabled> = {
+  encode(message: SetPetsEnabled, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== false) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetPetsEnabled {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetPetsEnabled();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.enabled = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<SetPetsEnabled>, I>>(base?: I): SetPetsEnabled {
+    return SetPetsEnabled.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetPetsEnabled>, I>>(object: I): SetPetsEnabled {
+    const message = createBaseSetPetsEnabled();
     message.enabled = object.enabled ?? false;
     return message;
   },
@@ -20971,6 +21167,7 @@ function createBaseFileExifInfo(): FileExifInfo {
     longitude: 0,
     city: "",
     country: "",
+    text: "",
   };
 }
 
@@ -21017,6 +21214,9 @@ export const FileExifInfo: MessageFns<FileExifInfo> = {
     }
     if (message.country !== "") {
       writer.uint32(114).string(message.country);
+    }
+    if (message.text !== "") {
+      writer.uint32(122).string(message.text);
     }
     return writer;
   },
@@ -21140,6 +21340,14 @@ export const FileExifInfo: MessageFns<FileExifInfo> = {
           message.country = reader.string();
           continue;
         }
+        case 15: {
+          if (tag !== 122) {
+            break;
+          }
+
+          message.text = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -21168,6 +21376,7 @@ export const FileExifInfo: MessageFns<FileExifInfo> = {
     message.longitude = object.longitude ?? 0;
     message.city = object.city ?? "";
     message.country = object.country ?? "";
+    message.text = object.text ?? "";
     return message;
   },
 };
@@ -23406,6 +23615,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqAddToPerson":
         AddToPerson.encode(message.payload.reqAddToPerson, writer.uint32(1362).fork()).join();
         break;
+      case "reqSetTextInPhotosEnabled":
+        SetTextInPhotosEnabled.encode(message.payload.reqSetTextInPhotosEnabled, writer.uint32(1370).fork()).join();
+        break;
+      case "reqSetPetsEnabled":
+        SetPetsEnabled.encode(message.payload.reqSetPetsEnabled, writer.uint32(1378).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -24956,6 +25171,28 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqAddToPerson", reqAddToPerson: AddToPerson.decode(reader, reader.uint32()) };
           continue;
         }
+        case 171: {
+          if (tag !== 1370) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetTextInPhotosEnabled",
+            reqSetTextInPhotosEnabled: SetTextInPhotosEnabled.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 172: {
+          if (tag !== 1378) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetPetsEnabled",
+            reqSetPetsEnabled: SetPetsEnabled.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -26384,6 +26621,26 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqAddToPerson",
             reqAddToPerson: AddToPerson.fromPartial(object.payload.reqAddToPerson),
+          };
+        }
+        break;
+      }
+      case "reqSetTextInPhotosEnabled": {
+        if (
+          object.payload?.reqSetTextInPhotosEnabled !== undefined && object.payload?.reqSetTextInPhotosEnabled !== null
+        ) {
+          message.payload = {
+            $case: "reqSetTextInPhotosEnabled",
+            reqSetTextInPhotosEnabled: SetTextInPhotosEnabled.fromPartial(object.payload.reqSetTextInPhotosEnabled),
+          };
+        }
+        break;
+      }
+      case "reqSetPetsEnabled": {
+        if (object.payload?.reqSetPetsEnabled !== undefined && object.payload?.reqSetPetsEnabled !== null) {
+          message.payload = {
+            $case: "reqSetPetsEnabled",
+            reqSetPetsEnabled: SetPetsEnabled.fromPartial(object.payload.reqSetPetsEnabled),
           };
         }
         break;

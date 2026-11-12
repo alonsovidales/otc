@@ -543,5 +543,8 @@
   "web.images.viewer.show_map": "Mostrar en el mapa",
   "web.images.viewer.stalled": "Este vídeo está tardando demasiado en cargarse.",
   "web.images.viewer.stalled_hint": "Hace un rato que no llega nada de tu dispositivo: puede que esté ocupado o que ahora mismo cueste contactar con él. Volver a intentarlo suele funcionar.",
-  "web.images.viewer.taken": "Fecha de captura"
+  "web.images.viewer.taken": "Fecha de captura",
+  "web.images.viewer.text_copied": "Copiado",
+  "web.images.viewer.text_copy": "Copiar",
+  "web.images.viewer.text_title": "Texto en esta foto"
 }
