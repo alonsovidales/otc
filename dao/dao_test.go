@@ -740,6 +740,7 @@ func TestWipeTagsAndFacesDeletesAllThreeTablesInOneTransaction(t *testing.T) {
 	mock.ExpectExec("delete from `file_tags`").WillReturnResult(sqlmock.NewResult(0, 10))
 	mock.ExpectExec("delete from `faces`").WillReturnResult(sqlmock.NewResult(0, 5))
 	mock.ExpectExec("delete from `people_by_hand`").WillReturnResult(sqlmock.NewResult(0, 2))
+	mock.ExpectExec("delete from `pet_scans`").WillReturnResult(sqlmock.NewResult(0, 4))
 	mock.ExpectExec("delete from `people`").WillReturnResult(sqlmock.NewResult(0, 3))
 	mock.ExpectCommit()
 
@@ -748,7 +749,7 @@ func TestWipeTagsAndFacesDeletesAllThreeTablesInOneTransaction(t *testing.T) {
 		t.Fatalf("WipeTagsAndFaces: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("not all expected queries ran (order matters here: file_tags, then faces, then the people added by hand, then people): %v", err)
+		t.Errorf("not all expected queries ran (order matters here: file_tags, then faces, then the people added by hand, then the photos looked at for pets, then people): %v", err)
 	}
 }
 

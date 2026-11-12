@@ -225,10 +225,11 @@ func (dao *Dao) OrphanFaceHashes() (hashes []string, err error) {
 // A content's faces are found once: detecting them again added a second
 // set of rows (new ids, no unique key), inflating People - see
 // files_manager.processFaces. People added by hand aren't faces found:
-// the content is still analysed.
+// the content is still analysed. Nor are pets' (faces.kind, release 180):
+// whether a content was looked at for pets is pet_scans'.
 func (dao *Dao) HashHasFaces(hash string) (bool, error) {
 	var one int
-	err := dao.db.QueryRow("select 1 from `faces` where `hash` = ? limit 1", hash).Scan(&one)
+	err := dao.db.QueryRow("select 1 from `faces` where `hash` = ? and `kind` = 0 limit 1", hash).Scan(&one)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}

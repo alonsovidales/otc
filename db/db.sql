@@ -179,6 +179,42 @@ create table photo_embeddings
   primary key (`hash`)
 ) engine=InnoDB;
 
+-- Text in photos (release 180): the text a text model on the device
+-- (PP-OCRv6, text_reader) read in each photo, from the photo itself, so a
+-- search's words find it and Info shows it (files_manager/photo_text.go).
+-- Kept only while the user has Text in photos on
+-- (settings.text_in_photos_enabled): turning it off deletes every row.
+-- `text` is the lines read, sealed with the user's key (AES-GCM,
+-- session.Encrypt) - the text of documents, IDs and addresses is as private
+-- as the photo - or NULL for a photo read that has none. `model` names the
+-- model that read it (another model's photos are read again). Written when
+-- the device analyses a photo (the slow lane), and in the background for
+-- what it held before. Goes with the content's last path or kept version.
+-- Never sent anywhere.
+create table photo_text
+(
+  `hash` varchar(64) not null,
+  `model` varchar(64) not null,
+  `text` mediumblob default null,
+  `made` datetime not null,
+
+  primary key (`hash`)
+) engine=InnoDB;
+
+-- Pets (release 180): the photos the pet models (`model`) looked at, so
+-- each is looked at once - most photos have no pet, and a pet found is a
+-- faces row of kind 1 or 2 (files_manager/pets.go). Goes with the
+-- content's last path or kept version, and with its faces when it is kept
+-- out of Images or reprocessed.
+create table pet_scans
+(
+  `hash` varchar(64) not null,
+  `model` varchar(64) not null,
+  `made` datetime not null,
+
+  primary key (`hash`)
+) engine=InnoDB;
+
 -- On this day (Memories): how each photo looks, by content, measured once
 -- from its big thumbnail (files_manager/quality.go) while On this day is on
 -- (settings.memories_enabled): numbers only - how sharp and well exposed it
@@ -453,7 +489,18 @@ create table settings
   -- changes not yet counted - builds them again. A script that changes
   -- `files` rows must set photo_months_for to NULL.
   `photo_months_for` mediumtext null,
-  `photo_months_run` varchar(32) null
+  `photo_months_run` varchar(32) null,
+  -- Text in photos (release 180): on unless the user turns it off
+  -- (SetTextInPhotosEnabled). While it is on the device reads the text in
+  -- each photo (photo_text) and SearchPhotos.text finds photos by it;
+  -- turning it off deletes every text in the same transaction.
+  `text_in_photos_enabled` tinyint(1) not null default 1,
+  -- Pets (release 180): on unless the user turns it off (SetPetsEnabled).
+  -- While it is on the device finds the dogs and cats in each photo and
+  -- files each pet in People like a person (faces.kind, pet_scans).
+  -- Turning it off deletes nothing: the pets found stay until deleted in
+  -- People.
+  `pets_enabled` tinyint(1) not null default 1
 ) engine=InnoDB;
 
 -- Release 168 (issue #206): Images' month counts (the date scrubber), kept
@@ -775,6 +822,14 @@ create table faces
   -- measured it. The face People shows for a person is the best-looking of
   -- those that are clearly them (dao.BestFaces), unless the owner chose one.
   `quality` float default null,
+  -- What it is the face of (release 180): 0 a person, found by the face
+  -- models (face_recognition); 1 a dog and 2 a cat, found by the pet models
+  -- (pet_finder) - the crop is then the whole animal. A pet is a person in
+  -- People like anyone, but its embedding is another model's: a new face
+  -- is matched only against faces of its own kind (files_manager/pets.go),
+  -- and only a person's faces say that a photo's faces were found
+  -- (dao.HashHasFaces; for pets, pet_scans does).
+  `kind` tinyint not null default 0,
 
   primary key (`id`),
   key (`hash`),

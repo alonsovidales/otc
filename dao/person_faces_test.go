@@ -168,14 +168,15 @@ func TestNoOneIsNeverDeletedOrMerged(t *testing.T) {
 	}
 }
 
-// Face matching never reads the faces of no one.
+// Face matching never reads the faces of no one, nor the pets' (another
+// model's embeddings, matched apart).
 func TestListFaceEmbeddingsLeavesOutNoOne(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mock.ExpectQuery("select `id`, `person_id`, `embedding` from `faces` where `person_id` <> ''$").
+	mock.ExpectQuery("select `id`, `person_id`, `embedding` from `faces` where `person_id` <> '' and `kind` = 0$").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "person_id", "embedding"}))
 	if _, err := NewWithDB(db).ListFaceEmbeddings(); err != nil {
 		t.Fatal(err)

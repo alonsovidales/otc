@@ -441,7 +441,10 @@ type FaceBox struct{ X, Y, W, H int }
 // (false: it is not in to - cropped out), each to the same person, in one
 // transaction: an edit keeps who is in it. Nothing when to has faces
 // already. A face given takes the place of its person's row added by hand
-// in to (people_by_hand.go). Answers how many were given.
+// in to (people_by_hand.go). A pet's face goes as a person's does, of its
+// kind, and to is then as looked at for pets as from was (pet_scans), so
+// its analysis doesn't find them a second time. Answers how many were
+// given.
 func (dao *Dao) CopyFaces(from, to string, move func(FaceBox) (FaceBox, bool), newID func() string) (int, error) {
 	tx, err := dao.db.Begin()
 	if err != nil {
@@ -455,7 +458,7 @@ func (dao *Dao) CopyFaces(from, to string, move func(FaceBox) (FaceBox, bool), n
 	if has > 0 {
 		return 0, nil
 	}
-	rows, err := tx.Query("select `person_id`, `bbox_x`, `bbox_y`, `bbox_w`, `bbox_h`, `embedding`, `thumbnail`, `quality` from `faces` where `hash` = ? order by `created`, `id`", from)
+	rows, err := tx.Query("select `person_id`, `bbox_x`, `bbox_y`, `bbox_w`, `bbox_h`, `embedding`, `thumbnail`, `quality`, `kind` from `faces` where `hash` = ? order by `created`, `id`", from)
 	if err != nil {
 		return 0, err
 	}
@@ -465,11 +468,12 @@ func (dao *Dao) CopyFaces(from, to string, move func(FaceBox) (FaceBox, bool), n
 		embedding []byte
 		thumbnail []byte
 		quality   sql.NullFloat64
+		kind      int
 	}
 	var faces []face
 	for rows.Next() {
 		var f face
-		if err := rows.Scan(&f.person, &f.box.X, &f.box.Y, &f.box.W, &f.box.H, &f.embedding, &f.thumbnail, &f.quality); err != nil {
+		if err := rows.Scan(&f.person, &f.box.X, &f.box.Y, &f.box.W, &f.box.H, &f.embedding, &f.thumbnail, &f.quality, &f.kind); err != nil {
 			rows.Close()
 			return 0, err
 		}
@@ -486,11 +490,14 @@ func (dao *Dao) CopyFaces(from, to string, move func(FaceBox) (FaceBox, bool), n
 		if !kept {
 			continue
 		}
-		if _, err = tx.Exec("insert into `faces` (`id`, `hash`, `person_id`, `bbox_x`, `bbox_y`, `bbox_w`, `bbox_h`, `embedding`, `thumbnail`, `created`, `quality`) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			newID(), to, f.person, box.X, box.Y, box.W, box.H, f.embedding, f.thumbnail, time.Now().UTC(), f.quality); err != nil {
+		if _, err = tx.Exec("insert into `faces` (`id`, `hash`, `person_id`, `bbox_x`, `bbox_y`, `bbox_w`, `bbox_h`, `embedding`, `thumbnail`, `created`, `quality`, `kind`) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			newID(), to, f.person, box.X, box.Y, box.W, box.H, f.embedding, f.thumbnail, time.Now().UTC(), f.quality, f.kind); err != nil {
 			return 0, err
 		}
 		n++
+	}
+	if _, err = tx.Exec("insert ignore into `pet_scans` (`hash`, `model`, `made`) select ?, `model`, `made` from `pet_scans` where `hash` = ?", to, from); err != nil && !isNoSuchTable(err) {
+		return 0, err
 	}
 	if n > 0 {
 		if err = dropByHandUnderFaces(tx, "`hash` = ?", to); err != nil {

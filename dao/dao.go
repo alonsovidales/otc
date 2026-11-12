@@ -2650,9 +2650,11 @@ type FaceEmbedding struct {
 //
 // A face taken off its person and given to no one ("Not this person",
 // person_id "" - see RemoveFromPerson) is left out: matching must never
-// learn from it, nor file a new face under no one through it.
+// learn from it, nor file a new face under no one through it. So are the
+// pets' (faces.kind, release 180): another model's embeddings
+// (ListPetEmbeddings).
 func (dao *Dao) ListFaceEmbeddings() (faces []FaceEmbedding, err error) {
-	return dao.faceEmbeddings("select `id`, `person_id`, `embedding` from `faces` where `person_id` <> ''")
+	return dao.faceEmbeddings("select `id`, `person_id`, `embedding` from `faces` where `person_id` <> '' and `kind` = 0")
 }
 
 // ListPersonFaceEmbeddings is ListFaceEmbeddings for one person's faces:
@@ -2663,7 +2665,7 @@ func (dao *Dao) ListPersonFaceEmbeddings(personID string) (faces []FaceEmbedding
 	if personID == "" {
 		return nil, nil
 	}
-	return dao.faceEmbeddings("select `id`, `person_id`, `embedding` from `faces` where `person_id` = ?", personID)
+	return dao.faceEmbeddings("select `id`, `person_id`, `embedding` from `faces` where `person_id` = ? and `kind` = 0", personID)
 }
 
 func (dao *Dao) faceEmbeddings(query string, args ...any) (faces []FaceEmbedding, err error) {
@@ -3507,6 +3509,12 @@ func (dao *Dao) WipeTagsAndFaces() (err error) {
 	}
 	if _, err = execIfByHand(tx, "delete from `people_by_hand`"); err != nil {
 		return fmt.Errorf("wiping the people added by hand: %w", err)
+	}
+	// The pets went with the faces: the photos are looked at for them
+	// again (pets.go). Without the table (the release's script hasn't
+	// run) there is nothing to forget.
+	if _, err = tx.Exec("delete from `pet_scans`"); err != nil && !isNoSuchTable(err) {
+		return fmt.Errorf("wiping pet_scans: %w", err)
 	}
 	if _, err = tx.Exec("delete from `people`"); err != nil {
 		return fmt.Errorf("wiping people: %w", err)
