@@ -139,7 +139,7 @@ func (mg *Manager) loadFaceRefsLocked(ses *session.Session) (faceRefs, error) {
 			faces, err := mg.dao.ListPersonFaceEmbeddings(personID)
 			if err != nil {
 				log.Error("error listing a person's face embeddings, reading everyone's:", err)
-				mg.faceRefs = nil
+				mg.faceRefs, mg.petRefs = nil, nil
 				break
 			}
 			// Built afresh: with no face left (the person went too, or
@@ -197,7 +197,7 @@ func (mg *Manager) InvalidateFaceRefs() {
 		return
 	}
 	mg.faceRefsMu.Lock()
-	mg.faceRefs = nil
+	mg.faceRefs, mg.petRefs = nil, nil
 	mg.faceRefsMu.Unlock()
 }
 
@@ -216,7 +216,7 @@ func (mg *Manager) dropFacesOfHash(hash string) {
 	if err != nil {
 		// Whether the faces went is unknown: build the set again from
 		// what is stored.
-		mg.faceRefs = nil
+		mg.faceRefs, mg.petRefs = nil, nil
 		log.Error("could not remove the faces of deleted content", hash, ":", err)
 		return
 	}
@@ -238,6 +238,9 @@ func (mg *Manager) dropFacesOfHash(hash string) {
 // changes nothing. Faces are added only under faceRefsMu, held here, so
 // gone is every face that went. The caller holds faceRefsMu.
 func (mg *Manager) forgetFacesLocked(gone []dao.DeletedFace) {
+	// The pets' set is built again at the next pet (pets.go): they are
+	// few, and a delete may have taken one of their faces.
+	mg.petRefs = nil
 	if mg.faceRefs == nil {
 		return // built when next needed, from what is left
 	}
@@ -290,6 +293,12 @@ func (mg *Manager) sweepOrphanFaces() {
 // plumbing so it's directly unit-testable without a real database or the
 // actual models.
 func matchOrNewPerson(embedding []float32, refs faceRefs) string {
+	return matchIn(embedding, refs, facerecognition.IsSamePersonScore)
+}
+
+// matchIn is matchOrNewPerson against refs with same's threshold: the
+// people's, or the pets' (pets.go).
+func matchIn(embedding []float32, refs faceRefs, same func(float32) bool) string {
 	bestPersonID := ""
 	var bestScore float32
 	for personID, p := range refs {
@@ -306,7 +315,7 @@ func matchOrNewPerson(embedding []float32, refs faceRefs) string {
 			}
 		}
 	}
-	if bestPersonID != "" && facerecognition.IsSamePersonScore(bestScore) {
+	if bestPersonID != "" && same(bestScore) {
 		return bestPersonID
 	}
 	return ""

@@ -11,7 +11,9 @@
 // embeddings are cropped from it); for tags only the 384x384 image the
 // tagging model takes, scaled by the child (imagestagger.Resize); for On
 // this day's photo quality only the 224x224 one NIMA takes
-// (imagesquality.Resize).
+// (imagesquality.Resize). For Text in photos and Pets (release 180) the
+// photo as the child capped it (files_manager/vision_models.go): the text
+// and the pets are cut out of it.
 //
 // A request is a gob header; its pixels, when there are any, follow it as
 // raw bytes (header.N), so neither side builds a gob message the size of
@@ -44,6 +46,8 @@ import (
 	imagesquality "github.com/alonsovidales/otc/images_quality"
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/log"
+	petfinder "github.com/alonsovidales/otc/pet_finder"
+	textreader "github.com/alonsovidales/otc/text_reader"
 )
 
 // EnvSocket is set by the supervisor on a child it spawns: the primary's
@@ -98,6 +102,21 @@ type Embedder interface {
 // than the download on demand.
 var ErrNoEmbedder = errors.New("the smart search model is not available") // i18n-ignore: matched by errors.Is and across the socket, logged only
 
+// Vision is Text in photos' and Pets' models (text_reader, pet_finder),
+// which come in one download (release 180): the lines of text in a photo,
+// and the dogs and cats in it. img is the photo upright, as the caller
+// capped it. files_manager's, or Client.
+type Vision interface {
+	ReadText(ctx context.Context, img image.Image) ([]textreader.Line, error)
+	FindPets(ctx context.Context, img image.Image) ([]petfinder.Pet, error)
+}
+
+// ErrNoVision is the answer to reading text or finding pets while the
+// primary has no vision models (their files missing, or still
+// downloading), and what a child gets from a primary older than them - for
+// "vision-fetch" too.
+var ErrNoVision = errors.New("the text and pet models are not available") // i18n-ignore: matched by errors.Is and across the socket, logged only
+
 // EmbedderState is where the primary's Smart search model is while it
 // hasn't it: since release 152 the primary downloads it only once someone
 // turns Smart search on, and "info" and "embed-fetch" carry how far that
@@ -139,6 +158,21 @@ type Models struct {
 	// download it.
 	EmbedderFetch func(who string, want bool) EmbedderState
 	EmbedderState func() EmbedderState
+	// Vision is Text in photos' and Pets' models now (nil, or a nil answer:
+	// not on this device yet); VisionFetch and VisionState are their
+	// download's, as EmbedderFetch and EmbedderState are Smart search's
+	// (nil: this primary can't download them).
+	Vision      func() Vision
+	VisionFetch func(who string, want bool) EmbedderState
+	VisionState func() EmbedderState
+}
+
+// vision is m's vision models now, nil when there are none.
+func (m Models) vision() Vision {
+	if m.Vision == nil {
+		return nil
+	}
+	return m.Vision()
 }
 
 // embedder is m's Smart search model now, nil when there is none.
@@ -158,7 +192,7 @@ const cProto = 1
 const cMaxPixelBytes = 1 << 31
 
 type request struct {
-	Op     string // "tags", "tags-resized" (version 1), "faces", "aesthetic", "embed-image", "embed-text", "embed-fetch", "info"
+	Op     string // "tags", "tags-resized" (version 1), "faces", "aesthetic", "embed-image", "embed-text", "embed-fetch", "text", "pets", "vision-fetch", "info"
 	Text   string // "embed-text": the search's text
 	W, H   int
 	Stride int
@@ -167,8 +201,9 @@ type request struct {
 	// N (version 1): this many bytes of pixels follow the message, W*H
 	// RGBA pixels with no padding, instead of Pix.
 	N int64
-	// Who and Want ("embed-fetch"): the instance asking for Smart search's
-	// model (its user's id), and whether it still wants it.
+	// Who and Want ("embed-fetch", "vision-fetch"): the instance asking for
+	// Smart search's model or the vision models (its user's id), and
+	// whether it still wants it.
 	Who  string
 	Want bool
 }
@@ -194,6 +229,14 @@ type response struct {
 	// EmbedderFetch (info, "embed-fetch") is where the model's download is
 	// while the primary hasn't it; zero from a primary older than that.
 	EmbedderFetch EmbedderState
+	// Lines ("text") and Pets ("pets") are the vision models' answers;
+	// HasVision (info, "vision-fetch"): the primary has them, and
+	// VisionFetch where their download is while it hasn't. Unset by a
+	// primary older than them.
+	Lines       []textreader.Line
+	Pets        []petfinder.Pet
+	HasVision   bool
+	VisionFetch EmbedderState
 }
 
 // resizedTagger is the primary's tagger taking an image already scaled to
@@ -269,8 +312,8 @@ func serveConn(conn net.Conn, models Models, slots chan struct{}) {
 		return
 	}
 	// A request with pixels waits for its turn before they are read; "info"
-	// and "embed-fetch" never wait.
-	if slots != nil && req.Op != "info" && req.Op != "embed-fetch" {
+	// and the downloads' asks never wait.
+	if slots != nil && req.Op != "info" && req.Op != "embed-fetch" && req.Op != "vision-fetch" {
 		select {
 		case slots <- struct{}{}:
 			defer func() { <-slots }()
@@ -288,7 +331,41 @@ func serveConn(conn net.Conn, models Models, slots chan struct{}) {
 			resp.EmbedderFetch = models.EmbedderState()
 		}
 		resp.HasEmbedder = models.embedder() != nil
+		if models.VisionState != nil {
+			resp.VisionFetch = models.VisionState()
+		}
+		resp.HasVision = models.vision() != nil
 		resp.Proto = cProto
+	case "vision-fetch":
+		if models.VisionFetch == nil {
+			resp.Err = ErrNoVision.Error()
+			break
+		}
+		if len(req.Who) > cMaxWho {
+			resp.Err = "malformed request"
+			break
+		}
+		resp.VisionFetch = models.VisionFetch(req.Who, req.Want)
+		resp.HasVision = models.vision() != nil
+	case "text", "pets":
+		img, err := readImage(br, req)
+		if err != nil {
+			resp.Err = err.Error()
+			break
+		}
+		vision := models.vision()
+		if vision == nil {
+			resp.Err = ErrNoVision.Error()
+			break
+		}
+		if req.Op == "text" {
+			resp.Lines, err = vision.ReadText(context.Background(), img)
+		} else {
+			resp.Pets, err = vision.FindPets(context.Background(), img)
+		}
+		if err != nil {
+			resp.Err = err.Error()
+		}
 	case "embed-fetch":
 		if models.EmbedderFetch == nil {
 			resp.Err = ErrNoEmbedder.Error()
@@ -484,6 +561,10 @@ func (c *Client) call(req request, pix []byte) (*response, error) {
 		if resp.Err == ErrNoEmbedder.Error() || (strings.HasPrefix(req.Op, "embed-") && resp.Err == "unknown request "+req.Op) {
 			return &resp, ErrNoEmbedder
 		}
+		// Nor one older than Text in photos and Pets.
+		if isVisionOp(req.Op) && (resp.Err == ErrNoVision.Error() || resp.Err == "unknown request "+req.Op) {
+			return &resp, ErrNoVision
+		}
 		return &resp, errors.New(resp.Err)
 	}
 	return &resp, nil
@@ -603,6 +684,57 @@ func (c *Client) FetchEmbedder(who string, want bool) (has bool, st EmbedderStat
 		return false, EmbedderState{}, err
 	}
 	return resp.HasEmbedder, resp.EmbedderFetch, nil
+}
+
+// isVisionOp is whether op is one of the vision models' requests.
+func isVisionOp(op string) bool { return op == "text" || op == "pets" || op == "vision-fetch" }
+
+// VisionStatus asks the primary whether it has the vision models, and
+// where their download is when it hasn't.
+func (c *Client) VisionStatus() (has bool, st EmbedderState, err error) {
+	resp, err := c.info()
+	if err != nil {
+		return false, EmbedderState{}, err
+	}
+	return resp.HasVision, resp.VisionFetch, nil
+}
+
+// FetchVision asks the primary for the vision models on behalf of who
+// (this instance's user), or (want false) says it no longer needs them:
+// the primary downloads them while any instance wants them. ErrNoVision
+// from a primary that can't (one older than them).
+func (c *Client) FetchVision(who string, want bool) (has bool, st EmbedderState, err error) {
+	resp, err := c.call(request{Op: "vision-fetch", Who: who, Want: want}, nil)
+	if err != nil {
+		return false, EmbedderState{}, err
+	}
+	return resp.HasVision, resp.VisionFetch, nil
+}
+
+// ReadText is the primary's text model's lines of img: ErrNoVision when the
+// primary hasn't the model.
+func (c *Client) ReadText(ctx context.Context, img image.Image) ([]textreader.Line, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	resp, err := c.imageCall("text", rgba(img), imagestagger.RAMOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return resp.Lines, nil
+}
+
+// FindPets is the primary's pet models' pets in img: ErrNoVision when the
+// primary hasn't the models.
+func (c *Client) FindPets(ctx context.Context, img image.Image) ([]petfinder.Pet, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	resp, err := c.imageCall("pets", rgba(img), imagestagger.RAMOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return resp.Pets, nil
 }
 
 // EmbedResized is the primary's Smart search vector of img, already through

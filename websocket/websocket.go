@@ -310,6 +310,12 @@ func (mg *Manager) startBackfillOnce(ses *session.Session) {
 			// Smart search: what was stored before, described while it is
 			// on (smart_search.go).
 			mg.filesManager.BackfillEmbeddings(ses)
+			// Text in photos and Pets: what was stored before, read and
+			// looked at while each is on, once their models are here -
+			// after Smart search, whose descriptions say which photos may
+			// show a pet; last, as it waits for the models' download
+			// (vision_backfill.go).
+			mg.filesManager.BackfillVision(ses)
 		}()
 	})
 	// Smart search: what its model's download left for a sign-in - every
@@ -3731,6 +3737,9 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 				MemoriesEnabled: proto.Bool(ch.mg.filesManager.MemoriesEnabled()),
 				// Smart search (beta): the same.
 				SmartSearchEnabled: proto.Bool(ch.mg.filesManager.SmartSearchEnabled()),
+				// Text in photos and Pets (release 180): the same.
+				TextInPhotosEnabled: proto.Bool(ch.mg.filesManager.TextInPhotosEnabled()),
+				PetsEnabled:         proto.Bool(ch.mg.filesManager.PetsEnabled()),
 				// And where its model is (release 152: downloaded once
 				// Smart search is first turned on).
 				SmartSearchModel: ch.mg.filesManager.SmartSearchModel(lang),
@@ -3828,6 +3837,33 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.ErrorMessage = message
 		} else if err != nil {
 			log.Error("error turning Smart search on or off:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	// Text in photos (release 180): off deletes every text before the
+	// answer; on reads the photos in the background, with this session's
+	// key, once its models are here.
+	case *pb.ReqEnvelope_ReqSetTextInPhotosEnabled:
+		on := p.ReqSetTextInPhotosEnabled.Enabled
+		log.Info("Set Text in photos enabled:", on)
+		if err := ch.mg.filesManager.SetTextInPhotosEnabled(ses, on); err != nil {
+			log.Error("error turning Text in photos on or off:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	// Pets (release 180): on looks at the photos in the background; off
+	// finds no more and deletes nothing.
+	case *pb.ReqEnvelope_ReqSetPetsEnabled:
+		on := p.ReqSetPetsEnabled.Enabled
+		log.Info("Set Pets enabled:", on)
+		if err := ch.mg.filesManager.SetPetsEnabled(ses, on); err != nil {
+			log.Error("error turning Pets on or off:", err)
 			resp.Error = true
 			resp.ErrorMessage = errText(lang, err)
 		} else {
@@ -4109,7 +4145,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqAddToPerson:
 		req := p.ReqAddToPerson
 		log.Info("Add a person by hand:", req.PersonId, len(req.Hashes), "photo(s) or video(s)")
-		if refusal := addToPersonRefusal(req, ch.mg.settings.FaceRecognitionEnabled()); refusal != nil {
+		if refusal := addToPersonRefusal(req, ch.peopleOn()); refusal != nil {
 			resp.Error = true
 			resp.ErrorMessage = refusal.Render(lang)
 			break
@@ -4135,7 +4171,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 
 	// The viewer's Info: the faces found in one photo, and who each is.
 	case *pb.ReqEnvelope_ReqGetPhotoFaces:
-		faces, err := ch.mg.filesManager.PhotoFaces(ses, p.ReqGetPhotoFaces.Path, ch.mg.settings.FaceRecognitionEnabled())
+		faces, err := ch.mg.filesManager.PhotoFaces(ses, p.ReqGetPhotoFaces.Path, ch.peopleOn())
 		if err != nil {
 			log.Error("error listing a photo's faces:", err)
 			resp.Error = true

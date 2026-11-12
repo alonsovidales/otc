@@ -39,6 +39,17 @@ type personFaceRefs struct {
 	// that looks better chooses again (coverMayChange).
 	coverKnown   bool
 	coverQuality float64
+	// same is the least cosine of the same one: 0 for a person's faces
+	// (face_recognition's threshold), cPetSame for a pet's (pets.go).
+	same float32
+}
+
+// isSame is whether score is the same person's (or pet's) by p's threshold.
+func (p *personFaceRefs) isSame(score float32) bool {
+	if p.same > 0 {
+		return score >= p.same
+	}
+	return facerecognition.IsSamePersonScore(score)
 }
 
 // faceRefs is the whole library's matching set, person id -> references.
@@ -66,7 +77,7 @@ func (p *personFaceRefs) add(id string, emb []float32) bool {
 		sims[i] = facerecognition.CosineSimilarity(emb, r.emb)
 		total += sims[i]
 	}
-	if len(p.refs) >= cMaxFaceRefsPerPerson && !facerecognition.IsSamePersonScore(total/float32(len(p.refs))) {
+	if len(p.refs) >= cMaxFaceRefsPerPerson && !p.isSame(total/float32(len(p.refs))) {
 		return false
 	}
 
@@ -125,12 +136,18 @@ func (p *personFaceRefs) identified() []facerecognition.IdentifiedEmbedding {
 // never a reference: matching would file new faces under no one, or as
 // a new person each, through it.
 func (fr faceRefs) add(personID, faceID string, emb []float32) bool {
+	return fr.addSame(personID, faceID, emb, 0)
+}
+
+// addSame is add for a set whose people are the same at same (0: a
+// person's faces; cPetSame: a pet's, pets.go).
+func (fr faceRefs) addSame(personID, faceID string, emb []float32, same float32) bool {
 	if personID == "" {
 		return false
 	}
 	p := fr[personID]
 	if p == nil {
-		p = &personFaceRefs{}
+		p = &personFaceRefs{same: same}
 		fr[personID] = p
 	}
 	return p.add(faceID, emb)

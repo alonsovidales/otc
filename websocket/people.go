@@ -40,9 +40,9 @@ const cMaxAddToPerson = cMaxRemoveFromPerson
 
 // addToPersonRefusal is why an AddToPerson is refused before anything is
 // read, or nil: it names a person and at least one photo or video, at most
-// cMaxAddToPerson, while face recognition is on (facesOn: the settings in
-// memory) - with it off Info lists no one, so an Add can only come from an
-// app that read it before it was turned off. Whether the person and the
+// cMaxAddToPerson, while face recognition or Pets is on (facesOn:
+// peopleOn) - with both off Info lists no one, so an Add can only come
+// from an app that read it before they were turned off. Whether the person and the
 // contents are there is the transaction's to say.
 func addToPersonRefusal(req *pb.AddToPerson, facesOn bool) *i18n.Msg {
 	var m i18n.Msg
@@ -59,4 +59,10 @@ func addToPersonRefusal(req *pb.AddToPerson, facesOn bool) *i18n.Msg {
 		return nil
 	}
 	return &m
+}
+
+// peopleOn is whether Info's People block is there: face recognition or
+// Pets (release 180) is on - a pet's face is one of its faces.
+func (ch *connHandler) peopleOn() bool {
+	return ch.mg.settings.FaceRecognitionEnabled() || ch.mg.filesManager.PetsEnabled()
 }

@@ -713,11 +713,14 @@ func (mg *Manager) initIdleModels() {
 	// Smart search's model, at first use too, in turn with the others - or
 	// downloaded once Smart search is turned on.
 	mg.initSmartModel(true, &models.run)
+	// Text in photos' and Pets' models, the same (vision_models.go).
+	mg.initVision(true, &models.run)
 
 	go models.releaseWhenIdle()
 	go func() {
 		served := modelserver.Models{Tagger: mg.waitForTagger, Faces: mg.faceRecognizer,
-			Embedder: mg.smartEmbedder, EmbedderFetch: mg.serveSmartModel, EmbedderState: mg.smartModelWire}
+			Embedder: mg.smartEmbedder, EmbedderFetch: mg.serveSmartModel, EmbedderState: mg.smartModelWire,
+			Vision: mg.visionModel, VisionFetch: mg.serveVision, VisionState: mg.visionWire}
 		if mg.aesthetic != nil {
 			served.Aesthetic = mg.aesthetic
 		}

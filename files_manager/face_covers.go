@@ -125,7 +125,7 @@ func clearlyThem(emb []float32, p *personFaceRefs, cohesion float32) bool {
 		return false
 	}
 	avg := total / float32(n)
-	return facerecognition.IsSamePersonScore(avg) && avg >= cCoverTypicality*cohesion
+	return p.isSame(avg) && avg >= cCoverTypicality*cohesion
 }
 
 // coverMayChange says whether a face just stored for a person can change

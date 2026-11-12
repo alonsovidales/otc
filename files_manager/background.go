@@ -46,6 +46,10 @@ const (
 	// BackgroundCompress: the photos and videos the owner asked to
 	// compress (compress_job.go).
 	BackgroundCompress = "compress"
+	// BackgroundText and BackgroundPets: Text in photos' reading and Pets'
+	// looking at what the device held before (BackfillVision).
+	BackgroundText = "text"
+	BackgroundPets = "pets"
 )
 
 // backgroundOrder is the order Status lists them in: what the owner asked
@@ -53,6 +57,7 @@ const (
 // startBackfillOnce runs them.
 var backgroundOrder = []string{
 	BackgroundAnalysis, BackgroundCompress, BackgroundThumbnails, BackgroundDates, BackgroundPlaces, BackgroundQuality, BackgroundFaces, BackgroundSmartSearch,
+	BackgroundText, BackgroundPets,
 }
 
 // backgroundText is what a kind is doing, in the device's words.
@@ -74,6 +79,10 @@ func backgroundText(kind string) (i18n.Msg, bool) {
 		return i18n.DevStatusBackgroundFaces(), true
 	case BackgroundCompress:
 		return i18n.DevStatusBackgroundCompress(), true
+	case BackgroundText:
+		return i18n.DevStatusBackgroundText(), true
+	case BackgroundPets:
+		return i18n.DevStatusBackgroundPets(), true
 	}
 	return i18n.Msg{}, false
 }

@@ -26,6 +26,8 @@ func TestRemoveFromPersonMySQL(t *testing.T) {
 		// cover). p3: unnamed, in C too.
 		"insert into `people` (`id`, `name`, `created`, `cover_face_id`) values ('p1', '', now(), 'f1'), ('p2', 'Ana', now(), 'f4'), ('p3', '', now(), null)",
 		"insert into `faces` values ('f1', 'A', 'p1', 0, 0, 1, 1, '', '', now()), ('f2', 'B', 'p1', 0, 0, 1, 1, '', '', now()), ('f3', 'C', 'p1', 0, 0, 1, 1, '', '', now()), ('f4', 'D', 'p2', 0, 0, 1, 1, '', '', now()), ('f5', 'C', 'p3', 5, 5, 1, 1, '', '', now())",
+		// What each face is of (release 180): all people's here.
+		"alter table `faces` add column `kind` tinyint not null default 0",
 	} {
 		if _, err := db.Exec(q); err != nil {
 			t.Fatal(err)

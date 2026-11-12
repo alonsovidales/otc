@@ -159,6 +159,22 @@ type Manager struct {
 	smartSrc   smartModelSource
 	smartLocal *localModel
 	smart      smartState
+	// Text in photos' and Pets' models (vision_models.go), as Smart
+	// search's: vision is what this instance uses (nil until they are
+	// here), visionSrc where they come from (visionLocal on the primary);
+	// watchVisionOnce starts the wait for them once. texts and pets are the
+	// switches and what goes with them (photo_text.go, pets.go); petRefs is
+	// the pets' matching set by kind, as faceRefs is the people's (nil
+	// until built, under faceRefsMu); visionBackfillMu, one background pass
+	// at a time (vision_backfill.go).
+	vision           atomic.Pointer[visionBox]
+	visionSrc        visionSource
+	visionLocal      *localVision
+	watchVisionOnce  sync.Once
+	texts            textState
+	pets             petState
+	petRefs          map[int]faceRefs
+	visionBackfillMu sync.Mutex
 	// background is the passes working through the library now, and spell
 	// the processing lanes' busy spell, for Status.background_tasks
 	// (background.go).
@@ -330,6 +346,9 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		// Smart search's model, the primary's too - asked for while this
 		// instance has Smart search on and the primary hasn't it yet.
 		mg.initRemoteSmartModel(client)
+		// Text in photos' and Pets' models, the primary's too, asked for
+		// in the same way (vision_models.go).
+		mg.initRemoteVision(client)
 		log.Info("using the models shared by the primary instance on", sock)
 		go mg.tokenCollector()
 		go mg.sharedLinksSweeper()
@@ -379,6 +398,9 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	// Smart search's model (smart_model.go): loaded when first needed, or
 	// downloaded once Smart search is turned on.
 	mg.initSmartModel(false, nil)
+	// Text in photos' and Pets' models (vision_models.go): the same, once
+	// either is on.
+	mg.initVision(false, nil)
 
 	// Issue #167: the primary shares these with the supervised children,
 	// cServedAtOnce requests at a time: a face request carries the photo
@@ -386,7 +408,8 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	// child queued its own, read before the recognizer's turn.
 	go func() {
 		models := modelserver.Models{Tagger: mg.waitForTagger, Faces: mg.faceRecognizer, Aesthetic: mg.aesthetic,
-			Embedder: mg.smartEmbedder, EmbedderFetch: mg.serveSmartModel, EmbedderState: mg.smartModelWire}
+			Embedder: mg.smartEmbedder, EmbedderFetch: mg.serveSmartModel, EmbedderState: mg.smartModelWire,
+			Vision: mg.visionModel, VisionFetch: mg.serveVision, VisionState: mg.visionWire}
 		if err := modelserver.ServeModels(modelserver.SocketPath(), models, cServedAtOnce); err != nil {
 			log.Error("could not serve the models to the other instances:", err)
 		}
@@ -401,6 +424,9 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 // uses.
 func (mg *Manager) initRest() *Manager {
 	dao := mg.dao
+	// Text in photos and Pets: their models asked for at start while
+	// either is on (a download a restart or an update cut short).
+	go mg.wantVision()
 	// Issue #141: rows whose content is missing from the disk, reported
 	// to the owner once a day when there are new ones.
 	go mg.integrityChecker()
@@ -1197,13 +1223,17 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 	}
 	text = smartText(text)
 	if text != "" {
-		// Not even a token's next page once it is off.
-		if !mg.SmartSearchEnabled() {
-			return nil, "", ErrSmartSearchOff
-		}
-		// Nor while its model is still on its way.
-		if err := mg.smartSearchUsable(); err != nil {
-			return nil, "", err
+		// Text in photos answers a text by itself (textList, rankByText):
+		// Smart search's state matters only without it.
+		if !mg.TextInPhotosEnabled() {
+			// Not even a token's next page once it is off.
+			if !mg.SmartSearchEnabled() {
+				return nil, "", ErrSmartSearchOff
+			}
+			// Nor while its model is still on its way.
+			if err := mg.smartSearchUsable(); err != nil {
+				return nil, "", err
+			}
 		}
 		newerThan = nil
 	}
@@ -1712,6 +1742,10 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 			info.City = city
 			info.Country = country
 		}
+	}
+	// Text in photos: what the device read in it (photo_text.go).
+	if strings.HasPrefix(file.Mime, "image") {
+		info.Text = mg.PhotoText(session, file.Hash)
 	}
 	return info, nil
 }
@@ -2224,6 +2258,10 @@ type mediaStages int
 const (
 	stageThumbnail mediaStages = 1 << iota
 	stageAnalysis
+	// stageVision is Text in photos and Pets alone, on a photo analysed
+	// before them: BackfillVision's (vision_backfill.go). Content kept out
+	// of Images doesn't get it, as it doesn't get stageAnalysis.
+	stageVision
 	stageAll = stageThumbnail | stageAnalysis
 )
 
@@ -2250,7 +2288,7 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 	// Issue #171: the file may be deleted while this runs - its content,
 	// thumbnail and tags were then written for a hash nothing uses.
 	defer mg.dropIfOrphaned(file.Hash)
-	if stages&stageAnalysis != 0 {
+	if stages&(stageAnalysis|stageVision) != 0 {
 		// Issue #192: a folder kept out of Images while this analysed its
 		// only paths - what was just written goes again. Runs first of the
 		// two deferred calls: after the tags and faces are written.
@@ -2389,7 +2427,17 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			mg.storeQuality(session, file, exif)
 
 			// Smart search: what it shows, as a vector, while it is on.
-			mg.storeEmbedding(session, file)
+			vec := mg.storeEmbedding(session, file)
+
+			// Text in photos and Pets, from the photo itself while each is
+			// on - the pets only where the vector says one may be
+			// (photo_text.go, pets.go).
+			mg.storeText(session, file, img)
+			mg.processPets(session, file, img, vec)
+		} else if stages&stageVision != 0 {
+			// The same for a photo analysed before them (BackfillVision).
+			mg.storeText(session, file, img)
+			mg.processPets(session, file, img, nil)
 		}
 		// Places: where it was taken, from the metadata read above - once
 		// it can show in Images, as the thumbnail is written first.
@@ -2611,6 +2659,9 @@ func (mg *Manager) removeUnusedBlob(hash string) (removed bool, err error) {
 	}
 	// Smart search: nor its description.
 	mg.forgetEmbedding(hash)
+	// Text in photos and Pets: nor its text, nor that it was looked at.
+	mg.forgetText(hash)
+	mg.forgetPetScans(hash)
 	fullPath := blobPath(hash)
 	if err = os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
 		return true, err
@@ -2710,6 +2761,8 @@ func (mg *Manager) dropOrphan(hash string) bool {
 		log.Error("could not forget how deleted content looked", hash, ":", err)
 	}
 	mg.forgetEmbedding(hash)
+	mg.forgetText(hash)
+	mg.forgetPetScans(hash)
 	full := blobPath(hash)
 	os.Remove(full)
 	removeThumbnails(full)

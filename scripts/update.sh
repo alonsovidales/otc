@@ -545,7 +545,9 @@ fi
 # once someone turns Smart search on (files_manager/smart_model.go) - release
 # 151 fetched it at every update, on every device, and on a slow home link
 # that took the whole connection for a long while. Files an earlier update
-# put in /usr/local/models/siglip2-base stay and are used.
+# put in /usr/local/models/siglip2-base stay and are used. Text in photos'
+# and Pets' models (release 180) come the same way, from the device itself
+# (files_manager/vision_models.go).
 
 # Refreshing the code is common to every update, so it happens once here
 # rather than in each release script.

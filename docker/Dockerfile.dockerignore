@@ -33,6 +33,7 @@
 !modelserver/
 !network/
 !nostorage/
+!pet_finder/
 !profile/
 !proto/messages.proto
 !push/
@@ -47,6 +48,7 @@
 !storagewatch/
 !supervisor/
 !tailscalefunnel/
+!text_reader/
 !updater/
 !websocket/
 !wifiwatch/

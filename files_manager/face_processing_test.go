@@ -485,7 +485,7 @@ func TestProcessFacesSkipsContentWithFacesAlready(t *testing.T) {
 	img := image.NewRGBA(image.Rect(0, 0, 4, 4))
 
 	enabled()
-	mock.ExpectQuery("select 1 from `faces` where `hash` = \\? limit 1").WithArgs("seen").
+	mock.ExpectQuery("select 1 from `faces` where `hash` = \\? and `kind` = 0 limit 1").WithArgs("seen").
 		WillReturnRows(sqlmock.NewRows([]string{"1"}).AddRow(1))
 	mg.processFaces(nil, &pb.File{Hash: "seen"}, img)
 	if det.calls != 0 {
@@ -493,7 +493,7 @@ func TestProcessFacesSkipsContentWithFacesAlready(t *testing.T) {
 	}
 
 	enabled()
-	mock.ExpectQuery("select 1 from `faces` where `hash` = \\? limit 1").WithArgs("new").
+	mock.ExpectQuery("select 1 from `faces` where `hash` = \\? and `kind` = 0 limit 1").WithArgs("new").
 		WillReturnRows(sqlmock.NewRows([]string{"1"}))
 	mg.processFaces(nil, &pb.File{Hash: "new"}, img)
 	if det.calls != 1 {

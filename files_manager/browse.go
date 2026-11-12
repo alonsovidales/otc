@@ -210,14 +210,27 @@ func (mg *Manager) fetchMore(all []*pb.File, st *browseState, want int) ([]*pb.F
 
 // cutAt sets st's text cut from files, a text list's first chunk with
 // photos, best first: rankScores keeps a cosine of at least cSmartFloor
-// and cSmartShare of the best photo's. files without those under it.
+// and cSmartShare of the best photo's. files without those under it. Text
+// in photos' matches (ranked cTextRank and over, first) are all kept: the
+// cut is Smart search's, from its best photo b shows, and waits for a
+// chunk that has one.
 func (st *browseState) cutAt(files []*pb.File) []*pb.File {
 	hashes := st.list.hashes
 	rank := make(map[string]float64, st.at)
 	for _, h := range hashes[:st.at] {
 		rank[h.Hash] = h.Rank[0]
 	}
-	cut := max(float64(float32(cSmartFloor)), float64(float32(cSmartShare)*float32(rank[files[0].Hash])))
+	best := -1.0
+	for _, f := range files {
+		if r := rank[f.Hash]; r < cTextRank {
+			best = r
+			break
+		}
+	}
+	if best < 0 {
+		return files
+	}
+	cut := max(float64(float32(cSmartFloor)), float64(float32(cSmartShare)*float32(best)))
 	st.cut = true
 	st.end = sort.Search(len(hashes), func(i int) bool { return hashes[i].Rank[0] < cut })
 	st.at = min(st.at, st.end)

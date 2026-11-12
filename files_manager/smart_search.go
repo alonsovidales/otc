@@ -589,36 +589,43 @@ func (mg *Manager) thumbnailVector(ses *session.Session, hash string) ([]float32
 	return e.EmbedResized(ctx, imagesembedder.Resize(img))
 }
 
-// describe makes and keeps hash's vector, in turn. Whether it was kept.
-func (mg *Manager) describe(ses *session.Session, hash string, turn uint64) (bool, error) {
+// describe makes and keeps hash's vector, in turn. Whether it was kept,
+// and the vector.
+func (mg *Manager) describe(ses *session.Session, hash string, turn uint64) ([]float32, bool, error) {
 	vec, err := mg.thumbnailVector(ses, hash)
 	if err != nil {
-		return false, err
+		return nil, false, err
 	}
 	packed := packVec(vec)
 	sealed := ses.Encrypt(packed)
-	return mg.smartWrite(turn, func() error {
+	kept, err := mg.smartWrite(turn, func() error {
 		if err := mg.dao.SetPhotoEmbedding(hash, cEmbedModel, sealed); err != nil {
 			return err
 		}
 		mg.smart.index.add(hash, packed)
 		return nil
 	})
+	return vec, kept, err
 }
 
 // storeEmbedding describes a photo the slow lane has just analysed, from
-// the thumbnail the fast lane wrote, while Smart search is on. A failure
-// leaves no row: the next start's backfill describes it.
-func (mg *Manager) storeEmbedding(ses *session.Session, file *pb.File) {
+// the thumbnail the fast lane wrote, while Smart search is on, and is its
+// vector (for Pets' gate, pets.go; nil when it wasn't described). A
+// failure leaves no row: the next start's backfill describes it.
+func (mg *Manager) storeEmbedding(ses *session.Session, file *pb.File) []float32 {
 	if ses == nil || mg.smartEmbedder() == nil || !strings.HasPrefix(file.Mime, "image") || !mg.SmartSearchEnabled() {
-		return
+		return nil
 	}
 	turn := mg.smart.turn.Load()
-	if _, err := mg.describe(ses, file.Hash, turn); err != nil && !errors.Is(err, dao.ErrSchemaBehind) {
-		log.Debug("smart search: could not describe", file.Hash, ":", err)
-		return
+	vec, _, err := mg.describe(ses, file.Hash, turn)
+	if err != nil {
+		if !errors.Is(err, dao.ErrSchemaBehind) {
+			log.Debug("smart search: could not describe", file.Hash, ":", err)
+		}
+		return nil
 	}
 	mg.memories.changed()
+	return vec
 }
 
 // forgetEmbedding forgets the vector of content nothing uses any more.
@@ -691,7 +698,7 @@ func (mg *Manager) BackfillEmbeddings(ses *session.Session) {
 			}
 			done := mg.beginProcessing(file.Hash, jobThumbFix)
 			t := time.Now()
-			kept, err := mg.describe(ses, file.Hash, turn)
+			_, kept, err := mg.describe(ses, file.Hash, turn)
 			done()
 			if err != nil {
 				if !errors.Is(err, os.ErrNotExist) {
@@ -716,6 +723,11 @@ func (mg *Manager) BackfillEmbeddings(ses *session.Session) {
 	if described > 0 || failed > 0 {
 		mg.memories.changed()
 		log.Info("smart search: described", described, "photo(s) in", time.Since(started).Round(time.Second), "-", failed, "to describe again at the next start")
+	}
+	// Pets: the photos just described can be told apart now (pets.go's
+	// gate) - the background pass left them for this.
+	if described > 0 && mg.PetsEnabled() {
+		visionBackfill(mg, ses)
 	}
 }
 
@@ -763,10 +775,37 @@ func rankScores(scored []scoredPhoto) []scoredPhoto {
 
 // rankByText is files (a search's photos, one per content, newest first)
 // ranked by how well they match text, best first, cut at rankScores'
-// cutoff; a photo without a vector isn't among them.
+// cutoff; a photo without a vector isn't among them. With Text in photos
+// on, the photos whose text matches come first (textMatches), and are
+// all there is while Smart search can't answer.
 func (mg *Manager) rankByText(ses *session.Session, text string, files []*pb.File) ([]*pb.File, error) {
+	hits := mg.textMatches(ses, text)
+	var first []*pb.File
+	if len(hits) > 0 {
+		at := make(map[string]int, len(files))
+		for i, f := range files {
+			at[f.Hash] = i
+		}
+		matched := make(map[string]bool, len(hits))
+		for _, h := range hits {
+			if i, ok := at[h.Hash]; ok {
+				first = append(first, files[i])
+				matched[h.Hash] = true
+			}
+		}
+		rest := make([]*pb.File, 0, len(files)-len(first))
+		for _, f := range files {
+			if !matched[f.Hash] {
+				rest = append(rest, f)
+			}
+		}
+		files = rest
+	}
 	q, err := mg.textVector(text)
 	if err != nil {
+		if mg.TextInPhotosEnabled() && smartCantAnswer(err) {
+			return first, nil
+		}
 		return nil, err
 	}
 	var scored []scoredPhoto
@@ -784,12 +823,19 @@ func (mg *Manager) rankByText(ses *session.Session, text string, files []*pb.Fil
 		return nil, err
 	}
 	kept := rankScores(scored)
-	out := make([]*pb.File, len(kept))
-	for i, s := range kept {
-		out[i] = files[s.idx]
+	out := make([]*pb.File, 0, len(first)+len(kept))
+	out = append(out, first...)
+	for _, s := range kept {
+		out = append(out, files[s.idx])
 	}
-	log.Debug("smart search: kept", len(out), "of", len(files), "photo(s)")
+	log.Debug("smart search: kept", len(out), "of", len(files)+len(first), "photo(s),", len(first), "by their text")
 	return out, nil
+}
+
+// smartCantAnswer is whether err is Smart search being off or without its
+// model - a text search then answers with Text in photos' matches alone.
+func smartCantAnswer(err error) bool {
+	return errors.Is(err, ErrSmartSearchOff) || errors.Is(err, ErrSmartSearchUnavailable) || errors.Is(err, ErrSmartSearchDownloading)
 }
 
 // textVector is text through the text tower, once Smart search may run.
@@ -819,8 +865,15 @@ func (mg *Manager) textVector(text string) ([]float32, error) {
 // with filters that keep few photos (b's own list: RankMedia, DatedMedia
 // under cListMax), only those.
 func (mg *Manager) textList(ses *session.Session, text string, b *dao.MediaBrowse) ([]dao.ListedHash, error) {
+	// Text in photos: the photos whose text matches, first (ranked over
+	// any cosine, cTextRank) - all there is while Smart search can't
+	// answer. MediaListChunk passes over those b doesn't show.
+	hits := mg.textMatches(ses, text)
 	q, err := mg.textVector(text)
 	if err != nil {
+		if mg.TextInPhotosEnabled() && smartCantAnswer(err) {
+			return hits, nil
+		}
 		return nil, err
 	}
 	var candidates []dao.ListedHash
@@ -870,8 +923,8 @@ func (mg *Manager) textList(ses *session.Session, text string, b *dao.MediaBrows
 		}
 		return list[i].Hash < list[j].Hash
 	})
-	log.Debug("smart search: listed", len(list), "photo(s) over the floor")
-	return list, nil
+	log.Debug("smart search: listed", len(list), "photo(s) over the floor,", len(hits), "by their text")
+	return withTextMatches(hits, list), nil
 }
 
 // smartSimilarity is how alike two photos are by their vectors, for

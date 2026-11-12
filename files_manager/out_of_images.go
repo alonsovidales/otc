@@ -290,13 +290,17 @@ func (mg *Manager) dropAnalysisLocked(kept []string) error {
 	if err := mg.dao.DelTagsByHashes(kept); err != nil {
 		return err
 	}
+	// Text in photos and Pets: its text goes, and it is looked at for pets
+	// again when shown again (its pets go with its faces, below).
+	mg.forgetText(kept...)
+	mg.forgetPetScans(kept...)
 	mg.faceRefsMu.Lock()
 	defer mg.faceRefsMu.Unlock()
 	gone, err := mg.dao.DelFacesByHashes(kept)
 	if err != nil {
 		// Whether the faces went is unknown: build the set again from
 		// what is stored.
-		mg.faceRefs = nil
+		mg.faceRefs, mg.petRefs = nil, nil
 		return err
 	}
 	if len(gone) > 0 {
@@ -393,13 +397,13 @@ func (mg *Manager) reconcileAnalysis(ses *session.Session, hashes []string) {
 // analysis is skipped too (logged, and recorded so the next start checks
 // again): never analysed against the owner's wish.
 func (mg *Manager) guardAnalysis(hash string, stages mediaStages) mediaStages {
-	if stages&stageAnalysis == 0 || mg.dao == nil || mg.noOutOfImages() {
+	if stages&(stageAnalysis|stageVision) == 0 || mg.dao == nil || mg.noOutOfImages() {
 		return stages
 	}
 	if mg.mayAnalyse(hash) {
 		return stages
 	}
-	return stages &^ stageAnalysis
+	return stages &^ (stageAnalysis | stageVision)
 }
 
 // mayAnalyse is guardAnalysis' decision, made and recorded under

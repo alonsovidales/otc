@@ -265,6 +265,10 @@ QUALITY_ONNX_SHA=b35a4d6616b5597fb84d57cbcfbc7d5f3d80b694069d1182b66677903d0b71d
 # files_manager/smart_model.go): into the service's own state directory
 # (/var/lib/otc/models/siglip2-base), unless the files are already where the
 # config's [embedder] section says - EMBED_DIR, where release 151 put them.
+# Text in photos' and Pets' models (release 180: PP-OCRv6, D-FINE and DINOv2,
+# all Apache-2.0, ~97MB) aren't fetched here either: the device downloads
+# them itself while either is on - both are, by default - at the same capped
+# speed, into /var/lib/otc/models/vision (files_manager/vision_models.go).
 EMBED_DIR=$MODEL_DIR/siglip2-base
 ENVIRONMENT=dev
 INI_FILE="/etc/otc_${ENVIRONMENT}.ini"

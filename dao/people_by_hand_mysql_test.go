@@ -24,7 +24,7 @@ func byHandTestDB(tb testing.TB) (*sql.DB, *Dao) {
 	db, d := outOfImagesTestDB(tb)
 	for _, q := range []string{
 		"create temporary table `people_by_hand` (`hash` varchar(64) not null, `person_id` varchar(36) not null, `created` datetime not null, primary key (`person_id`, `hash`), key (`hash`)) engine=InnoDB",
-		"alter table `faces` add column `quality` float default null",
+		"alter table `faces` add column `quality` float default null, add column `kind` tinyint not null default 0",
 	} {
 		if _, err := db.Exec(q); err != nil {
 			tb.Fatal(err)

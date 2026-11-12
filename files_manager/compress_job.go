@@ -769,6 +769,8 @@ func (mg *Manager) dropRemovedOriginal(original string) (removed bool, freed int
 		log.Error("could not forget how a compressed file's original looked", original+":", err)
 	}
 	mg.forgetEmbedding(original)
+	mg.forgetText(original)
+	mg.forgetPetScans(original)
 	if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
 		log.Error("could not delete a compressed file's original", original+":", err)
 		return false, 0

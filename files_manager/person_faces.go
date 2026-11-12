@@ -36,7 +36,7 @@ func (mg *Manager) RemoveFromPerson(ses *session.Session, personID string, hashe
 		if !errors.Is(err, dao.ErrNoSuchPerson) {
 			// Rolled back, or a commit whose outcome is unknown: the set
 			// is built again from what is stored.
-			mg.faceRefs = nil
+			mg.faceRefs, mg.petRefs = nil, nil
 		}
 		return err
 	}
@@ -114,13 +114,13 @@ func (mg *Manager) rebuildPeopleLocked(ses *session.Session, ids ...string) {
 		}
 		if ses == nil {
 			// Nothing to decrypt with: built when next needed.
-			mg.faceRefs = nil
+			mg.faceRefs, mg.petRefs = nil, nil
 			continue
 		}
 		faces, err := mg.dao.ListPersonFaceEmbeddings(id)
 		if err != nil {
 			log.Error("could not read a person's faces again, reading everyone's before the next match:", err)
-			mg.faceRefs = nil
+			mg.faceRefs, mg.petRefs = nil, nil
 			continue
 		}
 		built := faceRefs{}
