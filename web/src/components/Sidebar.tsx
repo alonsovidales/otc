@@ -7,7 +7,7 @@ import { AlertsIcon, ChevronIcon, CollectionsIcon, FilesIcon, FriendsIcon, Image
 import { usePlacesOn } from "./places";
 import { formatMB, pct, raidStateLabel, round, useDeviceStatus } from "./useDeviceStatus";
 import { usePhotoFilter } from "./photoFilter";
-import { useFaceRecognition } from "./faceRecognition";
+import { usePeopleOn } from "./faceRecognition";
 import { RaidState } from "../proto/messages";
 import type { Status } from "../proto/messages";
 import { useT, type TFunction } from "../i18n";
@@ -40,8 +40,8 @@ type Item = { key: TabKey; label: LabelKey; Icon: ComponentType<{ size?: number 
 type Section = { heading?: HeadingKey; items: Item[] };
 
 // Grouped like a photo library: what is stored, what is shared, then the
-// device. People only while face recognition is on (faceRecognition.ts),
-// Places only on a device that has it (places.ts).
+// device. People only while face recognition or Pets is on
+// (faceRecognition.ts), Places only on a device that has it (places.ts).
 const SECTIONS: Section[] = [
   {
     items: [
@@ -90,11 +90,11 @@ export default function Sidebar({ tab, notificationCount, layout, drawerOpen, on
   const storage = summarize(t, status, failed);
   const [details, setDetails] = useState(false);
   const tips = useSyncExternalStore(onHoverChange, canHover);
-  const faces = useFaceRecognition() === true;
+  const people = usePeopleOn() === true;
   const places = usePlacesOn() === true;
   const sections = useMemo(
-    () => SECTIONS.map((s) => ({ ...s, items: s.items.filter((it) => (it.key !== "People" || faces) && (it.key !== "Places" || places)) })),
-    [faces, places],
+    () => SECTIONS.map((s) => ({ ...s, items: s.items.filter((it) => (it.key !== "People" || people) && (it.key !== "Places" || places)) })),
+    [people, places],
   );
 
   const dockRef = useRef<HTMLElement>(null);

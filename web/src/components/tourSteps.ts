@@ -33,9 +33,10 @@ const cAllSteps: readonly TourStepId[] = [
 ];
 
 /**
- * The steps shown: People only while face recognition is on (as the
- * menu's item), Users only to the device's owner - the primary instance's,
- * the one Settings › Users shows to (UsersPanel). Unknown means hidden.
+ * The steps shown: People only while it is in the menu (`faces`: face
+ * recognition or Pets on, faceRecognition.ts' peopleOn), Users only to the
+ * device's owner - the primary instance's, the one Settings › Users shows
+ * to (UsersPanel). Unknown means hidden.
  */
 export function tourSteps(faces: boolean | null, owner: boolean | null): TourStepId[] {
   return cAllSteps.filter((id) => (id !== "people" || faces === true) && (id !== "users" || owner === true));

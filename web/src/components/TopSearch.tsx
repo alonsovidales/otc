@@ -5,12 +5,13 @@
 // opened from Places), people, tags - as chips.
 // While something is typed a panel under it offers, in this order, the
 // things (tags) that match, the named people that match (while face
-// recognition is on), and the files and folders whose path matches
-// (SearchFiles, asked of the device as the typing pauses), with a row to
-// search the documents for the word: all the files and folders it finds
-// listed in Files (filesNav.searchInFiles). That row comes first, and is
-// what Enter takes, when no tag or person matches; otherwise it follows
-// the files. A device without SearchFiles has neither. Picking a tag or a
+// recognition or Pets is on: People is there), and the files and folders
+// whose path matches (SearchFiles, asked of the device as the typing
+// pauses), with a row to search the documents for the word: all the files
+// and folders it finds listed in Files (filesNav.searchInFiles). That row
+// comes first, and is what Enter takes, when no tag or person matches;
+// otherwise it follows the files. A device without SearchFiles has
+// neither. Picking a tag or a
 // person adds it to photoFilter's search, shared with the pages, and
 // shows Images; picking a folder shows it in Files, and a file opens there
 // as a click on it would. Enter takes a file or a folder only when the
@@ -31,7 +32,7 @@ import { useWS } from "../net/useWS";
 import { collectionName, personLabel, reloadPeople, reloadTags, usePeople, useTags } from "./libraryStore";
 import { addTag, clearSearch, clearText, leaveArea, leaveGroup, removeTag, searchText, togglePerson, usePhotoFilter } from "./photoFilter";
 import { smartSearchFocused, useSearchTextOffered } from "./smartSearch";
-import { useFaceRecognition } from "./faceRecognition";
+import { usePeopleOn } from "./faceRecognition";
 import {
   asFolder, deviceCantSearchFiles, fold, foundParts, matchIn, parentFolder, searchInFiles, showInFiles, useNoFileSearch,
   type Folded, type Span,
@@ -101,11 +102,11 @@ const KIND_LABEL = {
 // one, and nothing moves under the pointer while picking.
 const REFRESH_MS = 5 * 60_000;
 let fetchedAt = Date.now();
-function refreshIfStale(faces: boolean) {
+function refreshIfStale(withPeople: boolean) {
   if (Date.now() - fetchedAt < REFRESH_MS) return;
   fetchedAt = Date.now();
   void reloadTags().catch(() => {});
-  if (faces) void reloadPeople().catch(() => {});
+  if (withPeople) void reloadPeople().catch(() => {});
 }
 
 const cls = (...names: (string | false)[]) => names.filter(Boolean).join(" ");
@@ -170,7 +171,9 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
   const filter = usePhotoFilter();
   const people = usePeople();
   const tags = useTags();
-  const faces = useFaceRecognition() === true;
+  // People is there (face recognition or Pets on): named people - and
+  // pets - are offered.
+  const peopleOn = usePeopleOn() === true;
   // Smart search on, with its model on the device, or Text in photos on:
   // the typed words can be searched for in the photos (smartSearch.ts'
   // offersSearchText) - as a description, and in the text read in them.
@@ -293,7 +296,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
       if (!exact && h.item.f.text === q) exact = key;
     }
     // The people with the most photos among those whose name matches.
-    if (faces) {
+    if (peopleOn) {
       const hits = ranked(named, q)
         .sort((a, b) => b.item.person.faceCount - a.item.person.faceCount || a.rank - b.rank)
         .slice(0, MATCH_PEOPLE);
@@ -322,7 +325,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
       return { options: out, best: exact ?? "smart" };
     }
     return { options: out, best: exact ?? out.find((o) => o.kind !== "file")?.key ?? null };
-  }, [q, typed, filter.tags, faces, named, tagIndex, fileHits, noFileSearch, smart]);
+  }, [q, typed, filter.tags, peopleOn, named, tagIndex, fileHits, noFileSearch, smart]);
 
   const activeKey = moved === null || (moved !== NONE && !options.some((o) => o.key === moved)) ? best : moved;
   const active = activeKey ? options.findIndex((o) => o.key === activeKey) : -1;
@@ -330,8 +333,8 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
   const close = useCallback(() => {
     setOpen(false);
     setMoved(null);
-    refreshIfStale(faces);
-  }, [faces]);
+    refreshIfStale(peopleOn);
+  }, [peopleOn]);
 
   // A press anywhere else ends the search. A finger's does only that while
   // the panel shows: the click it becomes doesn't also open the photo

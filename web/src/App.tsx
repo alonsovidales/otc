@@ -16,7 +16,7 @@ import TopSearch from "./components/TopSearch";
 import CollectionsView from "./components/CollectionsView";
 import { isFiltered, leaveArea, showAll, usePhotoFilter } from "./components/photoFilter";
 import { closeSlideshow, openSlideshow, useSlideshow } from "./components/slideshowState";
-import { useFaceRecognition, watchFaceRecognition } from "./components/faceRecognition";
+import { usePeopleOn, watchFaceRecognition } from "./components/faceRecognition";
 import { usePlacesOn, watchPlaces } from "./components/places";
 import { watchMemories } from "./components/memories";
 import { watchSmartSearch } from "./components/smartSearch";
@@ -226,13 +226,14 @@ function App() {
   // for a while leaves it as it was, as everything else under its screen.
   useEffect(() => { if (!authenticated) setDrawerOpen(false); }, [authenticated]);
 
-  // People is there only while face recognition is on (faceRecognition.ts):
-  // the device is asked once signed in. People remembered as the last tab
-  // waits for the answer (or the one remembered from last time) and gives
-  // way to Images when it is off.
-  const faces = useFaceRecognition();
+  // People is there only while face recognition or Pets is on
+  // (faceRecognition.ts: a pet is a person in People): the device is asked
+  // once signed in. People remembered as the last tab waits for the answer
+  // (or the one remembered from last time) and gives way to Images when
+  // both are off.
+  const people = usePeopleOn();
   useEffect(() => (authenticated ? watchFaceRecognition() : undefined), [authenticated]);
-  useEffect(() => { if (faces === false && tab === "People") setTab("PhotoGallery"); }, [faces, tab]);
+  useEffect(() => { if (people === false && tab === "People") setTab("PhotoGallery"); }, [people, tab]);
   // Places likewise, while it is on (places.ts: the user's switch in
   // Settings, on a device that has it): asked once signed in; Places
   // remembered as the last tab gives way to Images without it.
@@ -371,10 +372,11 @@ function App() {
 
   // Back to a section (backStack.ts): what App shows for it now - signed
   // out, the landing page for one that needs a session; Images for People
-  // without face recognition; the feed for the landing page once signed in.
+  // without face recognition or Pets; the feed for the landing page once
+  // signed in.
   const sectionFor = (want: TabKey): TabKey => {
     if (!authenticated && cAuthOnlyTabs.includes(want)) return cLandingTab;
-    if (want === "People" && faces === false) return "PhotoGallery";
+    if (want === "People" && people === false) return "PhotoGallery";
     if (want === "Places" && places === false) return "PhotoGallery";
     if (want === "SignIn" && !setupShown) return authenticated ? "Social" : cLandingTab;
     if (want === "Profile" && authenticated) return "Social";
@@ -715,7 +717,7 @@ function App() {
             place's entry with the map's, which opens where it was. */}
         {tab === "AdminPannel" && (authenticated ? <Part><FilesExplorer initialPath="/" /></Part> : signedOutPlaceholder)}
         {tab === "PhotoGallery" && (authenticated ? <PhotoGallery onShowCollections={() => setTab("Collections")} onShowMap={() => setTab("Places")} /> : signedOutPlaceholder)}
-        {tab === "People" && (authenticated ? faces && <Part><PeopleView onOpenPhotos={() => goTo("PhotoGallery")} /></Part> : signedOutPlaceholder)}
+        {tab === "People" && (authenticated ? people && <Part><PeopleView onOpenPhotos={() => goTo("PhotoGallery")} /></Part> : signedOutPlaceholder)}
         {tab === "Collections" && (authenticated ? <CollectionsView onOpenPhotos={() => goTo("PhotoGallery")} /> : signedOutPlaceholder)}
         {tab === "Places" && (authenticated ? places && <Part><PlacesView onOpenPhotos={() => goTo("PhotoGallery")} /></Part> : signedOutPlaceholder)}
         {tab === "Settings" && (authenticated ? <Part><SettingsForm onShowTour={() => openTour(false)} /></Part> : signedOutPlaceholder)}
@@ -738,7 +740,7 @@ function App() {
           waits, at its step, until the device answers again. */}
       {tour && authenticated && !inSetup && !cover && (
         <Part kind="layer" onClose={() => closeTour(false)}>
-          <Tour step={tour.step} faces={faces} onStep={moveTour} onSection={tourShow} onClose={closeTour} />
+          <Tour step={tour.step} faces={people} onStep={moveTour} onSection={tourShow} onClose={closeTour} />
         </Part>
       )}
       {slideshow && authenticated && (

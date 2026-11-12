@@ -41,7 +41,7 @@ import { named, personFixText, type PersonFixDone } from "./personFixDone";
 import { faceHash } from "./personCover";
 import { favourites, useFavourite, useNoFavourites } from "./useFavourites";
 import { choosePersonCover, groupsChanged, personLabel, reloadPeople } from "./libraryStore";
-import { useFaceRecognition } from "./faceRecognition";
+import { usePeopleOn } from "./faceRecognition";
 import {
   ackOutcome, addedAt, asksFaces, byHandRemovalPayload, faceKey, facesAnswer, facesPayload, focusAfterRemoval, leavesGrid,
   offersAdd, removalHash, showsPeople, withoutPerson, type AckOutcome,
@@ -623,8 +623,9 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   // added to it by hand (a device from before answers it with none). Until
   // the device has answered nothing shows, and an answer that came to
   // nothing leaves what showed (nothing, or the list before a removal);
-  // `path` is the item they are of.
-  const faceRecognition = useFaceRecognition();
+  // `path` is the item they are of. Asked while People is there: face
+  // recognition or Pets on (a pet's face is one of the faces).
+  const peopleOn = usePeopleOn();
   const [faces, setFaces] = useState<{ path: string; faces: PhotoFace[]; hash: string; addsPeople: boolean; tick: number } | null>(null);
   const [facesTick, setFacesTick] = useState(0);
   const facesTickRef = useRef(0);
@@ -633,7 +634,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     setFacesTick(facesTickRef.current);
     return facesTickRef.current;
   };
-  const facesPath = infoOpen && item && asksFaces(item, faceRecognition, noPhotoFaces) ? item.path : null;
+  const facesPath = infoOpen && item && asksFaces(item, peopleOn, noPhotoFaces) ? item.path : null;
   useEffect(() => {
     if (facesPath == null) { setFaces(null); return; }
     let live = true;
@@ -927,7 +928,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   // refuses it before the list.
   const [adding, setAdding] = useState<{ path: string; hash: string; video: boolean; inIt: PhotoFace[] } | null>(null);
   const shownAnswer = faces && faces.path === facesPath ? faces : null;
-  const canAdd = !!shownAnswer && offersAdd(shownAnswer.addsPeople, faceRecognition, faceHashNow);
+  const canAdd = !!shownAnswer && offersAdd(shownAnswer.addsPeople, peopleOn, faceHashNow);
   const askAdd = () => {
     if (!canAdd || !item || refuseOnDemo()) return;
     refocusAddedRef.current = null;

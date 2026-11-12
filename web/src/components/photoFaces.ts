@@ -15,7 +15,8 @@
 // at once, as there was no face to be wrong about. Where the device says it
 // takes AddToPerson (PhotoFaces.adds_people), Add a person ends the list:
 // People's people not in it already (personFix.tsx's AddToPersonDialog).
-// Nothing shows while face recognition is off, for a photo with no faces
+// Nothing shows while face recognition is off - and, since release 180,
+// Pets too (a pet's face is one of the faces) - for a photo with no faces
 // and no Add, or on a device from before (error_code "unknown_payload"; an
 // older device answers a video with no faces, and never offers Add).
 import { isBridgeAnswer } from "../net/deviceStatus";
@@ -46,18 +47,19 @@ export function facesAnswer(resp: Pick<RespEnvelope, "error" | "errorCode" | "pa
 }
 
 /** Whether Info asks for an item's faces: a photo or a video (its people
- *  added by hand; a device from before answers one with none), while face
- *  recognition isn't known to be off (faceRecognition.ts: null is not known
- *  yet, and the device's answer says) on a device that knows the request. */
-export function asksFaces(item: object | undefined, faceRecognition: boolean | null, unknown: boolean): boolean {
-  return !!item && faceRecognition !== false && !unknown;
+ *  added by hand; a device from before answers one with none), while
+ *  People isn't known to be off (faceRecognition.ts' peopleOn: face
+ *  recognition or Pets; null is not known yet, and the device's answer
+ *  says) on a device that knows the request. */
+export function asksFaces(item: object | undefined, peopleOn: boolean | null, unknown: boolean): boolean {
+  return !!item && peopleOn !== false && !unknown;
 }
 
 /** Whether Info offers Add a person: the device said it takes AddToPerson
- *  (only while face recognition is on), face recognition isn't known to be
+ *  (only while face recognition or Pets is on), People isn't known to be
  *  off here since, and the content's hash is known (removalHash). */
-export const offersAdd = (addsPeople: boolean, faceRecognition: boolean | null, hash: string): boolean =>
-  addsPeople && faceRecognition !== false && hash !== "";
+export const offersAdd = (addsPeople: boolean, peopleOn: boolean | null, hash: string): boolean =>
+  addsPeople && peopleOn !== false && hash !== "";
 
 /** Whether Info shows its People block: faces to list, or Add to offer. */
 export const showsPeople = (faces: readonly PhotoFace[], add: boolean): boolean => faces.length > 0 || add;

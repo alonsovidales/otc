@@ -17,7 +17,7 @@ import WifiPanel from "./settings/WifiPanel";
 import MirrorDiskPanel from "./settings/MirrorDiskPanel";
 import BackgroundWorkPanel from "./settings/BackgroundWorkPanel";
 import { taggingAfterSet, taggingSwitch, type TaggingSwitch } from "./settings/memoryTiers";
-import { setFaceRecognition, useFaceRecognition } from "./faceRecognition";
+import { applyPeopleSettings, setFaceRecognition, setPetsOn, useFaceRecognition, usePetsOn } from "./faceRecognition";
 import { setPlacesOn, usePlacesOn } from "./places";
 import { localDay, setMemoriesOn, showAllMemories } from "./memories";
 import {
@@ -101,7 +101,8 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   // Face recognition / People search (issue #52) - off by default. Turning
   // it on only affects photos uploaded from that point on; it never scans
   // whatever's already in the library. Shared with the menu and the
-  // search (faceRecognition.ts), which show People only while it is on.
+  // search (faceRecognition.ts), which show People only while it (or Pets)
+  // is on.
   const faceRecognitionEnabled = useFaceRecognition() === true;
   // Image Tagging's switch: off and disabled on a device whose memory can't
   // have it (settings/memoryTiers.ts).
@@ -137,9 +138,11 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   const [textKnown, setTextKnown] = useState(false);
   const [textBusy, setTextBusy] = useState(false);
   const [textOffAsk, setTextOffAsk] = useState(false);
-  // Pets' switch (release 180), on a device that has it (null elsewhere):
-  // the pets found are people in People, so nothing else here follows it.
-  const [petsOn, setPetsOnHere] = useState<boolean | null>(null);
+  // Pets' switch (release 180), on a device that has it: shared with the
+  // menu and the search (faceRecognition.ts) - a pet found is a person in
+  // People, which is there while face recognition or Pets is on.
+  const petsOn = usePetsOn() === true;
+  const [petsKnown, setPetsKnown] = useState(false);
   const [petsBusy, setPetsBusy] = useState(false);
   // Issue #153: the space friends' posts may take (GB in the field, MB on
   // the device), and what they take now.
@@ -298,7 +301,7 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
         e.payload = { $case: "reqSetPetsEnabled", reqSetPetsEnabled: { enabled: next } };
       });
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-        setPetsOnHere(next);
+        setPetsOn(next);
       } else {
         const said = resp.errorMessage || (resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "");
         setStatus({ kind: "error", text: said ? asIs(said) : say("web.settings.general.update_failed") });
@@ -514,7 +517,9 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
 
       if (resp.payload?.$case === "respSettings") {
         const s: PbSettings = resp.payload.respSettings;
-        setFaceRecognition(!!s.faceRecognitionEnabled);
+        // Face recognition's switch and Pets' (absent: a device before
+        // Pets), at once: People is there while either is on.
+        applyPeopleSettings(s);
         // Unavailable (a device under 3 GB): off and disabled; heavy
         // (under 6 GB): a note under it; absent (an older device):
         // available, as before.
@@ -531,8 +536,8 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
         // switch - its search is Smart search's alone.
         setTextKnown(s.textInPhotosEnabled !== undefined);
         if (s.smartSearchEnabled !== undefined || s.textInPhotosEnabled !== undefined) applySmartSearchSettings(s);
-        // Absent: a device before Pets (release 180).
-        setPetsOnHere(s.petsEnabled ?? null);
+        // Absent: a device before Pets (release 180), with no switch.
+        setPetsKnown(s.petsEnabled !== undefined);
         if (s.memoriesEnabled) void countHiddenMemories();
         const limitMb = s.socialStorageLimitMb || 5120;
         setSocialLimitGB(String(Math.round((limitMb / 1024) * 10) / 10));
@@ -752,7 +757,7 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
 
       {/* Pets (release 180): the dogs and cats the device finds, each a
           person in People. Only on a device whose Settings say. */}
-      {petsOn !== null && (
+      {petsKnown && (
         <section className="sf-section">
           <h3>{t("web.settings.pets.title")}</h3>
           <p className="sf-hint">{t("web.settings.pets.hint")}</p>

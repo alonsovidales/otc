@@ -35,7 +35,8 @@ import "./Tour.css";
 type Props = {
   // Where the tour stands (App keeps it).
   step: TourStepId;
-  // Face recognition on: the People step shows, and the search's text names people.
+  // People there (face recognition or Pets on, faceRecognition.ts'
+  // peopleOn): the People step shows, and the search's text names people.
   faces: boolean | null;
   onStep: (step: TourStepId) => void;
   // The section the step shows; null: the one the tour opened over.
