@@ -14,8 +14,10 @@
 // which bridge/accounts serves (signin: what went wrong; continue: the
 // question before a setup code goes to a device's page on the home
 // network). It also writes what crawlers read about the site (crawl.go:
-// robots.txt, sitemap.xml, llms.txt; llmsfull.go: llms-full.txt) and the
-// policy every page goes out under (policy.go).
+// robots.txt, sitemap.xml, llms.txt; llmsfull.go: llms-full.txt), the
+// policy every page goes out under (policy.go), and where the download
+// links lead (downloads.go: /get/<target>, and the source the pages'
+// links carry).
 //
 // The pages are html/template files embedded in the binary (pages/), so a
 // deploy never serves a stale copy left in the static directory, and their
@@ -164,6 +166,12 @@ type Options struct {
 	// has no address to name.
 	SetupHost, SetupContinue string
 	SetupApp                 bool
+	// Source is where the visit came from, as visits are counted under
+	// ("ref:<name>" or a website's name; "" for none, as for a robot),
+	// which the page's links to the site's pages and downloads carry
+	// (downloads.go). bridge/api checks it; "" leaves the links as they
+	// are.
+	Source string
 }
 
 // Language returns the language of code when this build carries it:
@@ -257,11 +265,14 @@ type data struct {
 	// Base is Options.Base, for the absolute addresses of the head.
 	Base string
 	// Home is the landing page in this language (/, /<code>/), where the
-	// other pages' links home go.
+	// other pages' links home go. It, Account, Signup, Sections, Compare,
+	// Pi, Proofing and Switcher's links carry the visit's source
+	// (Options.Source); Canonical and Alternates never do.
 	Home string
 	// Account is the account page in this language (/account,
-	// /<code>/account), where the header's sign-in and sign-up go.
-	Account string
+	// /<code>/account), where the header's sign-in goes, and Signup the
+	// same page opened on its sign-up (?signup=1).
+	Account, Signup string
 	// Sections is what the shared header's and footer's links to the
 	// landing page's sections (#download, #faq, #contact...) start with:
 	// "" on the landing page itself, Home on the others.
@@ -289,6 +300,9 @@ type data struct {
 	// sign-in's own pages).
 	Problem, SetupHost, SetupContinue string
 	SetupApp                          bool
+	// source is Options.Source, for the links the page asks for
+	// (Download, Carry).
+	source string
 }
 
 type alternate struct{ Lang, Href string }
@@ -304,6 +318,7 @@ type choice struct {
 }
 
 func pageData(page string, l i18n.Language, o Options) data {
+	src := o.Source
 	d := data{
 		Page:    page,
 		Lang:    l.Code,
@@ -311,28 +326,30 @@ func pageData(page string, l i18n.Language, o Options) data {
 		Nonce:   o.Nonce,
 		Year:    strconv.Itoa(o.Now.Year()),
 		Base:    o.Base,
-		Home:    Path(l.Code),
-		Account: AccountPath(l.Code),
+		Home:    carry(Path(l.Code), src),
+		Account: carry(AccountPath(l.Code), src),
+		Signup:  carry(AccountPath(l.Code)+"?signup=1", src),
 		Compare: comparePages{
-			Social: PagePath(Social, l.Code),
-			Photos: PagePath(Alternative, l.Code),
-			Drive:  PagePath(Drive, l.Code),
+			Social: carry(PagePath(Social, l.Code), src),
+			Photos: carry(PagePath(Alternative, l.Code), src),
+			Drive:  carry(PagePath(Drive, l.Code), src),
 		},
-		Pi:            PagePath(Pi, l.Code),
-		Proofing:      PagePath(Proofing, l.Code),
+		Pi:            carry(PagePath(Pi, l.Code), src),
+		Proofing:      carry(PagePath(Proofing, l.Code), src),
 		Canonical:     o.Base + PagePath(page, l.Code),
 		Alternates:    alternates(page, o.Base),
 		Problem:       o.Problem,
 		SetupHost:     o.SetupHost,
 		SetupContinue: o.SetupContinue,
 		SetupApp:      o.SetupApp,
+		source:        src,
 	}
 	if page != Landing {
 		d.Sections = d.Home
 	}
 	if langs := i18n.Languages(); len(langs) > 1 {
 		for _, other := range langs {
-			d.Switcher = append(d.Switcher, choice{other.Name, other.Tag, switcherPath(page, other.Code), other.Code == l.Code})
+			d.Switcher = append(d.Switcher, choice{other.Name, other.Tag, carry(switcherPath(page, other.Code), src), other.Code == l.Code})
 		}
 	}
 	return d
@@ -414,9 +431,13 @@ type span struct {
 	El       string // "" (plain text), "strong", "em", "code" or "a"
 	Href     string // for "a": always from tags, never from the catalog
 	Download bool   // for "a": a download link
+	// Carries is for "a": a link to one of the site's pages or downloads,
+	// which carries the page's source once the page asks (data.Carry).
+	Carries bool
 }
 
-// The download links of the landing page.
+// The addresses of the files the site links: the downloads go through
+// /get/ (downloads.go), the checksum and GitHub's pages directly.
 const (
 	releases = "https://github.com/alonsovidales/otc/releases/download/"
 	repo     = "https://github.com/alonsovidales/otc"
@@ -432,8 +453,8 @@ var tags = map[string]span{
 	"b":        {El: "strong"},
 	"em":       {El: "em"},
 	"code":     {El: "code"},
-	"account":  {El: "a", Href: "/account"},
-	"signup":   {El: "a", Href: "/account?signup=1"},
+	"account":  {El: "a", Href: "/account", Carries: true},
+	"signup":   {El: "a", Href: "/account?signup=1", Carries: true},
 	"privacy":  {El: "a", Href: "/privacy"},
 	"install":  {El: "a", Href: "#install"},
 	"download": {El: "a", Href: "#download"},
@@ -445,8 +466,8 @@ var tags = map[string]span{
 	"release":  {El: "a", Href: desktopRelease},
 	"sha":      {El: "a", Href: releases + "image/off-the-cloud-rpi-lite-arm64.img.xz.sha256"},
 	"imager":   {El: "a", Href: "https://www.raspberrypi.com/software/"},
-	"winarm":   {El: "a", Href: releases + "desktop/otc-sync-windows-arm64.exe", Download: true},
-	"linuxarm": {El: "a", Href: releases + "desktop/otc-sync-linux-arm64", Download: true},
+	"winarm":   {El: "a", Href: DownloadPrefix + "windows-arm", Download: true, Carries: true},
+	"linuxarm": {El: "a", Href: DownloadPrefix + "linux-arm", Download: true, Carries: true},
 	// The printable cases' licence (hardware/LICENSE.md), the landing
 	// page's Printable section.
 	"cclicence": {El: "a", Href: "https://creativecommons.org/licenses/by-sa/4.0/"},

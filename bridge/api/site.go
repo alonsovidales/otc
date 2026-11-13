@@ -45,6 +45,8 @@ import (
 //	                  301 to the same address without its last slash, query kept
 //	/robots.txt, /sitemap.xml, /llms.txt, /llms-full.txt
 //	                  what crawlers read (package site, crawl.go, llmsfull.go)
+//	/get/<target>     302 to a download's file or store page, the click
+//	                  counted (clicks.go); 404 for a target the site doesn't link
 //
 // Every 404 on the bridge's host is the site's own page (site.NotFound)
 // for a browser asking for a page (Accept: text/html), in the path's
@@ -141,6 +143,10 @@ func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 			writeCompressed(w, r, "application/xml; charset=utf-8", http.StatusOK, body)
 		}
 	default:
+		if target, ok := strings.CutPrefix(p, site.DownloadPrefix); ok {
+			answer = func() { api.serveDownload(w, r, target) }
+			break
+		}
 		if to, ok := slashless(p); ok {
 			answer = func() { siteRedirect(w, r, to, http.StatusMovedPermanently) }
 			break
@@ -262,7 +268,8 @@ func (api *API) writeLocalizedPage(w http.ResponseWriter, r *http.Request, page 
 
 // writeSitePage renders page in lang (a carried code) and writes it with
 // status, under the site's Content-Security-Policy (site.Policy), whose
-// nonce only this response's inline <style> and <script> elements carry.
+// nonce only this response's inline <style> and <script> elements carry,
+// and with its links carrying where the visit came from (linkSource).
 // A page that can't be rendered gets the bare status (500 for a page that
 // should have been a 200), and a log line naming the page - never the host
 // or the language.
@@ -270,7 +277,7 @@ func (api *API) writeSitePage(w http.ResponseWriter, r *http.Request, page, lang
 	nonce, err := site.NewNonce()
 	var body []byte
 	if err == nil {
-		body, err = site.Render(page, lang, site.Options{Base: "https://" + api.tld, Nonce: nonce, Now: time.Now()})
+		body, err = site.Render(page, lang, site.Options{Base: "https://" + api.tld, Nonce: nonce, Now: time.Now(), Source: linkSource(r, api.tld, page)})
 	}
 	if err != nil {
 		log.Error("site: could not render", page, ":", err)

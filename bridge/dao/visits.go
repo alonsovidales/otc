@@ -18,10 +18,12 @@ import (
 
 // Anonymous visit counts for the public site (/privacy, "Visit counts"):
 // per UTC day, page and source, how many times a page was opened - nothing
-// about who opened it. The api package decides what a visit is and what its
-// page and source are (api/visits.go); here they are added up in memory and
-// written in batches, as the device metrics are (metrics.go): each bridge
-// node adds its own counts to the shared rows every cMetricsFlush.
+// about who opened it - and the clicks on its download links the same way,
+// under their own pages (ClickPagePrefix). The api package decides what a
+// visit or a click is and what its page and source are (api/visits.go,
+// api/clicks.go); here they are added up in memory and written in
+// batches, as the device metrics are (metrics.go): each bridge node adds
+// its own counts to the shared rows every cMetricsFlush.
 
 type visitKey struct {
 	day, page, source string

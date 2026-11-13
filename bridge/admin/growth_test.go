@@ -45,18 +45,21 @@ func expectGrowth(mock sqlmock.Sqlmock, first string) {
 		WillReturnRows(sqlmock.NewRows([]string{"n", "a1", "a7", "a30"}).AddRow(4, 1, 2, 3))
 	mock.ExpectQuery("from `devices` where `created` >= \\? group by `monday`").
 		WillReturnRows(sqlmock.NewRows([]string{"monday", "n"}))
-	mock.ExpectQuery("from `site_visits` where `day` >= \\? group by `day`").WithArgs(first).
+	mock.ExpectQuery("from `site_visits` where `day` >= \\? and `page` not like \\? group by `day`").WithArgs(first, "/get/%").
 		WillReturnRows(sqlmock.NewRows([]string{"day", "n"}))
-	mock.ExpectQuery("group by `page`").WithArgs(first, sqlmock.AnyArg()).
+	mock.ExpectQuery("not like \\? group by `page`").WithArgs(first, "/get/%", sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"page", "n"}))
-	mock.ExpectQuery("group by `source`").WithArgs(first, sqlmock.AnyArg()).
+	mock.ExpectQuery("not like \\? group by `source`").WithArgs(first, "/get/%", sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"source", "n"}))
+	mock.ExpectQuery("and `page` like \\? group by `source`, `page`").WithArgs(first, "/get/%").
+		WillReturnRows(sqlmock.NewRows([]string{"source", "page", "n"}).AddRow("ref:launch", "/get/pi-image", 2))
 	mock.ExpectQuery("select min\\(`day`\\), max\\(`day`\\) from `download_counts`").
 		WillReturnRows(sqlmock.NewRows([]string{"min", "max"}).AddRow(nil, nil))
 }
 
 // GET /admin/api/growth answers the period asked for, held within its
-// bounds, as JSON with the devices, visits and downloads.
+// bounds, as JSON with the devices, visits, download clicks by source and
+// downloads.
 func TestGrowthEndpoint(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -87,6 +90,16 @@ func TestGrowthEndpoint(t *testing.T) {
 			Pages   []json.RawMessage `json:"pages"`
 			Sources []json.RawMessage `json:"sources"`
 		} `json:"visits"`
+		Clicks struct {
+			Targets []string `json:"targets"`
+			Sources []struct {
+				Source string           `json:"source"`
+				Clicks map[string]int64 `json:"clicks"`
+				Total  int64            `json:"total"`
+			} `json:"sources"`
+			Totals map[string]int64 `json:"totals"`
+			Total  int64            `json:"total"`
+		} `json:"clicks"`
 		Downloads struct {
 			Day      string            `json:"day"`
 			Assets   []json.RawMessage `json:"assets"`
@@ -102,6 +115,11 @@ func TestGrowthEndpoint(t *testing.T) {
 	// Empty lists, never null, for the page.
 	if got.Visits.Pages == nil || got.Visits.Sources == nil || got.Downloads.Assets == nil || got.Downloads.Releases == nil || got.Downloads.Day != "" {
 		t.Errorf("%s", w.Body)
+	}
+	c := got.Clicks
+	if len(c.Targets) != 1 || c.Targets[0] != "pi-image" || c.Total != 2 || c.Totals["pi-image"] != 2 ||
+		len(c.Sources) != 1 || c.Sources[0].Source != "ref:launch" || c.Sources[0].Clicks["pi-image"] != 2 || c.Sources[0].Total != 2 {
+		t.Errorf("clicks: %s", w.Body)
 	}
 }
 

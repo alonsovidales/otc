@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"os"
+	"slices"
 	"testing"
 	"time"
 )
@@ -14,7 +15,8 @@ import (
 // (OTC_TEST_MYSQL_DSN), in ONLY_FULL_GROUP_BY as MySQL 8 runs by default:
 // visits flushed twice add up in their row, a second poll the same day
 // replaces the first's totals, and the Growth tab's queries read them back
-// with the devices' figures.
+// with the devices' figures - a download link's clicks apart from the
+// visits.
 func TestGrowthMySQL(t *testing.T) {
 	dsn := os.Getenv("OTC_TEST_MYSQL_DSN")
 	if dsn == "" {
@@ -32,8 +34,9 @@ func TestGrowthMySQL(t *testing.T) {
 	}
 	d := NewWithDB(db)
 	const page, source, asset, release, domain = "/growth-mysql-test", "growth-mysql-test.example", "growth-mysql-test.img.xz", "src.tar.gz@v999999", "growth-mysql-test.example"
+	const click = "/get/growth-mysql-test"
 	cleanup := func() {
-		db.Exec("delete from `site_visits` where `page` = ?", page)
+		db.Exec("delete from `site_visits` where `page` in (?, ?)", page, click)
 		db.Exec("delete from `download_counts` where `asset` in (?, ?)", asset, release)
 		db.Exec("delete from `devices` where `domain` = ?", domain)
 	}
@@ -48,6 +51,8 @@ func TestGrowthMySQL(t *testing.T) {
 	d.flushVisits(time.Minute, time.Minute)
 	d.recordSiteVisit(today, page, source)
 	d.recordSiteVisit(today, page, "")
+	d.recordSiteVisit(today, click, source)
+	d.recordSiteVisit(today, click, source)
 	d.flushVisits(time.Minute, time.Minute)
 	if len(d.visits) != 0 {
 		t.Fatalf("%d counts not written", len(d.visits))
@@ -94,6 +99,26 @@ func TestGrowthMySQL(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("pages: %+v", g.Visits.Pages)
+	}
+	for _, p := range g.Visits.Pages {
+		if p.Name == click {
+			t.Errorf("a click among the pages: %+v", p)
+		}
+	}
+	found = false
+	for _, s := range g.Visits.Sources {
+		if s.Name == source {
+			found = true
+			if s.Visits != 4 {
+				t.Errorf("the source's visits count its clicks: %+v", s)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("sources: %+v", g.Visits.Sources)
+	}
+	if n := g.Clicks.Totals["growth-mysql-test"]; n != 2 || !slices.Contains(g.Clicks.Targets, "growth-mysql-test") {
+		t.Errorf("clicks: %+v", g.Clicks)
 	}
 	if g.Downloads.Day != today {
 		t.Errorf("polled %q", g.Downloads.Day)

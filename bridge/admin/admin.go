@@ -699,7 +699,8 @@ func growthDays(r *http.Request) int {
 }
 
 // Growth is the Growth tab (GET /admin/api/growth?days=): devices, visits
-// to the public site and downloads over the last days (dao.Growth).
+// to the public site, its download links' clicks by source and downloads
+// over the last days (dao.Growth).
 // Counts only: nothing in it names a device, an account or a visitor.
 func (a *Admin) Growth(w http.ResponseWriter, r *http.Request) {
 	g, err := a.dao.Growth(growthDays(r), time.Now())

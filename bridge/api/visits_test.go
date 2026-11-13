@@ -115,6 +115,13 @@ func TestVisitCounting(t *testing.T) {
 		{"back from Apple's sign-in, to complete the profile", "GET", "/account?complete=1", with(map[string]string{"Referer": "https://appleid.apple.com/"}), &visit{"/account", ""}},
 		{"an email's link, from webmail", "GET", "/es/account", with(map[string]string{"Referer": "https://mail.smith-family.example/"}), &visit{"/account", ""}},
 		{"one of our links to the account page", "GET", "/account?ref=launch", with(map[string]string{"Referer": "https://news.ycombinator.com/"}), &visit{"/account", "ref:launch"}},
+
+		// The source our own links carry is for the downloads: a page
+		// opened through one is a visit from the site, as before.
+		{"a carried source isn't a visit's", "GET", "/?s=ref:launch", with(map[string]string{"Referer": "https://bridge.test/raspberry-pi-home-server?utm_source=launch"}), &visit{"/", ""}},
+		{"a carried source, with no Referer", "GET", "/es/?s=reddit.com", browser, &visit{"/es/", ""}},
+		{"a download link's click, under its own page", "GET", "/get/pi-image", browser, &visit{"/get/pi-image", ""}},
+		{"a download link that isn't one", "GET", "/get/nope", browser, nil},
 	}
 	for _, c := range cases {
 		api, got := visitsAPI(t)
@@ -187,6 +194,7 @@ func TestVisitPage(t *testing.T) {
 		"/BingSiteAuth.xml":              "",
 		"/googlebc3c0c0b52da3eb6.html":   "",
 		"/es/google-photos-alternative/": "",
+		"/get/pi-image":                  "", // a click, counted on its own (clicks.go)
 	} {
 		got, ok := visitPage(path)
 		if ok != (want != "") || got != want {

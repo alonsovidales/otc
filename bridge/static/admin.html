@@ -173,6 +173,11 @@
     .figure-value{font-size:30px;font-weight:700;line-height:1.25;font-variant-numeric:tabular-nums;margin-top:4px}
     .figure-note{font-size:13px;color:var(--muted)}
     .growth-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr));gap:0 20px}
+    .growth-grid .wide{grid-column:1/-1}
+    /* Downloads by source: a column a link, so on a narrow screen the
+       table scrolls sideways rather than break the sources' names. */
+    td.src{white-space:nowrap}
+    tr.total td{font-weight:600}
     .card-title{margin:0 0 10px;font-size:15px}
     .table-note{font-size:12px;margin:10px 0 0}
     td.name{word-break:break-word}
@@ -371,6 +376,16 @@
               </table>
             </div>
             <p class="muted table-note">Each language's address is its own page; the account page is one page in every language. Robots and prefetches aren't counted, and the privacy and terms pages only when the browser doesn't have them already.</p>
+          </div>
+          <div class="card wide">
+            <h3 class="card-title">Downloads by source</h3>
+            <div class="scroll-x">
+              <table>
+                <thead id="growth-clicks-head"><tr><th>Source</th><th class="num">Total</th></tr></thead>
+                <tbody id="growth-clicks"><tr><td colspan="2" class="muted">Loading…</td></tr></tbody>
+              </table>
+            </div>
+            <p class="muted table-note">Clicks on the site's download buttons and store links, by where the visit came from: the sources above, carried along the site's own links, so a click a few pages on still counts for what brought the visitor. Robots and prefetches aren't counted. These are clicks, not installs.</p>
           </div>
           <div class="card">
             <h3 class="card-title">Downloads</h3>
@@ -1299,10 +1314,11 @@
     }
 
     // ---- Growth (GET /admin/api/growth, dao.Growth) ----
-    // Devices, visits to the public site and downloads from GitHub. The
-    // four figures are the last 7 days whatever the period; the charts and
-    // tables follow the period. Days are UTC dates, drawn as calendar days
-    // here; nothing in the answer names a device, an account or a visitor.
+    // Devices, visits to the public site, its download links' clicks by
+    // source and downloads from GitHub. The four figures are the last 7
+    // days whatever the period; the charts and tables follow the period.
+    // Days are UTC dates, drawn as calendar days here; nothing in the
+    // answer names a device, an account or a visitor.
     const DAY_MS = 86400000;
     document.getElementById('growth-days').addEventListener('change', refreshGrowth);
 
@@ -1385,6 +1401,38 @@
       return escapeHtml(name);
     }
 
+    // The site's download links, by their /get/ target (package site's
+    // downloads.go): a column's heading and what its tooltip says.
+    const CLICK_TARGETS = {
+      'pi-image': ['Pi image', 'The Raspberry Pi image, from GitHub'],
+      windows: ['Windows', 'otc-sync for Windows (x64), from GitHub'],
+      'windows-arm': ['Windows ARM', 'otc-sync for Windows on ARM, from GitHub'],
+      linux: ['Linux', 'otc-sync for Linux (x64), from GitHub'],
+      'linux-arm': ['Linux ARM', 'otc-sync for Linux on ARM, from GitHub'],
+      mac: ['Mac', 'The Mac app, on the App Store'],
+      ios: ['iPhone', 'The iPhone and iPad app, on the App Store'],
+      android: ['Android', 'The Android app, on Google Play'],
+    };
+
+    // Downloads by source: a row a source, a column a link clicked (most
+    // clicked first), and the totals.
+    function renderClicks(c) {
+      const cols = c.targets;
+      document.getElementById('growth-clicks-head').innerHTML = `<tr><th>Source</th>${cols.map(t => {
+        const [label, about] = CLICK_TARGETS[t] || [t, ''];
+        return `<th class="num"${about ? ` title="${escapeHtml(about)}"` : ''}>${escapeHtml(label)}</th>`;
+      }).join('')}<th class="num">Total</th></tr>`;
+      const body = document.getElementById('growth-clicks');
+      if (c.sources.length === 0) {
+        body.innerHTML = `<tr><td colspan="${cols.length + 2}" class="muted">No download clicks counted in this period.</td></tr>`;
+        return;
+      }
+      const cell = n => n ? fmtInt(n) : '<span class="muted">0</span>';
+      body.innerHTML = c.sources.map(s => `
+          <tr><td class="src">${sourceCell(s.source)}</td>${cols.map(t => `<td class="num">${cell(s.clicks[t] || 0)}</td>`).join('')}<td class="num">${fmtInt(s.total)}</td></tr>`).join('') + `
+          <tr class="total"><td>Total</td>${cols.map(t => `<td class="num">${fmtInt(c.totals[t] || 0)}</td>`).join('')}<td class="num">${fmtInt(c.total)}</td></tr>`;
+    }
+
     function renderGrowth(g) {
       const dev = g.devices, vis = g.visits, dl = g.downloads;
       const polled = !!dl.day;
@@ -1402,6 +1450,7 @@
       const nb = s => s.replace(/ /g, ' ');
       document.getElementById('growth-summary').textContent = [
         nb(`${plural(vis.total, 'visit', 'visits')} in ${plural(g.days, 'day', 'days')}`),
+        nb(plural(g.clicks.total, 'download click', 'download clicks')),
         nb(`${plural(newNames, 'new device name', 'new device names')} in the weeks shown`),
         `active devices: ${nb(`${fmtInt(dev.active_1d)} in the last day`)}, ${nb(`${fmtInt(dev.active_30d)} in 30 days`)}`,
       ].join(' · ');
@@ -1417,6 +1466,7 @@
         ? '<tr><td colspan="3" class="muted">No visits counted in this period.</td></tr>'
         : vis.pages.map(p => `
           <tr><td class="name"><code>${escapeHtml(p.name)}</code></td><td class="num">${fmtInt(p.visits)}</td><td class="num">${share(p.visits, vis.total)}</td></tr>`).join('');
+      renderClicks(g.clicks);
 
       const notPolled = '<tr><td colspan="4" class="muted">Not read from GitHub yet: the bridge reads the counts 2 minutes after it starts, then every 6 hours.</td></tr>';
       document.getElementById('growth-downloads').innerHTML = !polled ? notPolled

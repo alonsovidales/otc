@@ -255,9 +255,9 @@
           <p>{{t "site.landing.install.app_intro"}}</p>
           <div class="install-req">{{template "spans" (rich "site.landing.install.requirements")}}</div>
           <div class="install-apps">
-            <a class="btn secondary" data-os="mac" href="https://apps.apple.com/app/id6814658734">{{t "site.landing.desktop.mac_button"}}</a>
-            <a class="btn secondary" data-os="windows" href="https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-windows-amd64.exe" download>{{t "site.landing.desktop.windows_button"}}</a>
-            <a class="btn secondary" data-os="linux" href="https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-linux-amd64" download>{{t "site.landing.desktop.linux_button"}}</a>
+            <a class="btn secondary" data-os="mac" href="{{.Download "mac"}}">{{t "site.landing.desktop.mac_button"}}</a>
+            <a class="btn secondary" data-os="windows" href="{{.Download "windows"}}" download>{{t "site.landing.desktop.windows_button"}}</a>
+            <a class="btn secondary" data-os="linux" href="{{.Download "linux"}}" download>{{t "site.landing.desktop.linux_button"}}</a>
           </div>
           <p class="install-small">{{template "spans" (rich "site.landing.install.app_more")}}</p>
           <ol>
@@ -270,7 +270,7 @@
         </div>
         <div class="install-panel" id="panel-image" role="tabpanel" aria-labelledby="tab-image">
           <div class="install-req">{{template "spans" (rich "site.landing.install.requirements")}}</div>
-          <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz"><span aria-hidden="true">⬇</span> {{t "site.landing.install.download"}}</a>
+          <a class="btn ember" href="{{.Download "pi-image"}}"><span aria-hidden="true">⬇</span> {{t "site.landing.install.download"}}</a>
           <ol>
             <li>{{template "spans" (rich "site.landing.install.step_flash")}}</li>
             <li>{{template "spans" (rich "site.landing.install.step_plug")}}</li>
@@ -292,7 +292,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           </div>
           <p>{{template "spans" (rich "site.landing.install.script_note" "address" (printf "http://<%s>:8080/" (t "site.landing.example.device_ip")))}}</p>
         </div>
-        <a class="hero-install-alt" href="{{.Account}}?signup=1">{{t "site.landing.install.bridge_link"}}</a>
+        <a class="hero-install-alt" href="{{.Signup}}">{{t "site.landing.install.bridge_link"}}</a>
       </div>
     </div>
 
@@ -335,7 +335,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           </div>
           <div class="step">
             <div class="num">2</div>
-            <div><strong>{{t "site.landing.started.step2_title"}}</strong><p>{{template "spans" (rich "site.landing.started.step2_text")}}</p></div>
+            <div><strong>{{t "site.landing.started.step2_title"}}</strong><p>{{template "spans" (.Carry (rich "site.landing.started.step2_text"))}}</p></div>
           </div>
           <div class="step">
             <div class="num">3</div>
@@ -360,21 +360,21 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             <span class="mine-tag">{{t "site.landing.download.your_system"}}</span>
             <h3>Windows</h3>
             <p>{{t "site.landing.desktop.windows_text"}}</p>
-            <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-windows-amd64.exe" download>{{t "site.landing.desktop.windows_button"}}</a>
-            <span class="alt">{{template "spans" (rich "site.landing.desktop.windows_alt")}}</span>
+            <a class="btn ember" href="{{.Download "windows"}}" download>{{t "site.landing.desktop.windows_button"}}</a>
+            <span class="alt">{{template "spans" (.Carry (rich "site.landing.desktop.windows_alt"))}}</span>
           </div>
           <div class="dl-card" data-os="linux">
             <span class="mine-tag">{{t "site.landing.download.your_system"}}</span>
             <h3>Linux</h3>
             <p>{{t "site.landing.desktop.linux_text"}}</p>
-            <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-linux-amd64" download>{{t "site.landing.desktop.linux_button"}}</a>
-            <span class="alt">{{template "spans" (rich "site.landing.desktop.linux_alt")}}<br><code>install -Dm755 otc-sync-linux-* ~/.local/bin/otc-sync &amp;&amp; otc-sync</code></span>
+            <a class="btn ember" href="{{.Download "linux"}}" download>{{t "site.landing.desktop.linux_button"}}</a>
+            <span class="alt">{{template "spans" (.Carry (rich "site.landing.desktop.linux_alt"))}}<br><code>install -Dm755 otc-sync-linux-* ~/.local/bin/otc-sync &amp;&amp; otc-sync</code></span>
           </div>
           <div class="dl-card" data-os="mac">
             <span class="mine-tag">{{t "site.landing.download.your_system"}}</span>
             <h3>macOS</h3>
             <p>{{t "site.landing.desktop.mac_text"}}</p>
-            <a class="btn ember" href="https://apps.apple.com/app/id6814658734">{{t "site.landing.desktop.mac_button"}}</a>
+            <a class="btn ember" href="{{.Download "mac"}}">{{t "site.landing.desktop.mac_button"}}</a>
           </div>
         </div>
         <div class="note">
@@ -391,13 +391,13 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             <span class="mine-tag">{{t "site.landing.download.your_system"}}</span>
             <h3>{{t "site.landing.phone.ios_title"}}</h3>
             <p>{{t "site.landing.phone.ios_text"}}</p>
-            <a class="btn ember" href="https://apps.apple.com/app/id6814658734">{{t "site.landing.phone.ios_button"}}</a>
+            <a class="btn ember" href="{{.Download "ios"}}">{{t "site.landing.phone.ios_button"}}</a>
           </div>
           <div class="dl-card" data-os="android">
             <span class="mine-tag">{{t "site.landing.download.your_system"}}</span>
             <h3>Android</h3>
             <p>{{t "site.landing.phone.android_text"}}</p>
-            <a class="btn ember" href="https://play.google.com/store/apps/details?id=cloud.offthe.otc">{{t "site.landing.phone.android_button"}}</a>
+            <a class="btn ember" href="{{.Download "android"}}">{{t "site.landing.phone.android_button"}}</a>
           </div>
         </div>
       </div>
@@ -651,7 +651,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
               <li>{{template "spans" (rich "site.landing.faq.other_hw.li2")}}</li>
               <li>{{template "spans" (rich "site.landing.faq.other_hw.li3")}}</li>
             </ul>
-            <p>{{template "spans" (rich "site.landing.faq.other_hw.p3")}}</p>
+            <p>{{template "spans" (.Carry (rich "site.landing.faq.other_hw.p3"))}}</p>
           </details>
           <details id="faq-from-icloud">
             <summary>{{t "site.landing.faq.from_icloud.q"}}</summary>
@@ -824,7 +824,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           <details id="faq-bridge">
             <summary>{{t "site.landing.faq.bridge.q"}}</summary>
             <p>{{template "spans" (rich "site.landing.faq.bridge.p1")}}</p>
-            <p>{{template "spans" (rich "site.landing.faq.bridge.p2")}}</p>
+            <p>{{template "spans" (.Carry (rich "site.landing.faq.bridge.p2"))}}</p>
           </details>
           <details id="faq-free">
             <summary>{{t "site.landing.faq.free.q"}}</summary>
@@ -924,7 +924,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             <div class="value-card">
               <span class="ico" aria-hidden="true">🌉</span>
               <h3>{{t "site.landing.contact.bridge_title"}}</h3>
-              <p>{{template "spans" (rich "site.landing.contact.bridge_text")}}</p>
+              <p>{{template "spans" (.Carry (rich "site.landing.contact.bridge_text"))}}</p>
             </div>
             <div class="value-card">
               <span class="ico" aria-hidden="true">🛠️</span>

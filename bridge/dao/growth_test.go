@@ -3,6 +3,8 @@
 package dao
 
 import (
+	"fmt"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -71,15 +73,21 @@ func TestGrowthReadsTheFigures(t *testing.T) {
 	mock.ExpectQuery("select date\\(`created`\\) - interval weekday\\(`created`\\) day as `monday`, count\\(\\*\\) from `devices` where `created` >= \\? group by `monday`").
 		WithArgs(day("2026-10-12")).
 		WillReturnRows(sqlmock.NewRows([]string{"monday", "n"}).AddRow(day("2026-10-19"), 2))
-	mock.ExpectQuery("select `day`, sum\\(`visits`\\) from `site_visits` where `day` >= \\? group by `day`").
-		WithArgs("2026-10-18").
+	// The visit figures leave the download links' clicks out.
+	mock.ExpectQuery("select `day`, sum\\(`visits`\\) from `site_visits` where `day` >= \\? and `page` not like \\? group by `day`").
+		WithArgs("2026-10-18", "/get/%").
 		WillReturnRows(sqlmock.NewRows([]string{"day", "n"}).AddRow(day("2026-10-18"), 5).AddRow(day("2026-10-24"), 7))
-	mock.ExpectQuery("select `page`, sum\\(`visits`\\) as `n` from `site_visits` where `day` >= \\? group by `page` order by `n` desc, `page` limit \\?").
-		WithArgs("2026-10-18", cGrowthTopPages).
+	mock.ExpectQuery("select `page`, sum\\(`visits`\\) as `n` from `site_visits` where `day` >= \\? and `page` not like \\? group by `page` order by `n` desc, `page` limit \\?").
+		WithArgs("2026-10-18", "/get/%", cGrowthTopPages).
 		WillReturnRows(sqlmock.NewRows([]string{"page", "n"}).AddRow("/", 9).AddRow("/es/", 3))
-	mock.ExpectQuery("select `source`, sum\\(`visits`\\) as `n` from `site_visits` where `day` >= \\? group by `source` order by `n` desc, `source` limit \\?").
-		WithArgs("2026-10-18", cGrowthTopSources).
+	mock.ExpectQuery("select `source`, sum\\(`visits`\\) as `n` from `site_visits` where `day` >= \\? and `page` not like \\? group by `source` order by `n` desc, `source` limit \\?").
+		WithArgs("2026-10-18", "/get/%", cGrowthTopSources).
 		WillReturnRows(sqlmock.NewRows([]string{"source", "n"}).AddRow("", 8).AddRow("ref:reddit", 4))
+	// And read them on their own.
+	mock.ExpectQuery("select `source`, `page`, sum\\(`visits`\\) from `site_visits` where `day` >= \\? and `page` like \\? group by `source`, `page`").
+		WithArgs("2026-10-18", "/get/%").
+		WillReturnRows(sqlmock.NewRows([]string{"source", "page", "n"}).
+			AddRow("ref:reddit", "/get/pi-image", 3).AddRow("", "/get/android", 1).AddRow("ref:reddit", "/get/android", 2))
 	mock.ExpectQuery("select min\\(`day`\\), max\\(`day`\\) from `download_counts`").
 		WillReturnRows(sqlmock.NewRows([]string{"min", "max"}).AddRow(day("2026-10-01"), day("2026-10-24")))
 	// On or before the period's eve (the 17th): each file's last
@@ -127,6 +135,14 @@ func TestGrowthReadsTheFigures(t *testing.T) {
 	if len(v.Pages) != 2 || v.Pages[0] != (NamedCount{"/", 9}) || len(v.Sources) != 2 || v.Sources[1] != (NamedCount{"ref:reddit", 4}) {
 		t.Errorf("pages %+v, sources %+v", v.Pages, v.Sources)
 	}
+	c := g.Clicks
+	if !slices.Equal(c.Targets, []string{"android", "pi-image"}) || c.Total != 6 || c.Totals["android"] != 3 || c.Totals["pi-image"] != 3 {
+		t.Errorf("clicks: %+v", c)
+	}
+	if len(c.Sources) != 2 || c.Sources[0].Source != "ref:reddit" || c.Sources[0].Total != 5 || c.Sources[0].Clicks["pi-image"] != 3 ||
+		c.Sources[1].Source != "" || c.Sources[1].Total != 1 || c.Sources[1].Clicks["android"] != 1 {
+		t.Errorf("clicks by source: %+v", c.Sources)
+	}
 
 	dl := g.Downloads
 	if dl.Day != "2026-10-24" {
@@ -158,5 +174,86 @@ func TestGrowthDownloadsBeforeTheFirstPoll(t *testing.T) {
 	}
 	if dl.Day != "" || dl.Assets == nil || len(dl.Assets) != 0 || dl.Releases == nil || len(dl.Releases) != 0 {
 		t.Errorf("%+v", dl)
+	}
+}
+
+// Downloads by source: one row a source, most clicks first and a source's
+// name second; past cGrowthTopSources the rest are added up last under
+// "(other)", with the clicks counted under that name already; the
+// targets most clicked first; the totals every click's.
+func TestGrowthClicks(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	rows := sqlmock.NewRows([]string{"source", "page", "n"}).
+		AddRow("reddit.com", "/get/windows", 4).
+		AddRow("ref:launch", "/get/pi-image", 4).
+		AddRow("ref:launch", "/get/ios", 1).
+		AddRow("(other)", "/get/pi-image", 2)
+	// Sources with a click each, ranked after the two above by name.
+	for i := range cGrowthTopSources {
+		rows.AddRow(fmt.Sprintf("site-%02d.example", i), "/get/android", 1)
+	}
+	mock.ExpectQuery("select `source`, `page`, sum\\(`visits`\\) from `site_visits` where `day` >= \\? and `page` like \\? group by `source`, `page`").
+		WithArgs("2026-11-01", "/get/%").WillReturnRows(rows)
+	var c GrowthClicks
+	if err := NewWithDB(db).growthClicks(&c, "2026-11-01"); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+
+	if want := []string{"android", "pi-image", "windows", "ios"}; !slices.Equal(c.Targets, want) {
+		t.Errorf("targets %v, want %v", c.Targets, want)
+	}
+	all := int64(4 + 4 + 1 + 2 + cGrowthTopSources)
+	if c.Total != all || c.Totals["android"] != cGrowthTopSources || c.Totals["pi-image"] != 6 || c.Totals["windows"] != 4 || c.Totals["ios"] != 1 {
+		t.Errorf("totals %v, %d", c.Totals, c.Total)
+	}
+	if len(c.Sources) != cGrowthTopSources+1 {
+		t.Fatalf("%d rows, want %d", len(c.Sources), cGrowthTopSources+1)
+	}
+	if s := c.Sources[0]; s.Source != "ref:launch" || s.Total != 5 || s.Clicks["pi-image"] != 4 || s.Clicks["ios"] != 1 {
+		t.Errorf("first: %+v", s)
+	}
+	if s := c.Sources[1]; s.Source != "reddit.com" || s.Total != 4 {
+		t.Errorf("second: %+v", s)
+	}
+	if s := c.Sources[2]; s.Source != "site-00.example" {
+		t.Errorf("third: %+v", s)
+	}
+	// The last two of the 30 one-click sites don't fit; with the clicks
+	// already under "(other)" they are its row, last.
+	other := c.Sources[len(c.Sources)-1]
+	if other.Source != "(other)" || other.Total != 4 || other.Clicks["pi-image"] != 2 || other.Clicks["android"] != 2 {
+		t.Errorf("(other): %+v", other)
+	}
+	var sum int64
+	for _, s := range c.Sources {
+		sum += s.Total
+	}
+	if sum != c.Total {
+		t.Errorf("the rows add up to %d, the total is %d", sum, c.Total)
+	}
+}
+
+// No clicks: empty lists, never null, for the page.
+func TestGrowthClicksNone(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("from `site_visits` where `day` >= \\? and `page` like \\?").
+		WillReturnRows(sqlmock.NewRows([]string{"source", "page", "n"}))
+	var c GrowthClicks
+	if err := NewWithDB(db).growthClicks(&c, "2026-11-01"); err != nil {
+		t.Fatal(err)
+	}
+	if c.Targets == nil || c.Sources == nil || c.Totals == nil || len(c.Targets)+len(c.Sources)+len(c.Totals) != 0 || c.Total != 0 {
+		t.Errorf("%+v", c)
 	}
 }

@@ -29,6 +29,9 @@ import (
 // of it; never for the account page), else nothing. No address, cookie, browser or account is kept;
 // the User-Agent is only looked at, to leave robots out. The counts are
 // added up in memory and written in batches (dao.RecordSiteVisit).
+// Clicks on the download links are counted the same way, under the
+// pages /get/<target> (clicks.go); the s= the pages' own links carry is
+// for those, and a visit never reads it.
 
 // cVisitRobots are in robots' User-Agents, matched in lower case: search
 // engines, link previews, uptime checks, scripts. facebookexternalhit,
@@ -95,16 +98,22 @@ func personVisit(r *http.Request) bool {
 			return false
 		}
 	}
+	return !robot(r)
+}
+
+// robot reports whether r's User-Agent is a robot's (cVisitRobots), or
+// missing.
+func robot(r *http.Request) bool {
 	ua := strings.ToLower(r.UserAgent())
 	if ua == "" {
-		return false
+		return true
 	}
-	for _, robot := range cVisitRobots {
-		if strings.Contains(ua, robot) {
-			return false
+	for _, name := range cVisitRobots {
+		if strings.Contains(ua, name) {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 // visitPage is the name a visit to path is counted under - the page's

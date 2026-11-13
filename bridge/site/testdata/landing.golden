@@ -40,11 +40,11 @@ Raspberry Pi 5 image
 Install script
 The easiest way: the app makes the card and guides you through each step.
 You need a Raspberry Pi 5 with 8 GB of RAM, a microSD card and, optionally, two USB disks for RAID-1 in the Pi's two blue USB ports. Use the official Raspberry Pi 27 W USB-C power supply: with a weaker one the Pi can restart while it works on your photos. No keyboard, monitor or Linux knowledge needed. Only have a 4 GB Pi? It runs everything too, with Image Tagging as an option in Settings; 2 GB is enough for one person.
-@a.href=https://apps.apple.com/app/id6814658734
+@a.href=/get/mac
 @a.download
-@a.href=https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-windows-amd64.exe
+@a.href=/get/windows
 @a.download
-@a.href=https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-linux-amd64
+@a.href=/get/linux
 Get it on the Mac App Store Download for Windows Download for Linux
 @a.href=#download
 ARM versions and first-run tips are in the download section.
@@ -55,7 +55,7 @@ Plug in the disks (two blue USB ports), insert the card and power on. After a mi
 Finish the setup over Bluetooth: on a Mac in the app (On this Mac), on Windows and Linux in the iOS or Android app (Set up a new device). It asks for your Wi-Fi, a name, a password and how to use the disks, then installs everything in about 20 minutes.
 Sign in: the app connects to the device by itself, or open https://<name>.off-the.cloud in a browser.
 You need a Raspberry Pi 5 with 8 GB of RAM, a microSD card and, optionally, two USB disks for RAID-1 in the Pi's two blue USB ports. Use the official Raspberry Pi 27 W USB-C power supply: with a weaker one the Pi can restart while it works on your photos. No keyboard, monitor or Linux knowledge needed. Only have a 4 GB Pi? It runs everything too, with Image Tagging as an option in Settings; 2 GB is enough for one person.
-@a.href=https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz
+@a.href=/get/pi-image
 ⬇ Download the image (≈ 530 MB)
 @a.href=https://www.raspberrypi.com/software/
 Flash it to the microSD card with Raspberry Pi Imager ("Use custom", pick the file, write), skipping Imager's own customisation step.
@@ -122,22 +122,22 @@ Your system
 Windows
 Windows 10 or 11. Keep the file somewhere permanent (not Downloads) and run it: it lives in the tray.
 @a.download
-@a.href=https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-windows-amd64.exe
+@a.href=/get/windows
 @a.download
-@a.href=https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-windows-arm64.exe
+@a.href=/get/windows-arm
 Download for Windows ARM PC? Windows on ARM. If Windows warns you, choose More info → Run anyway.
 Your system
 Linux
 A tray app on a desktop, or a command line and a service on a server or a Pi.
 @a.download
-@a.href=https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-linux-amd64
+@a.href=/get/linux
 @a.download
-@a.href=https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-linux-arm64
+@a.href=/get/linux-arm
 Download for Linux ARM (e.g. a Raspberry Pi)? Linux ARM64. Then:install -Dm755 otc-sync-linux-* ~/.local/bin/otc-sync && otc-sync
 Your system
 macOS
 A menu bar app from the Mac App Store, which keeps it up to date.
-@a.href=https://apps.apple.com/app/id6814658734
+@a.href=/get/mac
 Get it on the Mac App Store
 @a.href=https://github.com/alonsovidales/otc
 @a.href=https://github.com/alonsovidales/otc/releases/tag/desktop
@@ -148,12 +148,12 @@ Post for your friends and see their posts, back up photos as you take them, and 
 Your system
 iPhone and iPad
 Backs up your library, iCloud photos included, and shows your photos, files and friends' posts.
-@a.href=https://apps.apple.com/app/id6814658734
+@a.href=/get/ios
 Get it on the App Store
 Your system
 Android
 The same for Android phones and tablets: photo backup, your photos and files, and friends' posts.
-@a.href=https://play.google.com/store/apps/details?id=cloud.offthe.otc
+@a.href=/get/android
 Get it on Google Play
 What it is
 A social network, a photo library and a NAS, in one device

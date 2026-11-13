@@ -3,9 +3,12 @@
 -- The admin panel's Growth tab. site_visits holds the public site's
 -- anonymous visit counts (/privacy, "Visit counts"): per UTC day, page and
 -- source, how many times the page was opened - no address, cookie, browser
--- or account. download_counts holds a daily snapshot of the GitHub release
--- files' download totals (the Raspberry Pi image, the desktop apps, each
--- device release's src.tar.gz). Both are pruned after 25 months.
+-- or account - and, counted the same way under the page "/get/<target>",
+-- the clicks on its download links (bridge/api/clicks.go: there `visits`
+-- is how many clicks). download_counts holds a daily snapshot of the
+-- GitHub release files' download totals (the Raspberry Pi image, the
+-- desktop apps, each device release's src.tar.gz). Both are pruned after
+-- 25 months.
 -- Idempotent: run it on the bridge's database once
 -- (`sudo mysql otc < 011-growth.sql`), re-running is harmless. Before
 -- deploying the bridge that uses it - that bridge keeps the visits it
@@ -16,7 +19,8 @@ CREATE TABLE IF NOT EXISTS site_visits
 (
   `day` date not null,
   -- The page's address with its language ("/", "/es/",
-  -- "/private-social-network"), "/account", "/privacy", "/terms".
+  -- "/private-social-network"), "/account", "/privacy", "/terms"; or a
+  -- download link's, "/get/pi-image", for its clicks.
   `page` varchar(64) not null,
   -- "ref:<name>" for one of our own links (?ref= or ?utm_source=), the
   -- referring website's name (reddit.com), or '' for none.

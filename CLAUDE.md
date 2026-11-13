@@ -3104,8 +3104,22 @@ under day, page and source - `ref:<tag>` from `?ref=`/`?utm_source=`, else the R
 (never a device's address or an IP; nothing but `ref:` for `/account`) - added up in memory and
 written with the traffic counts (`flushPass`), at most 1,000 named sources per day per node, the
 rest under `(other)`. `bridge/downloads` polls the releases every 6 h into `download_counts`
-(`src.tar.gz@v<N>`: devices that took release N). Both pruned after 25 months. The privacy page's
-"Visit counts" row describes exactly this: keep the two in step, and the record in
+(`src.tar.gz@v<N>`: devices that took release N). Both pruned after 25 months. Download clicks by
+source (`site/downloads.go`, `api/clicks.go`): the pages' download buttons and store links go to
+`/get/<target>` - a fixed list (`pi-image`, `windows`, `windows-arm`, `linux`, `linux-arm`, `mac`,
+`ios`, `android`; anything else is the 404), a 302 to that target's file or store page, never
+anywhere else - which counts a person's click (`personVisit`) into `site_visits` under the page
+`/get/<target>` and the source (no schema change; the visit figures leave `/get/%` out, and the
+tab's "Downloads by source" reads only it). The source is the click's own `visitSource`, else the
+`?s=` (`site.SourceParam`, which visits never read) that the pages write into their links to the
+site's pages and downloads (`site.Options.Source` = `linkSource`: the request's `visitSource`, else a
+carried `s` that `carriedSource` finds valid; none on a device's address or for a robot; the account
+page's own Referer never), so it survives the hop from a comparison page to `/#install`. Templates
+use `{{.Download "<target>"}}`, `.Signup` for `.Account`'s sign-up, and `.Carry` around a rich text
+whose tags link the site (`Carries` in `tags`). Google Play's link gets `&referrer=` with
+`utm_source=<name>&utm_medium=off-the.cloud`, the App Store's `pt`/`ct` (40 characters)/`mt=8` only
+once `appStoreProvider` is set (then name the App Store in the privacy page too). The privacy page's
+"Visit counts" row describes all of this: keep the two in step, and the record in
 `private/gdpr/records-of-processing.md`.
 
 ### Frontend (`web/`)
@@ -4381,7 +4395,7 @@ release key (`scripts/sign-file.sh`, the same key and Keychain passphrase as `re
 `desktop.json.sig`, uploads everything to the rolling GitHub release `desktop` (binaries first,
 manifest last), checks what was published and commits the version. The website's Downloads section
 (`/#download`, in `bridge/site/pages/landing.html`; it highlights the visitor's OS) links to
-those stable URLs.
+those stable URLs, through `/get/<target>` (the Growth tab's download clicks, above).
 Self-update (`internal/selfupdate`): the tray checks 20 s after start and every 6 h, verifies the
 manifest with the embedded release key, and shows "⬆ Update otc-sync to X"; a click downloads the
 platform's file next to the executable, checks its SHA-256 and swaps it in (Windows renames the

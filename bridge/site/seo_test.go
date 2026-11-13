@@ -166,9 +166,18 @@ func TestStructuredData(t *testing.T) {
 				if sw := byID[base+"/#software"]; sw["description"] != h.meta["description"][0] {
 					t.Errorf("%s: the software's description isn't the page's", what)
 				}
-				// Every address it gives is one the page links to or shows.
+				// Every address it gives is one the page links to or shows:
+				// a store's, through the page's /get/ link to it.
+				leadsTo := slices.Clone(h.hrefs)
+				for _, href := range h.hrefs {
+					if target, ok := strings.CutPrefix(href, DownloadPrefix); ok {
+						if dest, ok := DownloadURL(target, ""); ok {
+							leadsTo = append(leadsTo, dest)
+						}
+					}
+				}
 				for _, name := range []string{"app-ios", "app-android", "app-mac", "app-desktop"} {
-					if u, _ := byID[base+"/#"+name]["url"].(string); !slices.Contains(h.hrefs, u) {
+					if u, _ := byID[base+"/#"+name]["url"].(string); !slices.Contains(leadsTo, u) {
 						t.Errorf("%s: %s's address %q isn't on the page", what, name, u)
 					}
 				}

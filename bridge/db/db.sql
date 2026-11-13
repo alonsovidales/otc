@@ -315,13 +315,16 @@ create table released_domains
 -- The admin panel's Growth tab (migrations/011-growth.sql). The public
 -- site's anonymous visit counts (/privacy, "Visit counts"): per UTC day,
 -- page and source, how many times the page was opened - no address,
--- cookie, browser or account. Each bridge node adds its own counts every
--- 10 s (dao/visits.go); pruned after 25 months.
+-- cookie, browser or account - and, counted the same way under the page
+-- "/get/<target>", the clicks on its download links (api/clicks.go).
+-- Each bridge node adds its own counts every 10 s (dao/visits.go); pruned
+-- after 25 months.
 create table site_visits
 (
   `day` date not null,
   -- The page's address with its language ("/", "/es/",
-  -- "/private-social-network"), "/account", "/privacy", "/terms".
+  -- "/private-social-network"), "/account", "/privacy", "/terms"; or a
+  -- download link's, "/get/pi-image", for its clicks.
   `page` varchar(64) not null,
   -- "ref:<name>" for one of our own links (?ref= or ?utm_source=), the
   -- referring website's name (reddit.com), or '' for none.

@@ -27,9 +27,11 @@
   .Sections: "" on the landing page itself, its address (/, /<code>/) on
   the others, so #faq becomes /#faq there. The logo links to .Home, the
   sign-in and sign-up to the account page in the page's language
-  (.Account), and the footer to the comparison pages (.Compare), the
-  Raspberry Pi home server page (.Pi) and the client proofing page
-  (.Proofing) in the page's language.
+  (.Account, .Signup), and the footer to the comparison pages (.Compare),
+  the Raspberry Pi home server page (.Pi) and the client proofing page
+  (.Proofing) in the page's language. Those links carry where the visit
+  came from (?s=, downloads.go), so a download clicked on another page is
+  counted under it; the privacy and terms pages, static files, don't.
 */}}
 
 {{define "head" -}}
@@ -85,12 +87,12 @@
       </nav>
       <div class="nav-actions">
         <a class="btn ember" href="{{.Account}}">{{t "site.landing.nav.sign_in"}}</a>
-        <a class="btn nav-signup" href="{{.Account}}?signup=1">{{t "site.landing.nav.create_account"}}</a>
+        <a class="btn nav-signup" href="{{.Signup}}">{{t "site.landing.nav.create_account"}}</a>
         <details class="nav-menu">
           <summary><span class="nav-menu-icon" aria-hidden="true"></span><span class="vh">{{t "site.landing.nav.menu"}}</span></summary>
           <nav class="nav-menu-links">
             {{- template "nav-links" .}}
-            <a class="nav-menu-signup" href="{{.Account}}?signup=1">{{t "site.landing.nav.create_account"}}</a>
+            <a class="nav-menu-signup" href="{{.Signup}}">{{t "site.landing.nav.create_account"}}</a>
           </nav>
         </details>
       </div>

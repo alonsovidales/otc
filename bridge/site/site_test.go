@@ -490,8 +490,9 @@ var updateGoldens = flag.Bool("update", false, "rewrite testdata/*.golden from t
 // disabled.html, unavailable.html and account.html before they moved into
 // the binary, with the year the footer's script filled in; since then the
 // Android and iPhone cards link to their stores instead of "Coming soon",
-// and the landing page has gained the comparison page's links, its at a
-// glance list and more questions). The comparison page had no static page
+// the landing page has gained the comparison page's links, its at a
+// glance list and more questions, and its downloads and store links go
+// through the site's /get/, downloads.go). The comparison page had no static page
 // before it: its golden is what it said when it was written, as the
 // sign-in's two pages' are (signin, continue: the first was plain text
 // before, the second is new), shown with testOptions' problem and address.

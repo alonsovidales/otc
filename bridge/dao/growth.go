@@ -5,6 +5,7 @@ package dao
 import (
 	"cmp"
 	"database/sql"
+	"maps"
 	"slices"
 	"sort"
 	"strconv"
@@ -14,7 +15,8 @@ import (
 
 // The admin panel's Growth tab (GET /admin/api/growth): how many devices
 // there are and how many are used, how many people open the public site
-// and from where (site_visits, visits.go), and how many download the
+// and from where (site_visits, visits.go), which of them click a download
+// link (site_visits too, ClickPagePrefix), and how many download the
 // Raspberry Pi image, the desktop apps and each device release
 // (download_counts, downloads.go). Counts only, nothing that names a
 // device, an account or a visitor. Days are UTC dates; the period is the
@@ -25,6 +27,15 @@ const (
 	cGrowthTopSources = 30
 	cGrowthReleases   = 10
 )
+
+// ClickPagePrefix starts the page a click on one of the site's download
+// links is counted under in site_visits: /get/pi-image, the link's own
+// address (site.DownloadPrefix, api/clicks.go). The visit figures leave
+// those rows out, and Clicks reads only them.
+const ClickPagePrefix = "/get/"
+
+// cClickPages is those pages as a LIKE pattern.
+const cClickPages = ClickPagePrefix + "%"
 
 // ReleaseSourcePrefix names a device release's source archive in
 // download_counts: "src.tar.gz@v136" is release 136's src.tar.gz. Every
@@ -38,6 +49,7 @@ type Growth struct {
 	Today     string          `json:"today"`
 	Devices   GrowthDevices   `json:"devices"`
 	Visits    GrowthVisits    `json:"visits"`
+	Clicks    GrowthClicks    `json:"clicks"`
 	Downloads GrowthDownloads `json:"downloads"`
 }
 
@@ -79,7 +91,7 @@ type WeekCount struct {
 // Sources are the most visited pages and the sources most visits came
 // from over the period, most first. A source is "ref:<name>" for one of
 // our own links, a website's name, or "" for none (typed in, a bookmark,
-// an app that doesn't say).
+// an app that doesn't say). None of them counts a download link's click.
 type GrowthVisits struct {
 	PerDay  []DayCount   `json:"per_day"`
 	Total   int64        `json:"total"`
@@ -96,6 +108,28 @@ type DayCount struct {
 type NamedCount struct {
 	Name   string `json:"name"`
 	Visits int64  `json:"visits"`
+}
+
+// GrowthClicks are the clicks on the site's download links over the
+// period, by where the visit came from (GrowthVisits' sources). Targets
+// are the links clicked (the part of the page after ClickPagePrefix),
+// most clicked first; Sources one row each, most clicks first - at most
+// cGrowthTopSources of them, the rest added up last under "(other)",
+// with any clicks counted under that name already (cVisitOther). Totals
+// and Total are every click's.
+type GrowthClicks struct {
+	Targets []string         `json:"targets"`
+	Sources []SourceClicks   `json:"sources"`
+	Totals  map[string]int64 `json:"totals"`
+	Total   int64            `json:"total"`
+}
+
+// SourceClicks is one source's clicks on each target it clicked, and
+// their total.
+type SourceClicks struct {
+	Source string           `json:"source"`
+	Clicks map[string]int64 `json:"clicks"`
+	Total  int64            `json:"total"`
 }
 
 // GrowthDownloads: Day is the latest poll's, "" before the first one.
@@ -130,6 +164,9 @@ func (dao *Dao) Growth(days int, now time.Time) (*Growth, error) {
 		return nil, err
 	}
 	if err := dao.growthVisits(&g.Visits, first, today); err != nil {
+		return nil, err
+	}
+	if err := dao.growthClicks(&g.Clicks, first.Format(time.DateOnly)); err != nil {
 		return nil, err
 	}
 	if err := dao.growthDownloads(&g.Downloads, days, today); err != nil {
@@ -175,7 +212,7 @@ func (dao *Dao) growthDevices(d *GrowthDevices, now, first, today time.Time) err
 
 func (dao *Dao) growthVisits(v *GrowthVisits, first, today time.Time) error {
 	from := first.Format(time.DateOnly)
-	rows, err := dao.db.Query("select `day`, sum(`visits`) from `site_visits` where `day` >= ? group by `day` order by `day`", from)
+	rows, err := dao.db.Query("select `day`, sum(`visits`) from `site_visits` where `day` >= ? and `page` not like ? group by `day` order by `day`", from, cClickPages)
 	if err != nil {
 		return err
 	}
@@ -214,8 +251,8 @@ func (dao *Dao) growthVisits(v *GrowthVisits, first, today time.Time) error {
 // since the day from, most first.
 func (dao *Dao) topVisits(column, from string, limit int) ([]NamedCount, error) {
 	rows, err := dao.db.Query(
-		"select `"+column+"`, sum(`visits`) as `n` from `site_visits` where `day` >= ? "+
-			"group by `"+column+"` order by `n` desc, `"+column+"` limit ?", from, limit)
+		"select `"+column+"`, sum(`visits`) as `n` from `site_visits` where `day` >= ? and `page` not like ? "+
+			"group by `"+column+"` order by `n` desc, `"+column+"` limit ?", from, cClickPages, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -229,6 +266,69 @@ func (dao *Dao) topVisits(column, from string, limit int) ([]NamedCount, error) 
 		out = append(out, c)
 	}
 	return out, rows.Err()
+}
+
+// growthClicks reads the download links' clicks since the day from, by
+// source and target (GrowthClicks).
+func (dao *Dao) growthClicks(c *GrowthClicks, from string) error {
+	c.Targets, c.Sources, c.Totals = []string{}, []SourceClicks{}, map[string]int64{}
+	rows, err := dao.db.Query(
+		"select `source`, `page`, sum(`visits`) from `site_visits` where `day` >= ? and `page` like ? group by `source`, `page`",
+		from, cClickPages)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	bySource := map[string]*SourceClicks{}
+	for rows.Next() {
+		var source, page string
+		var n int64
+		if err := rows.Scan(&source, &page, &n); err != nil {
+			return err
+		}
+		target := strings.TrimPrefix(page, ClickPagePrefix)
+		s := bySource[source]
+		if s == nil {
+			s = &SourceClicks{Source: source, Clicks: map[string]int64{}}
+			bySource[source] = s
+		}
+		s.Clicks[target] += n
+		s.Total += n
+		c.Totals[target] += n
+		c.Total += n
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for target := range c.Totals {
+		c.Targets = append(c.Targets, target)
+	}
+	slices.SortFunc(c.Targets, func(a, b string) int {
+		return cmp.Or(cmp.Compare(c.Totals[b], c.Totals[a]), strings.Compare(a, b))
+	})
+
+	other := bySource[cVisitOther]
+	delete(bySource, cVisitOther)
+	named := slices.SortedFunc(maps.Values(bySource), func(a, b *SourceClicks) int {
+		return cmp.Or(cmp.Compare(b.Total, a.Total), strings.Compare(a.Source, b.Source))
+	})
+	for i, s := range named {
+		if i < cGrowthTopSources {
+			c.Sources = append(c.Sources, *s)
+			continue
+		}
+		if other == nil {
+			other = &SourceClicks{Source: cVisitOther, Clicks: map[string]int64{}}
+		}
+		for target, n := range s.Clicks {
+			other.Clicks[target] += n
+		}
+		other.Total += s.Total
+	}
+	if other != nil {
+		c.Sources = append(c.Sources, *other)
+	}
+	return nil
 }
 
 // snapshot is one day's total of a file.
