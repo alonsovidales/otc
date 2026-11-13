@@ -24,6 +24,8 @@ import SwiftUI
 /// yet, upload it - so neither is instant and both need to say so.
 enum SelectionActionTask {
     case share
+    /// Download's ZIP link, or its Save to Photos while the picked photos
+    /// are saved one at a time (SaveToPhone.swift).
     case download
     /// Issue #192: keeping a folder out of Images, or showing it again.
     case outOfImages

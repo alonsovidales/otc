@@ -50,6 +50,21 @@
     <string name="app_photos_delete_phone_title">Also delete from this phone?</string>
     <string name="app_photos_delete_phone_title_several">Also delete them from this phone?</string>
     <string name="app_photos_delete_phone_video">This video is also on this phone.</string>
+    <plurals name="app_photos_download_already">
+        <item quantity="one">%1$s was already on this phone.</item>
+        <item quantity="other">%1$s were already on this phone.</item>
+    </plurals>
+    <plurals name="app_photos_download_failed">
+        <item quantity="one">%1$s of %2$s couldn\'t be saved: %3$s</item>
+        <item quantity="other">%1$s of %2$s couldn\'t be saved: %3$s</item>
+    </plurals>
+    <string name="app_photos_download_saving">Saving %1$s of %2$s…</string>
+    <plurals name="app_photos_download_title">
+        <item quantity="one">Download %1$s item</item>
+        <item quantity="other">Download %1$s items</item>
+    </plurals>
+    <string name="app_photos_download_unsupported">this phone\'s photo library doesn\'t take this type of file (\u2068%1$s\u2069)</string>
+    <string name="app_photos_download_zip">Download as ZIP</string>
     <string name="app_photos_edit_as_copy">Save as Copy</string>
     <string name="app_photos_edit_aspect">Aspect</string>
     <string name="app_photos_edit_aspect_16_9">16:9</string>
@@ -200,7 +215,6 @@
     <string name="app_photos_notice_removed">Removed from \"\u2068%1$s\u2069\".</string>
     <string name="app_photos_notice_rename_failed">Could not rename the collection.</string>
     <string name="app_photos_notice_save_failed">Save failed: %1$s</string>
-    <string name="app_photos_notice_saved">Saved to Photos ✅</string>
     <string name="app_photos_notice_share_failed">Share failed: %1$s</string>
     <string name="app_photos_people_add_name">Add a name</string>
     <string name="app_photos_people_clear_selection">Clear selection</string>

@@ -51,6 +51,21 @@
     <string name="app_photos_delete_phone_title">Auch von diesem Handy löschen?</string>
     <string name="app_photos_delete_phone_title_several">Diese auch von diesem Handy löschen?</string>
     <string name="app_photos_delete_phone_video">Dieses Video ist auch auf diesem Handy.</string>
+    <plurals name="app_photos_download_already">
+        <item quantity="one">%1$s war schon auf diesem Handy.</item>
+        <item quantity="other">%1$s waren schon auf diesem Handy.</item>
+    </plurals>
+    <plurals name="app_photos_download_failed">
+        <item quantity="one">%1$s von %2$s konnte nicht gespeichert werden: %3$s</item>
+        <item quantity="other">%1$s von %2$s konnten nicht gespeichert werden: %3$s</item>
+    </plurals>
+    <string name="app_photos_download_saving">Wird gespeichert (%1$s von %2$s)…</string>
+    <plurals name="app_photos_download_title">
+        <item quantity="one">%1$s Element herunterladen</item>
+        <item quantity="other">%1$s Elemente herunterladen</item>
+    </plurals>
+    <string name="app_photos_download_unsupported">die Fotobibliothek dieses Handys unterstützt diesen Dateityp nicht (\u2068%1$s\u2069)</string>
+    <string name="app_photos_download_zip">Als ZIP herunterladen</string>
     <string name="app_photos_edit_as_copy">Als Kopie speichern</string>
     <string name="app_photos_edit_aspect">Seitenverhältnis</string>
     <string name="app_photos_edit_aspect_16_9">16:9</string>
@@ -201,7 +216,6 @@
     <string name="app_photos_notice_removed">Aus „\u2068%1$s\u2069“ entfernt.</string>
     <string name="app_photos_notice_rename_failed">Die Sammlung konnte nicht umbenannt werden.</string>
     <string name="app_photos_notice_save_failed">Speichern fehlgeschlagen: %1$s</string>
-    <string name="app_photos_notice_saved">In Fotos gespeichert ✅</string>
     <string name="app_photos_notice_share_failed">Teilen fehlgeschlagen: %1$s</string>
     <string name="app_photos_people_add_name">Benennen</string>
     <string name="app_photos_people_clear_selection">Auswahl aufheben</string>

@@ -118,6 +118,30 @@ fun S.appPhotosDeletePhoneTitleSeveral(): UiText =
 fun S.appPhotosDeletePhoneVideo(): UiText =
     UiText.Res(R.string.app_photos_delete_phone_video)
 
+/** "{count} were already on this phone." (one: "{count} was already on this phone."): Short note over Images for a few seconds once the selected photos and videos were saved to this phone's own photo library (the selection bar's Download, then ios.photos.save_to_photos or android.photos.save_to_phone): {count} of them weren't saved again because they were in that library already (this phone's photo sync sent them from here). It follows ios.photos.saved_to_photos or android.photos.saved_to_phone when some were saved, and stands alone when none needed saving. {count} is 1 or more. */
+fun S.appPhotosDownloadAlready(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_download_already, count, listOf(count))
+
+/** "{count} of {total} couldn't be saved: {detail}" (one: "{count} of {total} couldn't be saved: {detail}"): Alert once saving the selected photos and videos to this phone's own photo library (the selection bar's Download, then ios.photos.save_to_photos or android.photos.save_to_phone) is over, when some of them couldn't be saved; the others were. {count} is how many couldn't be saved (1 or more), {total} how many were to be saved, {detail} why the first of them couldn't: the phone's system's words, or why its original couldn't be downloaded from the device (the device's own words, already in the user's language, or the phone's), as in app.photos.notice.save_failed. */
+fun S.appPhotosDownloadFailed(count: Int, total: Int, detail: String): UiText =
+    UiText.Plural(R.plurals.app_photos_download_failed, count, listOf(count, total, detail))
+
+/** "Saving {done} of {total}…": Images: the line over the selection bar while the selected photos and videos are being saved to this phone's own photo library one by one (the selection bar's Download, then ios.photos.save_to_photos or android.photos.save_to_phone), with a spinner before it and Cancel after it. {done} is the number of the one being saved, {total} how many are being saved. As app.files.uploading. */
+fun S.appPhotosDownloadSaving(done: Int, total: Int): UiText =
+    UiText.Res(R.string.app_photos_download_saving, listOf(done, total))
+
+/** "Download {count} items" (one: "Download {count} item"): Title of the choice that opens from the selection bar's Download in Images: save the selected photos and videos into this phone's own photo library one by one, as photos and videos (ios.photos.save_to_photos, android.photos.save_to_phone), or download them as one ZIP file (app.photos.download.zip); and Cancel. {count} is how many photos and videos are selected. Worded as app.photos.selection.delete_title, without its question mark: a choice, not a confirmation. */
+fun S.appPhotosDownloadTitle(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_download_title, count, listOf(count))
+
+/** "this phone's photo library doesn't take this type of file ({name})": The {detail} of app.photos.download.failed (after its colon, hence the lowercase start) when the first photo or video that couldn't be saved is of a type this phone's own photo library doesn't take (some RAW photo formats, some video formats): nothing of it was saved. {name} is that file's name. */
+fun S.appPhotosDownloadUnsupported(name: String): UiText =
+    UiText.Res(R.string.app_photos_download_unsupported, listOf(name))
+
+/** "Download as ZIP": Button of the choice app.photos.download.title: the device makes one ZIP file of the selected photos and videos, which the phone's browser downloads (what the selection bar's Download did before). Keep ZIP as it is. */
+fun S.appPhotosDownloadZip(): UiText =
+    UiText.Res(R.string.app_photos_download_zip)
+
 /** "Save as Copy": Button of the question app.photos.edit.save_title: the edit is saved as a new photo next to this one, which stays as it was. In the phone apps' (iPhone, Android) photo editor. */
 fun S.appPhotosEditAsCopy(): UiText =
     UiText.Res(R.string.app_photos_edit_as_copy)
@@ -585,10 +609,6 @@ fun S.appPhotosNoticeRenameFailed(): UiText =
 /** "Save failed: {detail}": Alert when saving the photo or video open in the viewer to the phone's photo library failed. {detail} is the reason: the phone's system's words, or why the original couldn't be downloaded from the device (the device's own words, already in the user's language, or the phone's). */
 fun S.appPhotosNoticeSaveFailed(detail: String): UiText =
     UiText.Res(R.string.app_photos_notice_save_failed, listOf(detail))
-
-/** "Saved to Photos ✅": Alert once the photo open in the viewer was saved to the phone's own photo library (Photos on an iPhone, the gallery on Android). Keep the check mark. */
-fun S.appPhotosNoticeSaved(): UiText =
-    UiText.Res(R.string.app_photos_notice_saved)
 
 /** "Share failed: {detail}": Alert when sharing the photo open in the viewer, or a link to the selected photos, failed. {detail} is the reason as the phone's system words it (often in the phone's language). */
 fun S.appPhotosNoticeShareFailed(detail: String): UiText =

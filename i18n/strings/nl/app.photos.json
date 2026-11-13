@@ -168,6 +168,48 @@
     "en": "This video is also on this phone.",
     "reviewed": "claude-backtranslation 2026-11-03 #747a1530"
   },
+  "app.photos.download.already": {
+    "text": {
+      "one": "{count} stond al op deze telefoon.",
+      "other": "{count} stonden al op deze telefoon."
+    },
+    "en": {
+      "one": "{count} was already on this phone.",
+      "other": "{count} were already on this phone."
+    }
+  },
+  "app.photos.download.failed": {
+    "text": {
+      "one": "Kan {count} van {total} niet opslaan: {detail}",
+      "other": "Kan {count} van {total} niet opslaan: {detail}"
+    },
+    "en": {
+      "one": "{count} of {total} couldn't be saved: {detail}",
+      "other": "{count} of {total} couldn't be saved: {detail}"
+    }
+  },
+  "app.photos.download.saving": {
+    "text": "Opslaan ({done} van {total})…",
+    "en": "Saving {done} of {total}…"
+  },
+  "app.photos.download.title": {
+    "text": {
+      "one": "{count} item downloaden",
+      "other": "{count} items downloaden"
+    },
+    "en": {
+      "one": "Download {count} item",
+      "other": "Download {count} items"
+    }
+  },
+  "app.photos.download.unsupported": {
+    "text": "de fotobibliotheek van deze telefoon ondersteunt dit bestandstype niet ({name})",
+    "en": "this phone's photo library doesn't take this type of file ({name})"
+  },
+  "app.photos.download.zip": {
+    "text": "Als ZIP downloaden",
+    "en": "Download as ZIP"
+  },
   "app.photos.edit.as_copy": {
     "text": "Opslaan als kopie",
     "en": "Save as Copy"
@@ -701,10 +743,6 @@
   "app.photos.notice.save_failed": {
     "text": "Opslaan mislukt: {detail}",
     "en": "Save failed: {detail}"
-  },
-  "app.photos.notice.saved": {
-    "text": "Opgeslagen in Foto’s ✅",
-    "en": "Saved to Photos ✅"
   },
   "app.photos.notice.share_failed": {
     "text": "Delen mislukt: {detail}",

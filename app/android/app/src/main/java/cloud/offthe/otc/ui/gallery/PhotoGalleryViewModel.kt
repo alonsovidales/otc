@@ -96,6 +96,7 @@ import java.util.UUID
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.appPhotosCollectionsRemoveNeedsUpdate
+import cloud.offthe.otc.i18n.appPhotosDownloadUnsupported
 import cloud.offthe.otc.i18n.appPhotosEditFailed
 import cloud.offthe.otc.i18n.appPhotosEditRevertFailed
 import cloud.offthe.otc.i18n.appPhotosEditSavedCopy
@@ -113,7 +114,6 @@ import cloud.offthe.otc.i18n.appPhotosNoticeNotLoaded
 import cloud.offthe.otc.i18n.appPhotosNoticeRemoveFailed
 import cloud.offthe.otc.i18n.appPhotosNoticeRemoved
 import cloud.offthe.otc.i18n.appPhotosNoticeRenameFailed
-import cloud.offthe.otc.i18n.appPhotosNoticeSaved
 import cloud.offthe.otc.i18n.appPhotosNoticeShareFailed
 import cloud.offthe.otc.i18n.appPhotosPersonCoverDone
 import cloud.offthe.otc.i18n.appPhotosPersonCoverFailed
@@ -393,6 +393,14 @@ class PhotoGalleryViewModel(
         val upLanded: Int = 0,
         // Issue #201: the viewer's Save is downloading an original (its spinner).
         val saving: Boolean = false,
+        // Save to this phone (SaveToPhone.kt, owner 2026-11-13): what this
+        // view model saved in the phone's library - the viewer's Save and
+        // the selection's - by SaveToPhone.key: the viewer shows a check
+        // mark in Save's place for those. Forgotten with the view model.
+        val savedToPhone: Set<String> = emptySet(),
+        // The selection being saved to this phone: the one under way of how
+        // many (the pill over the bar, with Cancel); null when none is.
+        val savingToPhone: SaveToPhone.Progress? = null,
         // Favourites, the viewer's heart (owner, 2026-10-31): whether each
         // path's photo is in it, as the device said (GetFavourites, asked as
         // a photo shows, with its neighbours) and as the heart was tapped
@@ -415,8 +423,13 @@ class PhotoGalleryViewModel(
         val ratingShow: RatingShow = RatingShow.ALL,
         val ratings: Map<String, PhotoRating> = emptyMap(),
         val ratingBusy: Boolean = false,
-        // A note over the grid for a few seconds (Rating turned on).
+        // A note over the grid for a few seconds: Rating turned on; or the
+        // selection saved to this phone (SaveToPhone.kt), after a check
+        // mark (gridNoteDone) - its further sentences in gridNoteMore, on
+        // the same line.
         val gridNote: UiText? = null,
+        val gridNoteMore: List<UiText> = emptyList(),
+        val gridNoteDone: Boolean = false,
         // The viewer's comment being written (null: none), and its note when
         // the stars or the comment didn't go through.
         val ratingDraft: RatingDraft? = null,
@@ -1134,7 +1147,7 @@ class PhotoGalleryViewModel(
             )
         }
         if (_state.value.activeGroup?.id != id) return
-        if (on && ratingHintFirst()) _state.update { it.copy(gridNote = S.appPhotosRatingTurnedOn()) }
+        if (on && ratingHintFirst()) gridNote(listOf(S.appPhotosRatingTurnedOn()))
         if (on || wasRanked) restartSearch()
     }
 
@@ -1154,8 +1167,15 @@ class PhotoGalleryViewModel(
         restartSearch()
     }
 
-    /** The grid's note was shown long enough. */
-    fun gridNoteShown() = _state.update { it.copy(gridNote = null) }
+    /** The grid's note was shown long enough (or tapped away). */
+    fun gridNoteShown() = _state.update { it.copy(gridNote = null, gridNoteMore = emptyList(), gridNoteDone = false) }
+
+    // The grid's note for a few seconds: [text]'s sentences one after the
+    // other, [done]: a check mark before them. Nothing to say, no note.
+    private fun gridNote(text: List<UiText>, done: Boolean = false) {
+        if (text.isEmpty()) return
+        _state.update { it.copy(gridNote = text.first(), gridNoteMore = text.drop(1), gridNoteDone = done) }
+    }
 
     /** The viewer's rating note was shown long enough. */
     fun ratingNoteShown() = _state.update { it.copy(ratingNote = null) }
@@ -2805,45 +2825,63 @@ class PhotoGalleryViewModel(
     /**
      * Issue #9, #201: the open photo or video saved to the phone's own
      * library (MediaStore, no permission needed on API 29+) as the original
-     * file - its bytes as the device keeps them, in 4 MiB ReadFile pieces
-     * (ChunkedDownload) - so it keeps its date, place and content: the
+     * file (saveOriginal), so it keeps its date, place and content: the
      * photo sync then finds the same hash and Images still shows it once,
-     * at its own date. DATE_TAKEN is the photo's date, as Images shows it.
-     * The Save button spins meanwhile (State.saving); the view model's own
-     * work, so closing the viewer doesn't cut a big video short. Only a
-     * type the phone's library refuses is saved as the picture shown, as
-     * a JPEG, as before.
+     * at its own date. The Save button spins meanwhile (State.saving), then
+     * shows a check mark - no alert any more (owner, 2026-11-13) - for as
+     * long as the view model lives, by content (State.savedToPhone): paged
+     * back to, it shows it again, and an edit of it can be saved too. The
+     * view model's own work, so closing the viewer doesn't cut a big video
+     * short. Only a type the phone's library refuses is saved as the
+     * picture shown, as a JPEG, as before.
      */
     fun saveToPhotos(context: Context) {
         val st = _state.value
         if (st.saving) return
         val item = st.openIndex?.let { st.items.getOrNull(it) } ?: return
+        // Saved already: no second copy.
+        if (SaveToPhone.key(item.hash, item.path) in st.savedToPhone) return
         val app = context.applicationContext
         _state.update { it.copy(saving = true) }
         scope.launch {
-            val tmp = TempFiles.file(app.cacheDir, TempFiles.Kind.VIEWER, "save")
             try {
-                val meta = ChunkedDownload.download(item.path, "", tmp)
-                val mime = meta.mime.ifEmpty { item.mime }
-                val name = item.path.substringAfterLast('/').ifEmpty { "otc-${System.currentTimeMillis()}" }
-                val saved = withContext(Dispatchers.IO) {
-                    try {
-                        insertIntoLibrary(app, name, mime, item.created) { out -> tmp.inputStream().use { it.copyTo(out) } }
-                        true
-                    } catch (_: UnsupportedType) { false }
-                }
-                if (!saved) saveShownImage(app, item)
-                else alert(S.appPhotosNoticeSaved())
+                val saved = try { saveOriginal(app, item); true } catch (_: UnsupportedType) { saveShownImage(app, item) }
+                if (saved) markSaved(item)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 alert(saveFailed(e))
             } finally {
-                tmp.delete()
                 _state.update { it.copy(saving = false) }
             }
         }
     }
+
+    /**
+     * [item]'s original in the phone's library: its bytes as the device
+     * keeps them, in 4 MiB ReadFile pieces (ChunkedDownload), through a temp
+     * copy deleted after - named and typed as the device has it, DATE_TAKEN
+     * the photo's date as Images shows it. UnsupportedType: the library
+     * won't take its type, and nothing was saved. The viewer's Save and the
+     * selection's Save to this phone.
+     */
+    private suspend fun saveOriginal(context: Context, item: Item) {
+        val tmp = TempFiles.file(context.cacheDir, TempFiles.Kind.VIEWER, "save")
+        try {
+            val meta = ChunkedDownload.download(item.path, "", tmp)
+            val mime = meta.mime.ifEmpty { item.mime }
+            val name = item.path.substringAfterLast('/').ifEmpty { "otc-${System.currentTimeMillis()}" }
+            withContext(Dispatchers.IO) {
+                insertIntoLibrary(context, name, mime, item.created) { out -> tmp.inputStream().use { it.copyTo(out) } }
+            }
+        } finally {
+            tmp.delete()
+        }
+    }
+
+    // Saved in the phone's library from here: the viewer shows its check mark.
+    private fun markSaved(item: Item) =
+        _state.update { it.copy(savedToPhone = it.savedToPhone + SaveToPhone.key(item.hash, item.path)) }
 
     // The library won't take a file of this type.
     private class UnsupportedType : Exception()
@@ -2884,14 +2922,15 @@ class PhotoGalleryViewModel(
 
     // A type the library refuses: the picture shown, as a JPEG (the save
     // before #201) - [item]'s, whichever photo the viewer shows by now.
-    private suspend fun saveShownImage(context: Context, item: Item) {
+    // False when there is none to save yet (the alert says so).
+    private suspend fun saveShownImage(context: Context, item: Item): Boolean {
         val img = if (item.mime.startsWith("video/")) null else imageOf(item)
-        if (img == null) { alert(S.appPhotosNoticeNotLoaded()); return }
+        if (img == null) { alert(S.appPhotosNoticeNotLoaded()); return false }
         withContext(Dispatchers.IO) {
             val stem = item.path.substringAfterLast('/').substringBeforeLast('.').ifEmpty { "otc-${System.currentTimeMillis()}" }
             insertIntoLibrary(context, "$stem.jpg", "image/jpeg", item.created) { img.compress(Bitmap.CompressFormat.JPEG, 92, it) }
         }
-        alert(S.appPhotosNoticeSaved())
+        return true
     }
 
     /**
@@ -3364,20 +3403,93 @@ class PhotoGalleryViewModel(
         finally { _state.update { it.copy(preparing = null) } }
     }
 
+    // The selection's Save to this phone under way: the pill's Cancel stops it.
+    private var saveToPhoneJob: Job? = null
+
+    /**
+     * Save to this phone (SaveToPhone.kt, owner 2026-11-13): the picked
+     * photos and videos, as the bar acts on them now (pickedItems), saved
+     * in this phone's own library one at a time in that order, each as the
+     * viewer's Save saves an original (saveOriginal) - a type the library
+     * refuses fails here, with no picture in its place. What the library
+     * holds already, what this view model saved and a second pick of the
+     * same content are left out (SaveToPhone.plan). Meanwhile the bar waits
+     * as during a delete, its Download a spinner, and the pill over it says
+     * which one is being saved, with Cancel (State.savingToPhone); the view
+     * model's own work, so closing the selection or leaving Images doesn't
+     * stop it. Then the alert says how many failed and why the first did,
+     * else the grid's note what was saved. The selection stays.
+     */
+    fun saveSelectedToPhone(context: Context) {
+        val st = _state.value
+        // One at a time: the bar waits for it, and a second can't start.
+        if (st.selected.isEmpty() || st.preparing != null || saveToPhoneJob?.isActive == true) return
+        val picked = pickedItems()
+        val app = context.applicationContext
+        _state.update { it.copy(preparing = SelectionActionTask.DOWNLOAD) }
+        saveToPhoneJob = scope.launch {
+            try {
+                val plan = SaveToPhone.plan(picked, onThisPhone(picked), _state.value.savedToPhone)
+                val total = plan.save.size
+                var saved = 0
+                var already = plan.already
+                var failed = 0
+                var why: UiText? = null
+                for ((i, item) in plan.save.withIndex()) {
+                    // The viewer's Save took it meanwhile: there already.
+                    if (SaveToPhone.key(item.hash, item.path) in _state.value.savedToPhone) { already++; continue }
+                    _state.update { it.copy(savingToPhone = SaveToPhone.Progress(i + 1, total)) }
+                    try {
+                        saveOriginal(app, item)
+                        markSaved(item)
+                        saved++
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        failed++
+                        // A type the library won't take: which one, by name.
+                        if (why == null) why = if (e is UnsupportedType) S.appPhotosDownloadUnsupported(item.path.substringAfterLast('/')) else saveFailedWhy(e)
+                    }
+                }
+                // app.photos.download.failed, with a detail that is ours to word.
+                if (why != null) alert(UiText.Plural(R.plurals.app_photos_download_failed, failed, listOf(failed, total, why)))
+                else gridNote(SaveToPhone.note(saved, already), done = true)
+            } finally {
+                _state.update { it.copy(preparing = null, savingToPhone = null) }
+            }
+        }
+    }
+
+    /** The pill's Cancel: the download under way stops (its copy deleted), what was saved stays, and nothing is said. */
+    fun cancelSaveToPhone() {
+        saveToPhoneJob?.cancel()
+    }
+
+    // The hashes of [items] this phone's library holds (DeletePhoneCopyModel.inLibrary),
+    // looked up off the main thread; none when that fails - then none is left out.
+    private suspend fun onThisPhone(items: List<Item>): Set<String> = try {
+        withContext(Dispatchers.IO) { DeletePhoneCopyModel.inLibrary(items.mapNotNullTo(HashSet()) { it.hash.ifEmpty { null } }) }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        emptySet()
+    }
+
     fun alert(m: UiText) = _state.update { it.copy(alert = m, alertMore = emptyList()) }
     fun dismissAlert() = _state.update { it.copy(alert = null, alertMore = emptyList()) }
 
-    // Save failed, and why: our words, the system's or the device's - and
-    // where none came, that the answer wasn't what was asked for.
-    private fun saveFailed(e: Exception): UiText {
-        val why = when (e) {
-            is TextIOException -> e.text
-            is WSClient.RequestTimeout -> e.text
-            else -> e.message?.takeIf { it.isNotEmpty() }?.let { UiText.Raw(it) } ?: S.appFilesUnexpectedResponse()
-        }
-        // app.photos.notice.save_failed, with a detail that is ours to word.
-        return UiText.Res(R.string.app_photos_notice_save_failed, listOf(why))
+    // Why a save failed: our words, the system's or the device's - and
+    // where none came, that the answer wasn't what was asked for. The
+    // viewer's Save and the selection's Save to this phone.
+    private fun saveFailedWhy(e: Exception): UiText = when (e) {
+        is TextIOException -> e.text
+        is WSClient.RequestTimeout -> e.text
+        else -> e.message?.takeIf { it.isNotEmpty() }?.let { UiText.Raw(it) } ?: S.appFilesUnexpectedResponse()
     }
+
+    // The viewer's Save failed, and why: app.photos.notice.save_failed,
+    // with a detail that is ours to word.
+    private fun saveFailed(e: Exception): UiText = UiText.Res(R.string.app_photos_notice_save_failed, listOf(saveFailedWhy(e)))
 
     companion object {
         // While the scrubber is dragged, a month that hasn't loaded shows

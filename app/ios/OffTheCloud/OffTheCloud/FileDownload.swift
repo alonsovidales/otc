@@ -56,6 +56,8 @@ enum FileDownload {
     /// to `dest`, replacing it. Returns the file's mime and size.
     /// `original`: the file's own bytes whatever it is (issue #201's Save
     /// to Photos) - a HEIC's too, which otherwise comes as GetFile's JPEG.
+    /// A cancelled task stops before its next piece (CancellationError):
+    /// Save to Photos' Cancel (SaveToPhone.swift).
     @discardableResult
     static func download(path: String, hash: String = "", mime: String = "", to dest: URL, original: Bool = false) async throws -> (mime: String, size: Int64) {
         // Issue #190: no route switch while this runs.
@@ -86,6 +88,7 @@ enum FileDownload {
             }
         }
         repeat {
+            try Task.checkCancellation()
             let at = offset
             let resp: Msg_RespEnvelope
             do {

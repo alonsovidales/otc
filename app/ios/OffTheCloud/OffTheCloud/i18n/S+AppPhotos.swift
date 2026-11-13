@@ -169,6 +169,49 @@ extension S {
     /// The video form of app.photos.delete_phone.photo: the one item just deleted from the device was a video that is also in this phone's photo library.
     static var appPhotosDeletePhoneVideo: String { L("app.photos.delete_phone.video", table: "AppPhotos") }
 
+    /// one: {count} was already on this phone.
+    /// other: {count} were already on this phone.
+    ///
+    /// Short note over Images for a few seconds once the selected photos and videos were saved to this phone's own photo library (the selection bar's Download, then ios.photos.save_to_photos or android.photos.save_to_phone): {count} of them weren't saved again because they were in that library already (this phone's photo sync sent them from here). It follows ios.photos.saved_to_photos or android.photos.saved_to_phone when some were saved, and stands alone when none needed saving. {count} is 1 or more.
+    static func appPhotosDownloadAlready(count: Int) -> String {
+        L("app.photos.download.already", table: "AppPhotos", count)
+    }
+
+    /// one: {count} of {total} couldn't be saved: {detail}
+    /// other: {count} of {total} couldn't be saved: {detail}
+    ///
+    /// Alert once saving the selected photos and videos to this phone's own photo library (the selection bar's Download, then ios.photos.save_to_photos or android.photos.save_to_phone) is over, when some of them couldn't be saved; the others were. {count} is how many couldn't be saved (1 or more), {total} how many were to be saved, {detail} why the first of them couldn't: the phone's system's words, or why its original couldn't be downloaded from the device (the device's own words, already in the user's language, or the phone's), as in app.photos.notice.save_failed.
+    static func appPhotosDownloadFailed(count: Int, total: Int, detail: String) -> String {
+        L("app.photos.download.failed", table: "AppPhotos", count, total, detail)
+    }
+
+    /// Saving {done} of {total}…
+    ///
+    /// Images: the line over the selection bar while the selected photos and videos are being saved to this phone's own photo library one by one (the selection bar's Download, then ios.photos.save_to_photos or android.photos.save_to_phone), with a spinner before it and Cancel after it. {done} is the number of the one being saved, {total} how many are being saved. As app.files.uploading.
+    static func appPhotosDownloadSaving(done: Int, total: Int) -> String {
+        L("app.photos.download.saving", table: "AppPhotos", done, total)
+    }
+
+    /// one: Download {count} item
+    /// other: Download {count} items
+    ///
+    /// Title of the choice that opens from the selection bar's Download in Images: save the selected photos and videos into this phone's own photo library one by one, as photos and videos (ios.photos.save_to_photos, android.photos.save_to_phone), or download them as one ZIP file (app.photos.download.zip); and Cancel. {count} is how many photos and videos are selected. Worded as app.photos.selection.delete_title, without its question mark: a choice, not a confirmation.
+    static func appPhotosDownloadTitle(count: Int) -> String {
+        L("app.photos.download.title", table: "AppPhotos", count)
+    }
+
+    /// this phone's photo library doesn't take this type of file ({name})
+    ///
+    /// The {detail} of app.photos.download.failed (after its colon, hence the lowercase start) when the first photo or video that couldn't be saved is of a type this phone's own photo library doesn't take (some RAW photo formats, some video formats): nothing of it was saved. {name} is that file's name.
+    static func appPhotosDownloadUnsupported(name: String) -> String {
+        L("app.photos.download.unsupported", table: "AppPhotos", L10n.isolate(name))
+    }
+
+    /// Download as ZIP
+    ///
+    /// Button of the choice app.photos.download.title: the device makes one ZIP file of the selected photos and videos, which the phone's browser downloads (what the selection bar's Download did before). Keep ZIP as it is.
+    static var appPhotosDownloadZip: String { L("app.photos.download.zip", table: "AppPhotos") }
+
     /// Save as Copy
     ///
     /// Button of the question app.photos.edit.save_title: the edit is saved as a new photo next to this one, which stays as it was. In the phone apps' (iPhone, Android) photo editor.
@@ -824,11 +867,6 @@ extension S {
     static func appPhotosNoticeSaveFailed(detail: String) -> String {
         L("app.photos.notice.save_failed", table: "AppPhotos", detail)
     }
-
-    /// Saved to Photos ✅
-    ///
-    /// Alert once the photo open in the viewer was saved to the phone's own photo library (Photos on an iPhone, the gallery on Android). Keep the check mark.
-    static var appPhotosNoticeSaved: String { L("app.photos.notice.saved", table: "AppPhotos") }
 
     /// Share failed: {detail}
     ///

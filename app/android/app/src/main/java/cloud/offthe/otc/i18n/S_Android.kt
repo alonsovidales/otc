@@ -238,6 +238,18 @@ fun S.androidOpenSettings(): UiText =
 fun S.androidPhotosDeletePhoneText(also: String): UiText =
     UiText.Res(R.string.android_photos_delete_phone_text, listOf(also))
 
+/** "Save to this phone": Button of the choice app.photos.download.title (the selection bar's Download in Images, on Android): each selected photo and video is downloaded from the device as its original file and saved in this phone's own photo library (in Pictures/Off The Cloud and Movies/Off The Cloud, which the phone's gallery app shows), as a photo or a video with its own date. */
+fun S.androidPhotosSaveToPhone(): UiText =
+    UiText.Res(R.string.android_photos_save_to_phone)
+
+/** "Saved {count} to this phone." (one: "Saved {count} to this phone."): Short note over Images for a few seconds, after a check mark, once the selected photos and videos were saved in this phone's own photo library (android.photos.save_to_phone). {count} is how many were saved (1 or more): photos and videos both, so word it to fit either. app.photos.download.already may follow it. */
+fun S.androidPhotosSavedToPhone(count: Int): UiText =
+    UiText.Plural(R.plurals.android_photos_saved_to_phone, count, listOf(count))
+
+/** "Saved to this phone": Screen-reader name of the photo viewer's Save button once the photo or video open was saved in this phone's own photo library (its gallery app shows it): the button then shows a check mark instead of its arrow, and does nothing more. As app.photos.viewer.saving (Saving…). */
+fun S.androidPhotosViewerSaved(): UiText =
+    UiText.Res(R.string.android_photos_viewer_saved)
+
 /** "Open in Maps ({latitude}, {longitude})": Button under the map in the panel with a photo's camera details: opens the place in the phone's maps app. {latitude} and {longitude} are the place's coordinates (40.41678, -3.70379). */
 fun S.androidPhotosOpenInMaps(latitude: String, longitude: String): UiText =
     UiText.Res(R.string.android_photos_open_in_maps, listOf(latitude, longitude))

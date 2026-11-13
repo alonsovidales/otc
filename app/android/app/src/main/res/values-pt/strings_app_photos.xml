@@ -58,6 +58,24 @@
     <string name="app_photos_delete_phone_title">Eliminar também deste telemóvel?</string>
     <string name="app_photos_delete_phone_title_several">Eliminá-los também deste telemóvel?</string>
     <string name="app_photos_delete_phone_video">Este vídeo também está neste telemóvel.</string>
+    <plurals name="app_photos_download_already">
+        <item quantity="one">%1$s já estava neste telemóvel.</item>
+        <item quantity="many">%1$s já estavam neste telemóvel.</item>
+        <item quantity="other">%1$s já estavam neste telemóvel.</item>
+    </plurals>
+    <plurals name="app_photos_download_failed">
+        <item quantity="one">Não foi possível guardar %1$s de %2$s: %3$s</item>
+        <item quantity="many">Não foi possível guardar %1$s de %2$s: %3$s</item>
+        <item quantity="other">Não foi possível guardar %1$s de %2$s: %3$s</item>
+    </plurals>
+    <string name="app_photos_download_saving">A guardar %1$s de %2$s…</string>
+    <plurals name="app_photos_download_title">
+        <item quantity="one">Transferir %1$s item</item>
+        <item quantity="many">Transferir %1$s itens</item>
+        <item quantity="other">Transferir %1$s itens</item>
+    </plurals>
+    <string name="app_photos_download_unsupported">a biblioteca de fotografias deste telemóvel não aceita este tipo de ficheiro (\u2068%1$s\u2069)</string>
+    <string name="app_photos_download_zip">Transferir como ZIP</string>
     <string name="app_photos_edit_as_copy">Guardar como cópia</string>
     <string name="app_photos_edit_aspect">Proporção</string>
     <string name="app_photos_edit_aspect_16_9">16:9</string>
@@ -219,7 +237,6 @@
     <string name="app_photos_notice_removed">Removido da coleção «\u2068%1$s\u2069».</string>
     <string name="app_photos_notice_rename_failed">Não foi possível mudar o nome da coleção.</string>
     <string name="app_photos_notice_save_failed">Não foi possível guardar: %1$s</string>
-    <string name="app_photos_notice_saved">Guardada em Fotografias ✅</string>
     <string name="app_photos_notice_share_failed">Não foi possível partilhar: %1$s</string>
     <string name="app_photos_people_add_name">Dar um nome</string>
     <string name="app_photos_people_clear_selection">Limpar seleção</string>

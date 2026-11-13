@@ -5983,6 +5983,19 @@ even for HEIC) and adds it as it is (`PHAssetCreationRequest` `.photo`/`.video` 
 `creationDate` = the item's date), add-only access as before; Save spins (`savingPath`,
 `app.photos.viewer.saving`); only a photo Photos refuses is saved as the picture shown.
 
+**Save to this phone** (owner, 2026-11-13; `SaveToPhone.swift`/`SaveToPhone.kt`, tested by
+`SaveToPhoneTests`/`SaveToPhoneTest`): the viewer's Save says nothing once done; its button
+becomes a white check (`checkmark.circle`, `CheckCircle`) that saves no second copy, remembered by
+the view model (`SaveToPhone.key`: the hash, else the path; an edit can be saved again). The
+grid's Download asks Save to Photos (iOS) / Save to this phone (Android) or Download as ZIP (the
+old share link; Files keeps only the ZIP). The save takes the picks in grid order, and
+`SaveToPhone.plan` saves a repeated hash once and skips what this phone's library holds (the
+sync's and Free Up Space's records still there, `DeletePhoneCopyModel.phoneAssets`/`inLibrary`,
+only with read access) or was saved from here. One at a time through the viewer's `saveOriginal`,
+with no fallback picture (a refused type fails, named by `app.photos.download.unsupported`). The
+bar holds (`preparing = download`); a pill says "Saving N of M…" with Cancel (`FileDownload` stops
+at its next piece) and keeps the screen on; then `app.photos.download.failed`, or a 4 s note.
+
 **Photo edit on iOS** (2026-11; `PhotoEditor.swift` holds the rules, crop maths, requests, flows
 and the editor view, tested by `PhotoEditorTests.swift`; the project's folders sync with the disk,
 so no pbxproj entry is needed). It works as Android's above.

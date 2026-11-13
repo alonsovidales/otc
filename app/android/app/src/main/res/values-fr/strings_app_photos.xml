@@ -58,6 +58,24 @@
     <string name="app_photos_delete_phone_title">Supprimer aussi de ce téléphone ?</string>
     <string name="app_photos_delete_phone_title_several">Les supprimer aussi de ce téléphone ?</string>
     <string name="app_photos_delete_phone_video">Cette vidéo est aussi sur ce téléphone.</string>
+    <plurals name="app_photos_download_already">
+        <item quantity="one">%1$s était déjà sur ce téléphone.</item>
+        <item quantity="many">%1$s étaient déjà sur ce téléphone.</item>
+        <item quantity="other">%1$s étaient déjà sur ce téléphone.</item>
+    </plurals>
+    <plurals name="app_photos_download_failed">
+        <item quantity="one">Impossible d’enregistrer %1$s sur %2$s : %3$s</item>
+        <item quantity="many">Impossible d’enregistrer %1$s sur %2$s : %3$s</item>
+        <item quantity="other">Impossible d’enregistrer %1$s sur %2$s : %3$s</item>
+    </plurals>
+    <string name="app_photos_download_saving">Enregistrement de %1$s sur %2$s…</string>
+    <plurals name="app_photos_download_title">
+        <item quantity="one">Télécharger %1$s élément</item>
+        <item quantity="many">Télécharger %1$s éléments</item>
+        <item quantity="other">Télécharger %1$s éléments</item>
+    </plurals>
+    <string name="app_photos_download_unsupported">la photothèque de ce téléphone n’accepte pas ce type de fichier (\u2068%1$s\u2069)</string>
+    <string name="app_photos_download_zip">Télécharger en ZIP</string>
     <string name="app_photos_edit_as_copy">Enregistrer une copie</string>
     <string name="app_photos_edit_aspect">Format</string>
     <string name="app_photos_edit_aspect_16_9">16:9</string>
@@ -219,7 +237,6 @@
     <string name="app_photos_notice_removed">Retrait de « \u2068%1$s\u2069 » effectué.</string>
     <string name="app_photos_notice_rename_failed">Impossible de renommer la collection.</string>
     <string name="app_photos_notice_save_failed">Échec de l’enregistrement : %1$s</string>
-    <string name="app_photos_notice_saved">Enregistrée dans Photos ✅</string>
     <string name="app_photos_notice_share_failed">Échec du partage : %1$s</string>
     <string name="app_photos_people_add_name">Nommer</string>
     <string name="app_photos_people_clear_selection">Effacer la sélection</string>

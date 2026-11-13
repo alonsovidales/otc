@@ -161,16 +161,7 @@ final class DeletePhoneCopyModel {
     nonisolated private static func lookUp(_ deleted: [DeletedOnDevice]) async -> PhoneDeleteAsk? {
         let gone = DeletePhoneCopy.gone(deleted)
         guard !gone.isEmpty, DeletePhoneCopy.asks(access: PHPhotoLibrary.authorizationStatus(for: .readWrite)) else { return nil }
-        let recorded = AssetSyncCache.shared.identifiers(withHashes: gone)
-        guard !recorded.isEmpty else { return nil }
-        let saved = SavedToPhone.shared.ids()
-        let ids = recorded.keys.filter { !saved.contains($0) }
-        guard !ids.isEmpty else { return nil }
-        var inLibrary: [String: Bool] = [:]
-        PHAsset.fetchAssets(withLocalIdentifiers: Array(ids), options: nil).enumerateObjects { asset, _, _ in
-            inLibrary[asset.localIdentifier] = asset.mediaType == .video
-        }
-        let onPhone = DeletePhoneCopy.onPhone(gone: gone, recorded: recorded, inLibrary: inLibrary, saved: saved)
+        let onPhone = phoneAssets(withHashes: gone, saved: SavedToPhone.shared.ids())
         guard !onPhone.isEmpty else { return nil }
         // The device's own say, as Free Up Space asks it: a copy it still
         // holds (another path, a device that doesn't count copies) is never
@@ -178,6 +169,23 @@ final class DeletePhoneCopyModel {
         let ws = await MainActor.run { OTCConnection.shared }
         guard let held = try? await FreeUpSpace.held(Set(onPhone.map(\.hash)), ws: ws) else { return nil }
         return DeletePhoneCopy.ask(deleted: deleted, onPhone: onPhone, held: held)
+    }
+
+    /// This phone's own photos and videos recorded under any of these
+    /// hashes (AssetSyncCache: the photo sync sent them from here, or Free
+    /// Up Space read them here) that are still in its library - those the
+    /// app may see - less those it saved there itself (`saved`). Off the
+    /// main thread: the records and the library are read here. Save to
+    /// Photos leaves out what it finds (SaveToPhone.swift).
+    nonisolated static func phoneAssets(withHashes hashes: Set<String>, saved: Set<String>) -> [PhoneAsset] {
+        let recorded = AssetSyncCache.shared.identifiers(withHashes: hashes)
+        let ids = recorded.keys.filter { !saved.contains($0) }
+        guard !ids.isEmpty else { return [] }
+        var inLibrary: [String: Bool] = [:]
+        PHAsset.fetchAssets(withLocalIdentifiers: Array(ids), options: nil).enumerateObjects { asset, _, _ in
+            inLibrary[asset.localIdentifier] = asset.mediaType == .video
+        }
+        return DeletePhoneCopy.onPhone(gone: hashes, recorded: recorded, inLibrary: inLibrary, saved: saved)
     }
 
     private func present(_ ask: PhoneDeleteAsk) -> Bool {

@@ -72,6 +72,12 @@
     <string name="android_notification_channel_description">Vriendschapsverzoeken, nieuwe berichten, likes en reacties</string>
     <string name="android_open_settings">Instellingen openen</string>
     <string name="android_photos_delete_phone_text">%1$s Android vraagt je om te bevestigen, en de prullenmand van de telefoon bewaart wat je verwijdert 30 dagen.</string>
+    <string name="android_photos_save_to_phone">Op deze telefoon opslaan</string>
+    <plurals name="android_photos_saved_to_phone">
+        <item quantity="one">%1$s item opgeslagen op deze telefoon.</item>
+        <item quantity="other">%1$s items opgeslagen op deze telefoon.</item>
+    </plurals>
+    <string name="android_photos_viewer_saved">Opgeslagen op deze telefoon</string>
     <string name="android_photos_open_in_maps">Openen in Maps (%1$s, %2$s)</string>
     <string name="android_photos_people_back">Terug naar foto’s</string>
     <string name="android_photos_people_deleting">%1$s van %2$s</string>

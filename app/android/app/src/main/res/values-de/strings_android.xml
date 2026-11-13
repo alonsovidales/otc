@@ -72,6 +72,12 @@
     <string name="android_notification_channel_description">Freundschaftsanfragen, neue Beiträge, Likes und Kommentare</string>
     <string name="android_open_settings">Einstellungen öffnen</string>
     <string name="android_photos_delete_phone_text">%1$s Android bittet dich um Bestätigung, und der Papierkorb des Handys behält Gelöschtes 30 Tage.</string>
+    <string name="android_photos_save_to_phone">Auf diesem Handy speichern</string>
+    <plurals name="android_photos_saved_to_phone">
+        <item quantity="one">%1$s Element auf diesem Handy gespeichert.</item>
+        <item quantity="other">%1$s Elemente auf diesem Handy gespeichert.</item>
+    </plurals>
+    <string name="android_photos_viewer_saved">Auf diesem Handy gespeichert</string>
     <string name="android_photos_open_in_maps">In Maps öffnen (%1$s, %2$s)</string>
     <string name="android_photos_people_back">Zurück zu den Fotos</string>
     <string name="android_photos_people_deleting">%1$s von %2$s</string>

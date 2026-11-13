@@ -168,6 +168,48 @@
     "en": "This video is also on this phone.",
     "reviewed": "claude-backtranslation 2026-11-03 #774d1af2"
   },
+  "app.photos.download.already": {
+    "text": {
+      "one": "{count} war schon auf diesem Handy.",
+      "other": "{count} waren schon auf diesem Handy."
+    },
+    "en": {
+      "one": "{count} was already on this phone.",
+      "other": "{count} were already on this phone."
+    }
+  },
+  "app.photos.download.failed": {
+    "text": {
+      "one": "{count} von {total} konnte nicht gespeichert werden: {detail}",
+      "other": "{count} von {total} konnten nicht gespeichert werden: {detail}"
+    },
+    "en": {
+      "one": "{count} of {total} couldn't be saved: {detail}",
+      "other": "{count} of {total} couldn't be saved: {detail}"
+    }
+  },
+  "app.photos.download.saving": {
+    "text": "Wird gespeichert ({done} von {total})…",
+    "en": "Saving {done} of {total}…"
+  },
+  "app.photos.download.title": {
+    "text": {
+      "one": "{count} Element herunterladen",
+      "other": "{count} Elemente herunterladen"
+    },
+    "en": {
+      "one": "Download {count} item",
+      "other": "Download {count} items"
+    }
+  },
+  "app.photos.download.unsupported": {
+    "text": "die Fotobibliothek dieses Handys unterstützt diesen Dateityp nicht ({name})",
+    "en": "this phone's photo library doesn't take this type of file ({name})"
+  },
+  "app.photos.download.zip": {
+    "text": "Als ZIP herunterladen",
+    "en": "Download as ZIP"
+  },
   "app.photos.edit.as_copy": {
     "text": "Als Kopie speichern",
     "en": "Save as Copy"
@@ -701,10 +743,6 @@
   "app.photos.notice.save_failed": {
     "text": "Speichern fehlgeschlagen: {detail}",
     "en": "Save failed: {detail}"
-  },
-  "app.photos.notice.saved": {
-    "text": "In Fotos gespeichert ✅",
-    "en": "Saved to Photos ✅"
   },
   "app.photos.notice.share_failed": {
     "text": "Teilen fehlgeschlagen: {detail}",

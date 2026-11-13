@@ -186,6 +186,45 @@
     "review": "required",
     "reviewed": "claude-backtranslation 2026-11-03 #eeee5524"
   },
+  "app.photos.download.already": {
+    "text": {
+      "one": "{count} was already on this phone.",
+      "other": "{count} were already on this phone."
+    },
+    "args": [["count", "count"]],
+    "note": "Short note over Images for a few seconds once the selected photos and videos were saved to this phone's own photo library (the selection bar's Download, then ios.photos.save_to_photos or android.photos.save_to_phone): {count} of them weren't saved again because they were in that library already (this phone's photo sync sent them from here). It follows ios.photos.saved_to_photos or android.photos.saved_to_phone when some were saved, and stands alone when none needed saving. {count} is 1 or more."
+  },
+  "app.photos.download.failed": {
+    "text": {
+      "one": "{count} of {total} couldn't be saved: {detail}",
+      "other": "{count} of {total} couldn't be saved: {detail}"
+    },
+    "args": [["count", "count"], ["total", "int"], ["detail", "text"]],
+    "note": "Alert once saving the selected photos and videos to this phone's own photo library (the selection bar's Download, then ios.photos.save_to_photos or android.photos.save_to_phone) is over, when some of them couldn't be saved; the others were. {count} is how many couldn't be saved (1 or more), {total} how many were to be saved, {detail} why the first of them couldn't: the phone's system's words, or why its original couldn't be downloaded from the device (the device's own words, already in the user's language, or the phone's), as in app.photos.notice.save_failed."
+  },
+  "app.photos.download.saving": {
+    "text": "Saving {done} of {total}…",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "Images: the line over the selection bar while the selected photos and videos are being saved to this phone's own photo library one by one (the selection bar's Download, then ios.photos.save_to_photos or android.photos.save_to_phone), with a spinner before it and Cancel after it. {done} is the number of the one being saved, {total} how many are being saved. As app.files.uploading."
+  },
+  "app.photos.download.title": {
+    "text": {
+      "one": "Download {count} item",
+      "other": "Download {count} items"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of the choice that opens from the selection bar's Download in Images: save the selected photos and videos into this phone's own photo library one by one, as photos and videos (ios.photos.save_to_photos, android.photos.save_to_phone), or download them as one ZIP file (app.photos.download.zip); and Cancel. {count} is how many photos and videos are selected. Worded as app.photos.selection.delete_title, without its question mark: a choice, not a confirmation."
+  },
+  "app.photos.download.unsupported": {
+    "text": "this phone's photo library doesn't take this type of file ({name})",
+    "args": [["name", "user"]],
+    "note": "The {detail} of app.photos.download.failed (after its colon, hence the lowercase start) when the first photo or video that couldn't be saved is of a type this phone's own photo library doesn't take (some RAW photo formats, some video formats): nothing of it was saved. {name} is that file's name."
+  },
+  "app.photos.download.zip": {
+    "text": "Download as ZIP",
+    "note": "Button of the choice app.photos.download.title: the device makes one ZIP file of the selected photos and videos, which the phone's browser downloads (what the selection bar's Download did before). Keep ZIP as it is.",
+    "max": 30
+  },
   "app.photos.edit.as_copy": {
     "text": "Save as Copy",
     "note": "Button of the question app.photos.edit.save_title: the edit is saved as a new photo next to this one, which stays as it was. In the phone apps' (iPhone, Android) photo editor.",
@@ -790,10 +829,6 @@
     "text": "Save failed: {detail}",
     "args": [["detail", "text"]],
     "note": "Alert when saving the photo or video open in the viewer to the phone's photo library failed. {detail} is the reason: the phone's system's words, or why the original couldn't be downloaded from the device (the device's own words, already in the user's language, or the phone's)."
-  },
-  "app.photos.notice.saved": {
-    "text": "Saved to Photos ✅",
-    "note": "Alert once the photo open in the viewer was saved to the phone's own photo library (Photos on an iPhone, the gallery on Android). Keep the check mark."
   },
   "app.photos.notice.share_failed": {
     "text": "Share failed: {detail}",

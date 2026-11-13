@@ -3138,73 +3138,99 @@ final class PhotoGalleryVM: ObservableObject {
     /// its button shows a spinner ("Saving…") until it is done.
     @Published private(set) var savingPath: String?
 
+    // MARK: Save to Photos (SaveToPhone.swift)
+    /// What this view model saved to the library - the viewer's Save, the
+    /// selection's Save to Photos - by SaveToPhone.key: the viewer's Save
+    /// is a check for these, and saves no second copy. Forgotten with it.
+    @Published private(set) var savedToPhotos: Set<String> = []
+    /// The selection bar's Download asks: Save to Photos, or as a ZIP.
+    @Published var askDownload = false
+    /// The selection's Save to Photos, while it saves: the pill over the
+    /// grid ("Saving 2 of 5…", Cancel).
+    @Published var savingToPhotos: SaveToPhone.Progress?
+    /// What came of it, for a few seconds in the pill's place.
+    @Published var saveToPhotosNote: SaveToPhone.Done?
+    var saveToPhotosTask: Task<Void, Never>?
+    var saveToPhotosNoteTask: Task<Void, Never>?
+
     /// Issue #201: Save to Photos saves the original file - its own bytes,
     /// so its date, place and content stay, and the next sync of the phone
     /// finds the same content and links it, where a picture re-encoded
-    /// from the screen came back as a new photo dated today. Downloaded in
-    /// 4 MiB pieces (FileDownload, a HEIC's original too) to a temporary
-    /// file, added to the library as a photo or a video resource, dated as
-    /// Images dates it. Only if Photos refuses a photo's format is the
-    /// picture on screen saved instead (`fallback`), as before. Asks for
-    /// add-only access to the library, as before.
+    /// from the screen came back as a new photo dated today (saveOriginal).
+    /// Only if Photos refuses a photo's format is the picture on screen
+    /// saved instead (`fallback`), as before. Asks for add-only access to
+    /// the library, as before. Saved, the button becomes a check - no
+    /// alert - and a tap on it does nothing (SaveToPhone.swift).
     func saveOriginalToPhotos(fallback: @escaping @MainActor () async -> UIImage?) {
-        guard savingPath == nil, let i = openIndex, items.indices.contains(i) else { return }
+        guard savingPath == nil, let i = openIndex, items.indices.contains(i), !isSaved(items[i]) else { return }
         let it = items[i]
         savingPath = it.path
         Task {
             defer { savingPath = nil }
-            let current = PHPhotoLibrary.authorizationStatus(for: .addOnly)
-            let status = current == .notDetermined
-                ? await PHPhotoLibrary.requestAuthorization(for: .addOnly)
-                : current
-            guard status == .authorized || status == .limited else {
-                notice = .photosDenied
-                showAlert = true
-                return
-            }
-            let video = it.mime.hasPrefix("video/")
-            let name = Self.originalName(path: it.path, mime: it.mime)
-            var folder: URL?
-            defer { if let folder { try? FileManager.default.removeItem(at: folder) } }
-            let file: URL
-            if let local = it.localURL {
-                file = local
-            } else {
-                let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-                folder = dir
-                do {
-                    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                    file = dir.appendingPathComponent(name)
-                    try await FileDownload.download(path: it.path, mime: it.mime, to: file, original: true)
-                } catch {
-                    notice = .saveFailed(error)
-                    showAlert = true
-                    return
-                }
-            }
+            guard await photosAccess() else { return }
             do {
-                try await Self.addToPhotos(file, video: video, created: it.created, name: name)
-                notice = .saved
+                try await saveOriginal(it, fallback: fallback)
+                UIAccessibility.post(notification: .announcement, argument: S.iosPhotosViewerSaved)
             } catch {
-                // A format Photos takes no original of: the picture shown.
-                if !video, let img = await fallback() {
-                    do {
-                        try await PHPhotoLibrary.shared().performChanges {
-                            let request = PHAssetChangeRequest.creationRequestForAsset(from: img)
-                            // A4: a copy of the device's photo, not one for
-                            // the sync to send back (SavedToPhone).
-                            SavedToPhone.shared.remember(request.placeholderForCreatedAsset?.localIdentifier ?? "")
-                        }
-                        notice = .saved
-                    } catch {
-                        notice = .saveFailed(error)
-                    }
-                } else {
-                    notice = .saveFailed(error)
-                }
+                notice = .saveFailed(error)
+                showAlert = true
             }
-            showAlert = true
         }
+    }
+
+    /// Add-only access to the library, asked the first time; refused, the
+    /// alert says so and nothing is saved.
+    func photosAccess() async -> Bool {
+        let current = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+        let status = current == .notDetermined
+            ? await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+            : current
+        guard status == .authorized || status == .limited else {
+            notice = .photosDenied
+            showAlert = true
+            return false
+        }
+        return true
+    }
+
+    /// One original into the library, as the viewer's Save and the
+    /// selection's Save to Photos both save it: downloaded in 4 MiB pieces
+    /// (FileDownload, a HEIC's original too) to a temporary folder of its
+    /// own - or the file itself, for one only on this phone - and added as
+    /// a photo or a video resource under its own name, dated as Images
+    /// dates it; the folder goes after. A format Photos refuses: the
+    /// picture `fallback` gives, if any, instead. Saved, it joins
+    /// savedToPhotos; throws why not. Cancelled (Save to Photos' Cancel),
+    /// the download stops at its next piece and nothing is added.
+    func saveOriginal(_ it: Item, fallback: (@MainActor () async -> UIImage?)? = nil) async throws {
+        let video = it.mime.hasPrefix("video/")
+        let name = Self.originalName(path: it.path, mime: it.mime)
+        var folder: URL?
+        defer { if let folder { try? FileManager.default.removeItem(at: folder) } }
+        let file: URL
+        if let local = it.localURL {
+            file = local
+        } else {
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            folder = dir
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            file = dir.appendingPathComponent(name)
+            try await FileDownload.download(path: it.path, mime: it.mime, to: file, original: true)
+        }
+        try Task.checkCancellation()
+        do {
+            try await Self.addToPhotos(file, video: video, created: it.created, name: name)
+        } catch {
+            // A format Photos takes no original of: the picture shown.
+            guard !video, let fallback, let img = await fallback() else { throw error }
+            try await PHPhotoLibrary.shared().performChanges {
+                let request = PHAssetChangeRequest.creationRequestForAsset(from: img)
+                // A4: a copy of the device's photo, not one for the sync
+                // to send back (SavedToPhone).
+                SavedToPhone.shared.remember(request.placeholderForCreatedAsset?.localIdentifier ?? "")
+            }
+        }
+        savedToPhotos.insert(SaveToPhone.key(hash: it.hash, path: it.path))
     }
 
     /// The original's name in the library (and its temporary file's, whose
@@ -3666,6 +3692,17 @@ final class PhotoGalleryVM: ObservableObject {
         return picked
     }
 
+    /// The same, in the grid's order (Save to Photos saves them in it):
+    /// those it shows, then those it no longer does, newest first.
+    func pickedInOrder() -> [Item] {
+        var shown = Set<String>()
+        let inGrid = items.filter { selected.contains($0.path) && shown.insert($0.path).inserted }
+        let away = pickedAway.values
+            .filter { selected.contains($0.path) && !shown.contains($0.path) }
+            .sorted { ($0.created ?? .distantPast) > ($1.created ?? .distantPast) }
+        return inGrid + away
+    }
+
     /// Issue #201: what the selection bar's Delete asks - about the copies
     /// when any of the picked photos has some - taken when it is tapped,
     /// so the words don't change under the question.
@@ -3851,8 +3888,11 @@ enum GalleryNotice {
     case coverDone
     /// A person's face didn't change: the device's words, if any.
     case coverFailed(String?)
-    case notLoaded, photosDenied, saved, noShareLink, noDownloadLink
+    case notLoaded, photosDenied, noShareLink, noDownloadLink
     case shareFailed(Error), saveFailed(Error), deleteFailed(Error), uploadFailed(Error), downloadFailed(Error)
+    /// The selection's Save to Photos (SaveToPhone.swift): this many of how
+    /// many weren't saved, and why the first one (by its name) wasn't.
+    case someNotSaved(Int, Int, Error, String)
     /// The device refused a delete: its own explanation.
     case deleteRefused(String)
     /// Issue #201: a delete of several left some: each one's words, or
@@ -3899,7 +3939,6 @@ enum GalleryNotice {
         case .coverFailed(let words): return words ?? S.appPhotosPersonCoverFailed
         case .notLoaded: return S.appPhotosNoticeNotLoaded
         case .photosDenied: return S.iosPhotosAccessDenied
-        case .saved: return S.appPhotosNoticeSaved
         case .noShareLink: return S.appPhotosNoticeNoShareLink
         case .noDownloadLink: return S.appPhotosNoticeNoDownloadLink
         case .shareFailed(let e): return S.appPhotosNoticeShareFailed(detail: e.localizedDescription)
@@ -3907,6 +3946,9 @@ enum GalleryNotice {
         case .deleteFailed(let e): return S.appPhotosNoticeDeleteFailed(detail: e.localizedDescription)
         case .uploadFailed(let e): return S.iosPhotosUploadFailed(detail: e.localizedDescription)
         case .downloadFailed(let e): return S.iosPhotosDownloadFailed(detail: e.localizedDescription)
+        case .someNotSaved(let n, let total, let e, let name):
+            let why = SaveToPhone.refusedFormat(e) ? S.appPhotosDownloadUnsupported(name: name) : e.localizedDescription
+            return S.appPhotosDownloadFailed(count: n, total: total, detail: why)
         case .deleteRefused(let message): return S.appPhotosNoticeDeleteFailed(detail: message)
         case .deletesKept(let kept): return DeleteCopies.keptText(kept) ?? ""
         case .smartSearch(let words): return words ?? S.appPhotosSmartSearchFailed
@@ -3960,6 +4002,9 @@ struct PhotoGalleryView: View {
     @State private var groupsSheetGallerySource: Msg_SharedGallerySource?
     /// The selection bar's Compress dialog (Compress.swift) while it shows.
     @State private var compressing: CompressModel?
+    /// The selection bar's height with its "N selected" pill, as laid
+    /// out: what floats over the grid's bottom sits above it.
+    @State private var selectionBarHeight: CGFloat = 0
     // Issue #123: as many columns as fit, so the grid uses the whole width
     // on an iPad instead of the fixed three that only ever made sense on a
     // phone - and still exactly three on a phone. The sizes are the web's
@@ -4159,12 +4204,19 @@ struct PhotoGalleryView: View {
                     }
                     // The first page is slow to come (a slow link, a busy
                     // device): over the grey tiles, that it is still on its way.
+                    // The selection's Save to Photos, how far along and then
+                    // what came of it, in the same place (SaveToPhone.swift).
                     .overlay(alignment: .bottom) {
-                        if showsStillWaiting {
-                            StillWaitingPill()
-                                .padding(.bottom, vm.selected.isEmpty ? 24 : 104)
-                                .transition(.opacity)
+                        VStack(spacing: 8) {
+                            if showsStillWaiting {
+                                StillWaitingPill()
+                                    .transition(.opacity)
+                            }
+                            SaveToPhotosPill(vm: vm)
                         }
+                        // Over the bar and its count pill while something
+                        // is picked (at least 104 before it is measured).
+                        .padding(.bottom, vm.selected.isEmpty ? 24 : max(104, selectionBarHeight + 12))
                     }
                     .animation(.default, value: showsStillWaiting)
                     .overlay(alignment: .trailing) {
@@ -4189,7 +4241,8 @@ struct PhotoGalleryView: View {
                             count: vm.selected.count,
                             busy: vm.preparing,
                             onShare: vm.shareSelected,
-                            onDownload: vm.downloadZip,
+                            // Save to Photos, or as a ZIP as before: asked.
+                            onDownload: { vm.askDownload = true },
                             onDelete: { vm.askDeleteSelected() },
                             onClear: vm.clearSelection,
                             onGroup: {
@@ -4216,6 +4269,7 @@ struct PhotoGalleryView: View {
                             // ninth item cut the German labels short).
                             onCompress: vm.personInFilter != nil ? nil : { compressing = vm.compressModel() }
                         )
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { selectionBarHeight = $0 }
                         .transition(.move(edge: .bottom))
                         .sheet(isPresented: Binding(
                             get: { vm.selectionShareURL != nil },
@@ -4272,6 +4326,14 @@ struct PhotoGalleryView: View {
                 Button(g.name) { Task { await vm.addSelectionToGroup(g) } }
             }
             Button(S.appPhotosCollectionsNewItem) { vm.showNewGroupName = true }
+            Button(S.commonCancel, role: .cancel) {}
+        }
+        // The selection bar's Download: each picked photo and video into
+        // Photos, as the viewer saves one (SaveToPhone.swift), or all of
+        // them in one ZIP, as before.
+        .confirmationDialog(S.appPhotosDownloadTitle(count: vm.selected.count), isPresented: $vm.askDownload, titleVisibility: .visible) {
+            Button(S.iosPhotosSaveToPhotos) { vm.saveSelectionToPhotos() }
+            Button(S.appPhotosDownloadZip) { vm.downloadZip() }
             Button(S.commonCancel, role: .cancel) {}
         }
         .alert(S.appPhotosCollectionsNewTitle, isPresented: $vm.showNewGroupName) {
@@ -5753,20 +5815,23 @@ struct ImageModal: View {
                 RateButton(vm: vm, side: side)
             }
             // Issue #201: a spinner while the original downloads and is
-            // saved.
+            // saved; then a check, which saves no second copy (a tap on it
+            // does nothing: saveOriginalToPhotos). Never greyed out, as
+            // another photo's save would grey it.
             let saving = vm.savingPath != nil && vm.savingPath == vm.openPath
+            let saved = !saving && vm.openSaved
             Button { save() } label: {
                 Group {
                     if saving {
                         ProgressView().tint(.white)
                     } else {
-                        Image(systemName: "arrow.down.circle")
+                        Image(systemName: saved ? "checkmark.circle" : "arrow.down.circle")
                     }
                 }
                 .frame(width: side, height: side).contentShape(Rectangle())
             }
-            .disabled(vm.savingPath != nil)
-            .accessibilityLabel(saving ? S.appPhotosViewerSaving : S.commonSave)
+            .disabled(vm.savingPath != nil && !saved)
+            .accessibilityLabel(saving ? S.appPhotosViewerSaving : saved ? S.iosPhotosViewerSaved : S.commonSave)
             Button(role: .destructive) {
                 confirmDeleteVideo = vm.openIndex.map { vm.items.indices.contains($0) && vm.items[$0].mime.hasPrefix("video/") } ?? false
                 confirmCopies = vm.openCopies

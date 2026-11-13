@@ -58,6 +58,24 @@
     <string name="app_photos_delete_phone_title">Eliminare anche da questo telefono?</string>
     <string name="app_photos_delete_phone_title_several">Eliminarli anche da questo telefono?</string>
     <string name="app_photos_delete_phone_video">Questo video è anche su questo telefono.</string>
+    <plurals name="app_photos_download_already">
+        <item quantity="one">%1$s era già su questo telefono.</item>
+        <item quantity="many">%1$s erano già su questo telefono.</item>
+        <item quantity="other">%1$s erano già su questo telefono.</item>
+    </plurals>
+    <plurals name="app_photos_download_failed">
+        <item quantity="one">Impossibile salvare %1$s di %2$s: %3$s</item>
+        <item quantity="many">Impossibile salvare %1$s di %2$s: %3$s</item>
+        <item quantity="other">Impossibile salvare %1$s di %2$s: %3$s</item>
+    </plurals>
+    <string name="app_photos_download_saving">Salvataggio %1$s di %2$s…</string>
+    <plurals name="app_photos_download_title">
+        <item quantity="one">Scarica %1$s elemento</item>
+        <item quantity="many">Scarica %1$s elementi</item>
+        <item quantity="other">Scarica %1$s elementi</item>
+    </plurals>
+    <string name="app_photos_download_unsupported">la libreria foto di questo telefono non accetta questo tipo di file (\u2068%1$s\u2069)</string>
+    <string name="app_photos_download_zip">Scarica come ZIP</string>
     <string name="app_photos_edit_as_copy">Salva come copia</string>
     <string name="app_photos_edit_aspect">Proporzioni</string>
     <string name="app_photos_edit_aspect_16_9">16:9</string>
@@ -219,7 +237,6 @@
     <string name="app_photos_notice_removed">Selezione rimossa dalla raccolta “\u2068%1$s\u2069”.</string>
     <string name="app_photos_notice_rename_failed">Impossibile rinominare la raccolta.</string>
     <string name="app_photos_notice_save_failed">Salvataggio non riuscito: %1$s</string>
-    <string name="app_photos_notice_saved">Salvata in Foto ✅</string>
     <string name="app_photos_notice_share_failed">Condivisione non riuscita: %1$s</string>
     <string name="app_photos_people_add_name">Dai un nome</string>
     <string name="app_photos_people_clear_selection">Cancella selezione</string>

@@ -168,6 +168,48 @@
     "en": "This video is also on this phone.",
     "reviewed": "claude-backtranslation 2026-11-03 #83427a42"
   },
+  "app.photos.download.already": {
+    "text": {
+      "one": "{count} était déjà sur ce téléphone.",
+      "other": "{count} étaient déjà sur ce téléphone."
+    },
+    "en": {
+      "one": "{count} was already on this phone.",
+      "other": "{count} were already on this phone."
+    }
+  },
+  "app.photos.download.failed": {
+    "text": {
+      "one": "Impossible d’enregistrer {count} sur {total} : {detail}",
+      "other": "Impossible d’enregistrer {count} sur {total} : {detail}"
+    },
+    "en": {
+      "one": "{count} of {total} couldn't be saved: {detail}",
+      "other": "{count} of {total} couldn't be saved: {detail}"
+    }
+  },
+  "app.photos.download.saving": {
+    "text": "Enregistrement de {done} sur {total}…",
+    "en": "Saving {done} of {total}…"
+  },
+  "app.photos.download.title": {
+    "text": {
+      "one": "Télécharger {count} élément",
+      "other": "Télécharger {count} éléments"
+    },
+    "en": {
+      "one": "Download {count} item",
+      "other": "Download {count} items"
+    }
+  },
+  "app.photos.download.unsupported": {
+    "text": "la photothèque de ce téléphone n’accepte pas ce type de fichier ({name})",
+    "en": "this phone's photo library doesn't take this type of file ({name})"
+  },
+  "app.photos.download.zip": {
+    "text": "Télécharger en ZIP",
+    "en": "Download as ZIP"
+  },
   "app.photos.edit.as_copy": {
     "text": "Enregistrer une copie",
     "en": "Save as Copy"
@@ -701,10 +743,6 @@
   "app.photos.notice.save_failed": {
     "text": "Échec de l’enregistrement : {detail}",
     "en": "Save failed: {detail}"
-  },
-  "app.photos.notice.saved": {
-    "text": "Enregistrée dans Photos ✅",
-    "en": "Saved to Photos ✅"
   },
   "app.photos.notice.share_failed": {
     "text": "Échec du partage : {detail}",

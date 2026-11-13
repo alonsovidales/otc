@@ -228,9 +228,7 @@ object DeletePhoneCopyModel {
     private suspend fun lookUp(deleted: List<DeletedOnDevice>): PhoneDeleteAsk? {
         val gone = DeletePhoneCopy.gone(deleted)
         if (gone.isEmpty() || !DeletePhoneCopy.asks(Build.VERSION.SDK_INT, PhotoSync.hasPermission(), PhotoSync.accessLimited())) return null
-        // What the sync sent wins over what Free Up Space read for the same file.
-        val recorded = HashMap(FreeUpSpace.idsWithHashes(gone))
-        recorded.putAll(AssetSyncCache.idsWithHashes(gone))
+        val recorded = recorded(gone)
         if (recorded.isEmpty()) return null
         val rows = libraryRows(recorded.keys)
         val onPhone = DeletePhoneCopy.onPhone(gone, recorded, rows.associate { it.id to it.isVideo }, rows.filter { it.saved }.mapTo(HashSet()) { it.id })
@@ -247,6 +245,27 @@ object DeletePhoneCopyModel {
             return null
         }
         return DeletePhoneCopy.ask(deleted, onPhone, held)
+    }
+
+    /** This phone's own photos and videos recorded under [hashes] - the sync sent them from here, Free Up Space read them here - hash by MediaStore id. */
+    private fun recorded(hashes: Set<String>): Map<Long, String> {
+        // What the sync sent wins over what Free Up Space read for the same file.
+        val recorded = HashMap(FreeUpSpace.idsWithHashes(hashes))
+        recorded.putAll(AssetSyncCache.idsWithHashes(hashes))
+        return recorded
+    }
+
+    /**
+     * Save to this phone (SaveToPhone.kt): which of [hashes] this phone's
+     * library holds - its own photos and videos recorded under them whose
+     * rows are still there (not in its trash) - looked for only with media
+     * access, as after a delete. Blocking: off the main thread.
+     */
+    internal fun inLibrary(hashes: Set<String>): Set<String> {
+        if (hashes.isEmpty() || !PhotoSync.hasPermission()) return emptySet()
+        val recorded = recorded(hashes)
+        if (recorded.isEmpty()) return emptySet()
+        return libraryRows(recorded.keys).mapNotNullTo(HashSet()) { recorded[it.id] }
     }
 
     private class LibraryRow(val id: Long, val isVideo: Boolean, val saved: Boolean)

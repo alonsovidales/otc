@@ -257,6 +257,24 @@ extension S {
         L("ios.photos.delete_phone_text", table: "Ios", also)
     }
 
+    /// Save to Photos
+    ///
+    /// Button of the choice app.photos.download.title (the selection bar's Download in Images, on an iPhone): each selected photo and video is downloaded from the device as its original file and added to the library of the Photos app, as a photo or a video with its own date. Photos is Apple's app: its name as Apple writes it in this language (Fotos, Photos, Fotos, Foto, Fotografias, Foto’s).
+    static var iosPhotosSaveToPhotos: String { L("ios.photos.save_to_photos", table: "Ios") }
+
+    /// one: Saved {count} to Photos.
+    /// other: Saved {count} to Photos.
+    ///
+    /// Short note over Images for a few seconds, after a check mark, once the selected photos and videos were saved to the library of the Photos app (ios.photos.save_to_photos). {count} is how many were saved (1 or more): photos and videos both, so word it to fit either. app.photos.download.already may follow it. Photos is Apple's app: its name as in ios.photos.save_to_photos.
+    static func iosPhotosSavedToPhotos(count: Int) -> String {
+        L("ios.photos.saved_to_photos", table: "Ios", count)
+    }
+
+    /// Saved to Photos
+    ///
+    /// Screen-reader name of the photo viewer's Save button once the photo or video open was saved to the library of the Photos app: the button then shows a check mark instead of its arrow, and does nothing more. As app.photos.viewer.saving (Saving…). Photos is Apple's app: its name as in ios.photos.save_to_photos.
+    static var iosPhotosViewerSaved: String { L("ios.photos.viewer_saved", table: "Ios") }
+
     /// Photos access denied
     ///
     /// Alert in the full-screen photo viewer when Save was tapped but the app isn't allowed to add photos to the iPhone's Photos library.

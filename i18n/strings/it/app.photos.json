@@ -168,6 +168,48 @@
     "en": "This video is also on this phone.",
     "reviewed": "claude-backtranslation 2026-11-03 #d2b3018c"
   },
+  "app.photos.download.already": {
+    "text": {
+      "one": "{count} era già su questo telefono.",
+      "other": "{count} erano già su questo telefono."
+    },
+    "en": {
+      "one": "{count} was already on this phone.",
+      "other": "{count} were already on this phone."
+    }
+  },
+  "app.photos.download.failed": {
+    "text": {
+      "one": "Impossibile salvare {count} di {total}: {detail}",
+      "other": "Impossibile salvare {count} di {total}: {detail}"
+    },
+    "en": {
+      "one": "{count} of {total} couldn't be saved: {detail}",
+      "other": "{count} of {total} couldn't be saved: {detail}"
+    }
+  },
+  "app.photos.download.saving": {
+    "text": "Salvataggio {done} di {total}…",
+    "en": "Saving {done} of {total}…"
+  },
+  "app.photos.download.title": {
+    "text": {
+      "one": "Scarica {count} elemento",
+      "other": "Scarica {count} elementi"
+    },
+    "en": {
+      "one": "Download {count} item",
+      "other": "Download {count} items"
+    }
+  },
+  "app.photos.download.unsupported": {
+    "text": "la libreria foto di questo telefono non accetta questo tipo di file ({name})",
+    "en": "this phone's photo library doesn't take this type of file ({name})"
+  },
+  "app.photos.download.zip": {
+    "text": "Scarica come ZIP",
+    "en": "Download as ZIP"
+  },
   "app.photos.edit.as_copy": {
     "text": "Salva come copia",
     "en": "Save as Copy"
@@ -701,10 +743,6 @@
   "app.photos.notice.save_failed": {
     "text": "Salvataggio non riuscito: {detail}",
     "en": "Save failed: {detail}"
-  },
-  "app.photos.notice.saved": {
-    "text": "Salvata in Foto ✅",
-    "en": "Saved to Photos ✅"
   },
   "app.photos.notice.share_failed": {
     "text": "Condivisione non riuscita: {detail}",

@@ -267,6 +267,24 @@
     "en": "{also} Android asks you to confirm, and the phone's trash keeps what you delete for 30 days.",
     "reviewed": "claude-backtranslation 2026-11-03 #ca463891"
   },
+  "android.photos.save_to_phone": {
+    "text": "Guardar neste telemóvel",
+    "en": "Save to this phone"
+  },
+  "android.photos.saved_to_phone": {
+    "text": {
+      "one": "{count} item guardado neste telemóvel.",
+      "other": "{count} itens guardados neste telemóvel."
+    },
+    "en": {
+      "one": "Saved {count} to this phone.",
+      "other": "Saved {count} to this phone."
+    }
+  },
+  "android.photos.viewer_saved": {
+    "text": "Guardado neste telemóvel",
+    "en": "Saved to this phone"
+  },
   "android.photos_open_in_maps": {
     "text": "Abrir numa app de mapas ({latitude}, {longitude})",
     "en": "Open in Maps ({latitude}, {longitude})"

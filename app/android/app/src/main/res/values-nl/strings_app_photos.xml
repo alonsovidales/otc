@@ -51,6 +51,21 @@
     <string name="app_photos_delete_phone_title">Ook van deze telefoon verwijderen?</string>
     <string name="app_photos_delete_phone_title_several">Ze ook van deze telefoon verwijderen?</string>
     <string name="app_photos_delete_phone_video">Deze video staat ook op deze telefoon.</string>
+    <plurals name="app_photos_download_already">
+        <item quantity="one">%1$s stond al op deze telefoon.</item>
+        <item quantity="other">%1$s stonden al op deze telefoon.</item>
+    </plurals>
+    <plurals name="app_photos_download_failed">
+        <item quantity="one">Kan %1$s van %2$s niet opslaan: %3$s</item>
+        <item quantity="other">Kan %1$s van %2$s niet opslaan: %3$s</item>
+    </plurals>
+    <string name="app_photos_download_saving">Opslaan (%1$s van %2$s)…</string>
+    <plurals name="app_photos_download_title">
+        <item quantity="one">%1$s item downloaden</item>
+        <item quantity="other">%1$s items downloaden</item>
+    </plurals>
+    <string name="app_photos_download_unsupported">de fotobibliotheek van deze telefoon ondersteunt dit bestandstype niet (\u2068%1$s\u2069)</string>
+    <string name="app_photos_download_zip">Als ZIP downloaden</string>
     <string name="app_photos_edit_as_copy">Opslaan als kopie</string>
     <string name="app_photos_edit_aspect">Verhouding</string>
     <string name="app_photos_edit_aspect_16_9">16:9</string>
@@ -201,7 +216,6 @@
     <string name="app_photos_notice_removed">Uit “\u2068%1$s\u2069” gehaald.</string>
     <string name="app_photos_notice_rename_failed">Kan de naam van de collectie niet wijzigen.</string>
     <string name="app_photos_notice_save_failed">Opslaan mislukt: %1$s</string>
-    <string name="app_photos_notice_saved">Opgeslagen in Foto’s ✅</string>
     <string name="app_photos_notice_share_failed">Delen mislukt: %1$s</string>
     <string name="app_photos_people_add_name">Naam geven</string>
     <string name="app_photos_people_clear_selection">Selectie wissen</string>

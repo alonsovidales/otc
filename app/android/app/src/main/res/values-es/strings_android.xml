@@ -76,6 +76,13 @@
     <string name="android_notification_channel_description">Solicitudes de amistad, publicaciones nuevas, Me gusta y comentarios</string>
     <string name="android_open_settings">Abrir Ajustes</string>
     <string name="android_photos_delete_phone_text">%1$s Android te pide que lo confirmes, y la papelera del teléfono guarda lo que eliminas durante 30 días.</string>
+    <string name="android_photos_save_to_phone">Guardar en este teléfono</string>
+    <plurals name="android_photos_saved_to_phone">
+        <item quantity="one">Se ha guardado %1$s elemento en este teléfono.</item>
+        <item quantity="many">Se han guardado %1$s elementos en este teléfono.</item>
+        <item quantity="other">Se han guardado %1$s elementos en este teléfono.</item>
+    </plurals>
+    <string name="android_photos_viewer_saved">Guardado en este teléfono</string>
     <string name="android_photos_open_in_maps">Abrir en el mapa (%1$s, %2$s)</string>
     <string name="android_photos_people_back">Volver a las fotos</string>
     <string name="android_photos_people_deleting">%1$s de %2$s</string>

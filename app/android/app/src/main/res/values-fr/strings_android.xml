@@ -76,6 +76,13 @@
     <string name="android_notification_channel_description">Demandes d’ami, nouvelles publications, J’aime et commentaires</string>
     <string name="android_open_settings">Ouvrir les Paramètres</string>
     <string name="android_photos_delete_phone_text">%1$s Android vous demande de confirmer, et la corbeille du téléphone garde ce que vous supprimez 30 jours.</string>
+    <string name="android_photos_save_to_phone">Enregistrer sur ce téléphone</string>
+    <plurals name="android_photos_saved_to_phone">
+        <item quantity="one">%1$s élément enregistré sur ce téléphone.</item>
+        <item quantity="many">%1$s éléments enregistrés sur ce téléphone.</item>
+        <item quantity="other">%1$s éléments enregistrés sur ce téléphone.</item>
+    </plurals>
+    <string name="android_photos_viewer_saved">Enregistré sur ce téléphone</string>
     <string name="android_photos_open_in_maps">Ouvrir dans Maps (%1$s, %2$s)</string>
     <string name="android_photos_people_back">Retour aux photos</string>
     <string name="android_photos_people_deleting">%1$s sur %2$s</string>

@@ -201,6 +201,24 @@
     "en": "{also} iOS asks you to confirm, and Photos keeps what you delete in Recently Deleted for 30 days. With iCloud Photos on, the deletion reaches iCloud and your other devices too.",
     "reviewed": "claude-backtranslation 2026-11-03 #866667a6"
   },
+  "ios.photos.save_to_photos": {
+    "text": "In Fotos speichern",
+    "en": "Save to Photos"
+  },
+  "ios.photos.saved_to_photos": {
+    "text": {
+      "one": "{count} Element in Fotos gespeichert.",
+      "other": "{count} Elemente in Fotos gespeichert."
+    },
+    "en": {
+      "one": "Saved {count} to Photos.",
+      "other": "Saved {count} to Photos."
+    }
+  },
+  "ios.photos.viewer_saved": {
+    "text": "In Fotos gespeichert",
+    "en": "Saved to Photos"
+  },
   "ios.photos_access_denied": {
     "text": "Zugriff auf Fotos verweigert",
     "en": "Photos access denied"

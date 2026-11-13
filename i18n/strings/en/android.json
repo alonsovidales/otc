@@ -294,6 +294,24 @@
     "review": "required",
     "reviewed": "claude-backtranslation 2026-11-03 #9b515b9f"
   },
+  "android.photos.save_to_phone": {
+    "text": "Save to this phone",
+    "note": "Button of the choice app.photos.download.title (the selection bar's Download in Images, on Android): each selected photo and video is downloaded from the device as its original file and saved in this phone's own photo library (in Pictures/Off The Cloud and Movies/Off The Cloud, which the phone's gallery app shows), as a photo or a video with its own date.",
+    "max": 30
+  },
+  "android.photos.saved_to_phone": {
+    "text": {
+      "one": "Saved {count} to this phone.",
+      "other": "Saved {count} to this phone."
+    },
+    "args": [["count", "count"]],
+    "note": "Short note over Images for a few seconds, after a check mark, once the selected photos and videos were saved in this phone's own photo library (android.photos.save_to_phone). {count} is how many were saved (1 or more): photos and videos both, so word it to fit either. app.photos.download.already may follow it."
+  },
+  "android.photos.viewer_saved": {
+    "text": "Saved to this phone",
+    "note": "Screen-reader name of the photo viewer's Save button once the photo or video open was saved in this phone's own photo library (its gallery app shows it): the button then shows a check mark instead of its arrow, and does nothing more. As app.photos.viewer.saving (Saving…).",
+    "max": 30
+  },
   "android.photos_open_in_maps": {
     "text": "Open in Maps ({latitude}, {longitude})",
     "args": [["latitude", "text"], ["longitude", "text"]],

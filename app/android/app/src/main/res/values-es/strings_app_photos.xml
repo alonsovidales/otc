@@ -58,6 +58,24 @@
     <string name="app_photos_delete_phone_title">¿Eliminar también de este teléfono?</string>
     <string name="app_photos_delete_phone_title_several">¿Eliminarlos también de este teléfono?</string>
     <string name="app_photos_delete_phone_video">Este vídeo también está en este teléfono.</string>
+    <plurals name="app_photos_download_already">
+        <item quantity="one">%1$s ya estaba en este teléfono.</item>
+        <item quantity="many">%1$s ya estaban en este teléfono.</item>
+        <item quantity="other">%1$s ya estaban en este teléfono.</item>
+    </plurals>
+    <plurals name="app_photos_download_failed">
+        <item quantity="one">No se ha podido guardar %1$s de %2$s: %3$s</item>
+        <item quantity="many">No se han podido guardar %1$s de %2$s: %3$s</item>
+        <item quantity="other">No se han podido guardar %1$s de %2$s: %3$s</item>
+    </plurals>
+    <string name="app_photos_download_saving">Guardando %1$s de %2$s…</string>
+    <plurals name="app_photos_download_title">
+        <item quantity="one">Descargar %1$s elemento</item>
+        <item quantity="many">Descargar %1$s elementos</item>
+        <item quantity="other">Descargar %1$s elementos</item>
+    </plurals>
+    <string name="app_photos_download_unsupported">la biblioteca de fotos de este teléfono no admite este tipo de archivo (\u2068%1$s\u2069)</string>
+    <string name="app_photos_download_zip">Descargar como ZIP</string>
     <string name="app_photos_edit_as_copy">Guardar como copia</string>
     <string name="app_photos_edit_aspect">Proporción</string>
     <string name="app_photos_edit_aspect_16_9">16:9</string>
@@ -219,7 +237,6 @@
     <string name="app_photos_notice_removed">Se han quitado de la colección “\u2068%1$s\u2069”.</string>
     <string name="app_photos_notice_rename_failed">No se ha podido renombrar la colección.</string>
     <string name="app_photos_notice_save_failed">No se ha podido guardar: %1$s</string>
-    <string name="app_photos_notice_saved">Guardada en Fotos ✅</string>
     <string name="app_photos_notice_share_failed">No se ha podido compartir: %1$s</string>
     <string name="app_photos_people_add_name">Poner nombre</string>
     <string name="app_photos_people_clear_selection">Anular selección</string>

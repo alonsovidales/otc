@@ -287,6 +287,7 @@ import cloud.offthe.otc.i18n.appPhotosViewerInfoTitle
 import cloud.offthe.otc.i18n.appPhotosViewerLowRes
 import cloud.offthe.otc.i18n.appPhotosViewerMoreInfo
 import cloud.offthe.otc.i18n.appPhotosViewerSaving
+import cloud.offthe.otc.i18n.androidPhotosViewerSaved
 import cloud.offthe.otc.i18n.appPhotosViewerFavouriteAdd
 import cloud.offthe.otc.i18n.appPhotosViewerFavouriteRemove
 import cloud.offthe.otc.i18n.appShellCollectionsGoToImages
@@ -412,6 +413,8 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     // Issue #180: "Share as gallery" on a group - what is being shared.
     var gallerySource by remember { mutableStateOf<SharedGallerySource?>(null) }
     var confirmDeleteSelected by remember { mutableStateOf(false) }
+    // The selection's Download: Save to this phone or Download as ZIP (SaveToPhone.kt).
+    var askDownload by remember { mutableStateOf(false) }
     // Not this person's question, and Someone else…'s list, for the
     // selection (the one person whose photos show: State.personShown).
     var confirmNotPerson by remember { mutableStateOf(false) }
@@ -904,17 +907,31 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                     }
                 }
             }
+            // What floats over the grid's bottom sits this far up: over the
+            // bar and its "N selected" pill while something is picked - as
+            // measured, at least 104 dp (before it is) - else over the foot.
+            val barTop = with(LocalDensity.current) { barHeight.toDp() } + 12.dp
+            val overBar = if (st.selected.isNotEmpty()) maxOf(104.dp, barTop) else 24.dp
             // A hide's notice, with Undo, once the memory it came from closed.
             if (openMemory == null) memories.notice?.let {
-                MemoriesNoticeBar(vm.memories, it, Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = if (st.selected.isNotEmpty()) 104.dp else 24.dp))
+                MemoriesNoticeBar(vm.memories, it, Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = overBar))
             }
-            // Rating turned on: what it does, for a few seconds.
-            Toast(st.gridNote?.resolve(), Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = if (st.selected.isNotEmpty()) 104.dp else 24.dp))
-            st.gridNote?.let { n -> LaunchedEffect(n) { delay(GRID_NOTE_MS); vm.gridNoteShown() } }
+            // Over the bar (or the grid's foot): the selection being saved to
+            // this phone, with Cancel (SaveToPhone.kt); else a note for a few
+            // seconds - Rating turned on, what it does; the selection saved,
+            // what was, after a check mark. A tap hides it.
+            val noteAt = Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = overBar)
+            val savingToPhone = st.savingToPhone
+            if (savingToPhone != null) SavingToPhonePill(savingToPhone, onCancel = vm::cancelSaveToPhone, modifier = noteAt)
+            else Toast(
+                st.gridNote?.let { n -> (listOf(n) + st.gridNoteMore).map { it.resolve() }.joinToString(" ") }, noteAt,
+                icon = if (st.gridNoteDone) Icons.Default.CheckCircle else null, onTap = vm::gridNoteShown,
+            )
+            st.gridNote?.let { n -> LaunchedEffect(n, st.gridNoteMore) { delay(GRID_NOTE_MS); vm.gridNoteShown() } }
             // The first page is slow to come (a slow link, a busy device):
             // over the grey tiles, that it is still on its way.
             if (st.slowFirstPage && (body == GalleryBody.SKELETON || (body == GalleryBody.GREY && st.scrubFrac == null))) {
-                StillWaiting(Modifier.align(Alignment.BottomCenter).padding(bottom = if (st.selected.isNotEmpty()) 104.dp else 24.dp))
+                StillWaiting(Modifier.align(Alignment.BottomCenter).padding(bottom = overBar))
             }
             // Issue #194: the newer photos above a jump - a page on its way
             // (a small spinner, as the web's and iOS's), or one that failed
@@ -956,7 +973,7 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                 Box(Modifier.align(Alignment.BottomCenter).onSizeChanged { barHeight = it.height }) {
                     SelectionActionBar(
                         count = st.selected.size, busy = st.preparing,
-                        onShare = { vm.shareSelected(context) }, onDownload = { vm.downloadZip(context) },
+                        onShare = { vm.shareSelected(context) }, onDownload = { askDownload = true },
                         onDelete = { confirmDeleteSelected = true }, onGroup = { scope.launch { vm.loadGroups() }; showGroupPicker = true },
                         // Only inside a collection: out of it.
                         onUncollect = if (st.activeGroup != null) { { vm.removeSelectionFromGroup() } } else null,
@@ -1094,6 +1111,17 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                 onConfirm = { confirmDeleteSelected = false; vm.deleteSelected() }, onDismiss = { confirmDeleteSelected = false },
             )
         }
+    }
+    // Download: Save to this phone or the ZIP as before - gone with the selection.
+    val picking = st.selected.isNotEmpty()
+    LaunchedEffect(picking) { if (!picking) askDownload = false }
+    if (askDownload && picking) {
+        SaveToPhoneDialog(
+            st.selected.size,
+            onPhone = { askDownload = false; vm.saveSelectedToPhone(context) },
+            onZip = { askDownload = false; vm.downloadZip(context) },
+            onDismiss = { askDownload = false },
+        )
     }
     st.alert?.let {
         AlertDialog(
@@ -2145,6 +2173,8 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
     // before Favourites, its room kept until the device has said.
     val hearts = !st.favouritesOff
     val heart = st.items.getOrNull(idx)?.let { st.favourites[it.path] }
+    // Saved to this phone from here (State.savedToPhone): Save's check mark.
+    val saved = openItem != null && SaveToPhone.key(openItem.hash, openItem.path) in st.savedToPhone
     // Rating: inside a collection with Rating on (never Files', the map's or
     // a memory's viewer), the open photo's stars and comment - the stars
     // under the photo in portrait, a star in the side column in landscape;
@@ -2215,7 +2245,7 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                             Box(Modifier.align(Alignment.TopCenter).padding(top = 8.dp)) { ViewerCloseButton(vm) }
                             Column(Modifier.align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 ViewerActions(
-                                    st.saving, hearts, heart, onFavourite = vm::toggleFavourite,
+                                    st.saving, saved, hearts, heart, onFavourite = vm::toggleFavourite,
                                     onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { vm.saveToPhotos(context) }, onDelete = { confirmDelete = true },
                                 )
                             }
@@ -2231,7 +2261,7 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                         horizontalArrangement = Arrangement.spacedBy(actionsGap(width, if (hearts) 4 else 3), Alignment.CenterHorizontally),
                     ) {
                         ViewerActions(
-                            st.saving, hearts, heart, onFavourite = vm::toggleFavourite,
+                            st.saving, saved, hearts, heart, onFavourite = vm::toggleFavourite,
                             onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { vm.saveToPhotos(context) }, onDelete = { confirmDelete = true },
                         )
                     }
@@ -2458,21 +2488,27 @@ private fun ViewerCloseButton(vm: PhotoGalleryViewModel) {
 /**
  * Share, the heart, save and delete: a row under the photo in portrait, a
  * column beside it in landscape. [saving] (issue #201): the original is on
- * its way to the phone's library - Save spins, and waits. [hearts]: the
- * device has Favourites (or hasn't said) - the heart, [favourite] (null
- * until the device has said), tapped [onFavourite].
+ * its way to the phone's library - Save spins, and waits. [saved] (owner,
+ * 2026-11-13): the photo or video open is in the phone's library, saved
+ * from here - a check mark in Save's place, which does nothing more (no
+ * second copy). [hearts]: the device has Favourites (or hasn't said) - the
+ * heart, [favourite] (null until the device has said), tapped [onFavourite].
  */
 @Composable
 private fun ViewerActions(
-    saving: Boolean, hearts: Boolean, favourite: Boolean?, onFavourite: () -> Unit,
+    saving: Boolean, saved: Boolean, hearts: Boolean, favourite: Boolean?, onFavourite: () -> Unit,
     onShare: () -> Unit, onSave: () -> Unit, onDelete: () -> Unit,
 ) {
     IconButton(onClick = onShare) { Icon(Icons.Default.Share, S.commonShare().resolve(), tint = Color.White) }
     if (hearts) FavouriteButton(favourite, onFavourite)
-    if (saving) {
-        val label = S.appPhotosViewerSaving().resolve()
-        IconButton(onClick = {}, enabled = false, modifier = Modifier.semantics { contentDescription = label }) {
-            CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
+    if (saved || saving) {
+        // One button from the spinner to the check mark, a polite live
+        // region: TalkBack hears that it was saved. White as the others -
+        // the icon's own tint keeps a disabled button from greying it.
+        val label = (if (saved) S.androidPhotosViewerSaved() else S.appPhotosViewerSaving()).resolve()
+        IconButton(onClick = {}, enabled = false, modifier = Modifier.semantics { contentDescription = label; liveRegion = LiveRegionMode.Polite }) {
+            if (saved) Icon(Icons.Default.CheckCircle, null, tint = Color.White)
+            else CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
         }
     } else IconButton(onClick = onSave) { Icon(Icons.Default.ArrowCircleDown, S.commonSave().resolve(), tint = Color.White) }
     IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, S.commonDelete().resolve(), tint = Color.White) }
