@@ -27,11 +27,17 @@ const promoFiles = {
     });
   },
 };
+// index.html's Content-Security-Policy is for the built app the device serves; with it
+// the dev server's styles, injected inline, never apply (web/vite.config.ts drops it too).
+const withoutCSP = {
+  name: "promo-without-csp",
+  transformIndexHtml: (html) => html.replace(/\s*<meta http-equiv="Content-Security-Policy"[^>]*>/, ""),
+};
 const server = await createServer({
   configFile: false,
   root: WEB,
   cacheDir: join(tmpdir(), "otc-promo-vite"),
-  plugins: [react(), promoFiles],
+  plugins: [react(), promoFiles, withoutCSP],
   resolve: { alias: [{ find: /^(\.{1,2}\/)+(net\/)?useWS$/, replacement: join(here, "mock-device.ts") }] },
   server: { port: 5288, strictPort: true, host: "127.0.0.1", fs: { allow: [WEB, promo] }, hmr: false },
   logLevel: "info",

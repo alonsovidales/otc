@@ -6,11 +6,12 @@
 
 // What a signed-in browser would have stored: a live session token (restored
 // on load through authWithToken below), the Images tab, the feed's
-// notifications card put away.
+// notifications card put away, the first-run tour seen (any version).
 try {
   localStorage.setItem("otc_session_token", JSON.stringify({ token: "promo", expiresAtMs: Date.now() + 30 * 60 * 1000 }));
   localStorage.setItem("otc_last_tab", "PhotoGallery");
   localStorage.setItem("otc_push_card_dismissed", "1");
+  localStorage.setItem("otc_tour_seen", "999");
   localStorage.setItem("otc_menu_open", "1");
 } catch { /* not needed to render */ }
 
@@ -20,6 +21,15 @@ export class NewDevice extends Error {
     super("This device isn't set up yet.");
     this.isPrimary = isPrimary;
   }
+}
+
+// As the real module's: what a sign-in throws when the device can't reach its
+// storage (App.tsx waits longer before trying again). Never thrown here.
+export class StorageUnavailable extends Error {}
+
+// What a reload signs in with: the session token stored above.
+export function loadStoredSignIn(): string | null {
+  return "promo";
 }
 
 // The library, newest first: sample photo number and the day it was taken.
@@ -109,7 +119,10 @@ function UseWS() {
   const refreshSessionToken = async () => {};
   const passwordChanged = () => {};
   const ws = { connected: true, onMessage: () => {}, request: () => Promise.reject(new Error("promo")) };
-  return { connected, request, sendAuth, authWithToken, refreshSessionToken, passwordChanged, init, ws };
+  const signedIn = () => true;
+  // fn runs after each accepted sign-in; here there is one, straight away.
+  const onSignedIn = (fn: () => void) => { setTimeout(fn, 0); return () => {}; };
+  return { connected, signedIn, onSignedIn, request, sendAuth, authWithToken, refreshSessionToken, passwordChanged, init, ws };
 }
 
 export const useWS = UseWS();
