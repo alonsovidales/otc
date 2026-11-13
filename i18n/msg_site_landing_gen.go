@@ -4,7 +4,7 @@
 
 package i18n
 
-// SiteLandingContactBridgeText is site.landing.contact.bridge_text: "Want to reach your device, and your friends, from outside your home network? Cre…".
+// SiteLandingContactBridgeText is site.landing.contact.bridge_text: "To reach your device and friends away from home, create an account on the <signu…".
 func SiteLandingContactBridgeText() Rich {
 	return Rich{Key: "site.landing.contact.bridge_text"}
 }
@@ -34,7 +34,7 @@ func SiteLandingContactEyebrow() Msg {
 	return Msg{Key: "site.landing.contact.eyebrow"}
 }
 
-// SiteLandingContactLead is site.landing.contact.lead: "Send a message — whether it's a general question, help getting your device runni…".
+// SiteLandingContactLead is site.landing.contact.lead: "A question, help with setup or more addresses for your bridge account: send us a…".
 func SiteLandingContactLead() Msg {
 	return Msg{Key: "site.landing.contact.lead"}
 }
@@ -109,7 +109,7 @@ func SiteLandingContactSent() Msg {
 	return Msg{Key: "site.landing.contact.sent"}
 }
 
-// SiteLandingContactStatusText is site.landing.contact.status_text: "The device, the bridge and the web app work today, and so do the apps: iPhone an…".
+// SiteLandingContactStatusText is site.landing.contact.status_text: "Everything works today: the device, the bridge, the web app and the iPhone, Andr…".
 func SiteLandingContactStatusText() Msg {
 	return Msg{Key: "site.landing.contact.status_text"}
 }
@@ -129,7 +129,7 @@ func SiteLandingDesktopEyebrow() Msg {
 	return Msg{Key: "site.landing.desktop.eyebrow"}
 }
 
-// SiteLandingDesktopLead is site.landing.desktop.lead: "Back up folders from your computer, or keep them the same on both sides. The app…".
+// SiteLandingDesktopLead is site.landing.desktop.lead: "Back up your computer's folders, or keep them in sync both ways. The apps live i…".
 func SiteLandingDesktopLead() Msg {
 	return Msg{Key: "site.landing.desktop.lead"}
 }
@@ -154,12 +154,12 @@ func SiteLandingDesktopMacButton() Msg {
 	return Msg{Key: "site.landing.desktop.mac_button"}
 }
 
-// SiteLandingDesktopMacText is site.landing.desktop.mac_text: "A menu bar app with the same folders and sync rules, on the Mac App Store, which…".
+// SiteLandingDesktopMacText is site.landing.desktop.mac_text: "A menu bar app from the Mac App Store, which keeps it up to date.".
 func SiteLandingDesktopMacText() Msg {
 	return Msg{Key: "site.landing.desktop.mac_text"}
 }
 
-// SiteLandingDesktopSignedNote is site.landing.desktop.signed_note: "<b>Every update is signed.</b> On Windows and Linux the app only installs a new …".
+// SiteLandingDesktopSignedNote is site.landing.desktop.signed_note: "<b>Every update is signed</b> with the project's release key, the same one that …".
 func SiteLandingDesktopSignedNote() Rich {
 	return Rich{Key: "site.landing.desktop.signed_note"}
 }
@@ -169,7 +169,7 @@ func SiteLandingDesktopTitle() Msg {
 	return Msg{Key: "site.landing.desktop.title"}
 }
 
-// SiteLandingDesktopWindowsAlt is site.landing.desktop.windows_alt: "ARM PC? <winarm>Windows on ARM</winarm>. The app isn't code-signed yet, so Windo…".
+// SiteLandingDesktopWindowsAlt is site.landing.desktop.windows_alt: "ARM PC? <winarm>Windows on ARM</winarm>. If Windows warns you, choose <em>More i…".
 func SiteLandingDesktopWindowsAlt() Rich {
 	return Rich{Key: "site.landing.desktop.windows_alt"}
 }
@@ -179,7 +179,7 @@ func SiteLandingDesktopWindowsButton() Msg {
 	return Msg{Key: "site.landing.desktop.windows_button"}
 }
 
-// SiteLandingDesktopWindowsText is site.landing.desktop.windows_text: "Windows 10 or 11. Put the file somewhere permanent (not Downloads) and run it: i…".
+// SiteLandingDesktopWindowsText is site.landing.desktop.windows_text: "Windows 10 or 11. Keep the file somewhere permanent (not Downloads) and run it: …".
 func SiteLandingDesktopWindowsText() Msg {
 	return Msg{Key: "site.landing.desktop.windows_text"}
 }
@@ -994,7 +994,7 @@ func SiteLandingGlanceFilesLabel() Msg {
 	return Msg{Key: "site.landing.glance.files.label"}
 }
 
-// SiteLandingGlanceFilesValue is site.landing.glance.files.value: "A NAS: folders kept in sync with Mac, Windows and Linux computers or backed up, …".
+// SiteLandingGlanceFilesValue is site.landing.glance.files.value: "Folders synced or backed up from Mac, Windows and Linux, upload-only folders tha…".
 func SiteLandingGlanceFilesValue() Msg {
 	return Msg{Key: "site.landing.glance.files.value"}
 }
@@ -1004,7 +1004,7 @@ func SiteLandingGlanceHardwareLabel() Msg {
 	return Msg{Key: "site.landing.glance.hardware.label"}
 }
 
-// SiteLandingGlanceHardwareValue is site.landing.glance.hardware.value: "A Raspberry Pi 5 with 8 GB (4 GB with tagging as an option, 2 GB for one person)…".
+// SiteLandingGlanceHardwareValue is site.landing.glance.hardware.value: "A Raspberry Pi 5 with 8 GB (4 GB and 2 GB work too), or any 64-bit Debian or Ubu…".
 func SiteLandingGlanceHardwareValue() Msg {
 	return Msg{Key: "site.landing.glance.hardware.value"}
 }
@@ -1014,7 +1014,7 @@ func SiteLandingGlanceInsteadLabel() Msg {
 	return Msg{Key: "site.landing.glance.instead.label"}
 }
 
-// SiteLandingGlanceInsteadValue is site.landing.glance.instead.value: "Instagram, Facebook or a family WhatsApp group for sharing photos; Google Photos…".
+// SiteLandingGlanceInsteadValue is site.landing.glance.instead.value: "Instagram, Facebook or a family WhatsApp group; Google Photos or iCloud Photos; …".
 func SiteLandingGlanceInsteadValue() Msg {
 	return Msg{Key: "site.landing.glance.instead.value"}
 }
@@ -1054,7 +1054,7 @@ func SiteLandingGlanceSocialLabel() Msg {
 	return Msg{Key: "site.landing.glance.social.label"}
 }
 
-// SiteLandingGlanceSocialValue is site.landing.glance.social.value: "Posts with photos and videos, comments, likes and notifications, only for the fr…".
+// SiteLandingGlanceSocialValue is site.landing.glance.social.value: "Photo and video posts, comments and likes, only for the friends you accept; newe…".
 func SiteLandingGlanceSocialValue() Msg {
 	return Msg{Key: "site.landing.glance.social.value"}
 }
@@ -1064,7 +1064,7 @@ func SiteLandingGlanceStorageLabel() Msg {
 	return Msg{Key: "site.landing.glance.storage.label"}
 }
 
-// SiteLandingGlanceStorageValue is site.landing.glance.storage.value: "Two USB drives mirrored as RAID-1, each with a full copy: sticks, SSDs, hard dis…".
+// SiteLandingGlanceStorageValue is site.landing.glance.storage.value: "Two USB drives mirrored as RAID-1: sticks, SSDs, hard disks or microSD cards in …".
 func SiteLandingGlanceStorageValue() Msg {
 	return Msg{Key: "site.landing.glance.storage.value"}
 }
@@ -1079,7 +1079,7 @@ func SiteLandingGlanceWhatLabel() Msg {
 	return Msg{Key: "site.landing.glance.what.label"}
 }
 
-// SiteLandingGlanceWhatValue is site.landing.glance.what.value: "A private social network for family and friends, and a home server (NAS) for you…".
+// SiteLandingGlanceWhatValue is site.landing.glance.what.value: "A private social network for family and friends, and a home NAS for your photos,…".
 func SiteLandingGlanceWhatValue() Msg {
 	return Msg{Key: "site.landing.glance.what.value"}
 }
@@ -1089,12 +1089,12 @@ func SiteLandingHeroDemo() Msg {
 	return Msg{Key: "site.landing.hero.demo"}
 }
 
-// SiteLandingHeroDemoNote is site.landing.hero.demo_note: "Look around a real device with a made-up family's photos and files. No sign-up.".
+// SiteLandingHeroDemoNote is site.landing.hero.demo_note: "A real device with a made-up family's photos and files. No sign-up.".
 func SiteLandingHeroDemoNote() Msg {
 	return Msg{Key: "site.landing.hero.demo_note"}
 }
 
-// SiteLandingHeroLead is site.landing.hero.lead: "Off The Cloud is a private social network for your family and friends, and a hom…".
+// SiteLandingHeroLead is site.landing.hero.lead: "A private social network for your family and friends, home for your photos and f…".
 func SiteLandingHeroLead() Msg {
 	return Msg{Key: "site.landing.hero.lead"}
 }
@@ -1119,32 +1119,32 @@ func SiteLandingHeroTitle2() Rich {
 	return Rich{Key: "site.landing.hero.title_2"}
 }
 
-// SiteLandingInstallAppIntro is site.landing.install.app_intro: "The easiest way: the app downloads the image and checks its signature, writes th…".
+// SiteLandingInstallAppIntro is site.landing.install.app_intro: "The easiest way: the app makes the card and guides you through each step.".
 func SiteLandingInstallAppIntro() Msg {
 	return Msg{Key: "site.landing.install.app_intro"}
 }
 
-// SiteLandingInstallAppMore is site.landing.install.app_more: "ARM versions, and first-run tips for Windows and Linux, are in the <download>dow…".
+// SiteLandingInstallAppMore is site.landing.install.app_more: "ARM versions and first-run tips are in the <download>download section</download>…".
 func SiteLandingInstallAppMore() Rich {
 	return Rich{Key: "site.landing.install.app_more"}
 }
 
-// SiteLandingInstallAppStepCard is site.landing.install.app_step_card: "<b>Make the card.</b> The app downloads the image and checks it against the proj…".
+// SiteLandingInstallAppStepCard is site.landing.install.app_step_card: "<b>Make the card.</b> The app downloads the image, checks its signature and writ…".
 func SiteLandingInstallAppStepCard() Rich {
 	return Rich{Key: "site.landing.install.app_step_card"}
 }
 
-// SiteLandingInstallAppStepOpen is site.landing.install.app_step_open: "<b>Install the app</b> and choose <b>Set Up a New Device…</b>: in the Mac app's …".
+// SiteLandingInstallAppStepOpen is site.landing.install.app_step_open: "<b>Install the app</b> and choose <b>Set Up a New Device…</b>, in the Mac app's …".
 func SiteLandingInstallAppStepOpen() Rich {
 	return Rich{Key: "site.landing.install.app_step_open"}
 }
 
-// SiteLandingInstallAppStepSetup is site.landing.install.app_step_setup: "<b>Finish the setup</b> over Bluetooth. On a Mac, right in the app: <b>On this M…".
+// SiteLandingInstallAppStepSetup is site.landing.install.app_step_setup: "<b>Finish the setup</b> over Bluetooth: on a Mac in the app (<b>On this Mac</b>)…".
 func SiteLandingInstallAppStepSetup() Rich {
 	return Rich{Key: "site.landing.install.app_step_setup"}
 }
 
-// SiteLandingInstallBridgeLink is site.landing.install.bridge_link: "Want to reach it from outside your home network? Create an account for the bridg…".
+// SiteLandingInstallBridgeLink is site.landing.install.bridge_link: "Reach it away from home: create a bridge account →".
 func SiteLandingInstallBridgeLink() Msg {
 	return Msg{Key: "site.landing.install.bridge_link"}
 }
@@ -1174,7 +1174,7 @@ func SiteLandingInstallDownload() Msg {
 	return Msg{Key: "site.landing.install.download"}
 }
 
-// SiteLandingInstallImageNote is site.landing.install.image_note: "The image only carries the setup wizard: it installs the current release, so it …".
+// SiteLandingInstallImageNote is site.landing.install.image_note: "The image installs the current release, so it never goes out of date. Checksum: …".
 func SiteLandingInstallImageNote() Rich {
 	return Rich{Key: "site.landing.install.image_note"}
 }
@@ -1189,37 +1189,37 @@ func SiteLandingInstallRecommended() Msg {
 	return Msg{Key: "site.landing.install.recommended"}
 }
 
-// SiteLandingInstallRequirements is site.landing.install.requirements: "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a microSD card for the sy…".
+// SiteLandingInstallRequirements is site.landing.install.requirements: "You need a <b>Raspberry Pi 5 with 8 GB of RAM</b>, a microSD card and, optionall…".
 func SiteLandingInstallRequirements() Rich {
 	return Rich{Key: "site.landing.install.requirements"}
 }
 
-// SiteLandingInstallScriptIntro is site.landing.install.script_intro: "One command on any machine you can already log into: Ubuntu, Debian, Raspberry P…".
+// SiteLandingInstallScriptIntro is site.landing.install.script_intro: "One command on any 64-bit Ubuntu, Debian or Raspberry Pi OS machine you can log …".
 func SiteLandingInstallScriptIntro() Msg {
 	return Msg{Key: "site.landing.install.script_intro"}
 }
 
-// SiteLandingInstallScriptNote is site.landing.install.script_note: "It installs everything and builds the software from source, then starts the serv…".
+// SiteLandingInstallScriptNote is site.landing.install.script_note: "It builds the software from source and starts the service at <code>{address}</co…".
 func SiteLandingInstallScriptNote(address string) Rich {
 	return Rich{Key: "site.landing.install.script_note", Args: map[string]any{"address": address}}
 }
 
-// SiteLandingInstallStepFlash is site.landing.install.step_flash: "<b>Flash it</b> to the microSD card with <imager>Raspberry Pi Imager</imager>: \"…".
+// SiteLandingInstallStepFlash is site.landing.install.step_flash: "<b>Flash it</b> to the microSD card with <imager>Raspberry Pi Imager</imager> (\"…".
 func SiteLandingInstallStepFlash() Rich {
 	return Rich{Key: "site.landing.install.step_flash"}
 }
 
-// SiteLandingInstallStepPlug is site.landing.install.step_plug: "<b>Plug in</b> the disks (into the two blue USB ports), insert the card and powe…".
+// SiteLandingInstallStepPlug is site.landing.install.step_plug: "<b>Plug in</b> the disks (two blue USB ports), insert the card and power on. Aft…".
 func SiteLandingInstallStepPlug() Rich {
 	return Rich{Key: "site.landing.install.step_plug"}
 }
 
-// SiteLandingInstallStepSetup is site.landing.install.step_setup: "<b>Set it up from your phone</b> with the app (iOS or Android): on the welcome s…".
+// SiteLandingInstallStepSetup is site.landing.install.step_setup: "<b>Set it up from your phone</b>: in the iOS or Android app, tap <b>Set up a new…".
 func SiteLandingInstallStepSetup() Rich {
 	return Rich{Key: "site.landing.install.step_setup"}
 }
 
-// SiteLandingInstallStepSignin is site.landing.install.step_signin: "<b>Sign in</b> when it's done: the app connects to the new device by itself with…".
+// SiteLandingInstallStepSignin is site.landing.install.step_signin: "<b>Sign in</b>: the app connects to the device by itself, or open <code>{address…".
 func SiteLandingInstallStepSignin(address string) Rich {
 	return Rich{Key: "site.landing.install.step_signin", Args: map[string]any{"address": address}}
 }
@@ -1324,7 +1324,7 @@ func SiteLandingPhoneAndroidButton() Msg {
 	return Msg{Key: "site.landing.phone.android_button"}
 }
 
-// SiteLandingPhoneAndroidText is site.landing.phone.android_text: "The same app for Android phones and tablets: photo backup, your device's files a…".
+// SiteLandingPhoneAndroidText is site.landing.phone.android_text: "The same for Android phones and tablets: photo backup, your photos and files, an…".
 func SiteLandingPhoneAndroidText() Msg {
 	return Msg{Key: "site.landing.phone.android_text"}
 }
@@ -1339,7 +1339,7 @@ func SiteLandingPhoneIosButton() Msg {
 	return Msg{Key: "site.landing.phone.ios_button"}
 }
 
-// SiteLandingPhoneIosText is site.landing.phone.ios_text: "Backs up your photo library, iCloud photos included, and shows your device's pho…".
+// SiteLandingPhoneIosText is site.landing.phone.ios_text: "Backs up your library, iCloud photos included, and shows your photos, files and …".
 func SiteLandingPhoneIosText() Msg {
 	return Msg{Key: "site.landing.phone.ios_text"}
 }
@@ -1349,7 +1349,7 @@ func SiteLandingPhoneIosTitle() Msg {
 	return Msg{Key: "site.landing.phone.ios_title"}
 }
 
-// SiteLandingPhoneLead is site.landing.phone.lead: "Post for your friends and see their posts, back up your photos and videos as you…".
+// SiteLandingPhoneLead is site.landing.phone.lead: "Post for your friends and see their posts, back up photos as you take them, and …".
 func SiteLandingPhoneLead() Msg {
 	return Msg{Key: "site.landing.phone.lead"}
 }
@@ -1364,7 +1364,7 @@ func SiteLandingPrintableCloudAlt() Msg {
 	return Msg{Key: "site.landing.printable.cloud.alt"}
 }
 
-// SiteLandingPrintableCloudText is site.landing.printable.cloud.text: "For a shelf or a desk: a cloud with Off The Cloud on its lid, a grille over the …".
+// SiteLandingPrintableCloudText is site.landing.printable.cloud.text: "For a shelf or desk: a cloud with a grille over the fan and the two status light…".
 func SiteLandingPrintableCloudText() Msg {
 	return Msg{Key: "site.landing.printable.cloud.text"}
 }
@@ -1384,12 +1384,12 @@ func SiteLandingPrintableFiles() Msg {
 	return Msg{Key: "site.landing.printable.files"}
 }
 
-// SiteLandingPrintableLead is site.landing.printable.lead: "Two cases to print at home, for the Raspberry Pi 5 with a GeeekPi Armor Lite V5 …".
+// SiteLandingPrintableLead is site.landing.printable.lead: "Two cases to print at home for a Raspberry Pi 5 with a GeeekPi Armor Lite V5 coo…".
 func SiteLandingPrintableLead() Msg {
 	return Msg{Key: "site.landing.printable.lead"}
 }
 
-// SiteLandingPrintableLicence is site.landing.printable.licence: "Both are under the <cclicence>CC BY-SA 4.0</cclicence> licence: credit Off The C…".
+// SiteLandingPrintableLicence is site.landing.printable.licence: "Licence: <cclicence>CC BY-SA 4.0</cclicence>. Credit Off The Cloud and share wha…".
 func SiteLandingPrintableLicence() Rich {
 	return Rich{Key: "site.landing.printable.licence"}
 }
@@ -1399,7 +1399,7 @@ func SiteLandingPrintableScreenAlt() Msg {
 	return Msg{Key: "site.landing.printable.screen.alt"}
 }
 
-// SiteLandingPrintableScreenText is site.landing.printable.screen.text: "For the wall: it screws onto the back of a portable screen with four M2.5 holes …".
+// SiteLandingPrintableScreenText is site.landing.printable.screen.text: "For the wall: it screws onto the back of a portable screen with M2.5 holes in a …".
 func SiteLandingPrintableScreenText() Msg {
 	return Msg{Key: "site.landing.printable.screen.text"}
 }
@@ -1519,12 +1519,12 @@ func SiteLandingStartedEyebrow() Msg {
 	return Msg{Key: "site.landing.started.eyebrow"}
 }
 
-// SiteLandingStartedLead is site.landing.started.lead: "All three ways end in the same place: the computer app puts the Raspberry Pi 5 i…".
+// SiteLandingStartedLead is site.landing.started.lead: "All three ways end here: the image runs this script for you, after asking for yo…".
 func SiteLandingStartedLead() Msg {
 	return Msg{Key: "site.landing.started.lead"}
 }
 
-// SiteLandingStartedNote is site.landing.started.note: "<b>Starting from scratch on a Raspberry Pi 5?</b> Use the <install>Raspberry Pi …".
+// SiteLandingStartedNote is site.landing.started.note: "<b>New Raspberry Pi 5?</b> Use the <install>Raspberry Pi 5 image</install>: it e…".
 func SiteLandingStartedNote() Rich {
 	return Rich{Key: "site.landing.started.note"}
 }
@@ -1539,7 +1539,7 @@ func SiteLandingStartedStep1Title() Msg {
 	return Msg{Key: "site.landing.started.step1_title"}
 }
 
-// SiteLandingStartedStep2Text is site.landing.started.step2_text: "This names the device, e.g. <code>pit</code> for <code>pit.off-the.cloud</code> …".
+// SiteLandingStartedStep2Text is site.landing.started.step2_text: "The device's name, e.g. <code>pit</code> for <code>pit.off-the.cloud</code>: the…".
 func SiteLandingStartedStep2Text() Rich {
 	return Rich{Key: "site.landing.started.step2_text"}
 }
@@ -1549,7 +1549,7 @@ func SiteLandingStartedStep2Title() Msg {
 	return Msg{Key: "site.landing.started.step2_title"}
 }
 
-// SiteLandingStartedStep3Text is site.landing.started.step3_text: "Open the web, iOS, Android, macOS, Windows or Linux client, point it at your sub…".
+// SiteLandingStartedStep3Text is site.landing.started.step3_text: "Open any of the apps, point it at your address and start backing up.".
 func SiteLandingStartedStep3Text() Msg {
 	return Msg{Key: "site.landing.started.step3_text"}
 }
@@ -1564,7 +1564,7 @@ func SiteLandingStartedTitle() Msg {
 	return Msg{Key: "site.landing.started.title"}
 }
 
-// SiteLandingWhatDecentralText is site.landing.what.decentral_text: "Every family's posts live on its own device, and friends' devices fetch them fro…".
+// SiteLandingWhatDecentralText is site.landing.what.decentral_text: "Each family's posts live on its own device, and friends' devices fetch them from…".
 func SiteLandingWhatDecentralText() Msg {
 	return Msg{Key: "site.landing.what.decentral_text"}
 }
@@ -1574,7 +1574,7 @@ func SiteLandingWhatDecentralTitle() Msg {
 	return Msg{Key: "site.landing.what.decentral_title"}
 }
 
-// SiteLandingWhatDesktopText is site.landing.what.desktop_text: "macOS, Windows and Linux apps that keep chosen folders on your computer in two-w…".
+// SiteLandingWhatDesktopText is site.landing.what.desktop_text: "Mac, Windows and Linux apps that keep your folders in sync with the device.".
 func SiteLandingWhatDesktopText() Msg {
 	return Msg{Key: "site.landing.what.desktop_text"}
 }
@@ -1584,7 +1584,7 @@ func SiteLandingWhatDesktopTitle() Msg {
 	return Msg{Key: "site.landing.what.desktop_title"}
 }
 
-// SiteLandingWhatDeviceText is site.landing.what.device_text: "A Raspberry Pi 5 with a microSD card for the system and two USB drives mirrored …".
+// SiteLandingWhatDeviceText is site.landing.what.device_text: "A Raspberry Pi 5 with two mirrored USB drives, keeping your originals as they ar…".
 func SiteLandingWhatDeviceText() Msg {
 	return Msg{Key: "site.landing.what.device_text"}
 }
@@ -1599,7 +1599,7 @@ func SiteLandingWhatEyebrow() Msg {
 	return Msg{Key: "site.landing.what.eyebrow"}
 }
 
-// SiteLandingWhatFamilyText is site.landing.what.family_text: "Give everyone at home their own account on the same device — their own photo bac…".
+// SiteLandingWhatFamilyText is site.landing.what.family_text: "Everyone at home gets their own account, backup and password. Each account is en…".
 func SiteLandingWhatFamilyText() Msg {
 	return Msg{Key: "site.landing.what.family_text"}
 }
@@ -1609,7 +1609,7 @@ func SiteLandingWhatFamilyTitle() Msg {
 	return Msg{Key: "site.landing.what.family_title"}
 }
 
-// SiteLandingWhatFastText is site.landing.what.fast_text: "At home the apps talk straight to the device over your own network, so a whole h…".
+// SiteLandingWhatFastText is site.landing.what.fast_text: "At home the apps talk straight to the device, so a whole holiday's photos back u…".
 func SiteLandingWhatFastText() Msg {
 	return Msg{Key: "site.landing.what.fast_text"}
 }
@@ -1619,7 +1619,7 @@ func SiteLandingWhatFastTitle() Msg {
 	return Msg{Key: "site.landing.what.fast_title"}
 }
 
-// SiteLandingWhatFeedText is site.landing.what.feed_text: "Post photos and videos for your family and friends, with captions, comments, lik…".
+// SiteLandingWhatFeedText is site.landing.what.feed_text: "Share photos and videos with captions, comments and likes. Only the friends you …".
 func SiteLandingWhatFeedText() Msg {
 	return Msg{Key: "site.landing.what.feed_text"}
 }
@@ -1629,7 +1629,7 @@ func SiteLandingWhatFeedTitle() Msg {
 	return Msg{Key: "site.landing.what.feed_title"}
 }
 
-// SiteLandingWhatFilesText is site.landing.what.files_text: "Keep folders from every computer in two-way sync or backed up, open and share th…".
+// SiteLandingWhatFilesText is site.landing.what.files_text: "Sync or back up folders from every computer, open and share them from your phone…".
 func SiteLandingWhatFilesText() Msg {
 	return Msg{Key: "site.landing.what.files_text"}
 }
@@ -1639,12 +1639,12 @@ func SiteLandingWhatFilesTitle() Msg {
 	return Msg{Key: "site.landing.what.files_title"}
 }
 
-// SiteLandingWhatLead is site.landing.what.lead: "One small device in your home keeps your family's posts, photos and files. Apps …".
+// SiteLandingWhatLead is site.landing.what.lead: "One small device at home keeps your family's posts, photos and files, with apps …".
 func SiteLandingWhatLead() Msg {
 	return Msg{Key: "site.landing.what.lead"}
 }
 
-// SiteLandingWhatMobileText is site.landing.what.mobile_text: "iOS and Android apps for your social feed, notifications and photo backup: they …".
+// SiteLandingWhatMobileText is site.landing.what.mobile_text: "iOS and Android apps for your feed, notifications and full-resolution photo back…".
 func SiteLandingWhatMobileText() Msg {
 	return Msg{Key: "site.landing.what.mobile_text"}
 }
@@ -1654,7 +1654,7 @@ func SiteLandingWhatMobileTitle() Msg {
 	return Msg{Key: "site.landing.what.mobile_title"}
 }
 
-// SiteLandingWhatPhotosText is site.landing.what.photos_text: "The phone apps back up every photo and video in the background, as the original,…".
+// SiteLandingWhatPhotosText is site.landing.what.photos_text: "Phones back up every photo and video in the background, in full quality, with no…".
 func SiteLandingWhatPhotosText() Msg {
 	return Msg{Key: "site.landing.what.photos_text"}
 }
@@ -1664,7 +1664,7 @@ func SiteLandingWhatPhotosTitle() Msg {
 	return Msg{Key: "site.landing.what.photos_title"}
 }
 
-// SiteLandingWhatSearchText is site.landing.what.search_text: "Every photo is auto-tagged locally on the device, so you can search \"beach\" or \"…".
+// SiteLandingWhatSearchText is site.landing.what.search_text: "Photos are tagged on the device, so you can search \"beach\" or \"dog\". Nothing is …".
 func SiteLandingWhatSearchText() Msg {
 	return Msg{Key: "site.landing.what.search_text"}
 }
@@ -1674,7 +1674,7 @@ func SiteLandingWhatSearchTitle() Msg {
 	return Msg{Key: "site.landing.what.search_title"}
 }
 
-// SiteLandingWhatShareText is site.landing.what.share_text: "Send a collection of photos to anyone as a link that expires. They open it in th…".
+// SiteLandingWhatShareText is site.landing.what.share_text: "Send anyone a link that expires. They open it in their browser, with no account …".
 func SiteLandingWhatShareText() Msg {
 	return Msg{Key: "site.landing.what.share_text"}
 }
@@ -1689,7 +1689,7 @@ func SiteLandingWhatTitle() Msg {
 	return Msg{Key: "site.landing.what.title"}
 }
 
-// SiteLandingWhatWebText is site.landing.what.web_text: "Everything above, from any browser — sign in with just your password, no app ins…".
+// SiteLandingWhatWebText is site.landing.what.web_text: "Everything above, in any browser, with just your password.".
 func SiteLandingWhatWebText() Msg {
 	return Msg{Key: "site.landing.what.web_text"}
 }

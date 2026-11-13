@@ -1,6 +1,6 @@
 {
   "site.landing.contact.bridge_text": {
-    "text": "Want to reach your device, and your friends, from outside your home network? Create an account on the <signup>account page</signup> or in your device's setup, and choose your address yourself. Need more than five addresses? Write to us with this form.",
+    "text": "To reach your device and friends away from home, create an account on the <signup>account page</signup> or in your device's setup and choose your address. Need more than five addresses? Use this form.",
     "note": "Website landing page, contact section: text of the bridge access card. <signup> links to the account page's sign-up form.",
     "rich": ["signup"]
   },
@@ -30,7 +30,7 @@
     "max": 30
   },
   "site.landing.contact.lead": {
-    "text": "Send a message — whether it's a general question, help getting your device running, or more addresses for your bridge account.",
+    "text": "A question, help with setup or more addresses for your bridge account: send us a message.",
     "note": "Website landing page: the paragraph under the contact heading."
   },
   "site.landing.contact.message": {
@@ -101,7 +101,7 @@
     "note": "Website landing page, contact form: confirmation shown under the form once the message was sent."
   },
   "site.landing.contact.status_text": {
-    "text": "The device, the bridge and the web app work today, and so do the apps: iPhone and Android, the Mac app, and otc-sync for Windows and Linux.",
+    "text": "Everything works today: the device, the bridge, the web app and the iPhone, Android, Mac, Windows and Linux apps.",
     "note": "Website landing page, contact section: text of the card saying which parts work today. otc-sync is the name of the Windows and Linux app: keep it."
   },
   "site.landing.contact.status_title": {
@@ -120,7 +120,7 @@
     "max": 30
   },
   "site.landing.desktop.lead": {
-    "text": "Back up folders from your computer, or keep them the same on both sides. The apps sit in the menu bar or tray; the Mac App Store keeps the Mac app up to date, and on Windows and Linux one click installs a new version.",
+    "text": "Back up your computer's folders, or keep them in sync both ways. The apps live in the menu bar or tray and stay up to date.",
     "note": "Website landing page: the paragraph under the computer apps heading. The tray: the notification area of Windows and Linux desktops."
   },
   "site.landing.desktop.linux_alt": {
@@ -143,15 +143,15 @@
     "max": 36
   },
   "site.landing.desktop.mac_text": {
-    "text": "A menu bar app with the same folders and sync rules, on the Mac App Store, which keeps it up to date for you.",
+    "text": "A menu bar app from the Mac App Store, which keeps it up to date.",
     "note": "Website landing page: text of the macOS download card."
   },
   "site.landing.desktop.signed_note": {
-    "text": "<b>Every update is signed.</b> On Windows and Linux the app only installs a new version after checking its signature against the project's release key, the same key that signs the device updates. The source is on <github>GitHub</github>, and every file is listed on the <release>desktop release</release>.",
+    "text": "<b>Every update is signed</b> with the project's release key, the same one that signs device updates, and checked before it installs. Source on <github>GitHub</github>, files on the <release>desktop release</release>.",
     "note": "Website landing page: the note box under the computer apps. <b> is bold; <github> links to the project on GitHub; <release> links to the GitHub page listing the computer apps' files. A security statement: keep its meaning exact. It is about the Windows and Linux app, which updates itself; the Mac App Store updates the Mac app.",
     "rich": ["b", "github", "release"],
     "review": "required",
-    "reviewed": "claude-backtranslation 2026-10-27 #3424ff89"
+    "reviewed": "claude-backtranslation 2026-11-13 #1c846ad9"
   },
   "site.landing.desktop.title": {
     "text": "Keep your folders in sync",
@@ -159,7 +159,7 @@
     "max": 50
   },
   "site.landing.desktop.windows_alt": {
-    "text": "ARM PC? <winarm>Windows on ARM</winarm>. The app isn't code-signed yet, so Windows may warn you: choose <em>More info → Run anyway</em>.",
+    "text": "ARM PC? <winarm>Windows on ARM</winarm>. If Windows warns you, choose <em>More info → Run anyway</em>.",
     "note": "Website landing page: small print under the Windows download button. <winarm> is a link that downloads the version for ARM processors. <em> marks the two Windows buttons to press in the warning (More info, then Run anyway): use their names in your language's Windows.",
     "rich": ["winarm", "em"]
   },
@@ -169,7 +169,7 @@
     "max": 30
   },
   "site.landing.desktop.windows_text": {
-    "text": "Windows 10 or 11. Put the file somewhere permanent (not Downloads) and run it: it appears in the tray, and can start at login if you choose.",
+    "text": "Windows 10 or 11. Keep the file somewhere permanent (not Downloads) and run it: it lives in the tray.",
     "note": "Website landing page: text of the Windows download card. Downloads is the Windows folder of that name: use its name in your language's Windows. The tray: the notification area at the end of the taskbar."
   },
   "site.landing.download.your_system": {
@@ -978,7 +978,7 @@
     "max": 30
   },
   "site.landing.glance.files.value": {
-    "text": "A NAS: folders kept in sync with Mac, Windows and Linux computers or backed up, upload-only folders that keep earlier versions, and share links",
+    "text": "Folders synced or backed up from Mac, Windows and Linux, upload-only folders that keep earlier versions, and share links",
     "note": "Website landing page, At a glance: storing files. NAS: a storage device on the home network. Upload-only folders: folders nothing can be deleted from; a file uploaded again under the same name keeps its earlier version. Share links: links that let someone download files. Short phrases, no final full stop: it sits next to its label.",
     "max": 170
   },
@@ -988,7 +988,7 @@
     "max": 24
   },
   "site.landing.glance.hardware.value": {
-    "text": "A Raspberry Pi 5 with 8 GB (4 GB with tagging as an option, 2 GB for one person), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu",
+    "text": "A Raspberry Pi 5 with 8 GB (4 GB and 2 GB work too), or any 64-bit Debian or Ubuntu machine",
     "note": "Website landing page, At a glance (a short list of facts right under the top of the page): the hardware. 8 GB and 4 GB are the Pi's memory (RAM). Tagging: photo tagging, a setting in the apps (Image Tagging), which a Pi with 4 GB has as an option it starts without: use the apps' word in your language. Intel/AMD or ARM: the two kinds of processor the install script supports. A machine: a PC, mini PC or board. Short phrases, no final full stop: it sits next to its label.",
     "max": 160
   },
@@ -998,7 +998,7 @@
     "max": 24
   },
   "site.landing.glance.instead.value": {
-    "text": "Instagram, Facebook or a family WhatsApp group for sharing photos; Google Photos or iCloud Photos for backup; Google Drive, Dropbox, iCloud Drive or Proton Drive for files",
+    "text": "Instagram, Facebook or a family WhatsApp group; Google Photos or iCloud Photos; Google Drive, Dropbox, iCloud Drive or Proton Drive",
     "note": "Website landing page, At a glance (a short list of facts right under the top of the page): the services it replaces. A family WhatsApp group: a group chat that a family uses to share photos. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French). iCloud Photos is Apple's own name for it in your language. Instagram, Facebook, WhatsApp, Google Drive, Dropbox, iCloud Drive and Proton Drive are product names: use the names the companies use in your language. Short phrases, no final full stop: it sits next to its label.",
     "max": 200
   },
@@ -1042,7 +1042,7 @@
     "max": 30
   },
   "site.landing.glance.social.value": {
-    "text": "Posts with photos and videos, comments, likes and notifications, only for the friends you accept, from device to device; newest first, no ads",
+    "text": "Photo and video posts, comments and likes, only for the friends you accept; newest first, no ads",
     "note": "Website landing page, At a glance: the private social network. From device to device: each family's own device shares its posts with its friends' devices, with no company's server keeping them. Newest first: posts are in date order, nothing ranks them. Short phrases, no final full stop: it sits next to its label.",
     "max": 170
   },
@@ -1052,7 +1052,7 @@
     "max": 24
   },
   "site.landing.glance.storage.value": {
-    "text": "Two USB drives mirrored as RAID-1, each with a full copy: sticks, SSDs, hard disks or microSD cards in USB readers",
+    "text": "Two USB drives mirrored as RAID-1: sticks, SSDs, hard disks or microSD cards in USB readers",
     "note": "Website landing page, At a glance (a short list of facts right under the top of the page): the storage. RAID-1: the two drives keep the same files. Sticks: USB memory sticks (pendrives). Short phrases, no final full stop: it sits next to its label.",
     "max": 160
   },
@@ -1067,7 +1067,7 @@
     "max": 24
   },
   "site.landing.glance.what.value": {
-    "text": "A private social network for family and friends, and a home server (NAS) for your photos, videos and files, with its own apps",
+    "text": "A private social network for family and friends, and a home NAS for your photos, videos and files",
     "note": "Website landing page, At a glance (a short list of facts right under the top of the page): what the product is. Home server (NAS): a storage device on the home network; keep NAS if your language uses it. Short phrases, no final full stop: it sits next to its label.",
     "max": 160
   },
@@ -1077,11 +1077,11 @@
     "max": 24
   },
   "site.landing.hero.demo_note": {
-    "text": "Look around a real device with a made-up family's photos and files. No sign-up.",
+    "text": "A real device with a made-up family's photos and files. No sign-up.",
     "note": "Line beside the Try the demo button (site.landing.hero.demo) on the home page. The family in the demo is made up."
   },
   "site.landing.hero.lead": {
-    "text": "Off The Cloud is a private social network for your family and friends, and a home for your photos and files, on a small device you own. Post photos and videos, comment and like, with no ads, no algorithm and no strangers: your posts stay on your device and go only to the devices of friends you accept, never stored on a company's servers. The same device backs up everyone's phones in full resolution and keeps your computers' folders in sync, so it takes the place of Instagram, Google Photos, iCloud, Google Drive and Dropbox at once. It's free, open-source software for a Raspberry Pi 5, set up from your phone.",
+    "text": "A private social network for your family and friends, home for your photos and files, on a small device you own. No ads, no algorithm, no strangers: your posts stay at home and go only to the friends you accept. It backs up everyone's phones in full resolution and keeps your computers' folders in sync, instead of Instagram, Google Photos, iCloud, Google Drive and Dropbox. Free and open source, on a Raspberry Pi 5 you set up from your phone.",
     "note": "Website landing page: the paragraph under the main headline, summing up the product. Its first sentence is the definition search engines and AI assistants quote: keep it one plain sentence that says what the product is. Private social network: posts shared only with people you accept, the way your language usually says it. No algorithm: nothing chooses or ranks what you see. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French). Instagram, Facebook, WhatsApp, Google Drive, Dropbox, iCloud Drive and Proton Drive are product names: use the names the companies use in your language."
   },
   "site.landing.hero.photo_alt": {
@@ -1105,31 +1105,31 @@
     "rich": ["em"]
   },
   "site.landing.install.app_intro": {
-    "text": "The easiest way: the app downloads the image and checks its signature, writes the card itself on Windows and Linux, and guides you through each step.",
+    "text": "The easiest way: the app makes the card and guides you through each step.",
     "note": "Website landing page, computer app tab: the sentence at the top of the tab. The image is the device's system image; its signature is the project's release signature, checked before the image is used. On a Mac the card is written by Raspberry Pi Imager, which is why only Windows and Linux are named."
   },
   "site.landing.install.app_more": {
-    "text": "ARM versions, and first-run tips for Windows and Linux, are in the <download>download section</download>.",
+    "text": "ARM versions and first-run tips are in the <download>download section</download>.",
     "note": "Website landing page, computer app tab: small print under the three download buttons. <download> links to the page's section with the computer apps' downloads (the versions for ARM processors, the Windows warning to expect and the Linux install command are there).",
     "rich": ["download"]
   },
   "site.landing.install.app_step_card": {
-    "text": "<b>Make the card.</b> The app downloads the image and checks it against the project's signature. On Windows and Linux it then writes it to a microSD card of 8 GB or more, after asking for administrator permission; on a Mac it opens <imager>Raspberry Pi Imager</imager> to write the card and tells you what to choose there.",
+    "text": "<b>Make the card.</b> The app downloads the image, checks its signature and writes it to a microSD card of 8 GB or more. On a Mac it opens <imager>Raspberry Pi Imager</imager> for this and tells you what to choose.",
     "note": "Website landing page, computer app tab: step 2 of a numbered list. <b> is bold; <imager> links to the Raspberry Pi Imager download page (Raspberry Pi Imager is a product name: keep it). The Mac app can't write SD cards itself, so it hands the image to Raspberry Pi Imager.",
     "rich": ["b", "imager"]
   },
   "site.landing.install.app_step_open": {
-    "text": "<b>Install the app</b> and choose <b>Set Up a New Device…</b>: in the Mac app's <b>Settings</b>, or in the tray menu on Windows and Linux.",
+    "text": "<b>Install the app</b> and choose <b>Set Up a New Device…</b>, in the Mac app's <b>Settings</b> or the tray menu on Windows and Linux.",
     "note": "Website landing page, computer app tab: step 1 of a numbered list. <b> is bold. \"Set Up a New Device…\" is the name of the button in the Mac app's Settings and of the item in the Windows and Linux app's tray menu; Settings is the Mac app's settings: use the apps' wording in your language. The tray: the notification area of Windows and Linux desktops.",
     "rich": ["b"]
   },
   "site.landing.install.app_step_setup": {
-    "text": "<b>Finish the setup</b> over Bluetooth. On a Mac, right in the app: <b>On this Mac</b> (or use your phone). On Windows and Linux, in the phone app (iOS or Android): tap <b>Set up a new device</b>. Either way it asks for your Wi-Fi, a name and password for the device and how to use the disks, then installs the software — about 20 minutes.",
+    "text": "<b>Finish the setup</b> over Bluetooth: on a Mac in the app (<b>On this Mac</b>), on Windows and Linux in the iOS or Android app (<b>Set up a new device</b>). It asks for your Wi-Fi, a name, a password and how to use the disks, then installs everything in about 20 minutes.",
     "note": "Website landing page, computer app tab: step 4 of a numbered list (step 3 is site.landing.install.step_plug). <b> is bold. \"On this Mac\" is a choice in the Mac app's setup window; \"Set up a new device\" is the button on the phone app's welcome screen: use the apps' wording in your language.",
     "rich": ["b"]
   },
   "site.landing.install.bridge_link": {
-    "text": "Want to reach it from outside your home network? Create an account for the bridge →",
+    "text": "Reach it away from home: create a bridge account →",
     "note": "Website landing page: link under the install block that opens the account page to sign up. The bridge is our relay service that makes a home device reachable from the internet. The arrow is part of the link."
   },
   "site.landing.install.command_comment": {
@@ -1158,7 +1158,7 @@
     "max": 40
   },
   "site.landing.install.image_note": {
-    "text": "The image only carries the setup wizard: it installs the current release, so it never goes out of date. Checksum: <sha>.sha256</sha>.",
+    "text": "The image installs the current release, so it never goes out of date. Checksum: <sha>.sha256</sha>.",
     "note": "Website landing page, image tab: the note under the steps. <sha> links to the image's checksum file, named .sha256 (keep that name as it is). A checksum lets you check the download is intact.",
     "rich": ["sha"]
   },
@@ -1173,39 +1173,39 @@
     "max": 16
   },
   "site.landing.install.requirements": {
-    "text": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It runs everything too, with <b>Image Tagging</b> as an option you turn on in Settings. A 2 GB one is enough for one person.",
+    "text": "You need a <b>Raspberry Pi 5 with 8 GB of RAM</b>, a microSD card and, optionally, two USB disks for RAID-1 in the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b>: with a weaker one the Pi can restart while it works on your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It runs everything too, with <b>Image Tagging</b> as an option in Settings; 2 GB is enough for one person.",
     "note": "Website landing page, computer app and image tabs: the box listing the hardware needed. <b> marks words shown in bold. Image Tagging is the name of a switch in the apps' Settings, off at first on a Pi with 4 GB: use the name the apps use in your language, and the apps' word for Settings.",
     "rich": ["b"]
   },
   "site.landing.install.script_intro": {
-    "text": "One command on any machine you can already log into: Ubuntu, Debian, Raspberry Pi OS and other Debian-based distros (64-bit).",
+    "text": "One command on any 64-bit Ubuntu, Debian or Raspberry Pi OS machine you can log into.",
     "note": "Website landing page, install script tab: the sentence above the command. Distros: Linux distributions."
   },
   "site.landing.install.script_note": {
-    "text": "It installs everything and builds the software from source, then starts the service at <code>{address}</code>. Safe to re-run to update. Your files go on two disks mirrored as RAID-1: it reuses a mirror it finds and only erases two new disks to build one when you confirm it, and it installs the status lights too. A single disk works as well (see the <readme>README</readme>). The Wi-Fi setup isn't part of this path — see the image for a from-scratch Raspberry Pi.",
+    "text": "It builds the software from source and starts the service at <code>{address}</code>; run it again to update. Files go on two disks mirrored as RAID-1 (it erases new disks only after you confirm), or on a single disk (see the <readme>README</readme>). It doesn't set up Wi-Fi: for a new Raspberry Pi, use the image.",
     "args": [["address", "text"]],
     "note": "Website landing page, install script tab: the paragraph under the command. <code> shows {address} in a fixed-width font; {address} is an example local address, http://<device-ip>:8080/, where device-ip is the word in site.landing.example.device_ip. <readme> links to the project's README on GitHub. It warns that disks are erased only after confirming.",
     "rich": ["code", "readme"],
     "review": "required",
-    "reviewed": "claude-backtranslation 2026-10-27 #524cd48e"
+    "reviewed": "claude-backtranslation 2026-11-13 #efab71e3"
   },
   "site.landing.install.step_flash": {
-    "text": "<b>Flash it</b> to the microSD card with <imager>Raspberry Pi Imager</imager>: \"Use custom\", pick the file, write. Skip Imager's own customisation step.",
+    "text": "<b>Flash it</b> to the microSD card with <imager>Raspberry Pi Imager</imager> (\"Use custom\", pick the file, write), skipping Imager's own customisation step.",
     "note": "Website landing page, image tab: step 1 of a numbered list. <b> is bold; <imager> links to the Raspberry Pi Imager download page. \"Use custom\" is the option's name in Raspberry Pi Imager: use the name Imager shows in your language.",
     "rich": ["b", "imager"]
   },
   "site.landing.install.step_plug": {
-    "text": "<b>Plug in</b> the disks (into the two blue USB ports), insert the card and power the Pi on. After a minute it announces itself over Bluetooth.",
+    "text": "<b>Plug in</b> the disks (two blue USB ports), insert the card and power on. After a minute the Pi shows up over Bluetooth.",
     "note": "Website landing page, image tab: step 2 of a numbered list (and step 3 in the computer app tab). <b> is bold.",
     "rich": ["b"]
   },
   "site.landing.install.step_setup": {
-    "text": "<b>Set it up from your phone</b> with the app (iOS or Android): on the welcome screen tap <b>Set up a new device</b>. It finds the Pi over Bluetooth and runs the setup right there — your phone stays on its own Wi-Fi. It asks for your Wi-Fi, a name and password for the device and how to use the disks, then installs the software — about 20 minutes.",
+    "text": "<b>Set it up from your phone</b>: in the iOS or Android app, tap <b>Set up a new device</b>. It finds the Pi over Bluetooth, asks for your Wi-Fi, a name, a password and how to use the disks, then installs everything in about 20 minutes.",
     "note": "Website landing page, image tab: step 3 of a numbered list. <b> is bold. \"Set up a new device\" is the button's name on the phone app's welcome screen: use the app's wording in your language.",
     "rich": ["b"]
   },
   "site.landing.install.step_signin": {
-    "text": "<b>Sign in</b> when it's done: the app connects to the new device by itself with the password you chose, or open <code>{address}</code> in a browser.",
+    "text": "<b>Sign in</b>: the app connects to the device by itself, or open <code>{address}</code> in a browser.",
     "args": [["address", "text"]],
     "note": "Website landing page, image tab: step 4 of a numbered list (and step 5 in the computer app tab). <b> is bold; <code> shows {address} in a fixed-width font. {address} is an example web address, https://<name>.off-the.cloud, where name is the word in site.landing.example.name.",
     "rich": ["b", "code"]
@@ -1307,7 +1307,7 @@
     "max": 36
   },
   "site.landing.phone.android_text": {
-    "text": "The same app for Android phones and tablets: photo backup, your device's files and photos, and friends' posts.",
+    "text": "The same for Android phones and tablets: photo backup, your photos and files, and friends' posts.",
     "note": "Website landing page: text of the Android app's card."
   },
   "site.landing.phone.eyebrow": {
@@ -1321,7 +1321,7 @@
     "max": 36
   },
   "site.landing.phone.ios_text": {
-    "text": "Backs up your photo library, iCloud photos included, and shows your device's photos, files and friends' posts.",
+    "text": "Backs up your library, iCloud photos included, and shows your photos, files and friends' posts.",
     "note": "Website landing page: text of the iPhone app's card. Your device: the visitor's Off The Cloud device."
   },
   "site.landing.phone.ios_title": {
@@ -1330,7 +1330,7 @@
     "max": 30
   },
   "site.landing.phone.lead": {
-    "text": "Post for your friends and see their posts, back up your photos and videos as you take them, browse everything on your device, and set up a new device over Bluetooth.",
+    "text": "Post for your friends and see their posts, back up photos as you take them, and browse everything on your device.",
     "note": "Website landing page: the paragraph under the phone apps heading."
   },
   "site.landing.phone.title": {
@@ -1343,7 +1343,7 @@
     "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): description of the picture of the cloud case, for screen readers. Keep off-the.cloud as it is."
   },
   "site.landing.printable.cloud.text": {
-    "text": "For a shelf or a desk: a cloud with Off The Cloud on its lid, a grille over the fan and the two status lights beside the USB ports. The microSD card and every port stay within reach.",
+    "text": "For a shelf or desk: a cloud with a grille over the fan and the two status lights by the USB ports. The microSD card and every port stay within reach.",
     "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): what the cloud case is. The status lights: the device's two small LEDs, one per mirrored drive (the same words as the FAQ's question about them)."
   },
   "site.landing.printable.cloud.title": {
@@ -1362,11 +1362,11 @@
     "max": 30
   },
   "site.landing.printable.lead": {
-    "text": "Two cases to print at home, for the Raspberry Pi 5 with a GeeekPi Armor Lite V5 cooler. Both print without supports and close with M2.5 heat-set inserts and screws, and you are free to print, change and share them.",
+    "text": "Two cases to print at home for a Raspberry Pi 5 with a GeeekPi Armor Lite V5 cooler. No supports needed; they close with M2.5 heat-set inserts and screws.",
     "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): the sentences under the heading. GeeekPi Armor Lite V5 is a product name (a heatsink with a fan): keep it. Supports: the extra plastic a 3D printer adds under overhangs. Heat-set inserts: small brass threaded inserts pressed into the plastic with a soldering iron; M2.5 is the screw size: keep it."
   },
   "site.landing.printable.licence": {
-    "text": "Both are under the <cclicence>CC BY-SA 4.0</cclicence> licence: credit Off The Cloud, and share what you make from them under the same licence.",
+    "text": "Licence: <cclicence>CC BY-SA 4.0</cclicence>. Credit Off The Cloud and share what you make under the same licence.",
     "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): the line under the two cases. CC BY-SA 4.0 is the licence's name: keep it; the link opens it. Credit: say that the design comes from Off The Cloud.",
     "rich": ["cclicence"]
   },
@@ -1375,7 +1375,7 @@
     "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): description of the picture of the screen case, for screen readers. Keyholes: keyhole-shaped slots a screw head goes into, to hang something on a wall."
   },
   "site.landing.printable.screen.text": {
-    "text": "For the wall: it screws onto the back of a portable screen with four M2.5 holes in a 75 x 75 mm square, and hangs both on two screws. A short cable takes the Pi's HDMI to the screen.",
+    "text": "For the wall: it screws onto the back of a portable screen with M2.5 holes in a 75 x 75 mm square, and both hang on two screws.",
     "note": "Website landing page, the Printable section (cases for the device to make with a 3D printer, after the screenshots): what the screen case is: it is screwed to a small portable monitor's four mounting holes, and the case with the monitor on it hangs on two screws in the wall. M2.5, 75 x 75 mm and HDMI: keep them."
   },
   "site.landing.printable.screen.title": {
@@ -1480,18 +1480,18 @@
     "max": 30
   },
   "site.landing.started.lead": {
-    "text": "All three ways end in the same place: the computer app puts the Raspberry Pi 5 image on the card, and the image runs this install script for you, after asking for your Wi-Fi, a name and your disks from a phone or a Mac.",
+    "text": "All three ways end here: the image runs this script for you, after asking for your Wi-Fi, a name and your disks.",
     "note": "Website landing page: the paragraph under the heading of the section about the install script. The three ways are the install block's tabs: the computer app, the Raspberry Pi 5 image and the install script; the card is the microSD card the Pi starts from."
   },
   "site.landing.started.note": {
-    "text": "<b>Starting from scratch on a Raspberry Pi 5?</b> Use the <install>Raspberry Pi 5 image</install>: it wipes and mirrors two USB disks during setup, and if a Pi ever dies you flash a new card, attach the same disks and the wizard offers to recover everything. The status LEDs and every configuration option are in the <readme>README</readme>.",
+    "text": "<b>New Raspberry Pi 5?</b> Use the <install>Raspberry Pi 5 image</install>: it erases two USB disks and mirrors them during setup, and if the Pi dies, a new card with the same disks recovers everything. Status lights and every option: <readme>README</readme>.",
     "note": "Website landing page, Get started: the note box under the steps. <b> is bold; <install> links back to the install block at the top of the page; <readme> links to the project's README on GitHub.",
     "rich": ["b", "install", "readme"],
     "review": "required",
-    "reviewed": "shipped 2026-10-11 #6c9700fc"
+    "reviewed": "claude-backtranslation 2026-11-13 #ef83d573"
   },
   "site.landing.started.step1_text": {
-    "text": "It installs MariaDB, Go, ONNX Runtime and the tagging model, then builds and starts the <code>otc</code> service, reachable straight away at <code>{address}</code> on your local network — safe to re-run any time to pick up updates.",
+    "text": "It installs MariaDB, Go, ONNX Runtime and the tagging model, then builds and starts the <code>otc</code> service at <code>{address}</code>. Run it again to update.",
     "args": [["address", "text"]],
     "note": "Website landing page, Get started: text of step 1. MariaDB, Go and ONNX Runtime are software names. <code> shows the service's name, otc (keep it), and {address} in a fixed-width font; {address} is http://<device-ip>:8080/, with the word of site.landing.example.device_ip.",
     "rich": ["code"]
@@ -1502,7 +1502,7 @@
     "max": 40
   },
   "site.landing.started.step2_text": {
-    "text": "This names the device, e.g. <code>pit</code> for <code>pit.off-the.cloud</code> — the address your apps and friends use to reach it from outside your home network, instead of the local <code>:8080</code> address. Register the name on your <account>account page</account> first, so it belongs to your bridge account (the image's setup does this for you).",
+    "text": "The device's name, e.g. <code>pit</code> for <code>pit.off-the.cloud</code>: the address your apps and friends use away from home. Register it on your <account>account page</account> first (the image's setup does this for you).",
     "note": "Website landing page, Get started: text of step 2. <code> shows an example name and address in a fixed-width font (keep pit, pit.off-the.cloud and :8080 as they are). <account> links to the account page.",
     "rich": ["code", "account"]
   },
@@ -1512,7 +1512,7 @@
     "max": 40
   },
   "site.landing.started.step3_text": {
-    "text": "Open the web, iOS, Android, macOS, Windows or Linux client, point it at your subdomain, and start backing up.",
+    "text": "Open any of the apps, point it at your address and start backing up.",
     "note": "Website landing page, Get started: text of step 3. Client: the app."
   },
   "site.landing.started.step3_title": {
@@ -1526,7 +1526,7 @@
     "max": 50
   },
   "site.landing.what.decentral_text": {
-    "text": "Every family's posts live on its own device, and friends' devices fetch them from each other. There's no central server holding everyone's photos, so there's nothing to sell, mine or leak in one place.",
+    "text": "Each family's posts live on its own device, and friends' devices fetch them from each other. No central server, so nothing to sell, mine or leak.",
     "note": "Website landing page, What it is: text of the card saying the social network is decentralised. Mine: analyse people's data for profit."
   },
   "site.landing.what.decentral_title": {
@@ -1535,7 +1535,7 @@
     "max": 40
   },
   "site.landing.what.desktop_text": {
-    "text": "macOS, Windows and Linux apps that keep chosen folders on your computer in two-way sync with the device, automatically.",
+    "text": "Mac, Windows and Linux apps that keep your folders in sync with the device.",
     "note": "Website landing page, What it is: text of the card about the computer apps."
   },
   "site.landing.what.desktop_title": {
@@ -1544,7 +1544,7 @@
     "max": 40
   },
   "site.landing.what.device_text": {
-    "text": "A Raspberry Pi 5 with a microSD card for the system and two USB drives mirrored in RAID-1, storing your originals exactly as they arrive, never resized or recompressed — encrypted at rest, with a key that only your password unlocks.",
+    "text": "A Raspberry Pi 5 with two mirrored USB drives, keeping your originals as they arrive, encrypted with a key only your password unlocks.",
     "note": "Website landing page, What it is: text of the card about the device. The two USB drives can be USB sticks, SSDs, hard disks or microSD cards in USB card readers. RAID-1: two drives that each keep a full copy. Encrypted at rest: the stored files are encrypted. Never resized or recompressed: each file is stored as it was sent."
   },
   "site.landing.what.device_title": {
@@ -1558,10 +1558,10 @@
     "max": 30
   },
   "site.landing.what.family_text": {
-    "text": "Give everyone at home their own account on the same device — their own photo backup, library and password, each encrypted with its own key. You manage the accounts, but you can't open the photos and files in them.",
+    "text": "Everyone at home gets their own account, backup and password. Each account is encrypted with its own key: you manage the accounts but can't open their files.",
     "note": "Website landing page, What it is: text of the card about family accounts.",
     "review": "required",
-    "reviewed": "shipped 2026-10-11 #e34f21f1"
+    "reviewed": "claude-backtranslation 2026-11-13 #2331dccc"
   },
   "site.landing.what.family_title": {
     "text": "One device, the whole family",
@@ -1569,7 +1569,7 @@
     "max": 40
   },
   "site.landing.what.fast_text": {
-    "text": "At home the apps talk straight to the device over your own network, so a whole holiday's photos back up at Wi-Fi speed instead of crawling over the internet.",
+    "text": "At home the apps talk straight to the device, so a whole holiday's photos back up at Wi-Fi speed.",
     "note": "Website landing page, What it is: text of the card about speed at home."
   },
   "site.landing.what.fast_title": {
@@ -1578,7 +1578,7 @@
     "max": 40
   },
   "site.landing.what.feed_text": {
-    "text": "Post photos and videos for your family and friends, with captions, comments, likes and notifications. Only the friends you've accepted see them, newest first: no ads, no influencers and no algorithm deciding what you see.",
+    "text": "Share photos and videos with captions, comments and likes. Only the friends you accept see them, newest first: no ads, no influencers, no algorithm.",
     "note": "Website landing page, What it is: text of the card about the private social network. No algorithm: nothing chooses or ranks what you see."
   },
   "site.landing.what.feed_title": {
@@ -1587,7 +1587,7 @@
     "max": 40
   },
   "site.landing.what.files_text": {
-    "text": "Keep folders from every computer in two-way sync or backed up, open and share them from your phone, and lock a folder so nothing in it can be deleted and earlier versions are kept.",
+    "text": "Sync or back up folders from every computer, open and share them from your phone, and lock a folder so nothing in it can be deleted.",
     "note": "Website landing page, What it is: text of the card about storing files. Two-way sync: changes on the device and on the computer reach each other. Lock a folder: make it upload-only, so nothing in it can be deleted and a file uploaded again keeps its earlier version."
   },
   "site.landing.what.files_title": {
@@ -1596,11 +1596,11 @@
     "max": 40
   },
   "site.landing.what.lead": {
-    "text": "One small device in your home keeps your family's posts, photos and files. Apps on every platform keep it in sync and let you browse, search and share it.",
+    "text": "One small device at home keeps your family's posts, photos and files, with apps for every platform.",
     "note": "Website landing page: the paragraph under the What it is heading."
   },
   "site.landing.what.mobile_text": {
-    "text": "iOS and Android apps for your social feed, notifications and photo backup: they back up your camera roll in the background, in full resolution.",
+    "text": "iOS and Android apps for your feed, notifications and full-resolution photo backup.",
     "note": "Website landing page, What it is: text of the card about the phone apps. Camera roll: the phone's photo library."
   },
   "site.landing.what.mobile_title": {
@@ -1609,7 +1609,7 @@
     "max": 40
   },
   "site.landing.what.photos_text": {
-    "text": "The phone apps back up every photo and video in the background, as the original, so your library is complete and in full quality, with no storage plan to outgrow.",
+    "text": "Phones back up every photo and video in the background, in full quality, with no storage plan to outgrow.",
     "note": "Website landing page, What it is: text of the card about backing up the phones' photos. A storage plan: a cloud service's monthly subscription for space."
   },
   "site.landing.what.photos_title": {
@@ -1618,7 +1618,7 @@
     "max": 40
   },
   "site.landing.what.search_text": {
-    "text": "Every photo is auto-tagged locally on the device, so you can search \"beach\" or \"dog\" instantly — nothing is sent to a third party to do it.",
+    "text": "Photos are tagged on the device, so you can search \"beach\" or \"dog\". Nothing is sent to anyone to do it.",
     "note": "Website landing page, What it is: text of the card about photo search. \"beach\" and \"dog\" are examples of searches: translate them."
   },
   "site.landing.what.search_title": {
@@ -1627,7 +1627,7 @@
     "max": 40
   },
   "site.landing.what.share_text": {
-    "text": "Send a collection of photos to anyone as a link that expires. They open it in their browser, with no account or app, and can download the originals.",
+    "text": "Send anyone a link that expires. They open it in their browser, with no account or app, and can download the originals.",
     "note": "Website landing page, What it is: text of the card about share links."
   },
   "site.landing.what.share_title": {
@@ -1641,7 +1641,7 @@
     "max": 60
   },
   "site.landing.what.web_text": {
-    "text": "Everything above, from any browser — sign in with just your password, no app install required.",
+    "text": "Everything above, in any browser, with just your password.",
     "note": "Website landing page, What it is: text of the card about the web app."
   },
   "site.landing.what.web_title": {

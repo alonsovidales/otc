@@ -1,7 +1,7 @@
 {
   "site.landing.contact.bridge_text": {
-    "text": "Wil je je apparaat, en je vrienden, ook buiten je thuisnetwerk bereiken? Maak een account aan op de <signup>accountpagina</signup> of tijdens de configuratie van je apparaat, en kies zelf je adres. Meer dan vijf adressen nodig? Neem contact met ons op via dit formulier.",
-    "en": "Want to reach your device, and your friends, from outside your home network? Create an account on the <signup>account page</signup> or in your device's setup, and choose your address yourself. Need more than five addresses? Write to us with this form."
+    "text": "Om je apparaat en je vrienden buitenshuis te bereiken, maak je een account aan op de <signup>accountpagina</signup> of tijdens de configuratie van je apparaat en kies je jouw adres. Meer dan vijf adressen nodig? Gebruik dit formulier.",
+    "en": "To reach your device and friends away from home, create an account on the <signup>account page</signup> or in your device's setup and choose your address. Need more than five addresses? Use this form."
   },
   "site.landing.contact.bridge_title": {
     "text": "Toegang tot de bridge",
@@ -24,8 +24,8 @@
     "en": "Get in touch"
   },
   "site.landing.contact.lead": {
-    "text": "Stuur ons een bericht, of het nu gaat om een algemene vraag, hulp om je apparaat aan de praat te krijgen of meer adressen voor je bridgeaccount.",
-    "en": "Send a message — whether it's a general question, help getting your device running, or more addresses for your bridge account."
+    "text": "Een vraag, hulp bij de configuratie of meer adressen voor je bridgeaccount: stuur ons een bericht.",
+    "en": "A question, help with setup or more addresses for your bridge account: send us a message."
   },
   "site.landing.contact.message": {
     "text": "Bericht",
@@ -84,8 +84,8 @@
     "en": "Thanks — we'll get back to you soon."
   },
   "site.landing.contact.status_text": {
-    "text": "Het apparaat, de bridge en de webapp werken nu al, en de apps ook: iPhone en Android, de Mac-app, en otc-sync voor Windows en Linux.",
-    "en": "The device, the bridge and the web app work today, and so do the apps: iPhone and Android, the Mac app, and otc-sync for Windows and Linux."
+    "text": "Alles werkt nu al: het apparaat, de bridge, de webapp en de apps voor iPhone, Android, Mac, Windows en Linux.",
+    "en": "Everything works today: the device, the bridge, the web app and the iPhone, Android, Mac, Windows and Linux apps."
   },
   "site.landing.contact.status_title": {
     "text": "Waar we staan",
@@ -100,8 +100,8 @@
     "en": "Computer apps"
   },
   "site.landing.desktop.lead": {
-    "text": "Maak een reservekopie van mappen op je computer, of houd ze aan beide kanten hetzelfde. De apps staan in de menubalk of het systeemvak; de Mac App Store houdt de Mac-app up-to-date, en op Windows en Linux installeer je een nieuwe versie met één klik.",
-    "en": "Back up folders from your computer, or keep them the same on both sides. The apps sit in the menu bar or tray; the Mac App Store keeps the Mac app up to date, and on Windows and Linux one click installs a new version."
+    "text": "Maak een reservekopie van mappen op je computer, of houd ze in twee richtingen gesynchroniseerd. De apps staan in de menubalk of het systeemvak en blijven up-to-date.",
+    "en": "Back up your computer's folders, or keep them in sync both ways. The apps live in the menu bar or tray and stay up to date."
   },
   "site.landing.desktop.linux_alt": {
     "text": "ARM (bijvoorbeeld een Raspberry Pi)? <linuxarm>Linux ARM64</linuxarm>. Daarna:",
@@ -120,29 +120,29 @@
     "en": "Get it on the Mac App Store"
   },
   "site.landing.desktop.mac_text": {
-    "text": "Een app in de menubalk met dezelfde mappen en synchronisatieregels, in de Mac App Store, die de app voor je up-to-date houdt.",
-    "en": "A menu bar app with the same folders and sync rules, on the Mac App Store, which keeps it up to date for you."
+    "text": "Een app in de menubalk, uit de Mac App Store, die de app up-to-date houdt.",
+    "en": "A menu bar app from the Mac App Store, which keeps it up to date."
   },
   "site.landing.desktop.signed_note": {
-    "text": "<b>Elke update is ondertekend.</b> Op Windows en Linux installeert de app een nieuwe versie pas nadat de handtekening is gecontroleerd met de releasesleutel van het project, dezelfde sleutel waarmee de updates van het apparaat worden ondertekend. De broncode staat op <github>GitHub</github>, en elk bestand staat vermeld bij de <release>desktoprelease</release>.",
-    "en": "<b>Every update is signed.</b> On Windows and Linux the app only installs a new version after checking its signature against the project's release key, the same key that signs the device updates. The source is on <github>GitHub</github>, and every file is listed on the <release>desktop release</release>.",
-    "reviewed": "claude-backtranslation 2026-10-27 #b9753829"
+    "text": "<b>Elke update is ondertekend</b> met de releasesleutel van het project, dezelfde sleutel waarmee de updates van het apparaat worden ondertekend, en wordt vóór de installatie gecontroleerd. Broncode op <github>GitHub</github>, bestanden bij de <release>desktoprelease</release>.",
+    "en": "<b>Every update is signed</b> with the project's release key, the same one that signs device updates, and checked before it installs. Source on <github>GitHub</github>, files on the <release>desktop release</release>.",
+    "reviewed": "claude-backtranslation 2026-11-13 #4b7b2f17"
   },
   "site.landing.desktop.title": {
     "text": "Houd je mappen gesynchroniseerd",
     "en": "Keep your folders in sync"
   },
   "site.landing.desktop.windows_alt": {
-    "text": "Pc met ARM? <winarm>Windows on ARM</winarm>. De app is nog niet ondertekend, dus Windows kan je waarschuwen: kies <em>Meer informatie → Toch uitvoeren</em>.",
-    "en": "ARM PC? <winarm>Windows on ARM</winarm>. The app isn't code-signed yet, so Windows may warn you: choose <em>More info → Run anyway</em>."
+    "text": "Pc met ARM? <winarm>Windows on ARM</winarm>. Als Windows je waarschuwt, kies dan <em>Meer informatie → Toch uitvoeren</em>.",
+    "en": "ARM PC? <winarm>Windows on ARM</winarm>. If Windows warns you, choose <em>More info → Run anyway</em>."
   },
   "site.landing.desktop.windows_button": {
     "text": "Downloaden voor Windows",
     "en": "Download for Windows"
   },
   "site.landing.desktop.windows_text": {
-    "text": "Windows 10 of 11. Zet het bestand op een vaste plek (niet in Downloads) en voer het uit: de app verschijnt in het systeemvak en kan bij het inloggen starten als je dat wilt.",
-    "en": "Windows 10 or 11. Put the file somewhere permanent (not Downloads) and run it: it appears in the tray, and can start at login if you choose."
+    "text": "Windows 10 of 11. Bewaar het bestand op een vaste plek (niet in Downloads) en voer het uit: de app staat in het systeemvak.",
+    "en": "Windows 10 or 11. Keep the file somewhere permanent (not Downloads) and run it: it lives in the tray."
   },
   "site.landing.download.your_system": {
     "text": "Jouw systeem",
@@ -837,24 +837,24 @@
     "en": "Files"
   },
   "site.landing.glance.files.value": {
-    "text": "Een NAS: mappen gesynchroniseerd met Mac-, Windows- en Linux-computers of als reservekopie bewaard, mappen met “Alleen uploaden” die eerdere versies bewaren, en deellinks",
-    "en": "A NAS: folders kept in sync with Mac, Windows and Linux computers or backed up, upload-only folders that keep earlier versions, and share links"
+    "text": "Mappen van Mac, Windows en Linux, gesynchroniseerd of als reservekopie bewaard, mappen met “Alleen uploaden” die eerdere versies bewaren, en deellinks",
+    "en": "Folders synced or backed up from Mac, Windows and Linux, upload-only folders that keep earlier versions, and share links"
   },
   "site.landing.glance.hardware.label": {
     "text": "Draait op",
     "en": "Runs on"
   },
   "site.landing.glance.hardware.value": {
-    "text": "Een Raspberry Pi 5 met 8 GB (4 GB met beeldherkenning als optie, 2 GB voor één persoon), of een 64-bits Intel/AMD- of ARM-machine met Debian of Ubuntu",
-    "en": "A Raspberry Pi 5 with 8 GB (4 GB with tagging as an option, 2 GB for one person), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu"
+    "text": "Een Raspberry Pi 5 met 8 GB (4 GB en 2 GB werken ook), of elke 64-bits machine met Debian of Ubuntu",
+    "en": "A Raspberry Pi 5 with 8 GB (4 GB and 2 GB work too), or any 64-bit Debian or Ubuntu machine"
   },
   "site.landing.glance.instead.label": {
     "text": "In plaats van",
     "en": "Instead of"
   },
   "site.landing.glance.instead.value": {
-    "text": "Instagram, Facebook of een WhatsApp-groep van de familie om foto’s te delen; Google Foto’s of iCloud-foto’s voor reservekopieën; Google Drive, Dropbox, iCloud Drive of Proton Drive voor bestanden",
-    "en": "Instagram, Facebook or a family WhatsApp group for sharing photos; Google Photos or iCloud Photos for backup; Google Drive, Dropbox, iCloud Drive or Proton Drive for files"
+    "text": "Instagram, Facebook of een WhatsApp-groep van de familie; Google Foto’s of iCloud-foto’s; Google Drive, Dropbox, iCloud Drive of Proton Drive",
+    "en": "Instagram, Facebook or a family WhatsApp group; Google Photos or iCloud Photos; Google Drive, Dropbox, iCloud Drive or Proton Drive"
   },
   "site.landing.glance.languages.label": {
     "text": "Talen",
@@ -887,16 +887,16 @@
     "en": "Social network"
   },
   "site.landing.glance.social.value": {
-    "text": "Berichten met foto’s en video’s, reacties, likes en pushmeldingen, alleen voor vrienden die je accepteert, van apparaat naar apparaat; nieuwste eerst, geen advertenties",
-    "en": "Posts with photos and videos, comments, likes and notifications, only for the friends you accept, from device to device; newest first, no ads"
+    "text": "Berichten met foto’s en video’s, reacties en likes, alleen voor vrienden die je accepteert; nieuwste eerst, geen advertenties",
+    "en": "Photo and video posts, comments and likes, only for the friends you accept; newest first, no ads"
   },
   "site.landing.glance.storage.label": {
     "text": "Opslag",
     "en": "Storage"
   },
   "site.landing.glance.storage.value": {
-    "text": "Twee USB-schijven, gespiegeld in RAID-1, elk met een volledige kopie: USB-sticks, ssd’s, harde schijven of microSD-kaarten in USB-kaartlezers",
-    "en": "Two USB drives mirrored as RAID-1, each with a full copy: sticks, SSDs, hard disks or microSD cards in USB readers"
+    "text": "Twee USB-schijven, gespiegeld in RAID-1: USB-sticks, ssd’s, harde schijven of microSD-kaarten in USB-kaartlezers",
+    "en": "Two USB drives mirrored as RAID-1: sticks, SSDs, hard disks or microSD cards in USB readers"
   },
   "site.landing.glance.title": {
     "text": "Off The Cloud in het kort",
@@ -907,20 +907,20 @@
     "en": "What it is"
   },
   "site.landing.glance.what.value": {
-    "text": "Een besloten sociaal netwerk voor familie en vrienden, en een thuisserver (NAS) voor je foto’s, video’s en bestanden, met eigen apps",
-    "en": "A private social network for family and friends, and a home server (NAS) for your photos, videos and files, with its own apps"
+    "text": "Een besloten sociaal netwerk voor familie en vrienden, en een thuis-NAS voor je foto’s, video’s en bestanden",
+    "en": "A private social network for family and friends, and a home NAS for your photos, videos and files"
   },
   "site.landing.hero.demo": {
     "text": "Demo proberen",
     "en": "Try the demo"
   },
   "site.landing.hero.demo_note": {
-    "text": "Kijk rond op een echt apparaat met foto’s en bestanden van een verzonnen gezin. Zonder account.",
-    "en": "Look around a real device with a made-up family's photos and files. No sign-up."
+    "text": "Een echt apparaat met foto’s en bestanden van een verzonnen gezin. Zonder account.",
+    "en": "A real device with a made-up family's photos and files. No sign-up."
   },
   "site.landing.hero.lead": {
-    "text": "Off The Cloud is een besloten sociaal netwerk voor je familie en vrienden, en een thuis voor je foto’s en bestanden, op een klein apparaat dat van jou is. Plaats foto’s en video’s, reageer en like, zonder advertenties, zonder algoritme en zonder vreemden: je berichten blijven op je apparaat en gaan alleen naar de apparaten van vrienden die je accepteert, en worden nooit op de servers van een bedrijf opgeslagen. Hetzelfde apparaat maakt reservekopieën van ieders telefoon in volledige resolutie en houdt de mappen op je computers gesynchroniseerd, dus het vervangt Instagram, Google Foto’s, iCloud, Google Drive en Dropbox in één keer. Het is gratis opensourcesoftware voor een Raspberry Pi 5, en je stelt alles in vanaf je telefoon.",
-    "en": "Off The Cloud is a private social network for your family and friends, and a home for your photos and files, on a small device you own. Post photos and videos, comment and like, with no ads, no algorithm and no strangers: your posts stay on your device and go only to the devices of friends you accept, never stored on a company's servers. The same device backs up everyone's phones in full resolution and keeps your computers' folders in sync, so it takes the place of Instagram, Google Photos, iCloud, Google Drive and Dropbox at once. It's free, open-source software for a Raspberry Pi 5, set up from your phone."
+    "text": "Een besloten sociaal netwerk voor je familie en vrienden, een thuis voor je foto’s en bestanden, op een klein apparaat dat van jou is. Geen advertenties, geen algoritme, geen vreemden: je berichten blijven thuis en gaan alleen naar de vrienden die je accepteert. Het maakt reservekopieën van ieders telefoon in volledige resolutie en houdt de mappen op je computers gesynchroniseerd, in plaats van Instagram, Google Foto’s, iCloud, Google Drive en Dropbox. Gratis en open source, op een Raspberry Pi 5 die je vanaf je telefoon instelt.",
+    "en": "A private social network for your family and friends, home for your photos and files, on a small device you own. No ads, no algorithm, no strangers: your posts stay at home and go only to the friends you accept. It backs up everyone's phones in full resolution and keeps your computers' folders in sync, instead of Instagram, Google Photos, iCloud, Google Drive and Dropbox. Free and open source, on a Raspberry Pi 5 you set up from your phone."
   },
   "site.landing.hero.photo_alt": {
     "text": "Een Off The Cloud-apparaat op een bureau, naast een camera en een computer met je fotobibliotheek",
@@ -939,28 +939,28 @@
     "en": "<em>Off the cloud</em>, at home."
   },
   "site.landing.install.app_intro": {
-    "text": "De makkelijkste manier: de app downloadt de image en controleert de handtekening, schrijft op Windows en Linux zelf de kaart en begeleidt je bij elke stap.",
-    "en": "The easiest way: the app downloads the image and checks its signature, writes the card itself on Windows and Linux, and guides you through each step."
+    "text": "De makkelijkste manier: de app maakt de kaart en begeleidt je bij elke stap.",
+    "en": "The easiest way: the app makes the card and guides you through each step."
   },
   "site.landing.install.app_more": {
-    "text": "ARM-versies en tips voor de eerste keer starten op Windows en Linux staan bij de <download>downloads</download>.",
-    "en": "ARM versions, and first-run tips for Windows and Linux, are in the <download>download section</download>."
+    "text": "ARM-versies en tips voor de eerste keer starten staan bij de <download>downloads</download>.",
+    "en": "ARM versions and first-run tips are in the <download>download section</download>."
   },
   "site.landing.install.app_step_card": {
-    "text": "<b>Maak de kaart.</b> De app downloadt de image en controleert die met de handtekening van het project. Op Windows en Linux schrijft de app de image daarna naar een microSD-kaart van 8 GB of meer, nadat je beheerdersrechten hebt gegeven; op een Mac opent de app <imager>Raspberry Pi Imager</imager> om de kaart te schrijven en vertelt je wat je daar kiest.",
-    "en": "<b>Make the card.</b> The app downloads the image and checks it against the project's signature. On Windows and Linux it then writes it to a microSD card of 8 GB or more, after asking for administrator permission; on a Mac it opens <imager>Raspberry Pi Imager</imager> to write the card and tells you what to choose there."
+    "text": "<b>Maak de kaart.</b> De app downloadt de image, controleert de handtekening en schrijft de image naar een microSD-kaart van 8 GB of meer. Op een Mac opent de app hiervoor <imager>Raspberry Pi Imager</imager> en vertelt je wat je moet kiezen.",
+    "en": "<b>Make the card.</b> The app downloads the image, checks its signature and writes it to a microSD card of 8 GB or more. On a Mac it opens <imager>Raspberry Pi Imager</imager> for this and tells you what to choose."
   },
   "site.landing.install.app_step_open": {
-    "text": "<b>Installeer de app</b> en kies <b>Nieuw apparaat instellen…</b>: in de <b>Instellingen</b> van de Mac-app, of in het menu in het systeemvak op Windows en Linux.",
-    "en": "<b>Install the app</b> and choose <b>Set Up a New Device…</b>: in the Mac app's <b>Settings</b>, or in the tray menu on Windows and Linux."
+    "text": "<b>Installeer de app</b> en kies <b>Nieuw apparaat instellen…</b>, in de <b>Instellingen</b> van de Mac-app of het menu in het systeemvak op Windows en Linux.",
+    "en": "<b>Install the app</b> and choose <b>Set Up a New Device…</b>, in the Mac app's <b>Settings</b> or the tray menu on Windows and Linux."
   },
   "site.landing.install.app_step_setup": {
-    "text": "<b>Voltooi de configuratie</b> via Bluetooth. Op een Mac in de app zelf: <b>Op deze Mac</b> (of gebruik je telefoon). Op Windows en Linux in de app op je telefoon (iOS of Android): tik op <b>Nieuw apparaat instellen</b>. In beide gevallen vraagt de app om je wifi, een naam en wachtwoord voor het apparaat en hoe de schijven moeten worden gebruikt, en installeert daarna de software: ongeveer 20 minuten.",
-    "en": "<b>Finish the setup</b> over Bluetooth. On a Mac, right in the app: <b>On this Mac</b> (or use your phone). On Windows and Linux, in the phone app (iOS or Android): tap <b>Set up a new device</b>. Either way it asks for your Wi-Fi, a name and password for the device and how to use the disks, then installs the software — about 20 minutes."
+    "text": "<b>Voltooi de configuratie</b> via Bluetooth: op een Mac in de app (<b>Op deze Mac</b>), op Windows en Linux in de iOS- of Android-app (<b>Nieuw apparaat instellen</b>). De app vraagt om je wifi, een naam, een wachtwoord en hoe de schijven moeten worden gebruikt, en installeert daarna alles in ongeveer 20 minuten.",
+    "en": "<b>Finish the setup</b> over Bluetooth: on a Mac in the app (<b>On this Mac</b>), on Windows and Linux in the iOS or Android app (<b>Set up a new device</b>). It asks for your Wi-Fi, a name, a password and how to use the disks, then installs everything in about 20 minutes."
   },
   "site.landing.install.bridge_link": {
-    "text": "Wil je het buiten je thuisnetwerk bereiken? Maak een account aan voor de bridge →",
-    "en": "Want to reach it from outside your home network? Create an account for the bridge →"
+    "text": "Bereik het buitenshuis: maak een bridgeaccount aan →",
+    "en": "Reach it away from home: create a bridge account →"
   },
   "site.landing.install.command_comment": {
     "text": "log in op de machine, en dan:",
@@ -983,8 +983,8 @@
     "en": "Download the image (≈ 530 MB)"
   },
   "site.landing.install.image_note": {
-    "text": "De image bevat alleen de configuratiewizard: die installeert de huidige release, dus de image raakt nooit verouderd. Controlesom: <sha>.sha256</sha>.",
-    "en": "The image only carries the setup wizard: it installs the current release, so it never goes out of date. Checksum: <sha>.sha256</sha>."
+    "text": "De image installeert de huidige release en raakt dus nooit verouderd. Controlesom: <sha>.sha256</sha>.",
+    "en": "The image installs the current release, so it never goes out of date. Checksum: <sha>.sha256</sha>."
   },
   "site.landing.install.label": {
     "text": "Zet je apparaat aan de praat",
@@ -995,33 +995,33 @@
     "en": "Recommended"
   },
   "site.landing.install.requirements": {
-    "text": "Voor een <b>Raspberry Pi 5 met minstens 8 GB RAM</b>, een microSD-kaart voor het systeem en eventueel twee USB-schijven voor RAID-1, aangesloten op de <b>twee blauwe USB-poorten</b> van de Pi. Gebruik de <b>officiële Raspberry Pi USB-C-voeding van 27 W</b> (of een betere): met een zwakkere kan de Pi door een te lage spanning herstarten terwijl hij je foto’s verwerkt. Geen toetsenbord, monitor of kennis van Linux nodig. <b>Heb je alleen een Pi met 4 GB?</b> Die kan ook alles, met <b>Beeldherkenning</b> als optie die je in Instellingen aanzet. Een met 2 GB is genoeg voor één persoon.",
-    "en": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It runs everything too, with <b>Image Tagging</b> as an option you turn on in Settings. A 2 GB one is enough for one person."
+    "text": "Je hebt een <b>Raspberry Pi 5 met 8 GB RAM</b> nodig, een microSD-kaart en eventueel twee USB-schijven voor RAID-1 in de <b>twee blauwe USB-poorten</b> van de Pi. Gebruik de <b>officiële Raspberry Pi USB-C-voeding van 27 W</b>: met een zwakkere kan de Pi herstarten terwijl hij je foto’s verwerkt. Geen toetsenbord, monitor of kennis van Linux nodig. <b>Heb je alleen een Pi met 4 GB?</b> Die kan ook alles, met <b>Beeldherkenning</b> als optie in Instellingen; 2 GB is genoeg voor één persoon.",
+    "en": "You need a <b>Raspberry Pi 5 with 8 GB of RAM</b>, a microSD card and, optionally, two USB disks for RAID-1 in the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b>: with a weaker one the Pi can restart while it works on your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It runs everything too, with <b>Image Tagging</b> as an option in Settings; 2 GB is enough for one person."
   },
   "site.landing.install.script_intro": {
-    "text": "Eén opdracht op elke machine waarop je al kunt inloggen: Ubuntu, Debian, Raspberry Pi OS en andere op Debian gebaseerde distributies (64-bits).",
-    "en": "One command on any machine you can already log into: Ubuntu, Debian, Raspberry Pi OS and other Debian-based distros (64-bit)."
+    "text": "Eén opdracht op elke 64-bits machine met Ubuntu, Debian of Raspberry Pi OS waarop je kunt inloggen.",
+    "en": "One command on any 64-bit Ubuntu, Debian or Raspberry Pi OS machine you can log into."
   },
   "site.landing.install.script_note": {
-    "text": "Het script installeert alles en bouwt de software vanuit de broncode, en start daarna de service op <code>{address}</code>. Je kunt het veilig opnieuw uitvoeren om bij te werken. Je bestanden komen op twee schijven die als RAID-1 worden gespiegeld: het script hergebruikt een spiegel die het vindt en wist alleen twee nieuwe schijven om er een te bouwen als je dat bevestigt, en het installeert ook de statuslampjes. Eén schijf werkt ook (zie de <readme>README</readme>). De wificonfiguratie hoort niet bij deze methode – zie de image voor een Raspberry Pi vanaf nul.",
-    "en": "It installs everything and builds the software from source, then starts the service at <code>{address}</code>. Safe to re-run to update. Your files go on two disks mirrored as RAID-1: it reuses a mirror it finds and only erases two new disks to build one when you confirm it, and it installs the status lights too. A single disk works as well (see the <readme>README</readme>). The Wi-Fi setup isn't part of this path — see the image for a from-scratch Raspberry Pi.",
-    "reviewed": "claude-backtranslation 2026-10-27 #6d94c63d"
+    "text": "Het script bouwt de software vanuit de broncode en start de service op <code>{address}</code>; voer het opnieuw uit om bij te werken. Bestanden komen op twee schijven die als RAID-1 worden gespiegeld (het script wist nieuwe schijven pas nadat je dat hebt bevestigd), of op één schijf (zie de <readme>README</readme>). Het stelt geen wifi in: gebruik voor een nieuwe Raspberry Pi de image.",
+    "en": "It builds the software from source and starts the service at <code>{address}</code>; run it again to update. Files go on two disks mirrored as RAID-1 (it erases new disks only after you confirm), or on a single disk (see the <readme>README</readme>). It doesn't set up Wi-Fi: for a new Raspberry Pi, use the image.",
+    "reviewed": "claude-backtranslation 2026-11-13 #43c2d568"
   },
   "site.landing.install.step_flash": {
-    "text": "<b>Flash de image</b> naar de microSD-kaart met <imager>Raspberry Pi Imager</imager>: “Gebruik eigen bestand”, kies het bestand, schrijf. Sla de eigen aanpassingsstap van Imager over.",
-    "en": "<b>Flash it</b> to the microSD card with <imager>Raspberry Pi Imager</imager>: \"Use custom\", pick the file, write. Skip Imager's own customisation step."
+    "text": "<b>Flash de image</b> naar de microSD-kaart met <imager>Raspberry Pi Imager</imager> (“Gebruik eigen bestand”, kies het bestand, schrijf) en sla de eigen aanpassingsstap van Imager over.",
+    "en": "<b>Flash it</b> to the microSD card with <imager>Raspberry Pi Imager</imager> (\"Use custom\", pick the file, write), skipping Imager's own customisation step."
   },
   "site.landing.install.step_plug": {
-    "text": "<b>Sluit de schijven aan</b> (op de twee blauwe USB-poorten), plaats de kaart en zet de Pi aan. Na een minuut maakt hij zich via Bluetooth bekend.",
-    "en": "<b>Plug in</b> the disks (into the two blue USB ports), insert the card and power the Pi on. After a minute it announces itself over Bluetooth."
+    "text": "<b>Sluit de schijven aan</b> (twee blauwe USB-poorten), plaats de kaart en zet de Pi aan. Na een minuut is hij via Bluetooth zichtbaar.",
+    "en": "<b>Plug in</b> the disks (two blue USB ports), insert the card and power on. After a minute the Pi shows up over Bluetooth."
   },
   "site.landing.install.step_setup": {
-    "text": "<b>Stel het in vanaf je telefoon</b> met de app (iOS of Android): tik op het welkomstscherm op <b>Nieuw apparaat instellen</b>. De app vindt de Pi via Bluetooth en voert de configuratie daar uit; je telefoon blijft op zijn eigen wifi. De app vraagt om je wifi, een naam en wachtwoord voor het apparaat en hoe de schijven moeten worden gebruikt, en installeert dan de software, wat ongeveer 20 minuten duurt.",
-    "en": "<b>Set it up from your phone</b> with the app (iOS or Android): on the welcome screen tap <b>Set up a new device</b>. It finds the Pi over Bluetooth and runs the setup right there — your phone stays on its own Wi-Fi. It asks for your Wi-Fi, a name and password for the device and how to use the disks, then installs the software — about 20 minutes."
+    "text": "<b>Stel het in vanaf je telefoon</b>: tik in de iOS- of Android-app op <b>Nieuw apparaat instellen</b>. De app vindt de Pi via Bluetooth, vraagt om je wifi, een naam, een wachtwoord en hoe de schijven moeten worden gebruikt, en installeert dan alles in ongeveer 20 minuten.",
+    "en": "<b>Set it up from your phone</b>: in the iOS or Android app, tap <b>Set up a new device</b>. It finds the Pi over Bluetooth, asks for your Wi-Fi, a name, a password and how to use the disks, then installs everything in about 20 minutes."
   },
   "site.landing.install.step_signin": {
-    "text": "<b>Log in</b> als het klaar is: de app maakt zelf verbinding met het nieuwe apparaat met het wachtwoord dat je hebt gekozen, of open <code>{address}</code> in een browser.",
-    "en": "<b>Sign in</b> when it's done: the app connects to the new device by itself with the password you chose, or open <code>{address}</code> in a browser."
+    "text": "<b>Log in</b>: de app maakt zelf verbinding met het apparaat, of open <code>{address}</code> in een browser.",
+    "en": "<b>Sign in</b>: the app connects to the device by itself, or open <code>{address}</code> in a browser."
   },
   "site.landing.install.tab_app": {
     "text": "Computerapp",
@@ -1104,8 +1104,8 @@
     "en": "Get it on Google Play"
   },
   "site.landing.phone.android_text": {
-    "text": "Dezelfde app voor Android-telefoons en -tablets: reservekopieën van foto’s, de bestanden en foto’s op je apparaat, en berichten van vrienden.",
-    "en": "The same app for Android phones and tablets: photo backup, your device's files and photos, and friends' posts."
+    "text": "Hetzelfde voor Android-telefoons en -tablets: reservekopieën van foto’s, je foto’s en bestanden, en berichten van vrienden.",
+    "en": "The same for Android phones and tablets: photo backup, your photos and files, and friends' posts."
   },
   "site.landing.phone.eyebrow": {
     "text": "Telefoonapps",
@@ -1116,16 +1116,16 @@
     "en": "Get it on the App Store"
   },
   "site.landing.phone.ios_text": {
-    "text": "Maakt een reservekopie van je fotobibliotheek, inclusief iCloud-foto’s, en toont de foto’s en bestanden op je apparaat en de berichten van je vrienden.",
-    "en": "Backs up your photo library, iCloud photos included, and shows your device's photos, files and friends' posts."
+    "text": "Maakt een reservekopie van je bibliotheek, inclusief iCloud-foto’s, en toont je foto’s, bestanden en de berichten van je vrienden.",
+    "en": "Backs up your library, iCloud photos included, and shows your photos, files and friends' posts."
   },
   "site.landing.phone.ios_title": {
     "text": "iPhone en iPad",
     "en": "iPhone and iPad"
   },
   "site.landing.phone.lead": {
-    "text": "Plaats berichten voor je vrienden en bekijk die van hen, maak een reservekopie van je foto’s en video’s zodra je ze maakt, blader door alles op je apparaat en stel een nieuw apparaat in via Bluetooth.",
-    "en": "Post for your friends and see their posts, back up your photos and videos as you take them, browse everything on your device, and set up a new device over Bluetooth."
+    "text": "Plaats berichten voor je vrienden en bekijk die van hen, maak een reservekopie van foto’s zodra je ze maakt, en blader door alles op je apparaat.",
+    "en": "Post for your friends and see their posts, back up photos as you take them, and browse everything on your device."
   },
   "site.landing.phone.title": {
     "text": "Je feed en je foto’s, op je telefoon",
@@ -1136,8 +1136,8 @@
     "en": "The cloud-shaped case, with Off The Cloud and https://off-the.cloud on its lid, its ports and its two status lights"
   },
   "site.landing.printable.cloud.text": {
-    "text": "Voor een plank of een bureau: een wolk met Off The Cloud op het deksel, een rooster boven de ventilator en de twee statuslampjes naast de USB-poorten. De microSD-kaart en alle poorten blijven binnen handbereik.",
-    "en": "For a shelf or a desk: a cloud with Off The Cloud on its lid, a grille over the fan and the two status lights beside the USB ports. The microSD card and every port stay within reach."
+    "text": "Voor een plank of bureau: een wolk met een rooster boven de ventilator en de twee statuslampjes naast de USB-poorten. De microSD-kaart en alle poorten blijven binnen handbereik.",
+    "en": "For a shelf or desk: a cloud with a grille over the fan and the two status lights by the USB ports. The microSD card and every port stay within reach."
   },
   "site.landing.printable.cloud.title": {
     "text": "Wolkbehuizing",
@@ -1152,20 +1152,20 @@
     "en": "Files and instructions"
   },
   "site.landing.printable.lead": {
-    "text": "Twee behuizingen om thuis te printen, voor de Raspberry Pi 5 met de GeeekPi Armor Lite V5-koeler. Beide printen zonder support en sluiten met M2.5-inzetmoeren en schroeven, en je mag ze vrij printen, aanpassen en delen.",
-    "en": "Two cases to print at home, for the Raspberry Pi 5 with a GeeekPi Armor Lite V5 cooler. Both print without supports and close with M2.5 heat-set inserts and screws, and you are free to print, change and share them."
+    "text": "Twee behuizingen om thuis te printen voor een Raspberry Pi 5 met een GeeekPi Armor Lite V5-koeler. Geen support nodig; ze sluiten met M2.5-inzetmoeren en schroeven.",
+    "en": "Two cases to print at home for a Raspberry Pi 5 with a GeeekPi Armor Lite V5 cooler. No supports needed; they close with M2.5 heat-set inserts and screws."
   },
   "site.landing.printable.licence": {
-    "text": "Beide vallen onder de licentie <cclicence>CC BY-SA 4.0</cclicence>: vermeld Off The Cloud en deel wat je ervan maakt onder dezelfde licentie.",
-    "en": "Both are under the <cclicence>CC BY-SA 4.0</cclicence> licence: credit Off The Cloud, and share what you make from them under the same licence."
+    "text": "Licentie: <cclicence>CC BY-SA 4.0</cclicence>. Vermeld Off The Cloud en deel wat je maakt onder dezelfde licentie.",
+    "en": "Licence: <cclicence>CC BY-SA 4.0</cclicence>. Credit Off The Cloud and share what you make under the same licence."
   },
   "site.landing.printable.screen.alt": {
     "text": "De schermbehuizing van de muurkant: de twee sleutelgatophangingen en Off The Cloud op de achterkant",
     "en": "The screen case seen from the wall side: its two keyholes and Off The Cloud on its back"
   },
   "site.landing.printable.screen.text": {
-    "text": "Voor aan de muur: hij wordt op de achterkant van een draagbaar scherm geschroefd met vier M2.5-gaten in een vierkant van 75 x 75 mm, en samen hangen ze aan twee schroeven. Een korte kabel brengt de HDMI van de Pi naar het scherm.",
-    "en": "For the wall: it screws onto the back of a portable screen with four M2.5 holes in a 75 x 75 mm square, and hangs both on two screws. A short cable takes the Pi's HDMI to the screen."
+    "text": "Voor aan de muur: hij wordt geschroefd op de achterkant van een draagbaar scherm met M2.5-gaten in een vierkant van 75 x 75 mm, en samen hangen ze aan twee schroeven.",
+    "en": "For the wall: it screws onto the back of a portable screen with M2.5 holes in a 75 x 75 mm square, and both hang on two screws."
   },
   "site.landing.printable.screen.title": {
     "text": "Schermbehuizing",
@@ -1260,33 +1260,33 @@
     "en": "The install script"
   },
   "site.landing.started.lead": {
-    "text": "Alle drie de manieren komen op hetzelfde uit: de computerapp zet de image voor de Raspberry Pi 5 op de kaart, en de image voert dit installatiescript voor je uit, nadat je vanaf een telefoon of een Mac je wifi, een naam en je schijven hebt opgegeven.",
-    "en": "All three ways end in the same place: the computer app puts the Raspberry Pi 5 image on the card, and the image runs this install script for you, after asking for your Wi-Fi, a name and your disks from a phone or a Mac."
+    "text": "Alle drie de manieren eindigen hier: de image voert dit script voor je uit, nadat die om je wifi, een naam en je schijven heeft gevraagd.",
+    "en": "All three ways end here: the image runs this script for you, after asking for your Wi-Fi, a name and your disks."
   },
   "site.landing.started.note": {
-    "text": "<b>Begin je helemaal vanaf nul met een Raspberry Pi 5?</b> Gebruik de <install>Raspberry Pi 5-image</install>: die wist en spiegelt tijdens de configuratie twee USB-schijven, en als een Pi ooit kapotgaat, flash je een nieuwe kaart, sluit je dezelfde schijven aan en biedt de wizard aan om alles te herstellen. De statusleds en alle configuratieopties staan in de <readme>README</readme>.",
-    "en": "<b>Starting from scratch on a Raspberry Pi 5?</b> Use the <install>Raspberry Pi 5 image</install>: it wipes and mirrors two USB disks during setup, and if a Pi ever dies you flash a new card, attach the same disks and the wizard offers to recover everything. The status LEDs and every configuration option are in the <readme>README</readme>.",
-    "reviewed": "claude-backtranslation 2026-10-11 #14985010"
+    "text": "<b>Nieuwe Raspberry Pi 5?</b> Gebruik de <install>Raspberry Pi 5-image</install>: die wist en spiegelt tijdens de configuratie twee USB-schijven, en als de Pi kapotgaat, herstelt een nieuwe kaart met dezelfde schijven alles. Statuslampjes en alle opties: <readme>README</readme>.",
+    "en": "<b>New Raspberry Pi 5?</b> Use the <install>Raspberry Pi 5 image</install>: it erases two USB disks and mirrors them during setup, and if the Pi dies, a new card with the same disks recovers everything. Status lights and every option: <readme>README</readme>.",
+    "reviewed": "claude-backtranslation 2026-11-13 #fdb6a5b2"
   },
   "site.landing.started.step1_text": {
-    "text": "Het script installeert MariaDB, Go, ONNX Runtime en het model voor beeldherkenning, en bouwt en start daarna de service <code>otc</code>, die meteen bereikbaar is op <code>{address}</code> in je lokale netwerk. Je kunt het altijd veilig opnieuw uitvoeren om updates binnen te halen.",
-    "en": "It installs MariaDB, Go, ONNX Runtime and the tagging model, then builds and starts the <code>otc</code> service, reachable straight away at <code>{address}</code> on your local network — safe to re-run any time to pick up updates."
+    "text": "Het script installeert MariaDB, Go, ONNX Runtime en het model voor beeldherkenning, en bouwt en start daarna de service <code>otc</code> op <code>{address}</code>. Voer het opnieuw uit om bij te werken.",
+    "en": "It installs MariaDB, Go, ONNX Runtime and the tagging model, then builds and starts the <code>otc</code> service at <code>{address}</code>. Run it again to update."
   },
   "site.landing.started.step1_title": {
     "text": "Het script uitvoeren",
     "en": "Run the script"
   },
   "site.landing.started.step2_text": {
-    "text": "Hiermee geef je het apparaat een naam, bijvoorbeeld <code>pit</code> voor <code>pit.off-the.cloud</code>: het adres waarmee je apps en vrienden het buiten je thuisnetwerk bereiken, in plaats van het lokale adres <code>:8080</code>. Registreer de naam eerst op je <account>accountpagina</account>, zodat die bij je bridgeaccount hoort (de configuratie van de image doet dit voor je).",
-    "en": "This names the device, e.g. <code>pit</code> for <code>pit.off-the.cloud</code> — the address your apps and friends use to reach it from outside your home network, instead of the local <code>:8080</code> address. Register the name on your <account>account page</account> first, so it belongs to your bridge account (the image's setup does this for you)."
+    "text": "De naam van het apparaat, bijvoorbeeld <code>pit</code> voor <code>pit.off-the.cloud</code>: het adres dat je apps en vrienden buitenshuis gebruiken. Registreer de naam eerst op je <account>accountpagina</account> (de configuratie van de image doet dit voor je).",
+    "en": "The device's name, e.g. <code>pit</code> for <code>pit.off-the.cloud</code>: the address your apps and friends use away from home. Register it on your <account>account page</account> first (the image's setup does this for you)."
   },
   "site.landing.started.step2_title": {
     "text": "Een subdomein kiezen",
     "en": "Pick a subdomain"
   },
   "site.landing.started.step3_text": {
-    "text": "Open de client voor web, iOS, Android, macOS, Windows of Linux, laat hem naar je subdomein verwijzen en begin met het maken van reservekopieën.",
-    "en": "Open the web, iOS, Android, macOS, Windows or Linux client, point it at your subdomain, and start backing up."
+    "text": "Open een van de apps, laat hem naar je adres verwijzen en begin met het maken van reservekopieën.",
+    "en": "Open any of the apps, point it at your address and start backing up."
   },
   "site.landing.started.step3_title": {
     "text": "Een app koppelen",
@@ -1297,24 +1297,24 @@
     "en": "What happens under the hood"
   },
   "site.landing.what.decentral_text": {
-    "text": "De berichten van elk gezin staan op een eigen apparaat, en de apparaten van vrienden halen ze bij elkaar op. Er is geen centrale server met ieders foto’s, dus er is geen plek waar alles bij elkaar ligt om te verkopen, uit te buiten of te lekken.",
-    "en": "Every family's posts live on its own device, and friends' devices fetch them from each other. There's no central server holding everyone's photos, so there's nothing to sell, mine or leak in one place."
+    "text": "De berichten van elk gezin staan op een eigen apparaat, en de apparaten van vrienden halen ze bij elkaar op. Geen centrale server, dus niets om te verkopen, uit te buiten of te lekken.",
+    "en": "Each family's posts live on its own device, and friends' devices fetch them from each other. No central server, so nothing to sell, mine or leak."
   },
   "site.landing.what.decentral_title": {
     "text": "Geen bedrijf ertussen",
     "en": "No company in the middle"
   },
   "site.landing.what.desktop_text": {
-    "text": "Apps voor macOS, Windows en Linux die gekozen mappen op je computer automatisch in twee richtingen gesynchroniseerd houden met het apparaat.",
-    "en": "macOS, Windows and Linux apps that keep chosen folders on your computer in two-way sync with the device, automatically."
+    "text": "Apps voor Mac, Windows en Linux die je mappen gesynchroniseerd houden met het apparaat.",
+    "en": "Mac, Windows and Linux apps that keep your folders in sync with the device."
   },
   "site.landing.what.desktop_title": {
     "text": "Desktopclient",
     "en": "Desktop client"
   },
   "site.landing.what.device_text": {
-    "text": "Een Raspberry Pi 5 met een microSD-kaart voor het systeem en twee USB-schijven die in RAID-1 worden gespiegeld. Hij bewaart je originelen precies zoals ze binnenkomen, nooit verkleind of opnieuw gecomprimeerd: versleuteld opgeslagen, met een sleutel die alleen je wachtwoord ontgrendelt.",
-    "en": "A Raspberry Pi 5 with a microSD card for the system and two USB drives mirrored in RAID-1, storing your originals exactly as they arrive, never resized or recompressed — encrypted at rest, with a key that only your password unlocks."
+    "text": "Een Raspberry Pi 5 met twee gespiegelde USB-schijven. Hij bewaart je originelen zoals ze binnenkomen, versleuteld met een sleutel die alleen je wachtwoord ontgrendelt.",
+    "en": "A Raspberry Pi 5 with two mirrored USB drives, keeping your originals as they arrive, encrypted with a key only your password unlocks."
   },
   "site.landing.what.device_title": {
     "text": "Het apparaat",
@@ -1325,69 +1325,69 @@
     "en": "What it is"
   },
   "site.landing.what.family_text": {
-    "text": "Geef iedereen thuis een eigen account op hetzelfde apparaat, met een eigen reservekopie van foto’s, een eigen bibliotheek en een eigen wachtwoord, elk versleuteld met een eigen sleutel. Jij beheert de accounts, maar je kunt de foto’s en bestanden erin niet openen.",
-    "en": "Give everyone at home their own account on the same device — their own photo backup, library and password, each encrypted with its own key. You manage the accounts, but you can't open the photos and files in them.",
-    "reviewed": "claude-backtranslation 2026-10-11 #bf592cdc"
+    "text": "Iedereen thuis krijgt een eigen account, reservekopie en wachtwoord. Elk account is versleuteld met een eigen sleutel: jij beheert de accounts, maar je kunt hun bestanden niet openen.",
+    "en": "Everyone at home gets their own account, backup and password. Each account is encrypted with its own key: you manage the accounts but can't open their files.",
+    "reviewed": "claude-backtranslation 2026-11-13 #c0633753"
   },
   "site.landing.what.family_title": {
     "text": "Eén apparaat, het hele gezin",
     "en": "One device, the whole family"
   },
   "site.landing.what.fast_text": {
-    "text": "Thuis praten de apps via je eigen netwerk rechtstreeks met het apparaat, dus de foto’s van een hele vakantie worden op wifisnelheid veiliggesteld in plaats van over internet te kruipen.",
-    "en": "At home the apps talk straight to the device over your own network, so a whole holiday's photos back up at Wi-Fi speed instead of crawling over the internet."
+    "text": "Thuis praten de apps rechtstreeks met het apparaat, dus de foto’s van een hele vakantie worden op wifisnelheid veiliggesteld.",
+    "en": "At home the apps talk straight to the device, so a whole holiday's photos back up at Wi-Fi speed."
   },
   "site.landing.what.fast_title": {
     "text": "Snel thuis",
     "en": "Fast at home"
   },
   "site.landing.what.feed_text": {
-    "text": "Plaats foto’s en video’s voor je familie en vrienden, met bijschriften, reacties, likes en pushmeldingen. Alleen vrienden die je hebt geaccepteerd, zien ze, met de nieuwste bovenaan: geen advertenties, geen influencers en geen algoritme dat bepaalt wat je ziet.",
-    "en": "Post photos and videos for your family and friends, with captions, comments, likes and notifications. Only the friends you've accepted see them, newest first: no ads, no influencers and no algorithm deciding what you see."
+    "text": "Deel foto’s en video’s met bijschriften, reacties en likes. Alleen de vrienden die je accepteert, zien ze, met de nieuwste bovenaan: geen advertenties, geen influencers, geen algoritme.",
+    "en": "Share photos and videos with captions, comments and likes. Only the friends you accept see them, newest first: no ads, no influencers, no algorithm."
   },
   "site.landing.what.feed_title": {
     "text": "Je eigen sociale netwerk",
     "en": "Your own social network"
   },
   "site.landing.what.files_text": {
-    "text": "Houd mappen van elke computer in twee richtingen gesynchroniseerd of bewaar er een reservekopie van, open en deel ze vanaf je telefoon, en vergrendel een map zodat er niets uit kan worden verwijderd en eerdere versies bewaard blijven.",
-    "en": "Keep folders from every computer in two-way sync or backed up, open and share them from your phone, and lock a folder so nothing in it can be deleted and earlier versions are kept."
+    "text": "Synchroniseer mappen van elke computer of maak er een reservekopie van, open en deel ze vanaf je telefoon, en vergrendel een map zodat er niets uit kan worden verwijderd.",
+    "en": "Sync or back up folders from every computer, open and share them from your phone, and lock a folder so nothing in it can be deleted."
   },
   "site.landing.what.files_title": {
     "text": "Een NAS voor je bestanden",
     "en": "A NAS for your files"
   },
   "site.landing.what.lead": {
-    "text": "Eén klein apparaat bij jou thuis bewaart de berichten, foto’s en bestanden van je gezin. Apps op elk platform houden alles gesynchroniseerd en laten je alles bekijken, doorzoeken en delen.",
-    "en": "One small device in your home keeps your family's posts, photos and files. Apps on every platform keep it in sync and let you browse, search and share it."
+    "text": "Eén klein apparaat thuis bewaart de berichten, foto’s en bestanden van je gezin, met apps voor elk platform.",
+    "en": "One small device at home keeps your family's posts, photos and files, with apps for every platform."
   },
   "site.landing.what.mobile_text": {
-    "text": "Apps voor iOS en Android voor je sociale feed, pushmeldingen en reservekopieën van foto’s: ze maken op de achtergrond een reservekopie van je filmrol, in volledige resolutie.",
-    "en": "iOS and Android apps for your social feed, notifications and photo backup: they back up your camera roll in the background, in full resolution."
+    "text": "Apps voor iOS en Android voor je feed, pushmeldingen en reservekopieën van foto’s in volledige resolutie.",
+    "en": "iOS and Android apps for your feed, notifications and full-resolution photo backup."
   },
   "site.landing.what.mobile_title": {
     "text": "Mobiele app",
     "en": "Mobile app"
   },
   "site.landing.what.photos_text": {
-    "text": "De telefoonapps maken op de achtergrond een reservekopie van elke foto en video, als origineel, dus je bibliotheek is compleet en in volledige kwaliteit, zonder opslagabonnement dat te klein wordt.",
-    "en": "The phone apps back up every photo and video in the background, as the original, so your library is complete and in full quality, with no storage plan to outgrow."
+    "text": "Telefoons maken op de achtergrond een reservekopie van elke foto en video, in volledige kwaliteit, zonder opslagabonnement dat te klein wordt.",
+    "en": "Phones back up every photo and video in the background, in full quality, with no storage plan to outgrow."
   },
   "site.landing.what.photos_title": {
     "text": "Elke foto veiliggesteld",
     "en": "Every photo, backed up"
   },
   "site.landing.what.search_text": {
-    "text": "Elke foto wordt lokaal op het apparaat automatisch getagd, zodat je meteen kunt zoeken op “strand” of “hond”; er wordt niets naar derden gestuurd om dat te doen.",
-    "en": "Every photo is auto-tagged locally on the device, so you can search \"beach\" or \"dog\" instantly — nothing is sent to a third party to do it."
+    "text": "Foto’s worden op het apparaat getagd, zodat je kunt zoeken op “strand” of “hond”. Er wordt niets naar wie dan ook gestuurd om dat te doen.",
+    "en": "Photos are tagged on the device, so you can search \"beach\" or \"dog\". Nothing is sent to anyone to do it."
   },
   "site.landing.what.search_title": {
     "text": "Zoeken met AI, en toch privé",
     "en": "AI search, kept private"
   },
   "site.landing.what.share_text": {
-    "text": "Stuur een collectie foto’s naar wie je maar wilt als een link die verloopt. De ontvanger opent die in de browser, zonder account of app, en kan de originelen downloaden.",
-    "en": "Send a collection of photos to anyone as a link that expires. They open it in their browser, with no account or app, and can download the originals."
+    "text": "Stuur wie je maar wilt een link die verloopt. De ontvanger opent die in de browser, zonder account of app, en kan de originelen downloaden.",
+    "en": "Send anyone a link that expires. They open it in their browser, with no account or app, and can download the originals."
   },
   "site.landing.what.share_title": {
     "text": "Collecties delen met een link",
@@ -1398,8 +1398,8 @@
     "en": "A social network, a photo library and a NAS, in one device"
   },
   "site.landing.what.web_text": {
-    "text": "Alles hierboven, vanuit elke browser: log in met alleen je wachtwoord, zonder een app te installeren.",
-    "en": "Everything above, from any browser — sign in with just your password, no app install required."
+    "text": "Alles hierboven, in elke browser, met alleen je wachtwoord.",
+    "en": "Everything above, in any browser, with just your password."
   },
   "site.landing.what.web_title": {
     "text": "Webapp",

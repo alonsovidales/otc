@@ -1,7 +1,7 @@
 {
   "site.landing.contact.bridge_text": {
-    "text": "Du möchtest dein Gerät – und deine Freunde – auch außerhalb deines Heimnetzes erreichen? Erstelle ein Konto auf der <signup>Kontoseite</signup> oder bei der Einrichtung deines Geräts und wähle deine Adresse selbst. Du brauchst mehr als fünf Adressen? Schreib uns über dieses Formular.",
-    "en": "Want to reach your device, and your friends, from outside your home network? Create an account on the <signup>account page</signup> or in your device's setup, and choose your address yourself. Need more than five addresses? Write to us with this form."
+    "text": "Um dein Gerät und deine Freunde von unterwegs zu erreichen, erstelle ein Konto auf der <signup>Kontoseite</signup> oder bei der Einrichtung deines Geräts und wähle deine Adresse. Du brauchst mehr als fünf Adressen? Nutze dieses Formular.",
+    "en": "To reach your device and friends away from home, create an account on the <signup>account page</signup> or in your device's setup and choose your address. Need more than five addresses? Use this form."
   },
   "site.landing.contact.bridge_title": {
     "text": "Bridge-Zugang",
@@ -24,8 +24,8 @@
     "en": "Get in touch"
   },
   "site.landing.contact.lead": {
-    "text": "Schick uns eine Nachricht – ob allgemeine Frage, Hilfe bei der Inbetriebnahme deines Geräts oder mehr Adressen für dein Bridge-Konto.",
-    "en": "Send a message — whether it's a general question, help getting your device running, or more addresses for your bridge account."
+    "text": "Eine Frage, Hilfe bei der Einrichtung oder mehr Adressen für dein Bridge-Konto: Schick uns eine Nachricht.",
+    "en": "A question, help with setup or more addresses for your bridge account: send us a message."
   },
   "site.landing.contact.message": {
     "text": "Nachricht",
@@ -84,8 +84,8 @@
     "en": "Thanks — we'll get back to you soon."
   },
   "site.landing.contact.status_text": {
-    "text": "Das Gerät, die Bridge und die Web-App funktionieren heute schon, ebenso die Apps: iPhone und Android, die Mac-App und otc-sync für Windows und Linux.",
-    "en": "The device, the bridge and the web app work today, and so do the apps: iPhone and Android, the Mac app, and otc-sync for Windows and Linux."
+    "text": "Alles funktioniert heute schon: das Gerät, die Bridge, die Web-App und die Apps für iPhone, Android, Mac, Windows und Linux.",
+    "en": "Everything works today: the device, the bridge, the web app and the iPhone, Android, Mac, Windows and Linux apps."
   },
   "site.landing.contact.status_title": {
     "text": "Wo wir stehen",
@@ -100,8 +100,8 @@
     "en": "Computer apps"
   },
   "site.landing.desktop.lead": {
-    "text": "Sichere Ordner von deinem Computer oder halte sie auf beiden Seiten gleich. Die Apps sitzen in der Menüleiste oder im Infobereich; der Mac App Store hält die Mac-App aktuell, und unter Windows und Linux genügt ein Klick, um eine neue Version zu installieren.",
-    "en": "Back up folders from your computer, or keep them the same on both sides. The apps sit in the menu bar or tray; the Mac App Store keeps the Mac app up to date, and on Windows and Linux one click installs a new version."
+    "text": "Sichere die Ordner deines Computers oder halte sie in beide Richtungen synchron. Die Apps sitzen in der Menüleiste oder im Infobereich und bleiben aktuell.",
+    "en": "Back up your computer's folders, or keep them in sync both ways. The apps live in the menu bar or tray and stay up to date."
   },
   "site.landing.desktop.linux_alt": {
     "text": "ARM (zum Beispiel ein Raspberry Pi)? <linuxarm>Linux ARM64</linuxarm>. Dann:",
@@ -120,29 +120,29 @@
     "en": "Get it on the Mac App Store"
   },
   "site.landing.desktop.mac_text": {
-    "text": "Eine App für die Menüleiste mit denselben Ordnern und Synchronisierungsregeln, im Mac App Store, der sie für dich aktuell hält.",
-    "en": "A menu bar app with the same folders and sync rules, on the Mac App Store, which keeps it up to date for you."
+    "text": "Eine App für die Menüleiste aus dem Mac App Store, der sie aktuell hält.",
+    "en": "A menu bar app from the Mac App Store, which keeps it up to date."
   },
   "site.landing.desktop.signed_note": {
-    "text": "<b>Jedes Update ist signiert.</b> Unter Windows und Linux installiert die App eine neue Version erst, nachdem sie ihre Signatur mit dem Release-Schlüssel des Projekts geprüft hat – demselben Schlüssel, der auch die Updates des Geräts signiert. Der Quellcode liegt auf <github>GitHub</github>, und jede Datei ist im <release>Desktop-Release</release> aufgeführt.",
-    "en": "<b>Every update is signed.</b> On Windows and Linux the app only installs a new version after checking its signature against the project's release key, the same key that signs the device updates. The source is on <github>GitHub</github>, and every file is listed on the <release>desktop release</release>.",
-    "reviewed": "claude-backtranslation 2026-10-27 #c5b67385"
+    "text": "<b>Jedes Update ist signiert</b> – mit dem Release-Schlüssel des Projekts, demselben, der auch die Updates des Geräts signiert – und wird vor der Installation geprüft. Quellcode auf <github>GitHub</github>, Dateien im <release>Desktop-Release</release>.",
+    "en": "<b>Every update is signed</b> with the project's release key, the same one that signs device updates, and checked before it installs. Source on <github>GitHub</github>, files on the <release>desktop release</release>.",
+    "reviewed": "claude-backtranslation 2026-11-13 #824aa787"
   },
   "site.landing.desktop.title": {
     "text": "Halte deine Ordner synchron",
     "en": "Keep your folders in sync"
   },
   "site.landing.desktop.windows_alt": {
-    "text": "ARM-PC? <winarm>Windows on ARM</winarm>. Die App ist noch nicht codesigniert, daher warnt Windows dich möglicherweise: Wähle <em>Weitere Informationen → Trotzdem ausführen</em>.",
-    "en": "ARM PC? <winarm>Windows on ARM</winarm>. The app isn't code-signed yet, so Windows may warn you: choose <em>More info → Run anyway</em>."
+    "text": "ARM-PC? <winarm>Windows on ARM</winarm>. Wenn Windows dich warnt, wähle <em>Weitere Informationen → Trotzdem ausführen</em>.",
+    "en": "ARM PC? <winarm>Windows on ARM</winarm>. If Windows warns you, choose <em>More info → Run anyway</em>."
   },
   "site.landing.desktop.windows_button": {
     "text": "Für Windows herunterladen",
     "en": "Download for Windows"
   },
   "site.landing.desktop.windows_text": {
-    "text": "Windows 10 oder 11. Lege die Datei an einem dauerhaften Ort ab (nicht in „Downloads“) und starte sie: Sie erscheint im Infobereich und kann, wenn du willst, bei der Anmeldung starten.",
-    "en": "Windows 10 or 11. Put the file somewhere permanent (not Downloads) and run it: it appears in the tray, and can start at login if you choose."
+    "text": "Windows 10 oder 11. Lege die Datei an einem dauerhaften Ort ab (nicht in „Downloads“) und starte sie: Sie sitzt im Infobereich.",
+    "en": "Windows 10 or 11. Keep the file somewhere permanent (not Downloads) and run it: it lives in the tray."
   },
   "site.landing.download.your_system": {
     "text": "Dein System",
@@ -837,24 +837,24 @@
     "en": "Files"
   },
   "site.landing.glance.files.value": {
-    "text": "Ein NAS: mit Mac-, Windows- und Linux-Computern synchronisierte oder gesicherte Ordner, Ordner mit „Nur hochladen“, die frühere Versionen behalten, und Freigabelinks",
-    "en": "A NAS: folders kept in sync with Mac, Windows and Linux computers or backed up, upload-only folders that keep earlier versions, and share links"
+    "text": "Von Mac, Windows und Linux synchronisierte oder gesicherte Ordner, Ordner mit „Nur hochladen“, die frühere Versionen behalten, und Freigabelinks",
+    "en": "Folders synced or backed up from Mac, Windows and Linux, upload-only folders that keep earlier versions, and share links"
   },
   "site.landing.glance.hardware.label": {
     "text": "Läuft auf",
     "en": "Runs on"
   },
   "site.landing.glance.hardware.value": {
-    "text": "Raspberry Pi 5 mit 8 GB (4 GB mit Bilderkennung als Option, 2 GB für eine Person) oder 64-Bit-Rechner mit Intel/AMD oder ARM und Debian oder Ubuntu",
-    "en": "A Raspberry Pi 5 with 8 GB (4 GB with tagging as an option, 2 GB for one person), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu"
+    "text": "Ein Raspberry Pi 5 mit 8 GB (4 GB und 2 GB funktionieren auch) oder jeder 64-Bit-Rechner mit Debian oder Ubuntu",
+    "en": "A Raspberry Pi 5 with 8 GB (4 GB and 2 GB work too), or any 64-bit Debian or Ubuntu machine"
   },
   "site.landing.glance.instead.label": {
     "text": "Ersetzt",
     "en": "Instead of"
   },
   "site.landing.glance.instead.value": {
-    "text": "Instagram, Facebook oder die WhatsApp-Gruppe der Familie zum Teilen von Fotos; Google Fotos oder iCloud-Fotos fürs Backup; Google Drive, Dropbox, iCloud Drive oder Proton Drive für Dateien",
-    "en": "Instagram, Facebook or a family WhatsApp group for sharing photos; Google Photos or iCloud Photos for backup; Google Drive, Dropbox, iCloud Drive or Proton Drive for files"
+    "text": "Instagram, Facebook oder die WhatsApp-Gruppe der Familie; Google Fotos oder iCloud-Fotos; Google Drive, Dropbox, iCloud Drive oder Proton Drive",
+    "en": "Instagram, Facebook or a family WhatsApp group; Google Photos or iCloud Photos; Google Drive, Dropbox, iCloud Drive or Proton Drive"
   },
   "site.landing.glance.languages.label": {
     "text": "Sprachen",
@@ -887,16 +887,16 @@
     "en": "Social network"
   },
   "site.landing.glance.social.value": {
-    "text": "Beiträge mit Fotos und Videos, Kommentare, Likes und Benachrichtigungen, nur für die Freunde, die du annimmst, von Gerät zu Gerät; das Neueste zuerst, keine Werbung",
-    "en": "Posts with photos and videos, comments, likes and notifications, only for the friends you accept, from device to device; newest first, no ads"
+    "text": "Beiträge mit Fotos und Videos, Kommentare und Likes, nur für die Freunde, die du annimmst; das Neueste zuerst, keine Werbung",
+    "en": "Photo and video posts, comments and likes, only for the friends you accept; newest first, no ads"
   },
   "site.landing.glance.storage.label": {
     "text": "Speicher",
     "en": "Storage"
   },
   "site.landing.glance.storage.value": {
-    "text": "Zwei USB-Laufwerke, gespiegelt als RAID-1, jedes mit einer vollständigen Kopie: USB-Sticks, SSDs, Festplatten oder microSD-Karten in USB-Kartenlesern",
-    "en": "Two USB drives mirrored as RAID-1, each with a full copy: sticks, SSDs, hard disks or microSD cards in USB readers"
+    "text": "Zwei USB-Laufwerke, gespiegelt als RAID-1: USB-Sticks, SSDs, Festplatten oder microSD-Karten in USB-Kartenlesern",
+    "en": "Two USB drives mirrored as RAID-1: sticks, SSDs, hard disks or microSD cards in USB readers"
   },
   "site.landing.glance.title": {
     "text": "Off The Cloud auf einen Blick",
@@ -907,20 +907,20 @@
     "en": "What it is"
   },
   "site.landing.glance.what.value": {
-    "text": "Ein privates soziales Netzwerk für Familie und Freunde und ein Homeserver (NAS) für deine Fotos, Videos und Dateien, mit eigenen Apps",
-    "en": "A private social network for family and friends, and a home server (NAS) for your photos, videos and files, with its own apps"
+    "text": "Ein privates soziales Netzwerk für Familie und Freunde und ein Heim-NAS für deine Fotos, Videos und Dateien",
+    "en": "A private social network for family and friends, and a home NAS for your photos, videos and files"
   },
   "site.landing.hero.demo": {
     "text": "Demo ausprobieren",
     "en": "Try the demo"
   },
   "site.landing.hero.demo_note": {
-    "text": "Sieh dir ein echtes Gerät mit Fotos und Dateien einer erfundenen Familie an. Ohne Anmeldung.",
-    "en": "Look around a real device with a made-up family's photos and files. No sign-up."
+    "text": "Ein echtes Gerät mit Fotos und Dateien einer erfundenen Familie. Ohne Anmeldung.",
+    "en": "A real device with a made-up family's photos and files. No sign-up."
   },
   "site.landing.hero.lead": {
-    "text": "Off The Cloud ist ein privates soziales Netzwerk für deine Familie und deine Freunde und ein Zuhause für deine Fotos und Dateien, auf einem kleinen Gerät, das dir gehört. Poste Fotos und Videos, kommentiere und verteile Likes – ohne Werbung, ohne Algorithmus und ohne Fremde: Deine Beiträge bleiben auf deinem Gerät, gehen nur an die Geräte der Freunde, die du annimmst, und werden nie auf den Servern eines Unternehmens gespeichert. Dasselbe Gerät sichert die Handys aller in voller Auflösung und hält die Ordner deiner Computer synchron – so ersetzt es auf einen Schlag Instagram, Google Fotos, iCloud, Google Drive und Dropbox. Es ist kostenlose Open-Source-Software für einen Raspberry Pi 5, die du über dein Handy einrichtest.",
-    "en": "Off The Cloud is a private social network for your family and friends, and a home for your photos and files, on a small device you own. Post photos and videos, comment and like, with no ads, no algorithm and no strangers: your posts stay on your device and go only to the devices of friends you accept, never stored on a company's servers. The same device backs up everyone's phones in full resolution and keeps your computers' folders in sync, so it takes the place of Instagram, Google Photos, iCloud, Google Drive and Dropbox at once. It's free, open-source software for a Raspberry Pi 5, set up from your phone."
+    "text": "Ein privates soziales Netzwerk für deine Familie und deine Freunde, ein Zuhause für deine Fotos und Dateien, auf einem kleinen Gerät, das dir gehört. Ohne Werbung, ohne Algorithmus, ohne Fremde: Deine Beiträge bleiben zu Hause und gehen nur an die Freunde, die du annimmst. Es sichert die Handys aller in voller Auflösung und hält die Ordner deiner Computer synchron – statt Instagram, Google Fotos, iCloud, Google Drive und Dropbox. Kostenlos und Open Source, auf einem Raspberry Pi 5, den du über dein Handy einrichtest.",
+    "en": "A private social network for your family and friends, home for your photos and files, on a small device you own. No ads, no algorithm, no strangers: your posts stay at home and go only to the friends you accept. It backs up everyone's phones in full resolution and keeps your computers' folders in sync, instead of Instagram, Google Photos, iCloud, Google Drive and Dropbox. Free and open source, on a Raspberry Pi 5 you set up from your phone."
   },
   "site.landing.hero.photo_alt": {
     "text": "Ein Gerät von Off The Cloud auf einem Schreibtisch, neben einer Kamera und einem Computer, der deine Fotomediathek zeigt",
@@ -939,28 +939,28 @@
     "en": "<em>Off the cloud</em>, at home."
   },
   "site.landing.install.app_intro": {
-    "text": "Der einfachste Weg: Die App lädt das Image herunter und prüft seine Signatur, beschreibt unter Windows und Linux die Karte selbst und führt dich durch jeden Schritt.",
-    "en": "The easiest way: the app downloads the image and checks its signature, writes the card itself on Windows and Linux, and guides you through each step."
+    "text": "Der einfachste Weg: Die App bereitet die Karte vor und führt dich durch jeden Schritt.",
+    "en": "The easiest way: the app makes the card and guides you through each step."
   },
   "site.landing.install.app_more": {
-    "text": "ARM-Versionen und Tipps für den ersten Start unter Windows und Linux findest du im <download>Download-Bereich</download>.",
-    "en": "ARM versions, and first-run tips for Windows and Linux, are in the <download>download section</download>."
+    "text": "ARM-Versionen und Tipps für den ersten Start findest du im <download>Download-Bereich</download>.",
+    "en": "ARM versions and first-run tips are in the <download>download section</download>."
   },
   "site.landing.install.app_step_card": {
-    "text": "<b>Bereite die Karte vor.</b> Die App lädt das Image herunter und prüft es anhand der Signatur des Projekts. Unter Windows und Linux schreibt sie es dann auf eine microSD-Karte mit mindestens 8 GB, nachdem sie nach Administratorrechten gefragt hat; auf einem Mac öffnet sie den <imager>Raspberry Pi Imager</imager>, der die Karte beschreibt, und sagt dir, was du dort auswählen musst.",
-    "en": "<b>Make the card.</b> The app downloads the image and checks it against the project's signature. On Windows and Linux it then writes it to a microSD card of 8 GB or more, after asking for administrator permission; on a Mac it opens <imager>Raspberry Pi Imager</imager> to write the card and tells you what to choose there."
+    "text": "<b>Bereite die Karte vor.</b> Die App lädt das Image herunter, prüft seine Signatur und schreibt es auf eine microSD-Karte mit mindestens 8 GB. Auf einem Mac öffnet sie dafür den <imager>Raspberry Pi Imager</imager> und sagt dir, was du auswählen musst.",
+    "en": "<b>Make the card.</b> The app downloads the image, checks its signature and writes it to a microSD card of 8 GB or more. On a Mac it opens <imager>Raspberry Pi Imager</imager> for this and tells you what to choose."
   },
   "site.landing.install.app_step_open": {
-    "text": "<b>Installiere die App</b> und wähle <b>Neues Gerät einrichten…</b>: in den <b>Einstellungen</b> der Mac-App oder unter Windows und Linux im Menü im Infobereich.",
-    "en": "<b>Install the app</b> and choose <b>Set Up a New Device…</b>: in the Mac app's <b>Settings</b>, or in the tray menu on Windows and Linux."
+    "text": "<b>Installiere die App</b> und wähle <b>Neues Gerät einrichten…</b>, in den <b>Einstellungen</b> der Mac-App oder unter Windows und Linux im Menü im Infobereich.",
+    "en": "<b>Install the app</b> and choose <b>Set Up a New Device…</b>, in the Mac app's <b>Settings</b> or the tray menu on Windows and Linux."
   },
   "site.landing.install.app_step_setup": {
-    "text": "<b>Schließ die Einrichtung ab</b>, über Bluetooth. Auf einem Mac direkt in der App: <b>Auf diesem Mac</b> (oder nimm dein Handy). Unter Windows und Linux in der Handy-App (iOS oder Android): Tippe auf <b>Neues Gerät einrichten</b>. In beiden Fällen fragt sie nach deinem WLAN, einem Namen und Passwort für das Gerät und danach, wie die Laufwerke genutzt werden sollen, und installiert dann die Software – etwa 20 Minuten.",
-    "en": "<b>Finish the setup</b> over Bluetooth. On a Mac, right in the app: <b>On this Mac</b> (or use your phone). On Windows and Linux, in the phone app (iOS or Android): tap <b>Set up a new device</b>. Either way it asks for your Wi-Fi, a name and password for the device and how to use the disks, then installs the software — about 20 minutes."
+    "text": "<b>Schließ die Einrichtung ab</b>, über Bluetooth: auf einem Mac in der App (<b>Auf diesem Mac</b>), unter Windows und Linux in der App für iOS oder Android (<b>Neues Gerät einrichten</b>). Sie fragt nach deinem WLAN, einem Namen, einem Passwort und danach, wie die Laufwerke genutzt werden sollen, und installiert dann alles in etwa 20 Minuten.",
+    "en": "<b>Finish the setup</b> over Bluetooth: on a Mac in the app (<b>On this Mac</b>), on Windows and Linux in the iOS or Android app (<b>Set up a new device</b>). It asks for your Wi-Fi, a name, a password and how to use the disks, then installs everything in about 20 minutes."
   },
   "site.landing.install.bridge_link": {
-    "text": "Du möchtest es auch außerhalb deines Heimnetzes erreichen? Erstelle ein Konto für die Bridge →",
-    "en": "Want to reach it from outside your home network? Create an account for the bridge →"
+    "text": "Erreiche es von unterwegs: Erstelle ein Bridge-Konto →",
+    "en": "Reach it away from home: create a bridge account →"
   },
   "site.landing.install.command_comment": {
     "text": "melde dich am Rechner an, dann:",
@@ -983,8 +983,8 @@
     "en": "Download the image (≈ 530 MB)"
   },
   "site.landing.install.image_note": {
-    "text": "Das Image enthält nur den Einrichtungsassistenten: Er installiert das aktuelle Release, daher veraltet es nie. Prüfsumme: <sha>.sha256</sha>.",
-    "en": "The image only carries the setup wizard: it installs the current release, so it never goes out of date. Checksum: <sha>.sha256</sha>."
+    "text": "Das Image installiert das aktuelle Release, daher veraltet es nie. Prüfsumme: <sha>.sha256</sha>.",
+    "en": "The image installs the current release, so it never goes out of date. Checksum: <sha>.sha256</sha>."
   },
   "site.landing.install.label": {
     "text": "Bring dein Gerät zum Laufen",
@@ -995,33 +995,33 @@
     "en": "Recommended"
   },
   "site.landing.install.requirements": {
-    "text": "Für einen <b>Raspberry Pi 5 mit mindestens 8 GB RAM</b>, eine microSD-Karte für das System und optional zwei USB-Laufwerke für RAID-1, angeschlossen an die <b>zwei blauen USB-Anschlüsse</b> des Pi. Verwende das <b>offizielle USB-C-Netzteil von Raspberry Pi mit 27 W</b> (oder ein besseres): Mit einem schwächeren kann der Pi wegen Unterspannung neu starten, während er deine Fotos verarbeitet. Tastatur, Monitor oder Linux-Kenntnisse sind nicht nötig. <b>Du hast nur einen Pi mit 4 GB?</b> Er kann auch alles, und die <b>Bilderkennung</b> ist eine Option, die du in den Einstellungen einschaltest. Einer mit 2 GB reicht für eine Person.",
-    "en": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It runs everything too, with <b>Image Tagging</b> as an option you turn on in Settings. A 2 GB one is enough for one person."
+    "text": "Du brauchst einen <b>Raspberry Pi 5 mit 8 GB RAM</b>, eine microSD-Karte und optional zwei USB-Laufwerke für RAID-1 an den <b>zwei blauen USB-Anschlüssen</b> des Pi. Verwende das <b>offizielle USB-C-Netzteil von Raspberry Pi mit 27 W</b>: Mit einem schwächeren kann der Pi neu starten, während er deine Fotos verarbeitet. Tastatur, Monitor oder Linux-Kenntnisse sind nicht nötig. <b>Du hast nur einen Pi mit 4 GB?</b> Er kann auch alles, mit der <b>Bilderkennung</b> als Option in den Einstellungen; einer mit 2 GB reicht für eine Person.",
+    "en": "You need a <b>Raspberry Pi 5 with 8 GB of RAM</b>, a microSD card and, optionally, two USB disks for RAID-1 in the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b>: with a weaker one the Pi can restart while it works on your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It runs everything too, with <b>Image Tagging</b> as an option in Settings; 2 GB is enough for one person."
   },
   "site.landing.install.script_intro": {
-    "text": "Ein Befehl auf jedem Rechner, auf dem du dich bereits anmelden kannst: Ubuntu, Debian, Raspberry Pi OS und andere auf Debian basierende Distributionen (64 Bit).",
-    "en": "One command on any machine you can already log into: Ubuntu, Debian, Raspberry Pi OS and other Debian-based distros (64-bit)."
+    "text": "Ein Befehl auf jedem 64-Bit-Rechner mit Ubuntu, Debian oder Raspberry Pi OS, auf dem du dich anmelden kannst.",
+    "en": "One command on any 64-bit Ubuntu, Debian or Raspberry Pi OS machine you can log into."
   },
   "site.landing.install.script_note": {
-    "text": "Es installiert alles und baut die Software aus dem Quellcode, dann startet es den Dienst unter <code>{address}</code>. Zum Aktualisieren kannst du es gefahrlos erneut ausführen. Deine Dateien liegen auf zwei Laufwerken, gespiegelt als RAID-1: Es verwendet eine vorhandene Spiegelung weiter und löscht zwei neue Laufwerke, um eine zu erstellen, nur dann, wenn du es bestätigst; außerdem installiert es die Statuslichter. Ein einzelnes Laufwerk funktioniert auch (siehe <readme>README</readme>). Die WLAN-Einrichtung gehört nicht zu diesem Weg – für einen Raspberry Pi, den du von Grund auf einrichtest, nimm das Image.",
-    "en": "It installs everything and builds the software from source, then starts the service at <code>{address}</code>. Safe to re-run to update. Your files go on two disks mirrored as RAID-1: it reuses a mirror it finds and only erases two new disks to build one when you confirm it, and it installs the status lights too. A single disk works as well (see the <readme>README</readme>). The Wi-Fi setup isn't part of this path — see the image for a from-scratch Raspberry Pi.",
-    "reviewed": "claude-backtranslation 2026-10-27 #203c2eb7"
+    "text": "Es baut die Software aus dem Quellcode und startet den Dienst unter <code>{address}</code>; führ es zum Aktualisieren erneut aus. Die Dateien liegen auf zwei Laufwerken, gespiegelt als RAID-1 (neue Laufwerke löscht es erst, wenn du es bestätigst), oder auf einem einzelnen Laufwerk (siehe <readme>README</readme>). Es richtet kein WLAN ein: Für einen neuen Raspberry Pi nimm das Image.",
+    "en": "It builds the software from source and starts the service at <code>{address}</code>; run it again to update. Files go on two disks mirrored as RAID-1 (it erases new disks only after you confirm), or on a single disk (see the <readme>README</readme>). It doesn't set up Wi-Fi: for a new Raspberry Pi, use the image.",
+    "reviewed": "claude-backtranslation 2026-11-13 #a8a3f424"
   },
   "site.landing.install.step_flash": {
-    "text": "<b>Schreib es</b> mit dem <imager>Raspberry Pi Imager</imager> auf die microSD-Karte: „Eigenes Image“, Datei auswählen, schreiben. Überspring den Anpassungsschritt von Imager.",
-    "en": "<b>Flash it</b> to the microSD card with <imager>Raspberry Pi Imager</imager>: \"Use custom\", pick the file, write. Skip Imager's own customisation step."
+    "text": "<b>Schreib es</b> mit dem <imager>Raspberry Pi Imager</imager> auf die microSD-Karte („Eigenes Image“, Datei auswählen, schreiben) und überspring den Anpassungsschritt von Imager.",
+    "en": "<b>Flash it</b> to the microSD card with <imager>Raspberry Pi Imager</imager> (\"Use custom\", pick the file, write), skipping Imager's own customisation step."
   },
   "site.landing.install.step_plug": {
-    "text": "<b>Schließ die Laufwerke an</b> (an die zwei blauen USB-Anschlüsse), steck die Karte ein und schalte den Pi ein. Nach einer Minute ist er über Bluetooth sichtbar.",
-    "en": "<b>Plug in</b> the disks (into the two blue USB ports), insert the card and power the Pi on. After a minute it announces itself over Bluetooth."
+    "text": "<b>Schließ die Laufwerke an</b> (zwei blaue USB-Anschlüsse), steck die Karte ein und schalte den Pi ein. Nach einer Minute ist er über Bluetooth sichtbar.",
+    "en": "<b>Plug in</b> the disks (two blue USB ports), insert the card and power on. After a minute the Pi shows up over Bluetooth."
   },
   "site.landing.install.step_setup": {
-    "text": "<b>Richte das Gerät mit deinem Handy ein</b>, über die App (iOS oder Android): Tippe auf dem Willkommensbildschirm auf <b>Neues Gerät einrichten</b>. Sie findet den Pi über Bluetooth und führt die Einrichtung direkt dort durch – dein Handy bleibt in seinem eigenen WLAN. Sie fragt nach deinem WLAN, einem Namen und Passwort für das Gerät und danach, wie die Laufwerke genutzt werden sollen, und installiert dann die Software – etwa 20 Minuten.",
-    "en": "<b>Set it up from your phone</b> with the app (iOS or Android): on the welcome screen tap <b>Set up a new device</b>. It finds the Pi over Bluetooth and runs the setup right there — your phone stays on its own Wi-Fi. It asks for your Wi-Fi, a name and password for the device and how to use the disks, then installs the software — about 20 minutes."
+    "text": "<b>Richte das Gerät mit deinem Handy ein</b>: Tippe in der App für iOS oder Android auf <b>Neues Gerät einrichten</b>. Sie findet den Pi über Bluetooth, fragt nach deinem WLAN, einem Namen, einem Passwort und danach, wie die Laufwerke genutzt werden sollen, und installiert dann alles in etwa 20 Minuten.",
+    "en": "<b>Set it up from your phone</b>: in the iOS or Android app, tap <b>Set up a new device</b>. It finds the Pi over Bluetooth, asks for your Wi-Fi, a name, a password and how to use the disks, then installs everything in about 20 minutes."
   },
   "site.landing.install.step_signin": {
-    "text": "<b>Melde dich an</b>, wenn es fertig ist: Die App verbindet sich mit dem Passwort, das du gewählt hast, von selbst mit dem neuen Gerät, oder öffne <code>{address}</code> in einem Browser.",
-    "en": "<b>Sign in</b> when it's done: the app connects to the new device by itself with the password you chose, or open <code>{address}</code> in a browser."
+    "text": "<b>Melde dich an</b>: Die App verbindet sich von selbst mit dem Gerät, oder öffne <code>{address}</code> in einem Browser.",
+    "en": "<b>Sign in</b>: the app connects to the device by itself, or open <code>{address}</code> in a browser."
   },
   "site.landing.install.tab_app": {
     "text": "Computer-App",
@@ -1104,8 +1104,8 @@
     "en": "Get it on Google Play"
   },
   "site.landing.phone.android_text": {
-    "text": "Dieselbe App für Android-Handys und -Tablets: Foto-Backup, die Dateien und Fotos deines Geräts und die Beiträge deiner Freunde.",
-    "en": "The same app for Android phones and tablets: photo backup, your device's files and photos, and friends' posts."
+    "text": "Dasselbe für Android-Handys und -Tablets: Foto-Backup, deine Fotos und Dateien und die Beiträge deiner Freunde.",
+    "en": "The same for Android phones and tablets: photo backup, your photos and files, and friends' posts."
   },
   "site.landing.phone.eyebrow": {
     "text": "Handy-Apps",
@@ -1116,16 +1116,16 @@
     "en": "Get it on the App Store"
   },
   "site.landing.phone.ios_text": {
-    "text": "Sichert deine Fotomediathek, inklusive iCloud-Fotos, und zeigt die Fotos und Dateien deines Geräts und die Beiträge deiner Freunde.",
-    "en": "Backs up your photo library, iCloud photos included, and shows your device's photos, files and friends' posts."
+    "text": "Sichert deine Fotomediathek, inklusive iCloud-Fotos, und zeigt deine Fotos, Dateien und die Beiträge deiner Freunde.",
+    "en": "Backs up your library, iCloud photos included, and shows your photos, files and friends' posts."
   },
   "site.landing.phone.ios_title": {
     "text": "iPhone und iPad",
     "en": "iPhone and iPad"
   },
   "site.landing.phone.lead": {
-    "text": "Poste für deine Freunde und sieh dir ihre Beiträge an, sichere deine Fotos und Videos gleich bei der Aufnahme, stöbere in allem, was auf deinem Gerät liegt, und richte ein neues Gerät über Bluetooth ein.",
-    "en": "Post for your friends and see their posts, back up your photos and videos as you take them, browse everything on your device, and set up a new device over Bluetooth."
+    "text": "Poste für deine Freunde und sieh dir ihre Beiträge an, sichere Fotos gleich bei der Aufnahme und stöbere in allem, was auf deinem Gerät liegt.",
+    "en": "Post for your friends and see their posts, back up photos as you take them, and browse everything on your device."
   },
   "site.landing.phone.title": {
     "text": "Dein Feed und deine Fotos auf dem Handy",
@@ -1136,8 +1136,8 @@
     "en": "The cloud-shaped case, with Off The Cloud and https://off-the.cloud on its lid, its ports and its two status lights"
   },
   "site.landing.printable.cloud.text": {
-    "text": "Für ein Regal oder einen Schreibtisch: eine Wolke mit Off The Cloud auf dem Deckel, einem Gitter über dem Lüfter und den zwei Statuslichtern neben den USB-Anschlüssen. Die microSD-Karte und alle Anschlüsse bleiben erreichbar.",
-    "en": "For a shelf or a desk: a cloud with Off The Cloud on its lid, a grille over the fan and the two status lights beside the USB ports. The microSD card and every port stay within reach."
+    "text": "Für ein Regal oder einen Schreibtisch: eine Wolke mit einem Gitter über dem Lüfter und den zwei Statuslichtern neben den USB-Anschlüssen. Die microSD-Karte und alle Anschlüsse bleiben erreichbar.",
+    "en": "For a shelf or desk: a cloud with a grille over the fan and the two status lights by the USB ports. The microSD card and every port stay within reach."
   },
   "site.landing.printable.cloud.title": {
     "text": "Wolkengehäuse",
@@ -1152,20 +1152,20 @@
     "en": "Files and instructions"
   },
   "site.landing.printable.lead": {
-    "text": "Zwei Gehäuse zum Drucken zu Hause, für den Raspberry Pi 5 mit dem Kühler GeeekPi Armor Lite V5. Beide werden ohne Stützstrukturen gedruckt und mit M2.5-Gewindeeinsätzen zum Einschmelzen und Schrauben verschlossen, und du darfst sie frei drucken, ändern und teilen.",
-    "en": "Two cases to print at home, for the Raspberry Pi 5 with a GeeekPi Armor Lite V5 cooler. Both print without supports and close with M2.5 heat-set inserts and screws, and you are free to print, change and share them."
+    "text": "Zwei Gehäuse zum Drucken zu Hause für einen Raspberry Pi 5 mit dem Kühler GeeekPi Armor Lite V5. Keine Stützstrukturen nötig; sie werden mit M2.5-Gewindeeinsätzen zum Einschmelzen und Schrauben verschlossen.",
+    "en": "Two cases to print at home for a Raspberry Pi 5 with a GeeekPi Armor Lite V5 cooler. No supports needed; they close with M2.5 heat-set inserts and screws."
   },
   "site.landing.printable.licence": {
-    "text": "Beide stehen unter der Lizenz <cclicence>CC BY-SA 4.0</cclicence>: Nenne Off The Cloud und teile, was du daraus machst, unter derselben Lizenz.",
-    "en": "Both are under the <cclicence>CC BY-SA 4.0</cclicence> licence: credit Off The Cloud, and share what you make from them under the same licence."
+    "text": "Lizenz: <cclicence>CC BY-SA 4.0</cclicence>. Nenne Off The Cloud und teile, was du daraus machst, unter derselben Lizenz.",
+    "en": "Licence: <cclicence>CC BY-SA 4.0</cclicence>. Credit Off The Cloud and share what you make under the same licence."
   },
   "site.landing.printable.screen.alt": {
     "text": "Das Bildschirmgehäuse von der Wandseite: seine zwei Schlüssellochaufhängungen und Off The Cloud auf der Rückseite",
     "en": "The screen case seen from the wall side: its two keyholes and Off The Cloud on its back"
   },
   "site.landing.printable.screen.text": {
-    "text": "Für die Wand: Es wird auf die Rückseite eines tragbaren Bildschirms mit vier M2.5-Löchern in einem Quadrat von 75 x 75 mm geschraubt, und beide hängen an zwei Schrauben. Ein kurzes Kabel führt das HDMI des Pi zum Bildschirm.",
-    "en": "For the wall: it screws onto the back of a portable screen with four M2.5 holes in a 75 x 75 mm square, and hangs both on two screws. A short cable takes the Pi's HDMI to the screen."
+    "text": "Für die Wand: Es wird auf die Rückseite eines tragbaren Bildschirms mit M2.5-Löchern in einem Quadrat von 75 x 75 mm geschraubt, und beide hängen an zwei Schrauben.",
+    "en": "For the wall: it screws onto the back of a portable screen with M2.5 holes in a 75 x 75 mm square, and both hang on two screws."
   },
   "site.landing.printable.screen.title": {
     "text": "Bildschirmgehäuse",
@@ -1260,33 +1260,33 @@
     "en": "The install script"
   },
   "site.landing.started.lead": {
-    "text": "Alle drei Wege führen ans selbe Ziel: Die Computer-App bringt das Image für den Raspberry Pi 5 auf die Karte, und das Image führt dieses Installationsskript für dich aus, nachdem es auf einem Handy oder einem Mac nach deinem WLAN, einem Namen und deinen Laufwerken gefragt hat.",
-    "en": "All three ways end in the same place: the computer app puts the Raspberry Pi 5 image on the card, and the image runs this install script for you, after asking for your Wi-Fi, a name and your disks from a phone or a Mac."
+    "text": "Alle drei Wege enden hier: Das Image führt dieses Skript für dich aus, nachdem es nach deinem WLAN, einem Namen und deinen Laufwerken gefragt hat.",
+    "en": "All three ways end here: the image runs this script for you, after asking for your Wi-Fi, a name and your disks."
   },
   "site.landing.started.note": {
-    "text": "<b>Du fängst auf einem Raspberry Pi 5 bei null an?</b> Verwende das <install>Image für Raspberry Pi 5</install>: Es löscht und spiegelt bei der Einrichtung zwei USB-Laufwerke, und falls ein Pi einmal ausfällt, schreibst du das Image auf eine neue Karte, schließt dieselben Laufwerke an, und der Assistent bietet an, alles wiederherzustellen. Die Status-LEDs und alle Konfigurationsoptionen stehen im <readme>README</readme>.",
-    "en": "<b>Starting from scratch on a Raspberry Pi 5?</b> Use the <install>Raspberry Pi 5 image</install>: it wipes and mirrors two USB disks during setup, and if a Pi ever dies you flash a new card, attach the same disks and the wizard offers to recover everything. The status LEDs and every configuration option are in the <readme>README</readme>.",
-    "reviewed": "claude-backtranslation 2026-10-11 #59ffea73"
+    "text": "<b>Neuer Raspberry Pi 5?</b> Verwende das <install>Image für Raspberry Pi 5</install>: Es löscht und spiegelt bei der Einrichtung zwei USB-Laufwerke, und falls der Pi ausfällt, stellt eine neue Karte mit denselben Laufwerken alles wieder her. Statuslichter und alle Optionen: <readme>README</readme>.",
+    "en": "<b>New Raspberry Pi 5?</b> Use the <install>Raspberry Pi 5 image</install>: it erases two USB disks and mirrors them during setup, and if the Pi dies, a new card with the same disks recovers everything. Status lights and every option: <readme>README</readme>.",
+    "reviewed": "claude-backtranslation 2026-11-13 #03b03842"
   },
   "site.landing.started.step1_text": {
-    "text": "Es installiert MariaDB, Go, ONNX Runtime und das Modell für die Bilderkennung, baut dann den Dienst <code>otc</code> und startet ihn – sofort erreichbar unter <code>{address}</code> in deinem lokalen Netzwerk. Du kannst es jederzeit gefahrlos erneut ausführen, um Updates zu holen.",
-    "en": "It installs MariaDB, Go, ONNX Runtime and the tagging model, then builds and starts the <code>otc</code> service, reachable straight away at <code>{address}</code> on your local network — safe to re-run any time to pick up updates."
+    "text": "Es installiert MariaDB, Go, ONNX Runtime und das Modell für die Bilderkennung, baut dann den Dienst <code>otc</code> und startet ihn unter <code>{address}</code>. Führ es zum Aktualisieren erneut aus.",
+    "en": "It installs MariaDB, Go, ONNX Runtime and the tagging model, then builds and starts the <code>otc</code> service at <code>{address}</code>. Run it again to update."
   },
   "site.landing.started.step1_title": {
     "text": "Skript ausführen",
     "en": "Run the script"
   },
   "site.landing.started.step2_text": {
-    "text": "Damit gibst du dem Gerät einen Namen, zum Beispiel <code>pit</code> für <code>pit.off-the.cloud</code> – die Adresse, über die deine Apps und Freunde es von außerhalb deines Heimnetzes erreichen, statt über die lokale Adresse mit <code>:8080</code>. Registriere den Namen zuerst auf deiner <account>Kontoseite</account>, damit er zu deinem Bridge-Konto gehört (die Einrichtung über das Image erledigt das für dich).",
-    "en": "This names the device, e.g. <code>pit</code> for <code>pit.off-the.cloud</code> — the address your apps and friends use to reach it from outside your home network, instead of the local <code>:8080</code> address. Register the name on your <account>account page</account> first, so it belongs to your bridge account (the image's setup does this for you)."
+    "text": "Der Name des Geräts, zum Beispiel <code>pit</code> für <code>pit.off-the.cloud</code>: die Adresse, die deine Apps und Freunde unterwegs nutzen. Registriere ihn zuerst auf deiner <account>Kontoseite</account> (die Einrichtung über das Image erledigt das für dich).",
+    "en": "The device's name, e.g. <code>pit</code> for <code>pit.off-the.cloud</code>: the address your apps and friends use away from home. Register it on your <account>account page</account> first (the image's setup does this for you)."
   },
   "site.landing.started.step2_title": {
     "text": "Subdomain wählen",
     "en": "Pick a subdomain"
   },
   "site.landing.started.step3_text": {
-    "text": "Öffne den Client für Web, iOS, Android, macOS, Windows oder Linux, richte ihn auf deine Subdomain aus und beginne mit dem Sichern.",
-    "en": "Open the web, iOS, Android, macOS, Windows or Linux client, point it at your subdomain, and start backing up."
+    "text": "Öffne eine der Apps, richte sie auf deine Adresse aus und beginne mit dem Sichern.",
+    "en": "Open any of the apps, point it at your address and start backing up."
   },
   "site.landing.started.step3_title": {
     "text": "App koppeln",
@@ -1297,24 +1297,24 @@
     "en": "What happens under the hood"
   },
   "site.landing.what.decentral_text": {
-    "text": "Die Beiträge jeder Familie liegen auf ihrem eigenen Gerät, und die Geräte von Freunden holen sie voneinander ab. Es gibt keinen zentralen Server, der die Fotos aller speichert, und damit nichts, was sich an einer Stelle verkaufen, auswerten oder leaken ließe.",
-    "en": "Every family's posts live on its own device, and friends' devices fetch them from each other. There's no central server holding everyone's photos, so there's nothing to sell, mine or leak in one place."
+    "text": "Die Beiträge jeder Familie liegen auf ihrem eigenen Gerät, und die Geräte von Freunden holen sie voneinander ab. Kein zentraler Server, also nichts, was sich verkaufen, auswerten oder leaken ließe.",
+    "en": "Each family's posts live on its own device, and friends' devices fetch them from each other. No central server, so nothing to sell, mine or leak."
   },
   "site.landing.what.decentral_title": {
     "text": "Kein Unternehmen dazwischen",
     "en": "No company in the middle"
   },
   "site.landing.what.desktop_text": {
-    "text": "Apps für macOS, Windows und Linux, die ausgewählte Ordner auf deinem Computer automatisch in beide Richtungen mit dem Gerät synchronisieren.",
-    "en": "macOS, Windows and Linux apps that keep chosen folders on your computer in two-way sync with the device, automatically."
+    "text": "Apps für Mac, Windows und Linux, die deine Ordner mit dem Gerät synchron halten.",
+    "en": "Mac, Windows and Linux apps that keep your folders in sync with the device."
   },
   "site.landing.what.desktop_title": {
     "text": "Desktop-Client",
     "en": "Desktop client"
   },
   "site.landing.what.device_text": {
-    "text": "Ein Raspberry Pi 5 mit einer microSD-Karte für das System und zwei USB-Laufwerken, gespiegelt als RAID-1, der deine Originale genau so speichert, wie sie ankommen, nie verkleinert oder neu komprimiert – im Ruhezustand verschlüsselt, mit einem Schlüssel, den nur dein Passwort entsperrt.",
-    "en": "A Raspberry Pi 5 with a microSD card for the system and two USB drives mirrored in RAID-1, storing your originals exactly as they arrive, never resized or recompressed — encrypted at rest, with a key that only your password unlocks."
+    "text": "Ein Raspberry Pi 5 mit zwei gespiegelten USB-Laufwerken, der deine Originale so aufbewahrt, wie sie ankommen, verschlüsselt mit einem Schlüssel, den nur dein Passwort entsperrt.",
+    "en": "A Raspberry Pi 5 with two mirrored USB drives, keeping your originals as they arrive, encrypted with a key only your password unlocks."
   },
   "site.landing.what.device_title": {
     "text": "Das Gerät",
@@ -1325,69 +1325,69 @@
     "en": "What it is"
   },
   "site.landing.what.family_text": {
-    "text": "Gib allen bei dir zu Hause ein eigenes Konto auf demselben Gerät – mit eigenem Foto-Backup, eigener Mediathek und eigenem Passwort, jeweils mit einem eigenen Schlüssel verschlüsselt. Du verwaltest die Konten, kannst die Fotos und Dateien darin aber nicht öffnen.",
-    "en": "Give everyone at home their own account on the same device — their own photo backup, library and password, each encrypted with its own key. You manage the accounts, but you can't open the photos and files in them.",
-    "reviewed": "claude-backtranslation 2026-10-11 #38f25ae3"
+    "text": "Alle bei dir zu Hause bekommen ein eigenes Konto, Backup und Passwort. Jedes Konto ist mit einem eigenen Schlüssel verschlüsselt: Du verwaltest die Konten, kannst ihre Dateien aber nicht öffnen.",
+    "en": "Everyone at home gets their own account, backup and password. Each account is encrypted with its own key: you manage the accounts but can't open their files.",
+    "reviewed": "claude-backtranslation 2026-11-13 #a7d63d0e"
   },
   "site.landing.what.family_title": {
     "text": "Ein Gerät für die ganze Familie",
     "en": "One device, the whole family"
   },
   "site.landing.what.fast_text": {
-    "text": "Zu Hause sprechen die Apps über dein eigenes Netzwerk direkt mit dem Gerät, sodass die Fotos eines ganzen Urlaubs mit WLAN-Geschwindigkeit gesichert werden, statt durchs Internet zu kriechen.",
-    "en": "At home the apps talk straight to the device over your own network, so a whole holiday's photos back up at Wi-Fi speed instead of crawling over the internet."
+    "text": "Zu Hause sprechen die Apps direkt mit dem Gerät, sodass die Fotos eines ganzen Urlaubs mit WLAN-Geschwindigkeit gesichert werden.",
+    "en": "At home the apps talk straight to the device, so a whole holiday's photos back up at Wi-Fi speed."
   },
   "site.landing.what.fast_title": {
     "text": "Schnell zu Hause",
     "en": "Fast at home"
   },
   "site.landing.what.feed_text": {
-    "text": "Poste Fotos und Videos für deine Familie und Freunde, mit Bildunterschriften, Kommentaren, Likes und Benachrichtigungen. Nur die Freunde, die du angenommen hast, sehen sie, die neuesten zuerst: keine Werbung, keine Influencer und kein Algorithmus, der entscheidet, was du siehst.",
-    "en": "Post photos and videos for your family and friends, with captions, comments, likes and notifications. Only the friends you've accepted see them, newest first: no ads, no influencers and no algorithm deciding what you see."
+    "text": "Teile Fotos und Videos, mit Bildunterschriften, Kommentaren und Likes. Nur die Freunde, die du annimmst, sehen sie, die neuesten zuerst: keine Werbung, keine Influencer, kein Algorithmus.",
+    "en": "Share photos and videos with captions, comments and likes. Only the friends you accept see them, newest first: no ads, no influencers, no algorithm."
   },
   "site.landing.what.feed_title": {
     "text": "Dein eigenes soziales Netzwerk",
     "en": "Your own social network"
   },
   "site.landing.what.files_text": {
-    "text": "Halte Ordner von jedem Computer in beide Richtungen synchron oder sichere sie, öffne und teile sie vom Handy aus und sperre einen Ordner, damit nichts darin gelöscht werden kann und frühere Versionen erhalten bleiben.",
-    "en": "Keep folders from every computer in two-way sync or backed up, open and share them from your phone, and lock a folder so nothing in it can be deleted and earlier versions are kept."
+    "text": "Synchronisiere oder sichere Ordner von jedem Computer, öffne und teile sie vom Handy aus und sperre einen Ordner, damit nichts darin gelöscht werden kann.",
+    "en": "Sync or back up folders from every computer, open and share them from your phone, and lock a folder so nothing in it can be deleted."
   },
   "site.landing.what.files_title": {
     "text": "Ein NAS für deine Dateien",
     "en": "A NAS for your files"
   },
   "site.landing.what.lead": {
-    "text": "Ein kleines Gerät bei dir zu Hause bewahrt die Beiträge, Fotos und Dateien deiner Familie auf. Apps für jede Plattform halten es synchron und lassen dich darin stöbern, suchen und teilen.",
-    "en": "One small device in your home keeps your family's posts, photos and files. Apps on every platform keep it in sync and let you browse, search and share it."
+    "text": "Ein kleines Gerät bei dir zu Hause bewahrt die Beiträge, Fotos und Dateien deiner Familie auf, mit Apps für jede Plattform.",
+    "en": "One small device at home keeps your family's posts, photos and files, with apps for every platform."
   },
   "site.landing.what.mobile_text": {
-    "text": "Apps für iOS und Android für deinen sozialen Feed, Benachrichtigungen und das Foto-Backup: Sie sichern deine Fotomediathek im Hintergrund, in voller Auflösung.",
-    "en": "iOS and Android apps for your social feed, notifications and photo backup: they back up your camera roll in the background, in full resolution."
+    "text": "Apps für iOS und Android für deinen Feed, Benachrichtigungen und das Foto-Backup in voller Auflösung.",
+    "en": "iOS and Android apps for your feed, notifications and full-resolution photo backup."
   },
   "site.landing.what.mobile_title": {
     "text": "Handy-App",
     "en": "Mobile app"
   },
   "site.landing.what.photos_text": {
-    "text": "Die Handy-Apps sichern jedes Foto und Video im Hintergrund als Original, sodass deine Mediathek vollständig und in voller Qualität ist – ohne Speicher-Abo, aus dem du herauswächst.",
-    "en": "The phone apps back up every photo and video in the background, as the original, so your library is complete and in full quality, with no storage plan to outgrow."
+    "text": "Die Handys sichern jedes Foto und Video im Hintergrund in voller Qualität – ohne Speicher-Abo, aus dem du herauswächst.",
+    "en": "Phones back up every photo and video in the background, in full quality, with no storage plan to outgrow."
   },
   "site.landing.what.photos_title": {
     "text": "Jedes Foto gesichert",
     "en": "Every photo, backed up"
   },
   "site.landing.what.search_text": {
-    "text": "Jedes Foto wird lokal auf dem Gerät automatisch getaggt, sodass du sofort nach „Strand“ oder „Hund“ suchen kannst – dafür wird nichts an Dritte gesendet.",
-    "en": "Every photo is auto-tagged locally on the device, so you can search \"beach\" or \"dog\" instantly — nothing is sent to a third party to do it."
+    "text": "Fotos werden auf dem Gerät getaggt, sodass du nach „Strand“ oder „Hund“ suchen kannst. Dafür wird an niemanden etwas gesendet.",
+    "en": "Photos are tagged on the device, so you can search \"beach\" or \"dog\". Nothing is sent to anyone to do it."
   },
   "site.landing.what.search_title": {
     "text": "KI-Suche, die privat bleibt",
     "en": "AI search, kept private"
   },
   "site.landing.what.share_text": {
-    "text": "Sende eine Sammlung von Fotos als Link, der abläuft, an wen du willst. Die Empfänger öffnen ihn im Browser, ohne Konto oder App, und können die Originale herunterladen.",
-    "en": "Send a collection of photos to anyone as a link that expires. They open it in their browser, with no account or app, and can download the originals."
+    "text": "Sende einen Link, der abläuft, an wen du willst. Die Empfänger öffnen ihn im Browser, ohne Konto oder App, und können die Originale herunterladen.",
+    "en": "Send anyone a link that expires. They open it in their browser, with no account or app, and can download the originals."
   },
   "site.landing.what.share_title": {
     "text": "Sammlungen per Link teilen",
@@ -1398,8 +1398,8 @@
     "en": "A social network, a photo library and a NAS, in one device"
   },
   "site.landing.what.web_text": {
-    "text": "Alles oben Genannte in jedem Browser – melde dich nur mit deinem Passwort an, ohne eine App zu installieren.",
-    "en": "Everything above, from any browser — sign in with just your password, no app install required."
+    "text": "Alles oben Genannte in jedem Browser, nur mit deinem Passwort.",
+    "en": "Everything above, in any browser, with just your password."
   },
   "site.landing.what.web_title": {
     "text": "Web-App",

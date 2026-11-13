@@ -31,15 +31,15 @@ Get started Download What it is Gallery Printable FAQ GitHub Create an account
 A private social network your family owns.Off the cloud, at home.
 @img.src=/img/hero-1600.jpg
 @img.alt=An Off The Cloud device on a desk, next to a camera and a computer showing your photo library
-Off The Cloud is a private social network for your family and friends, and a home for your photos and files, on a small device you own. Post photos and videos, comment and like, with no ads, no algorithm and no strangers: your posts stay on your device and go only to the devices of friends you accept, never stored on a company's servers. The same device backs up everyone's phones in full resolution and keeps your computers' folders in sync, so it takes the place of Instagram, Google Photos, iCloud, Google Drive and Dropbox at once. It's free, open-source software for a Raspberry Pi 5, set up from your phone.
+A private social network for your family and friends, home for your photos and files, on a small device you own. No ads, no algorithm, no strangers: your posts stay at home and go only to the friends you accept. It backs up everyone's phones in full resolution and keeps your computers' folders in sync, instead of Instagram, Google Photos, iCloud, Google Drive and Dropbox. Free and open source, on a Raspberry Pi 5 you set up from your phone.
 @a.href=https://demo.off-the.cloud/
-Try the demo Look around a real device with a made-up family's photos and files. No sign-up.
+Try the demo A real device with a made-up family's photos and files. No sign-up.
 Get your device running
 Computer app Recommended
 Raspberry Pi 5 image
 Install script
-The easiest way: the app downloads the image and checks its signature, writes the card itself on Windows and Linux, and guides you through each step.
-For a Raspberry Pi 5 with at least 8 GB of RAM, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's two blue USB ports. Use the official Raspberry Pi 27 W USB-C power supply (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. Only have a 4 GB Pi? It runs everything too, with Image Tagging as an option you turn on in Settings. A 2 GB one is enough for one person.
+The easiest way: the app makes the card and guides you through each step.
+You need a Raspberry Pi 5 with 8 GB of RAM, a microSD card and, optionally, two USB disks for RAID-1 in the Pi's two blue USB ports. Use the official Raspberry Pi 27 W USB-C power supply: with a weaker one the Pi can restart while it works on your photos. No keyboard, monitor or Linux knowledge needed. Only have a 4 GB Pi? It runs everything too, with Image Tagging as an option in Settings; 2 GB is enough for one person.
 @a.href=https://apps.apple.com/app/id6814658734
 @a.download
 @a.href=https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-windows-amd64.exe
@@ -47,44 +47,44 @@ For a Raspberry Pi 5 with at least 8 GB of RAM, a microSD card for the system an
 @a.href=https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-linux-amd64
 Get it on the Mac App Store Download for Windows Download for Linux
 @a.href=#download
-ARM versions, and first-run tips for Windows and Linux, are in the download section.
-Install the app and choose Set Up a New Device…: in the Mac app's Settings, or in the tray menu on Windows and Linux.
+ARM versions and first-run tips are in the download section.
+Install the app and choose Set Up a New Device…, in the Mac app's Settings or the tray menu on Windows and Linux.
 @a.href=https://www.raspberrypi.com/software/
-Make the card. The app downloads the image and checks it against the project's signature. On Windows and Linux it then writes it to a microSD card of 8 GB or more, after asking for administrator permission; on a Mac it opens Raspberry Pi Imager to write the card and tells you what to choose there.
-Plug in the disks (into the two blue USB ports), insert the card and power the Pi on. After a minute it announces itself over Bluetooth.
-Finish the setup over Bluetooth. On a Mac, right in the app: On this Mac (or use your phone). On Windows and Linux, in the phone app (iOS or Android): tap Set up a new device. Either way it asks for your Wi-Fi, a name and password for the device and how to use the disks, then installs the software — about 20 minutes.
-Sign in when it's done: the app connects to the new device by itself with the password you chose, or open https://<name>.off-the.cloud in a browser.
-For a Raspberry Pi 5 with at least 8 GB of RAM, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's two blue USB ports. Use the official Raspberry Pi 27 W USB-C power supply (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. Only have a 4 GB Pi? It runs everything too, with Image Tagging as an option you turn on in Settings. A 2 GB one is enough for one person.
+Make the card. The app downloads the image, checks its signature and writes it to a microSD card of 8 GB or more. On a Mac it opens Raspberry Pi Imager for this and tells you what to choose.
+Plug in the disks (two blue USB ports), insert the card and power on. After a minute the Pi shows up over Bluetooth.
+Finish the setup over Bluetooth: on a Mac in the app (On this Mac), on Windows and Linux in the iOS or Android app (Set up a new device). It asks for your Wi-Fi, a name, a password and how to use the disks, then installs everything in about 20 minutes.
+Sign in: the app connects to the device by itself, or open https://<name>.off-the.cloud in a browser.
+You need a Raspberry Pi 5 with 8 GB of RAM, a microSD card and, optionally, two USB disks for RAID-1 in the Pi's two blue USB ports. Use the official Raspberry Pi 27 W USB-C power supply: with a weaker one the Pi can restart while it works on your photos. No keyboard, monitor or Linux knowledge needed. Only have a 4 GB Pi? It runs everything too, with Image Tagging as an option in Settings; 2 GB is enough for one person.
 @a.href=https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz
 ⬇ Download the image (≈ 530 MB)
 @a.href=https://www.raspberrypi.com/software/
-Flash it to the microSD card with Raspberry Pi Imager: "Use custom", pick the file, write. Skip Imager's own customisation step.
-Plug in the disks (into the two blue USB ports), insert the card and power the Pi on. After a minute it announces itself over Bluetooth.
-Set it up from your phone with the app (iOS or Android): on the welcome screen tap Set up a new device. It finds the Pi over Bluetooth and runs the setup right there — your phone stays on its own Wi-Fi. It asks for your Wi-Fi, a name and password for the device and how to use the disks, then installs the software — about 20 minutes.
-Sign in when it's done: the app connects to the new device by itself with the password you chose, or open https://<name>.off-the.cloud in a browser.
+Flash it to the microSD card with Raspberry Pi Imager ("Use custom", pick the file, write), skipping Imager's own customisation step.
+Plug in the disks (two blue USB ports), insert the card and power on. After a minute the Pi shows up over Bluetooth.
+Set it up from your phone: in the iOS or Android app, tap Set up a new device. It finds the Pi over Bluetooth, asks for your Wi-Fi, a name, a password and how to use the disks, then installs everything in about 20 minutes.
+Sign in: the app connects to the device by itself, or open https://<name>.off-the.cloud in a browser.
 @a.href=https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz.sha256
-The image only carries the setup wizard: it installs the current release, so it never goes out of date. Checksum: .sha256.
-One command on any machine you can already log into: Ubuntu, Debian, Raspberry Pi OS and other Debian-based distros (64-bit).
+The image installs the current release, so it never goes out of date. Checksum: .sha256.
+One command on any 64-bit Ubuntu, Debian or Raspberry Pi OS machine you can log into.
 Terminal
 Copy
 # log into the machine, then: curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/verified-install.sh \ | sudo bash -s -- <subdomain>
 @a.href=https://github.com/alonsovidales/otc#readme
-It installs everything and builds the software from source, then starts the service at http://<device-ip>:8080/. Safe to re-run to update. Your files go on two disks mirrored as RAID-1: it reuses a mirror it finds and only erases two new disks to build one when you confirm it, and it installs the status lights too. A single disk works as well (see the README). The Wi-Fi setup isn't part of this path — see the image for a from-scratch Raspberry Pi.
+It builds the software from source and starts the service at http://<device-ip>:8080/; run it again to update. Files go on two disks mirrored as RAID-1 (it erases new disks only after you confirm), or on a single disk (see the README). It doesn't set up Wi-Fi: for a new Raspberry Pi, use the image.
 @a.href=/account?signup=1
-Want to reach it from outside your home network? Create an account for the bridge →
+Reach it away from home: create a bridge account →
 Off The Cloud at a glance
 What it is
-A private social network for family and friends, and a home server (NAS) for your photos, videos and files, with its own apps
+A private social network for family and friends, and a home NAS for your photos, videos and files
 Social network
-Posts with photos and videos, comments, likes and notifications, only for the friends you accept, from device to device; newest first, no ads
+Photo and video posts, comments and likes, only for the friends you accept; newest first, no ads
 Files
-A NAS: folders kept in sync with Mac, Windows and Linux computers or backed up, upload-only folders that keep earlier versions, and share links
+Folders synced or backed up from Mac, Windows and Linux, upload-only folders that keep earlier versions, and share links
 Instead of
-Instagram, Facebook or a family WhatsApp group for sharing photos; Google Photos or iCloud Photos for backup; Google Drive, Dropbox, iCloud Drive or Proton Drive for files
+Instagram, Facebook or a family WhatsApp group; Google Photos or iCloud Photos; Google Drive, Dropbox, iCloud Drive or Proton Drive
 Runs on
-A Raspberry Pi 5 with 8 GB (4 GB with tagging as an option, 2 GB for one person), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu
+A Raspberry Pi 5 with 8 GB (4 GB and 2 GB work too), or any 64-bit Debian or Ubuntu machine
 Storage
-Two USB drives mirrored as RAID-1, each with a full copy: sticks, SSDs, hard disks or microSD cards in USB readers
+Two USB drives mirrored as RAID-1: sticks, SSDs, hard disks or microSD cards in USB readers
 Apps
 iPhone and iPad, Android, Mac, Windows and Linux, plus a web app in your browser
 Cost
@@ -101,31 +101,31 @@ English, Spanish, French, German, Italian, Portuguese and Dutch
 Compare it with: Instagram and Facebook · Google Photos and iCloud · Google Drive and Dropbox
 The install script
 What happens under the hood
-All three ways end in the same place: the computer app puts the Raspberry Pi 5 image on the card, and the image runs this install script for you, after asking for your Wi-Fi, a name and your disks from a phone or a Mac.
+All three ways end here: the image runs this script for you, after asking for your Wi-Fi, a name and your disks.
 1
 Run the script
-It installs MariaDB, Go, ONNX Runtime and the tagging model, then builds and starts the otc service, reachable straight away at http://<device-ip>:8080/ on your local network — safe to re-run any time to pick up updates.
+It installs MariaDB, Go, ONNX Runtime and the tagging model, then builds and starts the otc service at http://<device-ip>:8080/. Run it again to update.
 2
 Pick a subdomain
 @a.href=/account
-This names the device, e.g. pit for pit.off-the.cloud — the address your apps and friends use to reach it from outside your home network, instead of the local :8080 address. Register the name on your account page first, so it belongs to your bridge account (the image's setup does this for you).
+The device's name, e.g. pit for pit.off-the.cloud: the address your apps and friends use away from home. Register it on your account page first (the image's setup does this for you).
 3
 Pair an app
-Open the web, iOS, Android, macOS, Windows or Linux client, point it at your subdomain, and start backing up.
+Open any of the apps, point it at your address and start backing up.
 @a.href=#install
 @a.href=https://github.com/alonsovidales/otc#readme
-Starting from scratch on a Raspberry Pi 5? Use the Raspberry Pi 5 image: it wipes and mirrors two USB disks during setup, and if a Pi ever dies you flash a new card, attach the same disks and the wizard offers to recover everything. The status LEDs and every configuration option are in the README.
+New Raspberry Pi 5? Use the Raspberry Pi 5 image: it erases two USB disks and mirrors them during setup, and if the Pi dies, a new card with the same disks recovers everything. Status lights and every option: README.
 Computer apps
 Keep your folders in sync
-Back up folders from your computer, or keep them the same on both sides. The apps sit in the menu bar or tray; the Mac App Store keeps the Mac app up to date, and on Windows and Linux one click installs a new version.
+Back up your computer's folders, or keep them in sync both ways. The apps live in the menu bar or tray and stay up to date.
 Your system
 Windows
-Windows 10 or 11. Put the file somewhere permanent (not Downloads) and run it: it appears in the tray, and can start at login if you choose.
+Windows 10 or 11. Keep the file somewhere permanent (not Downloads) and run it: it lives in the tray.
 @a.download
 @a.href=https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-windows-amd64.exe
 @a.download
 @a.href=https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-windows-arm64.exe
-Download for Windows ARM PC? Windows on ARM. The app isn't code-signed yet, so Windows may warn you: choose More info → Run anyway.
+Download for Windows ARM PC? Windows on ARM. If Windows warns you, choose More info → Run anyway.
 Your system
 Linux
 A tray app on a desktop, or a command line and a service on a server or a Pi.
@@ -136,64 +136,64 @@ A tray app on a desktop, or a command line and a service on a server or a Pi.
 Download for Linux ARM (e.g. a Raspberry Pi)? Linux ARM64. Then:install -Dm755 otc-sync-linux-* ~/.local/bin/otc-sync && otc-sync
 Your system
 macOS
-A menu bar app with the same folders and sync rules, on the Mac App Store, which keeps it up to date for you.
+A menu bar app from the Mac App Store, which keeps it up to date.
 @a.href=https://apps.apple.com/app/id6814658734
 Get it on the Mac App Store
 @a.href=https://github.com/alonsovidales/otc
 @a.href=https://github.com/alonsovidales/otc/releases/tag/desktop
-Every update is signed. On Windows and Linux the app only installs a new version after checking its signature against the project's release key, the same key that signs the device updates. The source is on GitHub, and every file is listed on the desktop release.
+Every update is signed with the project's release key, the same one that signs device updates, and checked before it installs. Source on GitHub, files on the desktop release.
 Phone apps
 Your feed and your photos, on your phone
-Post for your friends and see their posts, back up your photos and videos as you take them, browse everything on your device, and set up a new device over Bluetooth.
+Post for your friends and see their posts, back up photos as you take them, and browse everything on your device.
 Your system
 iPhone and iPad
-Backs up your photo library, iCloud photos included, and shows your device's photos, files and friends' posts.
+Backs up your library, iCloud photos included, and shows your photos, files and friends' posts.
 @a.href=https://apps.apple.com/app/id6814658734
 Get it on the App Store
 Your system
 Android
-The same app for Android phones and tablets: photo backup, your device's files and photos, and friends' posts.
+The same for Android phones and tablets: photo backup, your photos and files, and friends' posts.
 @a.href=https://play.google.com/store/apps/details?id=cloud.offthe.otc
 Get it on Google Play
 What it is
 A social network, a photo library and a NAS, in one device
-One small device in your home keeps your family's posts, photos and files. Apps on every platform keep it in sync and let you browse, search and share it.
+One small device at home keeps your family's posts, photos and files, with apps for every platform.
 💬
 Your own social network
-Post photos and videos for your family and friends, with captions, comments, likes and notifications. Only the friends you've accepted see them, newest first: no ads, no influencers and no algorithm deciding what you see.
+Share photos and videos with captions, comments and likes. Only the friends you accept see them, newest first: no ads, no influencers, no algorithm.
 🏡
 No company in the middle
-Every family's posts live on its own device, and friends' devices fetch them from each other. There's no central server holding everyone's photos, so there's nothing to sell, mine or leak in one place.
+Each family's posts live on its own device, and friends' devices fetch them from each other. No central server, so nothing to sell, mine or leak.
 📸
 Every photo, backed up
-The phone apps back up every photo and video in the background, as the original, so your library is complete and in full quality, with no storage plan to outgrow.
+Phones back up every photo and video in the background, in full quality, with no storage plan to outgrow.
 🗂️
 A NAS for your files
-Keep folders from every computer in two-way sync or backed up, open and share them from your phone, and lock a folder so nothing in it can be deleted and earlier versions are kept.
+Sync or back up folders from every computer, open and share them from your phone, and lock a folder so nothing in it can be deleted.
 🔍
 AI search, kept private
-Every photo is auto-tagged locally on the device, so you can search "beach" or "dog" instantly — nothing is sent to a third party to do it.
+Photos are tagged on the device, so you can search "beach" or "dog". Nothing is sent to anyone to do it.
 👨‍👩‍👧
 One device, the whole family
-Give everyone at home their own account on the same device — their own photo backup, library and password, each encrypted with its own key. You manage the accounts, but you can't open the photos and files in them.
+Everyone at home gets their own account, backup and password. Each account is encrypted with its own key: you manage the accounts but can't open their files.
 🔗
 Share collections with a link
-Send a collection of photos to anyone as a link that expires. They open it in their browser, with no account or app, and can download the originals.
+Send anyone a link that expires. They open it in their browser, with no account or app, and can download the originals.
 ⚡
 Fast at home
-At home the apps talk straight to the device over your own network, so a whole holiday's photos back up at Wi-Fi speed instead of crawling over the internet.
+At home the apps talk straight to the device, so a whole holiday's photos back up at Wi-Fi speed.
 💾
 The device
-A Raspberry Pi 5 with a microSD card for the system and two USB drives mirrored in RAID-1, storing your originals exactly as they arrive, never resized or recompressed — encrypted at rest, with a key that only your password unlocks.
+A Raspberry Pi 5 with two mirrored USB drives, keeping your originals as they arrive, encrypted with a key only your password unlocks.
 📱
 Mobile app
-iOS and Android apps for your social feed, notifications and photo backup: they back up your camera roll in the background, in full resolution.
+iOS and Android apps for your feed, notifications and full-resolution photo backup.
 🖥️
 Desktop client
-macOS, Windows and Linux apps that keep chosen folders on your computer in two-way sync with the device, automatically.
+Mac, Windows and Linux apps that keep your folders in sync with the device.
 🌐
 Web app
-Everything above, from any browser — sign in with just your password, no app install required.
+Everything above, in any browser, with just your password.
 For photographers
 Let your clients pick their favourite photos
 Share a shoot as a gallery link. Your client gives stars to the photos they like and leaves a note where they'd like a change, with no account or app, and you see their picks in the collection, best first. The photos stay on your own device.
@@ -247,21 +247,21 @@ Web app
 @img.alt=Social in the web app
 Printable
 Cases to print for your device
-Two cases to print at home, for the Raspberry Pi 5 with a GeeekPi Armor Lite V5 cooler. Both print without supports and close with M2.5 heat-set inserts and screws, and you are free to print, change and share them.
+Two cases to print at home for a Raspberry Pi 5 with a GeeekPi Armor Lite V5 cooler. No supports needed; they close with M2.5 heat-set inserts and screws.
 @img.src=/img/case-cloud-600.webp?v=2
 @img.alt=The cloud-shaped case, with Off The Cloud and https://off-the.cloud on its lid, its ports and its two status lights
 Cloud case
-For a shelf or a desk: a cloud with Off The Cloud on its lid, a grille over the fan and the two status lights beside the USB ports. The microSD card and every port stay within reach.
+For a shelf or desk: a cloud with a grille over the fan and the two status lights by the USB ports. The microSD card and every port stay within reach.
 @a.href=https://github.com/alonsovidales/otc/tree/main/hardware/cloud-case
 Files and instructions
 @img.src=/img/case-screen-600.webp?v=2
 @img.alt=The screen case seen from the wall side: its two keyholes and Off The Cloud on its back
 Screen case
-For the wall: it screws onto the back of a portable screen with four M2.5 holes in a 75 x 75 mm square, and hangs both on two screws. A short cable takes the Pi's HDMI to the screen.
+For the wall: it screws onto the back of a portable screen with M2.5 holes in a 75 x 75 mm square, and both hang on two screws.
 @a.href=https://github.com/alonsovidales/otc/tree/main/hardware/screen-case
 Files and instructions
 @a.href=https://creativecommons.org/licenses/by-sa/4.0/
-Both are under the CC BY-SA 4.0 licence: credit Off The Cloud, and share what you make from them under the same licence.
+Licence: CC BY-SA 4.0. Credit Off The Cloud and share what you make under the same licence.
 FAQ
 Questions people actually ask
 How does the private social network work?
@@ -462,7 +462,7 @@ What if I don't want the social network part?
 It's entirely optional. Use OTC purely as a NAS for backup and file sync if that's all you want — the social feed only shows content from friends you've explicitly accepted.
 Get in touch
 Questions, or need a hand?
-Send a message — whether it's a general question, help getting your device running, or more addresses for your bridge account.
+A question, help with setup or more addresses for your bridge account: send us a message.
 Name
 @input.placeholder=Your name
 Email
@@ -479,11 +479,11 @@ Website
 Send message
 🧑‍💻
 Where it stands
-The device, the bridge and the web app work today, and so do the apps: iPhone and Android, the Mac app, and otc-sync for Windows and Linux.
+Everything works today: the device, the bridge, the web app and the iPhone, Android, Mac, Windows and Linux apps.
 🌉
 Bridge access
 @a.href=/account?signup=1
-Want to reach your device, and your friends, from outside your home network? Create an account on the account page or in your device's setup, and choose your address yourself. Need more than five addresses? Write to us with this form.
+To reach your device and friends away from home, create an account on the account page or in your device's setup and choose your address. Need more than five addresses? Use this form.
 🛠️
 Prefer to dig in yourself?
 @a.href=https://github.com/alonsovidales/otc#readme

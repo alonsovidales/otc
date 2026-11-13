@@ -30,7 +30,7 @@ Get started Download What it is Gallery Printable FAQ GitHub Create an account
 A private social network for your family, on a device you own
 Off The Cloud is free, open-source software that gives your family a social network of its own. You post photos and videos, comment and like, and only the friends you accept see them. Each family keeps its posts on its own small device at home, a Raspberry Pi 5, and friends' devices share them with each other, so no company holds your photos, shows you ads or decides what you see. The same device backs up your phones and keeps your files.
 @a.href=https://demo.off-the.cloud/
-Try the demo Look around a real device with a made-up family's photos and files. No sign-up.
+Try the demo A real device with a made-up family's photos and files. No sign-up.
 What your family gets
 A feed of the people you know. Photos and videos, several to a post, with a caption, comments and likes, newest first. Nothing suggested and nothing sponsored.
 Notifications that matter. Your phone tells you when someone accepts your friend request, likes or comments: nothing designed to keep you scrolling.
@@ -151,7 +151,7 @@ See it before you buy anything
 @a.href=https://demo.off-the.cloud/
 @a.href=/#install
 Try the demo Get your device running
-Look around a real device with a made-up family's photos and files. No sign-up.
+A real device with a made-up family's photos and files. No sign-up.
 FAQ
 Questions people actually ask
 Can my friends see my photo library?
