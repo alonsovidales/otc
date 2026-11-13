@@ -4110,7 +4110,8 @@ Retention (issue #176):
   `TestInactivityPassMySQL` runs against the Lima VM's MySQL (`OTC_TEST_MYSQL_DSN`).
 - **Server logs** are kept 30 days: journald `MaxRetentionSec` on every node,
   `bridge/cluster/journald-otc.conf`.
-- **Contact messages** are deleted after a year, or from the admin panel's Messages tab.
+- **Contact messages** are deleted after a year, or from the admin panel's Messages tab; the
+  copies mailed to the project's mailbox (Email, below) are not pruned by the bridge.
 
 GDPR paperwork (issue #175) lives in `private/gdpr/` (the maintainer's copy only, never
 committed): `records-of-processing.md` (Art. 30, every table, purpose, legal basis, retention,
@@ -4147,6 +4148,17 @@ at its link before the bcrypt. New passwords are 8 to 72 bytes (`cMaxPasswordByt
 keeps - x/crypto refuses to hash more): longer is `password_too_long`, at sign-up, on a change
 and on a reset; a sign-in still takes any length. A new link is sent before older ones are dropped
 (`KeepNewestEmailToken`), and a QUIT error after an accepted DATA counts as sent.
+`mailer.SendMail` (`Mail`: `Bcc`, a copy in the envelope only; `Personal`, no Auto-Submitted)
+refuses a To, Reply-To or Bcc that isn't `ValidAddress` (one bare address in visible characters;
+a bad To is a `RecipientError` that `AddressRefused` takes as refused for good) and a subject with
+a control character, folds long subjects and sends a body with a line over 998 bytes as
+quoted-printable. Contact messages (`bridge/contact`): the form takes only a `ValidAddress`, and
+each stored message is mailed to `mailer.Self()` with the sender as Reply-To (`Notifier`, in the
+background, out of `emailBudget` through `Accounts.AllowNote` like the new-account note; a
+failure is only logged by id). The shell's `otc_bridge <env> messages [--all]`, `reply <id>
+[--again]` (the answer on stdin, Bcc and Reply-To the project's address, then marked read) and
+`mark-read <id>` run before anything starts, on `dao.Open` (no pruner, no flusher), and print
+only `oneLine`/`text`-cleaned text.
 
 Issue #163 (request limits, `bridge/limits`): every JSON body goes through `limits.DecodeJSON`,
 and the sign-in callback's form post (Apple's) through `limits.ParseForm`

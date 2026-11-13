@@ -165,7 +165,8 @@ type Accounts struct {
 	signups, signupsPerNet, signupsAll *limits.Rate
 	// emailsPerNet is emailsPerAddr per network; emailBudget bounds, on
 	// the whole node, the emails a stranger can have the bridge send (a
-	// sign-up's confirmation, a resend, a reset, the new-account note):
+	// sign-up's confirmation, a resend, a reset, the notes to the project
+	// about a new account and a contact message: AllowNote):
 	// past it they wait, rather than the mail account being throttled or
 	// suspended for spam and every email stopping.
 	emailsPerNet, emailBudget *limits.Rate
@@ -1669,10 +1670,7 @@ func (a *Accounts) notifyNewAccount(email string) {
 	if send == nil || to == "" {
 		return
 	}
-	// The first email to go when strangers send many: it is only news. It
-	// never takes the budget's last cNoteReserve, which are left for the
-	// emails people wait for (a confirmation, a reset).
-	if a.emailBudget != nil && !a.emailBudget.AllowLeaving(cAll, cNoteReserve) {
+	if !a.AllowNote() {
 		log.Info("the new-account note was not sent: the email budget is running low")
 		return
 	}
@@ -1816,6 +1814,16 @@ const cEmailBudgetRetry = time.Minute
 // emailBudgetAllows takes one email from the node's budget.
 func (a *Accounts) emailBudgetAllows() bool {
 	return a.emailBudget == nil || a.emailBudget.Allow(cAll)
+}
+
+// AllowNote takes one email from the node's budget for a note to the
+// project (a new account, a contact message): the first emails to go when
+// strangers send many, as they are only news. A note never takes the
+// budget's last cNoteReserve, which are left for the emails people wait
+// for (a confirmation, a reset). Without a budget (nil, tests) every note
+// goes.
+func (a *Accounts) AllowNote() bool {
+	return a == nil || a.emailBudget == nil || a.emailBudget.AllowLeaving(cAll, cNoteReserve)
 }
 
 // ResendVerification mails a new verification link to the signed-in

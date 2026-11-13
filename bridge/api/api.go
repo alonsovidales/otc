@@ -13,8 +13,10 @@ import (
 	"github.com/alonsovidales/otc/bridge/admin"
 	"github.com/alonsovidales/otc/bridge/clientaddr"
 	"github.com/alonsovidales/otc/bridge/cluster"
+	"github.com/alonsovidales/otc/bridge/contact"
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/limits"
+	"github.com/alonsovidales/otc/bridge/mailer"
 	"github.com/alonsovidales/otc/bridge/websocket"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/i18n"
@@ -107,6 +109,9 @@ type API struct {
 	// row of up to 4 KB in the primary and a line in the admin's Messages
 	// tab, and one /48 holds 65,536 /64s, each a cooldown of its own.
 	contactPerNet, contactAll *limits.Rate
+	// contactNotes mails each stored contact message to the project's
+	// mailbox; nil (no [smtp], most tests) mails nothing.
+	contactNotes *contact.Notifier
 
 	claimMu         sync.Mutex
 	lastClaimByAddr map[string]time.Time
@@ -231,7 +236,7 @@ func (api *API) allowOneOff(w http.ResponseWriter, r *http.Request) bool {
 
 // Init Initializes the API and starts listening on the specified ports serving
 // both the HTTP API and the static content
-func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *accounts.Accounts, clu *cluster.Cluster, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
+func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *accounts.Accounts, notes *contact.Notifier, clu *cluster.Cluster, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
 	api = &API{
 		oneOffPerAddr:     limits.NewRate(cOneOffPerSecond, cOneOffBurst),
 		beaconPerAddr:     limits.NewRate(cSetupBeaconPerSecond, cSetupBeaconBurst),
@@ -247,6 +252,7 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 		lastClaimByAddr:   map[string]time.Time{},
 		contactPerNet:     limits.NewRate(cContactPerNetPerMinute/60.0, cContactPerNetBurst),
 		contactAll:        limits.NewRate(cContactAllPerMinute/60.0, cContactAllPerMinute),
+		contactNotes:      notes,
 		lookupPerAddr:     limits.NewRate(cLookupPerSecond, cLookupBurst),
 		lookupPerNet:      limits.NewRate(cLookupPerNetPerSecond, cLookupPerNetBurst),
 		beaconPerNet:      limits.NewRate(cSetupBeaconPerNetPerSecond, cSetupBeaconPerNetBurst),
@@ -645,9 +651,11 @@ func (api *API) proxyStaticAsset(w http.ResponseWriter, r *http.Request) {
 
 // submitContact handles the public landing page's contact form (issue
 // #57): general enquiries and "give me bridge access" requests both land
-// here, unauthenticated, and just get stored for an operator to read from
-// the admin panel's Messages tab - nothing here triggers an email or any
-// other automated action.
+// here, unauthenticated. Each one is stored, for an operator to read from
+// the admin panel's Messages tab or the bridge's shell, and then mailed to
+// the project's own address with the sender's as Reply-To (contact.Notifier:
+// in the background, out of the node's email budget, behind the limits
+// below) - nothing else is done with it.
 func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Name    string `json:"name"`
@@ -679,7 +687,10 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusBadRequest, "missing_fields", errorText(i18n.ApiErrorMissingFields()))
 		return
 	}
-	if !strings.Contains(email, "@") || strings.ContainsAny(email, " \t\n") {
+	// One address and nothing else: it becomes the email's Reply-To, where
+	// a control character could end the header and start one of the
+	// sender's own, and a comma add a recipient to the answer.
+	if !mailer.ValidAddress(email) {
 		writeJSONErr(w, http.StatusBadRequest, "invalid_email", errorText(i18n.ApiErrorInvalidEmailContact()))
 		return
 	}
@@ -732,12 +743,16 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 	api.contactSweep.sweep(api.lastContactByAddr, now)
 	api.contactMu.Unlock()
 
-	if err := api.dao.NewContactRequest(name, email, reason, message); err != nil {
+	id, err := api.dao.NewContactRequest(name, email, reason, message)
+	if err != nil {
 		log.Error("error storing contact request:", err)
 		releaseCooldown(&api.contactMu, api.lastContactByAddr, remoteAddr, now)
 		writeJSONErr(w, http.StatusInternalServerError, "internal_error", errorText(i18n.ApiErrorInternalError()))
 		return
 	}
+	// Stored: whatever happens to the email from here, the message is in
+	// the Messages tab, and the answer doesn't wait for it.
+	api.contactNotes.Notify(dao.ContactRequest{Id: id, Name: name, Email: email, Reason: reason, Message: message, Created: now.UTC()})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

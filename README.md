@@ -949,6 +949,27 @@ least 12 characters and at most 72 bytes, as in the panel.
 random value that stays stable across restarts, e.g. `openssl rand -hex 32` - otherwise every
 restart logs every admin out.
 
+**Contact messages.** Every message sent through the site's contact form is stored (the panel's
+Messages tab) and, where `[smtp]` is configured, mailed to the bridge's own address (`[smtp]
+from`) with the sender's address as Reply-To, so answering that email in a mail client answers
+them. The email goes in the background and only while the node's email budget has room to spare
+(people's confirmation and reset emails come first); the message is stored either way. They can
+also be read and answered from the bridge's shell:
+```
+$ sudo /usr/bin/otc_bridge <env> messages [--all]
+$ sudo /usr/bin/otc_bridge <env> reply <id> [--again] < answer.txt
+$ sudo /usr/bin/otc_bridge <env> mark-read <id>
+```
+`messages` lists the unread messages, or all of them with `--all`, oldest first: the id, when
+(UTC), the name, the address, the reason, read or not, and the message. `reply` mails the answer
+read from stdin (plain UTF-8 text, at most 32 KB; at a terminal, type it and end with Ctrl-D) to
+the sender from the bridge's address, subject "Re: your message to Off The Cloud", with a blind
+copy to the bridge's address and replies going there, then marks the message read. It refuses an
+unknown id, an empty answer, and a message read already (answered, or marked read) unless
+`--again` is given. `mark-read` is for a message that needs no answer. These commands only read
+and write the contact messages, and `reply` sends one email: they start no server and prune
+nothing.
+
 ## License
 
 OTC is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-or-later).

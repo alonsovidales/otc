@@ -11,6 +11,7 @@ import (
 	"github.com/alonsovidales/otc/bridge/admin"
 	"github.com/alonsovidales/otc/bridge/api"
 	"github.com/alonsovidales/otc/bridge/cluster"
+	"github.com/alonsovidales/otc/bridge/contact"
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/downloads"
 	"github.com/alonsovidales/otc/bridge/fleet"
@@ -29,8 +30,10 @@ import (
 )
 
 func main() {
+	env := "dev"
 	if len(os.Args) > 1 {
-		cfg.Init("otc", os.Args[1])
+		env = os.Args[1]
+		cfg.Init("otc", env)
 
 		log.SetLogger(
 			logLevel(),
@@ -38,9 +41,19 @@ func main() {
 			cfg.GetInt("logger", "max_log_size_mb"),
 		)
 	} else {
-		cfg.Init("otc", "dev")
+		cfg.Init("otc", env)
 	}
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	// The contact form's messages from the shell (package contact):
+	// `otc_bridge <env> messages [--all]`, `reply <id> [--again]` (the
+	// answer read from stdin) and `mark-read <id>`. Before anything else
+	// starts: they read and write contact_requests, a reply sends one
+	// email, and nothing more happens - no pruning, no server. What they
+	// say goes to the terminal, not to the log file.
+	if len(os.Args) > 2 && contact.IsCommand(os.Args[2]) {
+		os.Exit(contactCommand(os.Args[2], os.Args[3:]))
+	}
 
 	dao := dao.Init()
 	adm := admin.Init(dao, sessionSecret())
@@ -92,12 +105,19 @@ func main() {
 		webSocket.SetMailer(m)
 	}
 	startFleet(clu, adm, webSocket, m)
+	// Every contact form message is mailed to the project too, out of the
+	// email budget strangers share with the account emails.
+	var contactNotes *contact.Notifier
+	if m != nil {
+		contactNotes = &contact.Notifier{Send: m.SendMail, To: m.Self(), Site: cfg.GetStr("otc-api", "tld"), Env: env, Allow: acc.AllowNote}
+	}
 
 	api.Init(
 		webSocket,
 		dao,
 		adm,
 		acc,
+		contactNotes,
 		clu,
 		cfg.GetStr("otc-api", "static"),
 		int(cfg.GetInt("otc-api", "port")),
@@ -151,6 +171,39 @@ func startFleet(clu *cluster.Cluster, adm *admin.Admin, ws *websocket.Manager, m
 	}
 	fleet.NewAlerter(rdb, clu.Node(), to, link, m.Send).Start()
 	log.Info("fleet alerts are on ([fleet] alert-to, or the mailer's own address)")
+}
+
+// contactCommand runs one of package contact's commands with its
+// arguments and returns the exit status: 0 done, 1 refused or failed, 2
+// written wrong. Only reply needs the mailer ([smtp]).
+func contactCommand(name string, args []string) int {
+	cmd, err := contact.Parse(name, args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	d, err := dao.Open()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "otc_bridge:", err)
+		return 1
+	}
+	defer d.Stop()
+	sh := &contact.Shell{Store: d, In: os.Stdin, Out: os.Stdout, Err: os.Stderr, Interactive: term.IsTerminal(int(os.Stdin.Fd()))}
+	if cmd.Name == "reply" {
+		m, err := mailer.Init()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "otc_bridge:", err)
+			return 1
+		}
+		if m != nil {
+			sh.Send, sh.Self = m.SendMail, m.Self()
+		}
+	}
+	if err := sh.Run(cmd); err != nil {
+		fmt.Fprintln(os.Stderr, "otc_bridge:", err)
+		return 1
+	}
+	return 0
 }
 
 // sessionSecret returns [admin] session-secret from config, so admin panel

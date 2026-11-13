@@ -427,3 +427,25 @@ func TestSignupConfirmsBeforeTheNote(t *testing.T) {
 		}
 	}
 }
+
+// The notes to the project (a new account, a contact message) take only
+// what the email budget has to spare above cNoteReserve, which stays for
+// the emails people wait for; without a budget every note goes.
+func TestAllowNoteLeavesTheReserve(t *testing.T) {
+	a := &Accounts{emailBudget: limits.NewRate(1.0/3600, cNoteReserve+3)}
+	notes := 0
+	for a.AllowNote() {
+		notes++
+	}
+	if notes != 3 {
+		t.Errorf("%d notes went, want 3", notes)
+	}
+	for i := 0; i < cNoteReserve; i++ {
+		if !a.emailBudgetAllows() {
+			t.Fatalf("the reserve's email %d didn't go", i+1)
+		}
+	}
+	if !(*Accounts)(nil).AllowNote() || !(&Accounts{}).AllowNote() {
+		t.Error("a note without a budget didn't go")
+	}
+}

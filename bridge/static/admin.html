@@ -538,6 +538,7 @@
         });
         localStorage.setItem('otc_admin_user', resp.username || fd.get('username'));
         await tryEnterPanel();
+        openLinkedTab();
       } catch (err) {
         showMsg(loginMsg, err.message || 'Login failed', 'error');
       }
@@ -1762,11 +1763,17 @@
     wireSearch('security', refreshSecurity);
     wireSearch('messages', refreshMessages);
 
+    // The fleet alerts link to #fleet, a contact message's email to
+    // #messages: that tab opens once the panel shows, signed in already or
+    // after the login.
+    function openLinkedTab() {
+      if (['#fleet', '#messages'].includes(location.hash) && !panel.hidden) document.querySelector(`.tab[data-tab="${location.hash.slice(1)}"]`).click();
+    }
+
     tryEnterPanel().then(() => {
       refreshDomainPickers();
       refreshMessages().catch(() => {});
-      // The alert emails link to #fleet.
-      if (location.hash === '#fleet' && !panel.hidden) document.querySelector('.tab[data-tab="fleet"]').click();
+      openLinkedTab();
     });
   </script>
 </body>

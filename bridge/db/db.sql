@@ -193,8 +193,11 @@ create table device_metrics
 ) engine=InnoDB;
 
 -- Messages submitted through the public site's contact form (issue #57):
--- a general "get in touch" or "give me bridge access" request. Reviewed
--- from the admin panel's Messages tab, no automated action taken on them.
+-- a general "get in touch" or "give me bridge access" request. Each one is
+-- also mailed to the project's own address, the sender's as Reply-To
+-- (bridge/contact), and read, answered and marked read from the admin
+-- panel's Messages tab or the bridge's shell (otc_bridge <env> messages,
+-- reply, mark-read); nothing else is done with them.
 create table contact_requests
 (
   `id` int not null auto_increment,

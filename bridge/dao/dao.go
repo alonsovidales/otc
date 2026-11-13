@@ -173,9 +173,24 @@ func NewWithDB(db *sql.DB) *Dao {
 	return &Dao{db: db}
 }
 
+// Init connects to the database (Open) and starts the server's background
+// work: the pruner and the metrics flusher. A failure ends the process.
 func Init() (dao *Dao) {
-	dao = new(Dao)
+	dao, err := Open()
+	if err != nil {
+		log.Fatal(err)
+	}
+	dao.stopLogPruner = make(chan struct{})
+	dao.startLogPruner()
+	dao.startMetricsFlusher()
+	return dao
+}
 
+// Open connects to the database ([mysql]) and starts nothing else: what the
+// shell's commands need (bin/otc_bridge.go's messages, reply and mark-read),
+// which read and write their own rows and exit without pruning or flushing
+// anything.
+func Open() (*Dao, error) {
 	dsn := fmt.Sprintf(
 		// time_zone UTC: now() in SQL follows the session's zone,
 		// the system one otherwise - Europe/London on the Pi image - while
@@ -196,25 +211,20 @@ func Init() (dao *Dao) {
 	// log is read by more than whoever holds that password.
 	log.Debug("connecting to DB:", strings.Replace(dsn, ":"+cfg.GetStr("mysql", "pass")+"@", ":***@", 1))
 
-	var err error
-	dao.db, err = sql.Open("mysql", dsn)
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		log.Fatal("error trying to open DB connection", err)
+		return nil, fmt.Errorf("error trying to open DB connection: %w", err)
 	}
 
-	dao.db.SetMaxOpenConns(20)
-	dao.db.SetMaxIdleConns(10)
-	dao.db.SetConnMaxLifetime(30 * time.Minute)
+	db.SetMaxOpenConns(20)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(30 * time.Minute)
 
-	if err = dao.db.Ping(); err != nil {
-		log.Fatal("it is not possible to ping the DB", err)
+	if err = db.Ping(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("it is not possible to ping the DB: %w", err)
 	}
-
-	dao.stopLogPruner = make(chan struct{})
-	dao.startLogPruner()
-	dao.startMetricsFlusher()
-
-	return
+	return &Dao{db: db}, nil
 }
 
 func (dao *Dao) Stop() {
@@ -535,12 +545,19 @@ func (dao *Dao) GetDeviceMetrics(domain string, since time.Time) (buckets []Metr
 }
 
 // NewContactRequest stores one submission of the public site's contact
-// form (issue #57) - a general enquiry or a request for bridge access.
-func (dao *Dao) NewContactRequest(name, email, reason, message string) (err error) {
-	_, err = dao.db.Exec(
+// form (issue #57) - a general enquiry or a request for bridge access -
+// and returns its id (0 when the driver can't say: the row is stored).
+func (dao *Dao) NewContactRequest(name, email, reason, message string) (id int, err error) {
+	res, err := dao.db.Exec(
 		"insert into `contact_requests` (`name`, `email`, `reason`, `message`, `created`) values (?, ?, ?, ?, now())",
 		name, email, reason, message)
-	return
+	if err != nil {
+		return 0, err
+	}
+	if n, err := res.LastInsertId(); err == nil {
+		id = int(n)
+	}
+	return id, nil
 }
 
 // cSetupBeaconTTLMinutes is how long a setup hand-off stays answerable.
@@ -611,7 +628,7 @@ func (dao *Dao) ListContactRequests(q string, limit, offset int) (requests []Con
 		return nil, 0, 0, err
 	}
 	tail, targs := pageClause(limit, offset)
-	rows, err := dao.db.Query("select `id`, `name`, `email`, `reason`, `message`, `created`, `is_read` from `contact_requests`"+where+" order by `created` desc"+tail, append(args, targs...)...)
+	rows, err := dao.db.Query("select "+cContactColumns+" from `contact_requests`"+where+" order by `created` desc"+tail, append(args, targs...)...)
 	if err != nil {
 		return nil, 0, 0, err
 	}
@@ -619,14 +636,58 @@ func (dao *Dao) ListContactRequests(q string, limit, offset int) (requests []Con
 
 	requests = []ContactRequest{}
 	for rows.Next() {
-		var c ContactRequest
-		if err := rows.Scan(&c.Id, &c.Name, &c.Email, &c.Reason, &c.Message, &c.Created, &c.IsRead); err != nil {
+		c, err := scanContactRequest(rows.Scan)
+		if err != nil {
 			return nil, 0, 0, err
 		}
 		requests = append(requests, c)
 	}
 
 	return requests, total, unread, rows.Err()
+}
+
+// cContactColumns are a ContactRequest's columns, in scanContactRequest's
+// order.
+const cContactColumns = "`id`, `name`, `email`, `reason`, `message`, `created`, `is_read`"
+
+func scanContactRequest(scan func(...any) error) (c ContactRequest, err error) {
+	err = scan(&c.Id, &c.Name, &c.Email, &c.Reason, &c.Message, &c.Created, &c.IsRead)
+	return
+}
+
+// ContactRequest returns the contact message id, nil when there is none.
+func (dao *Dao) ContactRequest(id int) (*ContactRequest, error) {
+	c, err := scanContactRequest(dao.db.QueryRow("select "+cContactColumns+" from `contact_requests` where `id` = ?", id).Scan)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+// ContactRequestsOldestFirst returns the unread contact messages, or with
+// all every one, oldest first (the shell's messages command).
+func (dao *Dao) ContactRequestsOldestFirst(all bool) ([]ContactRequest, error) {
+	where := " where not `is_read`"
+	if all {
+		where = ""
+	}
+	rows, err := dao.db.Query("select " + cContactColumns + " from `contact_requests`" + where + " order by `created`, `id`")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	requests := []ContactRequest{}
+	for rows.Next() {
+		c, err := scanContactRequest(rows.Scan)
+		if err != nil {
+			return nil, err
+		}
+		requests = append(requests, c)
+	}
+	return requests, rows.Err()
 }
 
 // SetContactRequestRead marks a contact request read/unread.
