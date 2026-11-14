@@ -248,7 +248,15 @@ ann=()
 while IFS= read -r a; do ann+=("$a"); done < <(annotations)
 
 if $publish; then
-    gh auth token | docker login ghcr.io -u "$(gh api user -q .login)" --password-stdin >/dev/null
+    # A VM just started may not resolve names yet (its DNS answered
+    # "i/o timeout" for ghcr.io a second after colima said done): the
+    # sign-in is tried for up to a minute.
+    gh_user=$(gh api user -q .login)
+    for try in 1 2 3 4 5 6 7 8 9 10 11 12; do
+        gh auth token | docker login ghcr.io -u "$gh_user" --password-stdin >/dev/null && break
+        [ "$try" -lt 12 ] || die "could not sign in to ghcr.io"
+        sleep 5
+    done
     published=$(index_digest "$release")
     if [ -n "$published" ]; then
         if moves_tags && { [ "$(index_digest beta)" != "$published" ] || [ "$(index_digest latest)" != "$published" ]; }; then
