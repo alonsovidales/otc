@@ -127,6 +127,34 @@ struct CopiesAskTests {
     }
 }
 
+/// Issue #213: Info's Stored at (PhotoGallery.swift's PhotoPaths) - the
+/// same cases as Android's and the web's.
+@MainActor
+struct PhotoPathsTests {
+    @Test func infoListsThePathsAndTheCopiesFromTwoOn() {
+        #expect(PhotoPaths.shown(nil) == nil)
+        var info = Msg_FileExifInfo()
+        // A device before it, or one that couldn't list them: no section.
+        #expect(PhotoPaths.shown(info) == nil)
+        info.paths = ["/Phone/a.jpg"]
+        #expect(PhotoPaths.shown(info) == ["/Phone/a.jpg"])
+        #expect(PhotoPaths.copies(["/Phone/a.jpg"]) == nil)
+        let paths = ["/Mac/Pictures/a.jpg", "/Phone/a.jpg", "/Private/a.jpg"]
+        info.paths = paths
+        #expect(PhotoPaths.shown(info) == paths)
+        #expect(PhotoPaths.copies(paths) == S.appPhotosViewerPathsCopies(count: 3))
+    }
+
+    @Test func theWordsInEnglish() {
+        let was = L10n.shared.code
+        L10n.shared.set("en")
+        defer { L10n.shared.set(was) }
+        #expect(S.appPhotosViewerPathsTitle == "Stored at")
+        #expect(PhotoPaths.copies(["/a.jpg", "/b.jpg"]) == "2 copies")
+        #expect(PhotoPaths.copies(["/a.jpg", "/b.jpg", "/c.jpg"]) == "3 copies")
+    }
+}
+
 /// The device, for Images' pages and deletes in the copies tests.
 @MainActor
 final class CopiesDevice {
@@ -140,6 +168,8 @@ final class CopiesDevice {
     var copies: [Int?] = [3, nil, 1, 2]
     /// Waited for before each delete is answered (tests hold it there).
     var duringDelete: (@MainActor () async -> Void)?
+    /// Info's paths, by the path asked about (none: a device before #213).
+    var infoPaths: [String: [String]] = [:]
 
     func file(_ i: Int) -> Msg_File {
         var f = Msg_File()
@@ -167,6 +197,11 @@ final class CopiesDevice {
             case .reqPhotoDateBuckets:
                 self.bucketAsks += 1
                 r.payload = .respPhotoDateBuckets(Msg_RespPhotoDateBuckets())
+            case .reqGetFileInfo(let gi):
+                var info = Msg_FileExifInfo()
+                info.cameraMake = "Canon"
+                info.paths = self.infoPaths[gi.path] ?? []
+                r.payload = .respFileInfo(info)
             case .reqDelFile(let d):
                 self.deletes.append(d)
                 await self.duringDelete?()
@@ -212,6 +247,29 @@ struct DeleteCopiesGalleryTests {
     @Test func theTilesKeepTheirCopies() async {
         let (vm, _) = await model()
         #expect(vm.items.map(\.copies) == [3, nil, 1, 2])
+    }
+
+    /// Issue #213: the viewer's Info lists where the photo open is stored,
+    /// as the device answered for it; a device before it says nothing.
+    @Test func theViewersInfoListsWhereItIsStored() async {
+        let (vm, device) = await model()
+        let paths = ["/Mac/0.jpg", "/photos/0.jpg", "/Private/0.jpg"]
+        device.infoPaths = ["/photos/0.jpg": paths, "/photos/2.jpg": ["/photos/2.jpg"]]
+        vm.open(index: 0)
+        vm.openInfo()
+        await waitUntil { !vm.infoLoading }
+        #expect(PhotoPaths.shown(vm.infoData) == paths)
+        #expect(PhotoPaths.copies(paths) == S.appPhotosViewerPathsCopies(count: 3))
+        vm.open(index: 2)
+        vm.openInfo()
+        await waitUntil { !vm.infoLoading }
+        #expect(PhotoPaths.shown(vm.infoData) == ["/photos/2.jpg"])
+        vm.open(index: 1)
+        vm.openInfo()
+        await waitUntil { !vm.infoLoading }
+        #expect(vm.infoData?.cameraMake == "Canon")
+        #expect(PhotoPaths.shown(vm.infoData) == nil)
+        vm.closeModal()
     }
 
     @Test func theViewerDeletesEveryCopyOrOnlyThisOne() async {

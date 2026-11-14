@@ -6111,8 +6111,9 @@ private struct LowResBadge: View {
     }
 }
 
-/// Issue #41: camera/EXIF metadata panel, with a native map for GPS; the
-/// text the device read in the photo under Text in this photo, with Copy
+/// Issue #41: camera/EXIF metadata panel, with a native map for GPS; where
+/// it is stored, under Stored at (issue #213, PhotoPathsSection); the text
+/// the device read in the photo under Text in this photo, with Copy
 /// (release 180, TextInPhotos.swift); the photo's or video's people after
 /// it, under People (PhotoFaces.swift).
 private struct FileInfoView: View {
@@ -6146,6 +6147,11 @@ private struct FileInfoView: View {
                             } else {
                                 Text(S.appPhotosViewerInfoNone).foregroundColor(.secondary)
                             }
+                        }
+                        // Where it is stored: after the details, before
+                        // the text and the people, as on Android and the web.
+                        if let paths = PhotoPaths.shown(vm.infoData) {
+                            PhotoPathsSection(paths: paths)
                         }
                         // Text in photos: what the device read in it, after
                         // the details and before the people, as on Android.
@@ -6245,6 +6251,55 @@ private struct FileInfoView: View {
             Text(label).foregroundColor(.secondary)
             Spacer()
             Text(value)
+        }
+    }
+}
+
+/// Issue #213: Info's "Stored at" - every path on the device holding the
+/// photo's or video's content (FileExifInfo.paths), in the device's order
+/// (by path), a line each, and beside the heading from 2 on how many
+/// copies that is: the copies the delete question counts. Android's
+/// photoPaths and the web's storedAt follow the same rules.
+enum PhotoPaths {
+    /// The paths Info lists - nil when there are none to show: no answer,
+    /// a device before it (it never sets them), or one that couldn't list
+    /// them.
+    static func shown(_ info: Msg_FileExifInfo?) -> [String]? {
+        guard let paths = info?.paths, !paths.isEmpty else { return nil }
+        return paths
+    }
+
+    /// What the heading says beside it: how many copies, from 2 on.
+    static func copies(_ paths: [String]) -> String? {
+        paths.count > 1 ? S.appPhotosViewerPathsCopies(count: paths.count) : nil
+    }
+}
+
+/// Info's "Stored at": the paths, a row each (a long one wraps), under the
+/// heading with how many copies beside it from 2 on. Just a list: nothing
+/// in it opens anything. Android's PhotoPathsSection.
+private struct PhotoPathsSection: View {
+    let paths: [String]
+
+    var body: some View {
+        Section {
+            ForEach(paths, id: \.self) { path in
+                Text(path)
+                    .font(.subheadline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } header: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(S.appPhotosViewerPathsTitle)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 0)
+                if let copies = PhotoPaths.copies(paths) {
+                    Text(copies)
+                        .textCase(nil)
+                        .fixedSize()
+                }
+            }
         }
     }
 }

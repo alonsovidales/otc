@@ -610,6 +610,11 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   content with no way back. Measured
   on 112k rows with 14k photos at several paths (Lima VM, MariaDB 11.8): browsing 291 ms of SQL as
   before (282), the buckets 154 ms (were 327), two people 1.8 ms (5.4), a page's copies 0.3-0.6 ms.
+  Info lists the copies (issue #213): `FileExifInfo.paths` (16) is `dao.PathsOfHash` of the file's
+  hash (`infoPaths`), on every GetFileInfo answer - also one whose metadata can't be read, then
+  with no camera details (it was an error) - and empty when the list fails. Web (`photoCopies.ts`
+  `storedAt`), iOS (`PhotoPaths`) and Android (`photoPaths`) show it under Info's "Stored at", a
+  line each, with "N copies" beside it from 2 on.
 - **Photo edits** (2026-11, `files_manager/edit_image.go`, `edit_exif.go`, `dao/edited.go`, table
   `edited_content`, release 174's `174.sh` and install.sh's block): the viewers turn and crop a
   photo on the device.

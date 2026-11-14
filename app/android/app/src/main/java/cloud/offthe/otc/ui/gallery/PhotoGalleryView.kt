@@ -183,6 +183,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.activity.compose.BackHandler
 import java.time.ZoneId
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
@@ -287,6 +288,9 @@ import cloud.offthe.otc.i18n.appPhotosViewerInfoTitle
 import cloud.offthe.otc.i18n.appPhotosViewerLowRes
 import cloud.offthe.otc.i18n.appPhotosViewerMoreInfo
 import cloud.offthe.otc.i18n.appPhotosViewerSaving
+import cloud.offthe.otc.i18n.appPhotosViewerPathsCopies
+import cloud.offthe.otc.i18n.appPhotosViewerPathsTitle
+import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.androidPhotosViewerSaved
 import cloud.offthe.otc.i18n.appPhotosViewerFavouriteAdd
 import cloud.offthe.otc.i18n.appPhotosViewerFavouriteRemove
@@ -2693,10 +2697,51 @@ private fun InfoRow(label: String, value: String) {
 }
 
 /**
+ * Issue #213: the paths Info lists under "Stored at" - every path on the
+ * device holding the photo's or video's content (FileExifInfo.paths), in
+ * the device's order (by path) - null when there are none to show: no
+ * answer, a device before it (it never sets them), or one that couldn't
+ * list them. iOS's PhotoPaths.shown, the web's storedAt.
+ */
+internal fun photoPaths(info: FileExifInfo?): List<String>? = info?.pathsList?.takeIf { it.isNotEmpty() }
+
+/** What "Stored at" says beside its heading: how many copies, from 2 on - the copies the delete question counts (iOS's PhotoPaths.copies). */
+internal fun photoPathsCopies(paths: List<String>): UiText? =
+    if (paths.size > 1) S.appPhotosViewerPathsCopies(paths.size) else null
+
+/**
+ * Info's "Stored at": the heading with how many copies beside it from 2 on,
+ * then the paths, a line each - a long one wraps, its further lines
+ * indented so they don't read as another path. Just a list: nothing in it
+ * opens anything. iOS's PhotoPathsSection.
+ */
+@Composable
+private fun PhotoPathsSection(paths: List<String>) {
+    Column(Modifier.fillMaxWidth()) {
+        Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                S.appPhotosViewerPathsTitle().resolve(), style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f).semantics { heading() },
+            )
+            photoPathsCopies(paths)?.let {
+                Text(it.resolve(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        val pathStyle = MaterialTheme.typography.bodyMedium.copy(textIndent = TextIndent(restLine = 12.sp))
+        for (path in paths) {
+            Text(path, style = pathStyle, modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp))
+        }
+    }
+}
+
+/**
  * The viewer's Info: the photo's details ([info], [loading] while they
- * come), the text the device read in it (Text in photos, release 180:
- * PhotoTextSection), and under them its People ([faces], PhotoFacesSection)
- * once the details are in. [busy]: a change is on its way (a face's × waits).
+ * come), where it is stored (issue #213: PhotoPathsSection), the text the
+ * device read in it (Text in photos, release 180: PhotoTextSection), and
+ * under them its People ([faces], PhotoFacesSection) once the details are
+ * in. [busy]: a change is on its way (a face's × waits).
  * [compressed]: the device compressed it and deleted its original
  * (File.original_removed) - said first, where Revert to Original would be.
  */
@@ -2739,6 +2784,9 @@ private fun FileInfoView(
                 if (cam.isEmpty() && !info.hasGps && info.exposureTime.isEmpty()) Text(S.appPhotosViewerInfoNoExif().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        // Where it is stored: after the details, before the text and the
+        // people, as on iOS and the web.
+        if (!loading) photoPaths(info)?.let { PhotoPathsSection(it) }
         // Text in photos: what the device read in it, after the details and
         // before the people, as on iOS.
         if (!loading) photoText(info)?.let { PhotoTextSection(it) }

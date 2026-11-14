@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.gallery
 
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.appPhotosViewerPathsTitle
+import cloud.offthe.otc.i18n.english
 import cloud.offthe.otc.proto.File
 import cloud.offthe.otc.proto.FileExifInfo
 import cloud.offthe.otc.proto.ListOfFiles
@@ -50,9 +53,10 @@ class PhotoGalleryInfoTest {
     }
     private val members = listOf(file("a", "2026-10-03T10:00:00Z"), file("b", "2026-10-02T10:00:00Z"))
 
-    // GetFileInfo answers each path with its own camera, once its gate opens; [failing] paths get no answer.
+    // GetFileInfo answers each path with its own camera, and its [infoPaths] (issue #213), once its gate opens; [failing] paths get no answer.
     private val gates = ConcurrentHashMap<String, CompletableDeferred<Unit>>()
     private val failing = ConcurrentHashMap.newKeySet<String>()
+    private val infoPaths = ConcurrentHashMap<String, List<String>>()
     // DelFile: each one sent, answered once [deleteGate] opens.
     private val deletes = java.util.concurrent.CopyOnWriteArrayList<String>()
     @Volatile private var deleteGate: CompletableDeferred<Unit>? = null
@@ -67,7 +71,9 @@ class PhotoGalleryInfoTest {
                 val path = req.reqGetFileInfo.path
                 gates[path]?.await()
                 if (path in failing) throw IOException("no answer")
-                RespEnvelope.newBuilder().setRespFileInfo(FileExifInfo.newBuilder().setCameraMake("camera of $path")).build()
+                RespEnvelope.newBuilder().setRespFileInfo(
+                    FileExifInfo.newBuilder().setCameraMake("camera of $path").addAllPaths(infoPaths[path].orEmpty()),
+                ).build()
             }
             ReqEnvelope.PayloadCase.REQ_DEL_FILE -> {
                 deletes += req.reqDelFile.path
@@ -149,5 +155,32 @@ class PhotoGalleryInfoTest {
         Thread.sleep(100)
         on { }
         assertNull(vm.state.value.infoData)
+    }
+
+    /** Issue #213: Info's Stored at - the paths the device sent, and how many copies from 2 on (iOS's PhotoPathsTests, the web's photo-copies-test). */
+    @Test fun storedAtListsThePathsAndTheCopiesFromTwoOn() {
+        // No answer, or a device before it (or one that couldn't list them): no section.
+        assertNull(photoPaths(null))
+        assertNull(photoPaths(FileExifInfo.getDefaultInstance()))
+        assertEquals(listOf("/Phone/a.jpg"), photoPaths(FileExifInfo.newBuilder().addPaths("/Phone/a.jpg").build()))
+        assertNull(photoPathsCopies(listOf("/Phone/a.jpg")))
+        val paths = listOf("/Mac/Pictures/a.jpg", "/Phone/a.jpg", "/Private/a.jpg")
+        assertEquals(paths, photoPaths(FileExifInfo.newBuilder().addAllPaths(paths).build()))
+        assertEquals("3 copies", photoPathsCopies(paths)?.english())
+        assertEquals("2 copies", photoPathsCopies(paths.take(2))?.english())
+        assertEquals("Stored at", S.appPhotosViewerPathsTitle().english())
+    }
+
+    /** The viewer's Info keeps the paths the device answered for the photo open; a device before #213 sends none. */
+    @Test fun infoKeepsWhereThePhotoIsStored() {
+        val vm = library()
+        infoPaths["a"] = listOf("/Mac/a", "a", "/Private/a")
+        on { vm.open(0); vm.openInfo() }
+        await("A's details") { !vm.state.value.infoLoading }
+        assertEquals(listOf("/Mac/a", "a", "/Private/a"), photoPaths(vm.state.value.infoData))
+        on { vm.open(1); vm.openInfo() }
+        await("B's details") { !vm.state.value.infoLoading }
+        assertEquals("camera of b", vm.state.value.infoData?.cameraMake)
+        assertNull(photoPaths(vm.state.value.infoData))
     }
 }
