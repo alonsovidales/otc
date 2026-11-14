@@ -1678,6 +1678,19 @@ extension S {
     /// Screen-reader name of the (i) button of the full-screen photo viewer: shows the photo's camera details (app.photos.viewer.info_title).
     static var appPhotosViewerMoreInfo: String { L("app.photos.viewer.more_info", table: "AppPhotos") }
 
+    /// one: {count} copies
+    /// other: {count} copies
+    ///
+    /// Beside the heading app.photos.viewer.paths_title (Stored at) in the photo and video viewer's Info, when the device holds the photo or video at more than one path: how many copies there are, this one included - one per path listed under the heading, the copies the delete question counts (app.photos.copies.single_text). {count} is always 2 or more, so both forms are the plural. The web app says the same (web.images.viewer.paths_copies).
+    static func appPhotosViewerPathsCopies(count: Int) -> String {
+        L("app.photos.viewer.paths_copies", table: "AppPhotos", count)
+    }
+
+    /// Stored at
+    ///
+    /// Heading of a section in the photo and video viewer's Info (app.photos.viewer.info_title), after the details (Camera, Taken, Location...) and before Text in this photo and People. Under it, one per line, every path on the user's device where this photo or video is stored: its folders and the file's name, such as /Phone/DCIM/IMG_0001.jpg. Usually one; several when the device holds the same picture in more than one place (the copies of app.photos.copies.single_text), and then app.photos.viewer.paths_copies is beside the heading. Word it to fit a photo or a video and one path or several: a phrase such as "on your device" may fit better than a word for stored. The web app says the same (web.images.viewer.paths_title).
+    static var appPhotosViewerPathsTitle: String { L("app.photos.viewer.paths_title", table: "AppPhotos") }
+
     /// Saving…
     ///
     /// Screen-reader name of the viewer's Save button while it shows a spinner: the original photo or video is being downloaded from the device and saved to the phone's own photo library (Photos on an iPhone, the gallery on Android).

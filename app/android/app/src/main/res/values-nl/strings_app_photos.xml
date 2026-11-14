@@ -418,6 +418,11 @@
     <string name="app_photos_viewer_info_title">Meer info</string>
     <string name="app_photos_viewer_low_res">Voorbeeld</string>
     <string name="app_photos_viewer_more_info">Meer info</string>
+    <plurals name="app_photos_viewer_paths_copies">
+        <item quantity="one">%1$s kopieën</item>
+        <item quantity="other">%1$s kopieën</item>
+    </plurals>
+    <string name="app_photos_viewer_paths_title">Opgeslagen in</string>
     <string name="app_photos_viewer_saving">Opslaan…</string>
     <string name="app_photos_viewer_text_copied">Gekopieerd</string>
     <string name="app_photos_viewer_text_copy">Kopiëren</string>

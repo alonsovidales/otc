@@ -3048,6 +3048,14 @@ message FileExifInfo {
   // read the photo yet, or Text in photos is off. Info shows it under "Text
   // in this photo", with Copy. Devices before it never set it.
   string text = 15;
+  // Issue #213: where it is stored - every path in Files holding its
+  // content, this one included, by path (dao.PathsOfHash): as many as the
+  // delete question counts (File.copies), older versions not counted,
+  // folders kept out of Images counted. Set also when its metadata can't
+  // be read (with no camera details then); empty when the paths can't be
+  // listed. Info lists them a line each under "Stored at", with "N copies"
+  // from 2 on. Devices before it never set it.
+  repeated string paths = 16;
 }
 
 message GetFileInfo {

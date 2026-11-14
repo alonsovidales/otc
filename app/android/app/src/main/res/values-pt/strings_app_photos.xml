@@ -458,6 +458,12 @@
     <string name="app_photos_viewer_info_title">Mais informações</string>
     <string name="app_photos_viewer_low_res">Baixa res.</string>
     <string name="app_photos_viewer_more_info">Mais informações</string>
+    <plurals name="app_photos_viewer_paths_copies">
+        <item quantity="one">%1$s cópias</item>
+        <item quantity="many">%1$s cópias</item>
+        <item quantity="other">%1$s cópias</item>
+    </plurals>
+    <string name="app_photos_viewer_paths_title">No teu dispositivo</string>
     <string name="app_photos_viewer_saving">A guardar…</string>
     <string name="app_photos_viewer_text_copied">Copiado</string>
     <string name="app_photos_viewer_text_copy">Copiar</string>

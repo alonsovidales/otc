@@ -1794,6 +1794,20 @@
     "text": "Geen metadata gevonden",
     "en": "No metadata found"
   },
+  "web.images.viewer.paths_copies": {
+    "text": {
+      "one": "{count} kopieën",
+      "other": "{count} kopieën"
+    },
+    "en": {
+      "one": "{count} copies",
+      "other": "{count} copies"
+    }
+  },
+  "web.images.viewer.paths_title": {
+    "text": "Opgeslagen in",
+    "en": "Stored at"
+  },
   "web.images.viewer.previous": {
     "text": "Vorige",
     "en": "Previous"

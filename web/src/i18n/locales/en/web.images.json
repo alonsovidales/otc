@@ -539,6 +539,12 @@
   "web.images.viewer.next": "Next",
   "web.images.viewer.no_exif": "No EXIF metadata in this file",
   "web.images.viewer.no_metadata": "No metadata found",
+  "web.images.viewer.paths_copies": {
+    "one": "{count} copies",
+    "other": "{count} copies",
+    "arg": "count"
+  },
+  "web.images.viewer.paths_title": "Stored at",
   "web.images.viewer.previous": "Previous",
   "web.images.viewer.show_map": "Show on map",
   "web.images.viewer.stalled": "This video is taking too long to load.",

@@ -668,6 +668,8 @@ export type MessageKey =
   | "web.images.viewer.next"
   | "web.images.viewer.no_exif"
   | "web.images.viewer.no_metadata"
+  | "web.images.viewer.paths_copies"
+  | "web.images.viewer.paths_title"
   | "web.images.viewer.previous"
   | "web.images.viewer.show_map"
   | "web.images.viewer.stalled"
@@ -1978,6 +1980,8 @@ export interface MessageArgs {
   "web.images.viewer.next": undefined;
   "web.images.viewer.no_exif": undefined;
   "web.images.viewer.no_metadata": undefined;
+  "web.images.viewer.paths_copies": { count: number };
+  "web.images.viewer.paths_title": undefined;
   "web.images.viewer.previous": undefined;
   "web.images.viewer.show_map": undefined;
   "web.images.viewer.stalled": undefined;

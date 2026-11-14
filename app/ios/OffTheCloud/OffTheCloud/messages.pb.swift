@@ -6418,57 +6418,111 @@ public nonisolated struct Msg_SocialPublicationFiles: Sendable {
 /// info" panel (issue #41). city/country are filled in from latitude/
 /// longitude via an offline reverse-geocode (see geotag/) whenever has_gps
 /// is true, the same lookup issue #42 uses to add them as searchable tags.
-public nonisolated struct Msg_FileExifInfo: Sendable {
+public nonisolated struct Msg_FileExifInfo: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var cameraMake: String = String()
+  public var cameraMake: String {
+    get {_storage._cameraMake}
+    set {_uniqueStorage()._cameraMake = newValue}
+  }
 
-  public var cameraModel: String = String()
+  public var cameraModel: String {
+    get {_storage._cameraModel}
+    set {_uniqueStorage()._cameraModel = newValue}
+  }
 
   public var takenAt: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_takenAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_takenAt = newValue}
+    get {_storage._takenAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_uniqueStorage()._takenAt = newValue}
   }
   /// Returns true if `takenAt` has been explicitly set.
-  public var hasTakenAt: Bool {self._takenAt != nil}
+  public var hasTakenAt: Bool {_storage._takenAt != nil}
   /// Clears the value of `takenAt`. Subsequent reads from it will return its default value.
-  public mutating func clearTakenAt() {self._takenAt = nil}
+  public mutating func clearTakenAt() {_uniqueStorage()._takenAt = nil}
 
-  public var exposureTime: String = String()
+  public var exposureTime: String {
+    get {_storage._exposureTime}
+    set {_uniqueStorage()._exposureTime = newValue}
+  }
 
-  public var fNumber: String = String()
+  public var fNumber: String {
+    get {_storage._fNumber}
+    set {_uniqueStorage()._fNumber = newValue}
+  }
 
-  public var iso: Int32 = 0
+  public var iso: Int32 {
+    get {_storage._iso}
+    set {_uniqueStorage()._iso = newValue}
+  }
 
-  public var focalLength: String = String()
+  public var focalLength: String {
+    get {_storage._focalLength}
+    set {_uniqueStorage()._focalLength = newValue}
+  }
 
-  public var width: Int32 = 0
+  public var width: Int32 {
+    get {_storage._width}
+    set {_uniqueStorage()._width = newValue}
+  }
 
-  public var height: Int32 = 0
+  public var height: Int32 {
+    get {_storage._height}
+    set {_uniqueStorage()._height = newValue}
+  }
 
-  public var hasGps_p: Bool = false
+  public var hasGps_p: Bool {
+    get {_storage._hasGps_p}
+    set {_uniqueStorage()._hasGps_p = newValue}
+  }
 
-  public var latitude: Double = 0
+  public var latitude: Double {
+    get {_storage._latitude}
+    set {_uniqueStorage()._latitude = newValue}
+  }
 
-  public var longitude: Double = 0
+  public var longitude: Double {
+    get {_storage._longitude}
+    set {_uniqueStorage()._longitude = newValue}
+  }
 
-  public var city: String = String()
+  public var city: String {
+    get {_storage._city}
+    set {_uniqueStorage()._city = newValue}
+  }
 
-  public var country: String = String()
+  public var country: String {
+    get {_storage._country}
+    set {_uniqueStorage()._country = newValue}
+  }
 
   /// Text in photos (release 180): the text the device read in the photo, a
   /// line of it a line here, top to bottom; "" when it found none, hasn't
   /// read the photo yet, or Text in photos is off. Info shows it under "Text
   /// in this photo", with Copy. Devices before it never set it.
-  public var text: String = String()
+  public var text: String {
+    get {_storage._text}
+    set {_uniqueStorage()._text = newValue}
+  }
+
+  /// Issue #213: where it is stored - every path in Files holding its
+  /// content, this one included, by path (dao.PathsOfHash): as many as the
+  /// delete question counts (File.copies), older versions not counted,
+  /// folders kept out of Images counted. Set also when its metadata can't
+  /// be read (with no camera details then); empty when the paths can't be
+  /// listed. Info lists them a line each under "Stored at", with "N copies"
+  /// from 2 on. Devices before it never set it.
+  public var paths: [String] {
+    get {_storage._paths}
+    set {_uniqueStorage()._paths = newValue}
+  }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _takenAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 public nonisolated struct Msg_GetFileInfo: Sendable {
@@ -19083,103 +19137,174 @@ nonisolated extension Msg_SocialPublicationFiles: SwiftProtobuf.Message, SwiftPr
 
 nonisolated extension Msg_FileExifInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FileExifInfo"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}camera_make\0\u{3}camera_model\0\u{3}taken_at\0\u{3}exposure_time\0\u{3}f_number\0\u{1}iso\0\u{3}focal_length\0\u{1}width\0\u{1}height\0\u{3}has_gps\0\u{1}latitude\0\u{1}longitude\0\u{1}city\0\u{1}country\0\u{1}text\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}camera_make\0\u{3}camera_model\0\u{3}taken_at\0\u{3}exposure_time\0\u{3}f_number\0\u{1}iso\0\u{3}focal_length\0\u{1}width\0\u{1}height\0\u{3}has_gps\0\u{1}latitude\0\u{1}longitude\0\u{1}city\0\u{1}country\0\u{1}text\0\u{1}paths\0")
+
+  fileprivate class _StorageClass {
+    var _cameraMake: String = String()
+    var _cameraModel: String = String()
+    var _takenAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+    var _exposureTime: String = String()
+    var _fNumber: String = String()
+    var _iso: Int32 = 0
+    var _focalLength: String = String()
+    var _width: Int32 = 0
+    var _height: Int32 = 0
+    var _hasGps_p: Bool = false
+    var _latitude: Double = 0
+    var _longitude: Double = 0
+    var _city: String = String()
+    var _country: String = String()
+    var _text: String = String()
+    var _paths: [String] = []
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _cameraMake = source._cameraMake
+      _cameraModel = source._cameraModel
+      _takenAt = source._takenAt
+      _exposureTime = source._exposureTime
+      _fNumber = source._fNumber
+      _iso = source._iso
+      _focalLength = source._focalLength
+      _width = source._width
+      _height = source._height
+      _hasGps_p = source._hasGps_p
+      _latitude = source._latitude
+      _longitude = source._longitude
+      _city = source._city
+      _country = source._country
+      _text = source._text
+      _paths = source._paths
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.cameraMake) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.cameraModel) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._takenAt) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self.exposureTime) }()
-      case 5: try { try decoder.decodeSingularStringField(value: &self.fNumber) }()
-      case 6: try { try decoder.decodeSingularInt32Field(value: &self.iso) }()
-      case 7: try { try decoder.decodeSingularStringField(value: &self.focalLength) }()
-      case 8: try { try decoder.decodeSingularInt32Field(value: &self.width) }()
-      case 9: try { try decoder.decodeSingularInt32Field(value: &self.height) }()
-      case 10: try { try decoder.decodeSingularBoolField(value: &self.hasGps_p) }()
-      case 11: try { try decoder.decodeSingularDoubleField(value: &self.latitude) }()
-      case 12: try { try decoder.decodeSingularDoubleField(value: &self.longitude) }()
-      case 13: try { try decoder.decodeSingularStringField(value: &self.city) }()
-      case 14: try { try decoder.decodeSingularStringField(value: &self.country) }()
-      case 15: try { try decoder.decodeSingularStringField(value: &self.text) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularStringField(value: &_storage._cameraMake) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._cameraModel) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._takenAt) }()
+        case 4: try { try decoder.decodeSingularStringField(value: &_storage._exposureTime) }()
+        case 5: try { try decoder.decodeSingularStringField(value: &_storage._fNumber) }()
+        case 6: try { try decoder.decodeSingularInt32Field(value: &_storage._iso) }()
+        case 7: try { try decoder.decodeSingularStringField(value: &_storage._focalLength) }()
+        case 8: try { try decoder.decodeSingularInt32Field(value: &_storage._width) }()
+        case 9: try { try decoder.decodeSingularInt32Field(value: &_storage._height) }()
+        case 10: try { try decoder.decodeSingularBoolField(value: &_storage._hasGps_p) }()
+        case 11: try { try decoder.decodeSingularDoubleField(value: &_storage._latitude) }()
+        case 12: try { try decoder.decodeSingularDoubleField(value: &_storage._longitude) }()
+        case 13: try { try decoder.decodeSingularStringField(value: &_storage._city) }()
+        case 14: try { try decoder.decodeSingularStringField(value: &_storage._country) }()
+        case 15: try { try decoder.decodeSingularStringField(value: &_storage._text) }()
+        case 16: try { try decoder.decodeRepeatedStringField(value: &_storage._paths) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if !self.cameraMake.isEmpty {
-      try visitor.visitSingularStringField(value: self.cameraMake, fieldNumber: 1)
-    }
-    if !self.cameraModel.isEmpty {
-      try visitor.visitSingularStringField(value: self.cameraModel, fieldNumber: 2)
-    }
-    try { if let v = self._takenAt {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
-    if !self.exposureTime.isEmpty {
-      try visitor.visitSingularStringField(value: self.exposureTime, fieldNumber: 4)
-    }
-    if !self.fNumber.isEmpty {
-      try visitor.visitSingularStringField(value: self.fNumber, fieldNumber: 5)
-    }
-    if self.iso != 0 {
-      try visitor.visitSingularInt32Field(value: self.iso, fieldNumber: 6)
-    }
-    if !self.focalLength.isEmpty {
-      try visitor.visitSingularStringField(value: self.focalLength, fieldNumber: 7)
-    }
-    if self.width != 0 {
-      try visitor.visitSingularInt32Field(value: self.width, fieldNumber: 8)
-    }
-    if self.height != 0 {
-      try visitor.visitSingularInt32Field(value: self.height, fieldNumber: 9)
-    }
-    if self.hasGps_p != false {
-      try visitor.visitSingularBoolField(value: self.hasGps_p, fieldNumber: 10)
-    }
-    if self.latitude.bitPattern != 0 {
-      try visitor.visitSingularDoubleField(value: self.latitude, fieldNumber: 11)
-    }
-    if self.longitude.bitPattern != 0 {
-      try visitor.visitSingularDoubleField(value: self.longitude, fieldNumber: 12)
-    }
-    if !self.city.isEmpty {
-      try visitor.visitSingularStringField(value: self.city, fieldNumber: 13)
-    }
-    if !self.country.isEmpty {
-      try visitor.visitSingularStringField(value: self.country, fieldNumber: 14)
-    }
-    if !self.text.isEmpty {
-      try visitor.visitSingularStringField(value: self.text, fieldNumber: 15)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if !_storage._cameraMake.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._cameraMake, fieldNumber: 1)
+      }
+      if !_storage._cameraModel.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._cameraModel, fieldNumber: 2)
+      }
+      try { if let v = _storage._takenAt {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+      if !_storage._exposureTime.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._exposureTime, fieldNumber: 4)
+      }
+      if !_storage._fNumber.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._fNumber, fieldNumber: 5)
+      }
+      if _storage._iso != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._iso, fieldNumber: 6)
+      }
+      if !_storage._focalLength.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._focalLength, fieldNumber: 7)
+      }
+      if _storage._width != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._width, fieldNumber: 8)
+      }
+      if _storage._height != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._height, fieldNumber: 9)
+      }
+      if _storage._hasGps_p != false {
+        try visitor.visitSingularBoolField(value: _storage._hasGps_p, fieldNumber: 10)
+      }
+      if _storage._latitude.bitPattern != 0 {
+        try visitor.visitSingularDoubleField(value: _storage._latitude, fieldNumber: 11)
+      }
+      if _storage._longitude.bitPattern != 0 {
+        try visitor.visitSingularDoubleField(value: _storage._longitude, fieldNumber: 12)
+      }
+      if !_storage._city.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._city, fieldNumber: 13)
+      }
+      if !_storage._country.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._country, fieldNumber: 14)
+      }
+      if !_storage._text.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._text, fieldNumber: 15)
+      }
+      if !_storage._paths.isEmpty {
+        try visitor.visitRepeatedStringField(value: _storage._paths, fieldNumber: 16)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_FileExifInfo, rhs: Msg_FileExifInfo) -> Bool {
-    if lhs.cameraMake != rhs.cameraMake {return false}
-    if lhs.cameraModel != rhs.cameraModel {return false}
-    if lhs._takenAt != rhs._takenAt {return false}
-    if lhs.exposureTime != rhs.exposureTime {return false}
-    if lhs.fNumber != rhs.fNumber {return false}
-    if lhs.iso != rhs.iso {return false}
-    if lhs.focalLength != rhs.focalLength {return false}
-    if lhs.width != rhs.width {return false}
-    if lhs.height != rhs.height {return false}
-    if lhs.hasGps_p != rhs.hasGps_p {return false}
-    if lhs.latitude != rhs.latitude {return false}
-    if lhs.longitude != rhs.longitude {return false}
-    if lhs.city != rhs.city {return false}
-    if lhs.country != rhs.country {return false}
-    if lhs.text != rhs.text {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._cameraMake != rhs_storage._cameraMake {return false}
+        if _storage._cameraModel != rhs_storage._cameraModel {return false}
+        if _storage._takenAt != rhs_storage._takenAt {return false}
+        if _storage._exposureTime != rhs_storage._exposureTime {return false}
+        if _storage._fNumber != rhs_storage._fNumber {return false}
+        if _storage._iso != rhs_storage._iso {return false}
+        if _storage._focalLength != rhs_storage._focalLength {return false}
+        if _storage._width != rhs_storage._width {return false}
+        if _storage._height != rhs_storage._height {return false}
+        if _storage._hasGps_p != rhs_storage._hasGps_p {return false}
+        if _storage._latitude != rhs_storage._latitude {return false}
+        if _storage._longitude != rhs_storage._longitude {return false}
+        if _storage._city != rhs_storage._city {return false}
+        if _storage._country != rhs_storage._country {return false}
+        if _storage._text != rhs_storage._text {return false}
+        if _storage._paths != rhs_storage._paths {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

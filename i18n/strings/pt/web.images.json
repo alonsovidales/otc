@@ -1794,6 +1794,20 @@
     "text": "Não foram encontrados metadados",
     "en": "No metadata found"
   },
+  "web.images.viewer.paths_copies": {
+    "text": {
+      "one": "{count} cópias",
+      "other": "{count} cópias"
+    },
+    "en": {
+      "one": "{count} copies",
+      "other": "{count} copies"
+    }
+  },
+  "web.images.viewer.paths_title": {
+    "text": "No teu dispositivo",
+    "en": "Stored at"
+  },
   "web.images.viewer.previous": {
     "text": "Anterior",
     "en": "Previous"

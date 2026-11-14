@@ -539,6 +539,12 @@
   "web.images.viewer.next": "Suivant",
   "web.images.viewer.no_exif": "Aucune métadonnée EXIF dans ce fichier",
   "web.images.viewer.no_metadata": "Aucune métadonnée trouvée",
+  "web.images.viewer.paths_copies": {
+    "one": "{count} copies",
+    "other": "{count} copies",
+    "arg": "count"
+  },
+  "web.images.viewer.paths_title": "Sur votre appareil",
   "web.images.viewer.previous": "Précédent",
   "web.images.viewer.show_map": "Afficher sur la carte",
   "web.images.viewer.stalled": "Le chargement de cette vidéo prend trop de temps.",

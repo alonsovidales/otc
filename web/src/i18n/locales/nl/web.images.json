@@ -539,6 +539,12 @@
   "web.images.viewer.next": "Volgende",
   "web.images.viewer.no_exif": "Geen EXIF-metadata in dit bestand",
   "web.images.viewer.no_metadata": "Geen metadata gevonden",
+  "web.images.viewer.paths_copies": {
+    "one": "{count} kopieën",
+    "other": "{count} kopieën",
+    "arg": "count"
+  },
+  "web.images.viewer.paths_title": "Opgeslagen in",
   "web.images.viewer.previous": "Vorige",
   "web.images.viewer.show_map": "Op de kaart tonen",
   "web.images.viewer.stalled": "Het laden van deze video duurt te lang.",

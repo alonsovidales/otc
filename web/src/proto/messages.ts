@@ -3811,6 +3811,16 @@ export interface FileExifInfo {
    * in this photo", with Copy. Devices before it never set it.
    */
   text: string;
+  /**
+   * Issue #213: where it is stored - every path in Files holding its
+   * content, this one included, by path (dao.PathsOfHash): as many as the
+   * delete question counts (File.copies), older versions not counted,
+   * folders kept out of Images counted. Set also when its metadata can't
+   * be read (with no camera details then); empty when the paths can't be
+   * listed. Info lists them a line each under "Stored at", with "N copies"
+   * from 2 on. Devices before it never set it.
+   */
+  paths: string[];
 }
 
 export interface GetFileInfo {
@@ -21170,6 +21180,7 @@ function createBaseFileExifInfo(): FileExifInfo {
     city: "",
     country: "",
     text: "",
+    paths: [],
   };
 }
 
@@ -21219,6 +21230,9 @@ export const FileExifInfo: MessageFns<FileExifInfo> = {
     }
     if (message.text !== "") {
       writer.uint32(122).string(message.text);
+    }
+    for (const v of message.paths) {
+      writer.uint32(130).string(v!);
     }
     return writer;
   },
@@ -21350,6 +21364,14 @@ export const FileExifInfo: MessageFns<FileExifInfo> = {
           message.text = reader.string();
           continue;
         }
+        case 16: {
+          if (tag !== 130) {
+            break;
+          }
+
+          message.paths.push(reader.string());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -21379,6 +21401,7 @@ export const FileExifInfo: MessageFns<FileExifInfo> = {
     message.city = object.city ?? "";
     message.country = object.country ?? "";
     message.text = object.text ?? "";
+    message.paths = object.paths?.map((e) => e) || [];
     return message;
   },
 };

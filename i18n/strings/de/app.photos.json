@@ -1450,6 +1450,20 @@
     "text": "Weitere Infos",
     "en": "More info"
   },
+  "app.photos.viewer.paths_copies": {
+    "text": {
+      "one": "{count} Kopien",
+      "other": "{count} Kopien"
+    },
+    "en": {
+      "one": "{count} copies",
+      "other": "{count} copies"
+    }
+  },
+  "app.photos.viewer.paths_title": {
+    "text": "Gespeichert unter",
+    "en": "Stored at"
+  },
   "app.photos.viewer.saving": {
     "text": "Wird gespeichert…",
     "en": "Saving…"

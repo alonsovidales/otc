@@ -539,6 +539,12 @@
   "web.images.viewer.next": "Siguiente",
   "web.images.viewer.no_exif": "Este archivo no tiene metadatos EXIF",
   "web.images.viewer.no_metadata": "No se han encontrado metadatos",
+  "web.images.viewer.paths_copies": {
+    "one": "{count} copias",
+    "other": "{count} copias",
+    "arg": "count"
+  },
+  "web.images.viewer.paths_title": "En tu dispositivo",
   "web.images.viewer.previous": "Anterior",
   "web.images.viewer.show_map": "Mostrar en el mapa",
   "web.images.viewer.stalled": "Este vídeo está tardando demasiado en cargarse.",
