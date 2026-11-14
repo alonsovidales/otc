@@ -986,6 +986,19 @@
     "note": "Heading of the section in Settings that turns Text in photos on or off: the device reads the text in photos (signs, documents, screenshots) so they can be searched for by it, and shows it in a photo's Info. The feature's name; the phones' app.settings.text_photos.title.",
     "max": 30
   },
+  "web.settings.update.auto": {
+    "text": "Automatic updates",
+    "note": "Label of the switch in Settings > Device version that turns automatic updates on or off: with it on, the device installs new versions by itself.",
+    "max": 40
+  },
+  "web.settings.update.auto_failed": {
+    "text": "Could not change automatic updates.",
+    "note": "Error in Settings > Device version when the Automatic updates switch could not be changed and the device gave no reason."
+  },
+  "web.settings.update.auto_hint": {
+    "text": "Your device checks for a new version every 12 hours and installs it by itself. It restarts on the way, which takes a few minutes.",
+    "note": "Explanation under the Automatic updates switch in Settings > Device version."
+  },
   "web.settings.update.check_again": {
     "text": "Check again",
     "note": "Button in Settings > Device version that asks the update server for new versions again.",

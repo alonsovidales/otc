@@ -302,6 +302,12 @@ recovered device under it.
 6. Wiring the RAID status LEDs to the GPIO pins is still a manual, physical step - see
    [Wiring the status lights](#status-lights-wiring) for the diagram and the pins.
 
+**Automatic updates.** The device checks for a new version of Off The Cloud every 12 hours and
+installs it by itself, restarting on the way (a few minutes). Settings > Device version has the
+switch, **Automatic updates**, on unless you turn it off; with it off you press **Update** there
+when you choose. A release that fails to install three times is left for that button. The Docker
+image doesn't update itself: you pull the new image.
+
 **System updates.** Besides Off The Cloud's own updates (Settings > Device version), the device
 installs its operating system's security updates by itself every day: Debian's, and the
 Raspberry Pi's kernel and firmware. When one needs a restart (a new kernel), it restarts at 04:00,

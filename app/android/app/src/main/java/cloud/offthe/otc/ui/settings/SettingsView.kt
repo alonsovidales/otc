@@ -277,6 +277,8 @@ import cloud.offthe.otc.i18n.appSettingsTailscaleWorking
 import cloud.offthe.otc.i18n.appSettingsThumbsClear
 import cloud.offthe.otc.i18n.appSettingsThumbsFooter
 import cloud.offthe.otc.i18n.appSettingsThumbsMaxSize
+import cloud.offthe.otc.i18n.appSettingsUpdateAuto
+import cloud.offthe.otc.i18n.appSettingsUpdateAutoHint
 import cloud.offthe.otc.i18n.appSettingsUpdateBack
 import cloud.offthe.otc.i18n.appSettingsUpdateBuild
 import cloud.offthe.otc.i18n.appSettingsUpdateCheckAgain
@@ -1138,6 +1140,14 @@ private fun UpdateSection() {
         if (st.hasUpdate) RowButton((if (st.starting) S.appSettingsUpdateStarting() else st.updateToText).resolve(), enabled = !st.starting && !st.running) { scope.launch { vm.apply() } }
         if (st.hasUpdate || st.running) Caption(S.appSettingsUpdateRestartNote().resolve())
         st.error?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
+        // Automatic updates: only on a device that has the switch (not an
+        // older one, nor a container). Shown changed at once; the view model
+        // puts it back if the device refuses.
+        st.autoUpdate?.let { on ->
+            SwitchRow(S.appSettingsUpdateAuto().resolve(), checked = on, enabled = !st.savingAutoUpdate, onChange = { v -> vm.viewModelScope.launch { vm.setAutoUpdate(v) } })
+            Caption(S.appSettingsUpdateAutoHint().resolve())
+            st.autoUpdateError?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
+        }
         // Settings > Restart device: the whole machine, owner of the primary only.
         RowButton((if (st.restarting) S.appSettingsUpdateRestarting() else S.appSettingsUpdateRestart()).resolve(), enabled = !st.restarting && !st.running && !st.shuttingDown) { confirmRestart = true }
         when (st.restartPhase) {

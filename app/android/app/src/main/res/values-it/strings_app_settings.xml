@@ -241,6 +241,9 @@
     <string name="app_settings_thumbs_clear">Svuota la cache delle miniature</string>
     <string name="app_settings_thumbs_footer">Le miniature vengono conservate su questo telefono, così Immagini si apre senza scaricarle di nuovo.</string>
     <string name="app_settings_thumbs_max_size">Dimensione massima</string>
+    <string name="app_settings_update_auto">Aggiornamenti automatici</string>
+    <string name="app_settings_update_auto_failed">Impossibile modificare gli aggiornamenti automatici.</string>
+    <string name="app_settings_update_auto_hint">Il tuo dispositivo controlla ogni 12 ore se c’è una nuova versione e la installa da solo. Durante l’installazione si riavvia: ci vogliono alcuni minuti.</string>
     <string name="app_settings_update_back">Il dispositivo è di nuovo attivo.</string>
     <string name="app_settings_update_build">build %1$s</string>
     <string name="app_settings_update_check_again">Controlla di nuovo</string>

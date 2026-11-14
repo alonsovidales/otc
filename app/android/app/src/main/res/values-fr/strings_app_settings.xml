@@ -241,6 +241,9 @@
     <string name="app_settings_thumbs_clear">Vider le cache des vignettes</string>
     <string name="app_settings_thumbs_footer">Les vignettes sont conservées sur ce téléphone pour qu’Images s’ouvre sans les télécharger de nouveau.</string>
     <string name="app_settings_thumbs_max_size">Taille maximale</string>
+    <string name="app_settings_update_auto">Mises à jour automatiques</string>
+    <string name="app_settings_update_auto_failed">Impossible de modifier les mises à jour automatiques.</string>
+    <string name="app_settings_update_auto_hint">Votre appareil vérifie toutes les 12 heures s’il existe une nouvelle version et l’installe tout seul. Il redémarre au passage, ce qui prend quelques minutes.</string>
     <string name="app_settings_update_back">L’appareil est de retour.</string>
     <string name="app_settings_update_build">build %1$s</string>
     <string name="app_settings_update_check_again">Vérifier à nouveau</string>

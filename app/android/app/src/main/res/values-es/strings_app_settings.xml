@@ -241,6 +241,9 @@
     <string name="app_settings_thumbs_clear">Borrar caché de miniaturas</string>
     <string name="app_settings_thumbs_footer">Las miniaturas se guardan en este teléfono para que Imágenes se abra sin volver a descargarlas.</string>
     <string name="app_settings_thumbs_max_size">Tamaño máximo</string>
+    <string name="app_settings_update_auto">Actualizaciones automáticas</string>
+    <string name="app_settings_update_auto_failed">No se han podido cambiar las actualizaciones automáticas.</string>
+    <string name="app_settings_update_auto_hint">Tu dispositivo comprueba cada 12 horas si hay una versión nueva y la instala por sí solo. Se reinicia durante la instalación, que tarda unos minutos.</string>
     <string name="app_settings_update_back">El dispositivo ha vuelto.</string>
     <string name="app_settings_update_build">compilación %1$s</string>
     <string name="app_settings_update_check_again">Volver a comprobar</string>

@@ -831,6 +831,18 @@
     "text": "Tekst in foto’s",
     "en": "Text in photos"
   },
+  "web.settings.update.auto": {
+    "text": "Automatische updates",
+    "en": "Automatic updates"
+  },
+  "web.settings.update.auto_failed": {
+    "text": "Kan de automatische updates niet wijzigen.",
+    "en": "Could not change automatic updates."
+  },
+  "web.settings.update.auto_hint": {
+    "text": "Je apparaat controleert elke 12 uur of er een nieuwe versie is en installeert die vanzelf. Het herstart daarbij, wat een paar minuten duurt.",
+    "en": "Your device checks for a new version every 12 hours and installs it by itself. It restarts on the way, which takes a few minutes."
+  },
   "web.settings.update.check_again": {
     "text": "Opnieuw controleren",
     "en": "Check again"

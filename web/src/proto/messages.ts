@@ -2088,6 +2088,24 @@ export interface RespUpdateInfo {
    * button. Pending lists only releases whose image is already published.
    */
   container: boolean;
+  /**
+   * Automatic updates: the device checks every 12 hours and installs what
+   * is new by itself (on unless the owner turned it off). Absent on a
+   * device before them, in a container (its owner pulls the image) and
+   * where the device can't update itself: the apps then show no switch.
+   */
+  autoUpdate?: boolean | undefined;
+}
+
+/**
+ * Settings > Device version: turns automatic updates on or off, for the
+ * whole device (the owner of the primary instance only). Answers with the
+ * generic Ack; RespUpdateInfo.auto_update says what it is. A device before
+ * it answers error_code "unknown_payload"; a container and a demo device
+ * refuse it.
+ */
+export interface SetAutoUpdate {
+  enabled: boolean;
 }
 
 /**
@@ -4474,6 +4492,9 @@ export interface ReqEnvelope {
      */
     { $case: "reqSetTextInPhotosEnabled"; reqSetTextInPhotosEnabled: SetTextInPhotosEnabled }
     | { $case: "reqSetPetsEnabled"; reqSetPetsEnabled: SetPetsEnabled }
+    | //
+    /** Automatic updates' switch. Answers with the generic Ack. */
+    { $case: "reqSetAutoUpdate"; reqSetAutoUpdate: SetAutoUpdate }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -12663,6 +12684,7 @@ function createBaseRespUpdateInfo(): RespUpdateInfo {
     currentLabel: "",
     latestLabel: "",
     container: false,
+    autoUpdate: undefined,
   };
 }
 
@@ -12697,6 +12719,9 @@ export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
     }
     if (message.container !== false) {
       writer.uint32(80).bool(message.container);
+    }
+    if (message.autoUpdate !== undefined) {
+      writer.uint32(88).bool(message.autoUpdate);
     }
     return writer;
   },
@@ -12788,6 +12813,14 @@ export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
           message.container = reader.bool();
           continue;
         }
+        case 11: {
+          if (tag !== 88) {
+            break;
+          }
+
+          message.autoUpdate = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -12812,6 +12845,53 @@ export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
     message.currentLabel = object.currentLabel ?? "";
     message.latestLabel = object.latestLabel ?? "";
     message.container = object.container ?? false;
+    message.autoUpdate = object.autoUpdate ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSetAutoUpdate(): SetAutoUpdate {
+  return { enabled: false };
+}
+
+export const SetAutoUpdate: MessageFns<SetAutoUpdate> = {
+  encode(message: SetAutoUpdate, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== false) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetAutoUpdate {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetAutoUpdate();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.enabled = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<SetAutoUpdate>, I>>(base?: I): SetAutoUpdate {
+    return SetAutoUpdate.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetAutoUpdate>, I>>(object: I): SetAutoUpdate {
+    const message = createBaseSetAutoUpdate();
+    message.enabled = object.enabled ?? false;
     return message;
   },
 };
@@ -23646,6 +23726,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqSetPetsEnabled":
         SetPetsEnabled.encode(message.payload.reqSetPetsEnabled, writer.uint32(1378).fork()).join();
         break;
+      case "reqSetAutoUpdate":
+        SetAutoUpdate.encode(message.payload.reqSetAutoUpdate, writer.uint32(1386).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -25218,6 +25301,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 173: {
+          if (tag !== 1386) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetAutoUpdate",
+            reqSetAutoUpdate: SetAutoUpdate.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -26666,6 +26760,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqSetPetsEnabled",
             reqSetPetsEnabled: SetPetsEnabled.fromPartial(object.payload.reqSetPetsEnabled),
+          };
+        }
+        break;
+      }
+      case "reqSetAutoUpdate": {
+        if (object.payload?.reqSetAutoUpdate !== undefined && object.payload?.reqSetAutoUpdate !== null) {
+          message.payload = {
+            $case: "reqSetAutoUpdate",
+            reqSetAutoUpdate: SetAutoUpdate.fromPartial(object.payload.reqSetAutoUpdate),
           };
         }
         break;

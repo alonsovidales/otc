@@ -32,6 +32,7 @@ import cloud.offthe.otc.proto.ReqSetUserActive
 import cloud.offthe.otc.proto.ReqSetupTailscale
 import cloud.offthe.otc.proto.RestartDevice
 import cloud.offthe.otc.proto.RespEnvelope
+import cloud.offthe.otc.proto.RespUpdateInfo
 import cloud.offthe.otc.proto.RespUserMetrics
 import cloud.offthe.otc.proto.RespUsers
 import cloud.offthe.otc.proto.SetFaceRecognitionEnabled
@@ -48,6 +49,7 @@ import cloud.offthe.otc.data.PlacesSupport
 import cloud.offthe.otc.data.SmartSearchModelState
 import cloud.offthe.otc.data.SmartSearchSupport
 import cloud.offthe.otc.proto.SetImageTaggingEnabled
+import cloud.offthe.otc.proto.SetAutoUpdate
 import cloud.offthe.otc.proto.ShutDownDevice
 import cloud.offthe.otc.proto.StartReprocess
 import cloud.offthe.otc.proto.Status
@@ -88,6 +90,7 @@ import cloud.offthe.otc.i18n.appSettingsUpdateBuild
 import cloud.offthe.otc.i18n.appSettingsUpdateLabelBuild
 import cloud.offthe.otc.i18n.appSettingsUpdateRestartFailed
 import cloud.offthe.otc.i18n.appSettingsUpdateRestartOld
+import cloud.offthe.otc.i18n.appSettingsUpdateAutoFailed
 import cloud.offthe.otc.i18n.appSettingsUpdateShutDownFailed
 import cloud.offthe.otc.i18n.appSettingsUpdateShutDownNeedsUpdate
 import cloud.offthe.otc.i18n.appSettingsUpdateStartFailed
@@ -150,6 +153,26 @@ internal suspend fun answeredRole(): Boolean? = try {
 private fun RespEnvelope.ackOk() = payloadCase == RespEnvelope.PayloadCase.RESP_ACK && respAck.ok
 private fun RespEnvelope.ackError(default: UiText): UiText =
     if (payloadCase == RespEnvelope.PayloadCase.RESP_ACK) deviceOr(respAck.errorMsg, default) else S.appSettingsErrorUnexpected()
+
+/**
+ * Automatic updates' switch as the device's update answer has it: on or
+ * off, or null when it didn't say (a device before the switch, a
+ * container) - Settings then shows no switch.
+ */
+internal fun autoUpdateShown(info: RespUpdateInfo): Boolean? = if (info.hasAutoUpdate()) info.autoUpdate else null
+
+/**
+ * Why a SetAutoUpdate answer isn't a yes - the device's words, or ours when
+ * it gave none - or null when it is one (the generic Ack).
+ */
+internal fun autoUpdateRefusal(resp: RespEnvelope): UiText? {
+    val ack = if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) resp.respAck else null
+    return when {
+        resp.error -> deviceOr(resp.errorMessage, S.appSettingsUpdateAutoFailed())
+        ack?.ok == true -> null
+        else -> deviceOr(ack?.errorMsg.orEmpty(), S.appSettingsUpdateAutoFailed())
+    }
+}
 
 /** The device's words, or ours when it gave none. */
 internal fun deviceOr(text: String, ours: UiText): UiText = if (text.isEmpty()) ours else UiText.Raw(text)
@@ -703,6 +726,10 @@ class UpdateViewModel(
         // answers again after DeviceShutdown's moment). needsUpdate: a device too
         // old to be shut down from here (unknown_payload).
         val shutDownPhase: String = "", val shutDownError: UiText? = null, val needsUpdate: DeviceNeedsUpdate? = null,
+        // Automatic updates: the device's switch (RespUpdateInfo.auto_update), null on a
+        // device without one (an older one, a container) - nothing is shown then.
+        // savingAutoUpdate: a change is on its way; autoUpdateError: why the last one didn't take.
+        val autoUpdate: Boolean? = null, val savingAutoUpdate: Boolean = false, val autoUpdateError: UiText? = null,
     ) {
         val hasUpdate get() = pending.isNotEmpty()
         val running get() = state == "running"
@@ -736,10 +763,11 @@ class UpdateViewModel(
     suspend fun check() {
         state.update { it.copy(checking = true) }
         try {
-            val resp = OTCConnection.request { it.setReqCheckUpdate(ReqCheckUpdate.getDefaultInstance()) }
+            val resp = request { it.setReqCheckUpdate(ReqCheckUpdate.getDefaultInstance()) }
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_UPDATE_INFO) { if (resp.error) state.update { it.copy(error = UiText.Raw(resp.errorMessage)) }; return }
             val i = resp.respUpdateInfo
-            state.update { it.copy(currentVersion = i.currentVersion, latestVersion = i.latestVersion, currentLabel = i.currentLabel, latestLabel = i.latestLabel, pending = i.pendingList, state = i.state, message = i.message, startedHere = false, checkError = i.checkError, lastUpdated = i.lastUpdated, error = null) }
+            // A change of the switch on its way keeps what it shows: this answer may be from before it.
+            state.update { it.copy(autoUpdate = if (it.savingAutoUpdate) it.autoUpdate else autoUpdateShown(i), currentVersion = i.currentVersion, latestVersion = i.latestVersion, currentLabel = i.currentLabel, latestLabel = i.latestLabel, pending = i.pendingList, state = i.state, message = i.message, startedHere = false, checkError = i.checkError, lastUpdated = i.lastUpdated, error = null) }
         } catch (_: Exception) {
         } finally {
             state.update { it.copy(checking = false) }
@@ -755,6 +783,27 @@ class UpdateViewModel(
             else state.update { it.copy(error = if (resp.error) UiText.Raw(resp.errorMessage) else S.appSettingsUpdateStartFailed()) }
         } catch (e: Exception) { state.update { it.copy(error = e.shownText()) } }
         finally { state.update { it.copy(starting = false) } }
+    }
+
+    /**
+     * Automatic updates' switch: shown changed at once, put back when the
+     * device refuses (the demo, a container) or doesn't answer, with its
+     * words or ours. Nothing on a device without the switch, or while a
+     * change is on its way.
+     */
+    suspend fun setAutoUpdate(enabled: Boolean) {
+        val before = state.value.autoUpdate ?: return
+        if (state.value.savingAutoUpdate) return
+        state.update { it.copy(autoUpdate = enabled, savingAutoUpdate = true, autoUpdateError = null) }
+        val refused = try {
+            autoUpdateRefusal(request { it.setReqSetAutoUpdate(SetAutoUpdate.newBuilder().setEnabled(enabled)) })
+        } catch (e: CancellationException) {
+            state.update { it.copy(autoUpdate = before, savingAutoUpdate = false) }
+            throw e
+        } catch (e: Exception) {
+            e.shownText() ?: S.appSettingsUpdateAutoFailed()
+        }
+        state.update { it.copy(autoUpdate = if (refused == null) enabled else before, savingAutoUpdate = false, autoUpdateError = refused) }
     }
 
     /**

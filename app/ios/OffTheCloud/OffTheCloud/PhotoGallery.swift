@@ -6111,11 +6111,11 @@ private struct LowResBadge: View {
     }
 }
 
-/// Issue #41: camera/EXIF metadata panel, with a native map for GPS; where
-/// it is stored, under Stored at (issue #213, PhotoPathsSection); the text
-/// the device read in the photo under Text in this photo, with Copy
+/// Issue #41: camera/EXIF metadata panel, with a native map for GPS; the
+/// text the device read in the photo under Text in this photo, with Copy
 /// (release 180, TextInPhotos.swift); the photo's or video's people after
-/// it, under People (PhotoFaces.swift).
+/// it, under People (PhotoFaces.swift); and last, at the bottom, where it
+/// is stored, under Stored at (issue #213, PhotoPathsSection).
 private struct FileInfoView: View {
     @ObservedObject var vm: PhotoGalleryVM
     /// The face whose × was tapped, while Not this person's question asks.
@@ -6148,18 +6148,14 @@ private struct FileInfoView: View {
                                 Text(S.appPhotosViewerInfoNone).foregroundColor(.secondary)
                             }
                         }
-                        // Where it is stored: after the details, before
-                        // the text and the people, as on Android and the web.
-                        if let paths = PhotoPaths.shown(vm.infoData) {
-                            PhotoPathsSection(paths: paths)
-                        }
                         // Text in photos: what the device read in it, after
                         // the details and before the people, as on Android.
                         if let text = PhotoText.shown(vm.infoData) {
                             PhotoTextSection(text: text)
                         }
-                        // Last, as on Android and the web: faces that come
-                        // after the details move nothing above them.
+                        // After the details and the text, as on Android and
+                        // the web: faces that come after the details move
+                        // nothing above them.
                         if people.shown {
                             PhotoFacesSection(
                                 rows: people.rows,
@@ -6178,6 +6174,11 @@ private struct FileInfoView: View {
                                 },
                                 add: { vm.openFaceAdd() }
                             )
+                        }
+                        // Where it is stored: the last block, after the
+                        // people, as on Android and the web.
+                        if let paths = PhotoPaths.shown(vm.infoData) {
+                            PhotoPathsSection(paths: paths)
                         }
                     }
                 }

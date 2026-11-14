@@ -614,7 +614,7 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   hash (`infoPaths`), on every GetFileInfo answer - also one whose metadata can't be read, then
   with no camera details (it was an error) - and empty when the list fails. Web (`photoCopies.ts`
   `storedAt`), iOS (`PhotoPaths`) and Android (`photoPaths`) show it under Info's "Stored at", a
-  line each, with "N copies" beside it from 2 on.
+  line each, with "N copies" beside it from 2 on. It is Info's last block, after People (owner, 2026-11-14).
 - **Photo edits** (2026-11, `files_manager/edit_image.go`, `edit_exif.go`, `dao/edited.go`, table
   `edited_content`, release 174's `174.sh` and install.sh's block): the viewers turn and crop a
   photo on the device.
@@ -6317,6 +6317,22 @@ headscale), Funnel's real error from headscale ("HTTPS must be enabled", in the 
 and its success through a stand-in for the three funnel commands, the key never in any process's
 command line (sampled every 5 ms), the journal, the logs or `/run`; a symlink as the key, a FIFO as
 the request, a word off the list and 15 requests in a row; install.sh re-run from the branch.
+
+**Automatic updates** (owner, 2026-11-14; `updater/auto.go`, `auto_test.go`): on unless the
+owner turns them off, the main instance checks every 12 hours (`cAutoEvery`; first look 5 minutes
+after start, then a look every 10) and, with a release pending, starts the update as the button
+does (`AutoWatch` from `machine_alerts.go`, through `wifiUnlessChanging(updater.Apply)`; never
+while an update is pending). The switch and the watch's record are `<working dir>/.auto-update.json`
+(`{"v":1,"off","checked","tried","tries"}`, temp + rename): a check is due 12 h after the last one
+settled (or when that is dated after now: no RTC), a check that failed is made again in an hour,
+and a release is started at most 3 times (`cAutoTries`) - then left to Settings' Update until a
+newer one is out or the switch is turned on again. Only where the device can update itself
+(`AutoSupported`: not a container, the root runner there). Protocol: `RespUpdateInfo.auto_update`
+(11, `optional`: absent = no switch - an older device, a container) and `SetAutoUpdate{enabled}`
+(req 173, Ack; primary's owner only; `not_in_container`; the demo refuses it). Web `UpdatePanel`
+(a checkbox with `web.settings.update.auto`/`auto_hint`, put back on a refusal), iOS
+`UpdateSection`, Android `UpdateSection` (`app.settings.update.auto*`). Tests:
+`updater/auto_test.go`, `websocket/auto_update_test.go`.
 
 **Follow this whenever a change is worth shipping.** A change that is only on `main` has
 not reached anybody: the version number in the manifest is the only signal a device has

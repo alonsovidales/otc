@@ -232,6 +232,9 @@
     <string name="app_settings_thumbs_clear">Clear thumbnail cache</string>
     <string name="app_settings_thumbs_footer">Thumbnails are kept on this phone so Images opens without downloading them again.</string>
     <string name="app_settings_thumbs_max_size">Maximum size</string>
+    <string name="app_settings_update_auto">Automatic updates</string>
+    <string name="app_settings_update_auto_failed">Could not change automatic updates.</string>
+    <string name="app_settings_update_auto_hint">Your device checks for a new version every 12 hours and installs it by itself. It restarts on the way, which takes a few minutes.</string>
     <string name="app_settings_update_back">The device is back.</string>
     <string name="app_settings_update_build">build %1$s</string>
     <string name="app_settings_update_check_again">Check again</string>

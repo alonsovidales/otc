@@ -42,6 +42,9 @@ type UpdateInfo = {
   // its new image on the server, which message says - there is no Update
   // button to press.
   container: boolean;
+  // Automatic updates: on or off, or undefined where the device has no
+  // such switch (an older one, a container).
+  autoUpdate?: boolean;
 };
 
 // "1.1 (build 85)", or "build 79" for a release from before labels. Build
@@ -121,6 +124,7 @@ export default function UpdatePanel() {
           lastUpdated: u.lastUpdated,
           checkError: u.checkError,
           container: u.container,
+          autoUpdate: u.autoUpdate,
         });
         setError(null);
         answered = true;
@@ -178,6 +182,33 @@ export default function UpdatePanel() {
     } finally {
       setStarting(false);
     }
+  };
+
+  // Automatic updates' switch: shown at once, put back if the device
+  // refuses or doesn't answer.
+  const [autoBusy, setAutoBusy] = useState(false);
+  const setAuto = async (on: boolean) => {
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
+    setAutoBusy(true);
+    setError(null);
+    setInfo(prev => (prev ? { ...prev, autoUpdate: on } : prev));
+    let problem: UiText | null = null;
+    try {
+      const resp: RespEnvelope = await useWS.request(e => {
+        e.payload = { $case: "reqSetAutoUpdate", reqSetAutoUpdate: { enabled: on } };
+      });
+      if (!(resp.payload?.$case === "respAck" && resp.payload.respAck.ok)) {
+        problem = resp.error && resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.update.auto_failed");
+      }
+    } catch {
+      problem = say("web.settings.update.auto_failed");
+    }
+    if (problem) {
+      const p = problem;
+      setInfo(prev => (prev ? { ...prev, autoUpdate: !on } : prev));
+      setError(() => p);
+    }
+    setAutoBusy(false);
   };
 
   // Waits for the device to answer again after a restart. Through the
@@ -345,6 +376,18 @@ export default function UpdatePanel() {
 
           {(hasUpdate || running) && !info.container && (
             <p className="up-note">{t("web.settings.update.restarts_note")}</p>
+          )}
+
+          {info.autoUpdate !== undefined && (
+            <div className="up-auto">
+              <label>
+                <input type="checkbox" checked={info.autoUpdate} disabled={autoBusy}
+                  aria-describedby="up-auto-hint"
+                  onChange={e => void setAuto(e.target.checked)} />
+                {t("web.settings.update.auto")}
+              </label>
+              <p className="up-note" id="up-auto-hint">{t("web.settings.update.auto_hint")}</p>
+            </div>
           )}
         </>
       )}

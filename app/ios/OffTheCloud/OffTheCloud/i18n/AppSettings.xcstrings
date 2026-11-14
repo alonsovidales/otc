@@ -10962,6 +10962,147 @@
         }
       }
     },
+    "app.settings.update.auto" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatische Updates"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic updates"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualizaciones automáticas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mises à jour automatiques"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiornamenti automatici"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatische updates"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atualizações automáticas"
+          }
+        }
+      }
+    },
+    "app.settings.update.auto_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die automatischen Updates konnten nicht geändert werden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not change automatic updates."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se han podido cambiar las actualizaciones automáticas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de modifier les mises à jour automatiques."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile modificare gli aggiornamenti automatici."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan de automatische updates niet wijzigen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível alterar as atualizações automáticas."
+          }
+        }
+      }
+    },
+    "app.settings.update.auto_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gerät sucht alle 12 Stunden nach einer neuen Version und installiert sie von selbst. Dabei startet es neu, was ein paar Minuten dauert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device checks for a new version every 12 hours and installs it by itself. It restarts on the way, which takes a few minutes."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu dispositivo comprueba cada 12 horas si hay una versión nueva y la instala por sí solo. Se reinicia durante la instalación, que tarda unos minutos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre appareil vérifie toutes les 12 heures s’il existe une nouvelle version et l’installe tout seul. Il redémarre au passage, ce qui prend quelques minutes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo dispositivo controlla ogni 12 ore se c’è una nuova versione e la installa da solo. Durante l’installazione si riavvia: ci vogliono alcuni minuti."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je apparaat controleert elke 12 uur of er een nieuwe versie is en installeert die vanzelf. Het herstart daarbij, wat een paar minuten duurt."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dispositivo verifica de 12 em 12 horas se há uma versão nova e instala-a sozinho. Reinicia durante a instalação, o que demora alguns minutos."
+          }
+        }
+      }
+    },
     "app.settings.update.back" : {
       "extractionState" : "manual",
       "localizations" : {

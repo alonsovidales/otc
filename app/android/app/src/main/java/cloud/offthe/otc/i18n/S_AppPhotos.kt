@@ -1194,7 +1194,7 @@ fun S.appPhotosViewerMoreInfo(): UiText =
 fun S.appPhotosViewerPathsCopies(count: Int): UiText =
     UiText.Plural(R.plurals.app_photos_viewer_paths_copies, count, listOf(count))
 
-/** "Stored at": Heading of a section in the photo and video viewer's Info (app.photos.viewer.info_title), after the details (Camera, Taken, Location...) and before Text in this photo and People. Under it, one per line, every path on the user's device where this photo or video is stored: its folders and the file's name, such as /Phone/DCIM/IMG_0001.jpg. Usually one; several when the device holds the same picture in more than one place (the copies of app.photos.copies.single_text), and then app.photos.viewer.paths_copies is beside the heading. Word it to fit a photo or a video and one path or several: a phrase such as "on your device" may fit better than a word for stored. The web app says the same (web.images.viewer.paths_title). */
+/** "Stored at": Heading of a section in the photo and video viewer's Info (app.photos.viewer.info_title), the last one, after the details (Camera, Taken, Location...), Text in this photo and People. Under it, one per line, every path on the user's device where this photo or video is stored: its folders and the file's name, such as /Phone/DCIM/IMG_0001.jpg. Usually one; several when the device holds the same picture in more than one place (the copies of app.photos.copies.single_text), and then app.photos.viewer.paths_copies is beside the heading. Word it to fit a photo or a video and one path or several: a phrase such as "on your device" may fit better than a word for stored. The web app says the same (web.images.viewer.paths_title). */
 fun S.appPhotosViewerPathsTitle(): UiText =
     UiText.Res(R.string.app_photos_viewer_paths_title)
 

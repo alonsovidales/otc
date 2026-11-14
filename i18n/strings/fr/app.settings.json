@@ -921,6 +921,18 @@
     "text": "Taille maximale",
     "en": "Maximum size"
   },
+  "app.settings.update.auto": {
+    "text": "Mises à jour automatiques",
+    "en": "Automatic updates"
+  },
+  "app.settings.update.auto_failed": {
+    "text": "Impossible de modifier les mises à jour automatiques.",
+    "en": "Could not change automatic updates."
+  },
+  "app.settings.update.auto_hint": {
+    "text": "Votre appareil vérifie toutes les 12 heures s’il existe une nouvelle version et l’installe tout seul. Il redémarre au passage, ce qui prend quelques minutes.",
+    "en": "Your device checks for a new version every 12 hours and installs it by itself. It restarts on the way, which takes a few minutes."
+  },
   "app.settings.update.back": {
     "text": "L’appareil est de retour.",
     "en": "The device is back."

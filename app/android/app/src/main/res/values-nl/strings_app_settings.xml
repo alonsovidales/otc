@@ -233,6 +233,9 @@
     <string name="app_settings_thumbs_clear">Miniatuurcache wissen</string>
     <string name="app_settings_thumbs_footer">Miniaturen worden op deze telefoon bewaard, zodat Afbeeldingen opent zonder ze opnieuw te downloaden.</string>
     <string name="app_settings_thumbs_max_size">Maximale grootte</string>
+    <string name="app_settings_update_auto">Automatische updates</string>
+    <string name="app_settings_update_auto_failed">Kan de automatische updates niet wijzigen.</string>
+    <string name="app_settings_update_auto_hint">Je apparaat controleert elke 12 uur of er een nieuwe versie is en installeert die vanzelf. Het herstart daarbij, wat een paar minuten duurt.</string>
     <string name="app_settings_update_back">Het apparaat is er weer.</string>
     <string name="app_settings_update_build">build %1$s</string>
     <string name="app_settings_update_check_again">Opnieuw controleren</string>

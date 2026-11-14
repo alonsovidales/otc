@@ -1581,6 +1581,20 @@ message RespUpdateInfo {
   // message says how. Clients show that message instead of the Update
   // button. Pending lists only releases whose image is already published.
   bool container = 10;
+  // Automatic updates: the device checks every 12 hours and installs what
+  // is new by itself (on unless the owner turned it off). Absent on a
+  // device before them, in a container (its owner pulls the image) and
+  // where the device can't update itself: the apps then show no switch.
+  optional bool auto_update = 11;
+}
+
+// Settings > Device version: turns automatic updates on or off, for the
+// whole device (the owner of the primary instance only). Answers with the
+// generic Ack; RespUpdateInfo.auto_update says what it is. A device before
+// it answers error_code "unknown_payload"; a container and a demo device
+// refuse it.
+message SetAutoUpdate {
+  bool enabled = 1;
 }
 
 // Starts the update and answers immediately - it takes minutes and ends
@@ -3586,6 +3600,8 @@ message ReqEnvelope {
     // generic Ack.
     SetTextInPhotosEnabled req_set_text_in_photos_enabled = 171;
     SetPetsEnabled req_set_pets_enabled = 172;
+    // Automatic updates' switch. Answers with the generic Ack.
+    SetAutoUpdate req_set_auto_update = 173;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

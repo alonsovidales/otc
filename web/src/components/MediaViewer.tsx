@@ -1556,21 +1556,6 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
                 )}
               </div>
             )}
-            {/* Where it is stored (issue #213): every path holding its
-                content, a line each, and how many copies from 2 on - after
-                its details, before its text and its people. Just a list:
-                nothing in it opens anything. */}
-            {stored && (
-              <section className="pg-info-paths" aria-labelledby={pathsTitleId}>
-                <div className="pg-info-paths-head">
-                  <h3 id={pathsTitleId} className="pg-info-label pg-info-paths-title">{t("web.images.viewer.paths_title")}</h3>
-                  {stored.copies != null && <span className="pg-info-paths-copies">{t("web.images.viewer.paths_copies", { count: stored.copies })}</span>}
-                </div>
-                <ul className="pg-info-path-list">
-                  {stored.paths.map((p) => <li key={p} className="pg-info-path" dir="ltr">{p}</li>)}
-                </ul>
-              </section>
-            )}
             {/* The text the device read in the photo (Text in photos), after
                 its details and before its people. */}
             {infoText && <PhotoTextBlock key={item.path} text={infoText} />}
@@ -1629,6 +1614,21 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
                     <span className="pg-info-face-name">{t("web.images.viewer.face_add")}</span>
                   </button>
                 )}
+              </section>
+            )}
+            {/* Where it is stored (issue #213): every path holding its
+                content, a line each, and how many copies from 2 on - last in
+                Info, after its people (the owner, 2026-11-14). Just a list:
+                nothing in it opens anything. */}
+            {stored && (
+              <section className="pg-info-paths" aria-labelledby={pathsTitleId}>
+                <div className="pg-info-paths-head">
+                  <h3 id={pathsTitleId} className="pg-info-label pg-info-paths-title">{t("web.images.viewer.paths_title")}</h3>
+                  {stored.copies != null && <span className="pg-info-paths-copies">{t("web.images.viewer.paths_copies", { count: stored.copies })}</span>}
+                </div>
+                <ul className="pg-info-path-list">
+                  {stored.paths.map((p) => <li key={p} className="pg-info-path" dir="ltr">{p}</li>)}
+                </ul>
               </section>
             )}
           </div>

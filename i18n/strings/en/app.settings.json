@@ -1087,6 +1087,19 @@
     "note": "Label of the choice in Settings > Thumbnail cache of how much room the small pictures of the photos may take on this phone (250 MB to 5 GB).",
     "max": 30
   },
+  "app.settings.update.auto": {
+    "text": "Automatic updates",
+    "note": "Label of the switch in Settings > Device version that turns automatic updates on or off: with it on, the device installs new versions by itself.",
+    "max": 40
+  },
+  "app.settings.update.auto_failed": {
+    "text": "Could not change automatic updates.",
+    "note": "Error in Settings > Device version when the Automatic updates switch could not be changed and the device gave no reason."
+  },
+  "app.settings.update.auto_hint": {
+    "text": "Your device checks for a new version every 12 hours and installs it by itself. It restarts on the way, which takes a few minutes.",
+    "note": "Explanation under the Automatic updates switch in Settings > Device version."
+  },
   "app.settings.update.back": {
     "text": "The device is back.",
     "note": "Settings > Device version: the device answers again after the restart."

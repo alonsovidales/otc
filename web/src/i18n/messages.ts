@@ -865,6 +865,9 @@ export type MessageKey =
   | "web.settings.text_photos.off_text"
   | "web.settings.text_photos.off_title"
   | "web.settings.text_photos.title"
+  | "web.settings.update.auto"
+  | "web.settings.update.auto_failed"
+  | "web.settings.update.auto_hint"
   | "web.settings.update.check_again"
   | "web.settings.update.check_failed"
   | "web.settings.update.checking"
@@ -2187,6 +2190,9 @@ export interface MessageArgs {
   "web.settings.text_photos.off_text": undefined;
   "web.settings.text_photos.off_title": undefined;
   "web.settings.text_photos.title": undefined;
+  "web.settings.update.auto": undefined;
+  "web.settings.update.auto_failed": undefined;
+  "web.settings.update.auto_hint": undefined;
   "web.settings.update.check_again": undefined;
   "web.settings.update.check_failed": undefined;
   "web.settings.update.checking": undefined;

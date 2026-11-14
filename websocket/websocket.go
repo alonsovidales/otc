@@ -1878,6 +1878,11 @@ func buildUpdateInfo(lang string) *pb.RespUpdateInfo {
 	if container.Enabled() {
 		containerUpdateInfo(out, lang)
 	}
+	// Automatic updates: said only where the device can update itself.
+	if updater.AutoSupported() {
+		on := updater.AutoEnabled()
+		out.AutoUpdate = &on
+	}
 
 	info, err := updater.Check()
 	if err != nil {
@@ -4517,6 +4522,28 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			log.Error("error starting the device update:", err)
 			resp.Error = true
 			resp.ErrorMessage = devtext.Text(lang, err)
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+
+	// Automatic updates' switch: the device's, so the owner of the main
+	// instance only, and only where it can update itself.
+	case *pb.ReqEnvelope_ReqSetAutoUpdate:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = notAvailableHere(lang)
+			break
+		}
+		if inContainerHere() {
+			resp.Error = true
+			resp.ErrorCode = "not_in_container"
+			resp.ErrorMessage = i18n.DevUpdateContainerPull().Render(lang)
+			break
+		}
+		if err := updater.SetAuto(p.ReqSetAutoUpdate.Enabled); err != nil {
+			log.Error("error turning automatic updates on or off:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}

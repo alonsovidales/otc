@@ -1135,6 +1135,21 @@ extension S {
     /// Label of the choice in Settings > Thumbnail cache of how much room the small pictures of the photos may take on this phone (250 MB to 5 GB).
     static var appSettingsThumbsMaxSize: String { L("app.settings.thumbs.max_size", table: "AppSettings") }
 
+    /// Automatic updates
+    ///
+    /// Label of the switch in Settings > Device version that turns automatic updates on or off: with it on, the device installs new versions by itself.
+    static var appSettingsUpdateAuto: String { L("app.settings.update.auto", table: "AppSettings") }
+
+    /// Could not change automatic updates.
+    ///
+    /// Error in Settings > Device version when the Automatic updates switch could not be changed and the device gave no reason.
+    static var appSettingsUpdateAutoFailed: String { L("app.settings.update.auto_failed", table: "AppSettings") }
+
+    /// Your device checks for a new version every 12 hours and installs it by itself. It restarts on the way, which takes a few minutes.
+    ///
+    /// Explanation under the Automatic updates switch in Settings > Device version.
+    static var appSettingsUpdateAutoHint: String { L("app.settings.update.auto_hint", table: "AppSettings") }
+
     /// The device is back.
     ///
     /// Settings > Device version: the device answers again after the restart.

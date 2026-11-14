@@ -262,6 +262,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqDeleteUser{}):                demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqSetUserActive{}):             demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqApplyUpdate{}):               demoRefuse,
+	demoReq(&pb.ReqEnvelope_ReqSetAutoUpdate{}):             demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqRestartDevice{}):             demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqSetupStorage{}):              demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqUseMirrorDisk{}):             demoRefuse,

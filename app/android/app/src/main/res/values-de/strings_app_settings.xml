@@ -233,6 +233,9 @@
     <string name="app_settings_thumbs_clear">Miniaturen-Cache leeren</string>
     <string name="app_settings_thumbs_footer">Miniaturen werden auf diesem Handy gespeichert, damit „Bilder“ sie beim Öffnen nicht erneut herunterladen muss.</string>
     <string name="app_settings_thumbs_max_size">Maximale Größe</string>
+    <string name="app_settings_update_auto">Automatische Updates</string>
+    <string name="app_settings_update_auto_failed">Die automatischen Updates konnten nicht geändert werden.</string>
+    <string name="app_settings_update_auto_hint">Dein Gerät sucht alle 12 Stunden nach einer neuen Version und installiert sie von selbst. Dabei startet es neu, was ein paar Minuten dauert.</string>
     <string name="app_settings_update_back">Das Gerät ist wieder da.</string>
     <string name="app_settings_update_build">Build %1$s</string>
     <string name="app_settings_update_check_again">Erneut prüfen</string>

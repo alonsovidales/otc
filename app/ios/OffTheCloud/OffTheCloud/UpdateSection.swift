@@ -16,6 +16,32 @@
 
 import SwiftUI
 
+/// Settings > Device version's Automatic updates switch: what the device's
+/// answers come to. Android's and the web's follow the same rules.
+enum AutoUpdate {
+    /// The switch as the device reports it - nil when it has none (a device
+    /// before the switch, a container: `auto_update` unset), and then
+    /// nothing is drawn.
+    static func shown(_ info: Msg_RespUpdateInfo) -> Bool? {
+        info.hasAutoUpdate ? info.autoUpdate : nil
+    }
+
+    /// What a SetAutoUpdate answer comes to.
+    enum Answer: Equatable {
+        /// The device took it (the generic Ack).
+        case changed
+        /// Turned down: the device's words, nil when it gave none.
+        case refused(String?)
+
+        static func of(_ resp: Msg_RespEnvelope) -> Answer {
+            if !resp.error, case .respAck(let ack) = resp.payload, ack.ok { return .changed }
+            if resp.error && !resp.errorMessage.isEmpty { return .refused(resp.errorMessage) }
+            if case .respAck(let ack) = resp.payload, !ack.errorMsg.isEmpty { return .refused(ack.errorMsg) }
+            return .refused(nil)
+        }
+    }
+}
+
 @MainActor
 final class UpdateViewModel: ObservableObject {
     @Published var isPrimary = false
@@ -52,6 +78,12 @@ final class UpdateViewModel: ObservableObject {
     /// A device too old to be shut down from here (unknown_payload): the
     /// "needs an update" alert, which SettingsView presents outside the Form.
     @Published var needsUpdate: DeviceNeedsUpdate?
+    /// Automatic updates: on or off as the device says, nil on a device
+    /// without the switch (AutoUpdate.shown), which then isn't drawn.
+    @Published var autoUpdate: Bool?
+    /// Its request is under way: the switch can't be touched.
+    @Published var savingAutoUpdate = false
+    @Published var autoUpdateError: SettingsText?
 
     private let ws = OTCConnection.shared
     private var pollTask: Task<Void, Never>?
@@ -128,6 +160,9 @@ final class UpdateViewModel: ObservableObject {
             startedHere = false
             checkError = info.checkError
             lastUpdated = info.lastUpdated
+            // While the switch's own request is under way it shows what
+            // was asked: an answer from before it would put it back.
+            if !savingAutoUpdate { autoUpdate = AutoUpdate.shown(info) }
             error = nil
             startPollingIfRunning()
         } catch {
@@ -155,6 +190,32 @@ final class UpdateViewModel: ObservableObject {
             }
         } catch {
             self.error = .error(error)
+        }
+    }
+
+    /// Automatic updates' switch (owner of the primary only; the device
+    /// checks too): shown at once, put back when the device turns it down
+    /// or doesn't answer, with its words or ours.
+    func setAutoUpdate(_ enabled: Bool) async {
+        guard let was = autoUpdate, !savingAutoUpdate, was != enabled else { return }
+        savingAutoUpdate = true
+        defer { savingAutoUpdate = false }
+        autoUpdate = enabled
+        autoUpdateError = nil
+        var req = Msg_SetAutoUpdate()
+        req.enabled = enabled
+        let answer: AutoUpdate.Answer
+        do {
+            let resp = try await ws.request { e in
+                e.payload = .reqSetAutoUpdate(req)
+            }
+            answer = AutoUpdate.Answer.of(resp)
+        } catch {
+            answer = .refused(nil)
+        }
+        if case .refused(let words) = answer {
+            autoUpdate = was
+            autoUpdateError = words.map { .asIs($0) } ?? .say { S.appSettingsUpdateAutoFailed }
         }
     }
 
@@ -355,6 +416,27 @@ struct UpdateSection: View {
 
                 if let error = vm.error {
                     Text(error.text).font(.caption).foregroundStyle(.red)
+                }
+
+                // Automatic updates: on a device that has the switch.
+                if let autoOn = vm.autoUpdate {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Toggle(
+                            S.appSettingsUpdateAuto,
+                            isOn: Binding(
+                                get: { autoOn },
+                                set: { newValue in Task { await vm.setAutoUpdate(newValue) } }
+                            )
+                        )
+                        .disabled(vm.savingAutoUpdate)
+                        Text(S.appSettingsUpdateAutoHint)
+                            .font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    if let error = vm.autoUpdateError {
+                        Text(error.text).font(.caption).foregroundStyle(.red)
+                    }
                 }
 
                 // Settings > Restart device: the whole machine, owner of

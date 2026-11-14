@@ -2738,10 +2738,10 @@ private fun PhotoPathsSection(paths: List<String>) {
 
 /**
  * The viewer's Info: the photo's details ([info], [loading] while they
- * come), where it is stored (issue #213: PhotoPathsSection), the text the
- * device read in it (Text in photos, release 180: PhotoTextSection), and
- * under them its People ([faces], PhotoFacesSection) once the details are
- * in. [busy]: a change is on its way (a face's × waits).
+ * come), the text the device read in it (Text in photos, release 180:
+ * PhotoTextSection), under them its People ([faces], PhotoFacesSection)
+ * once the details are in, and last where it is stored (issue #213:
+ * PhotoPathsSection). [busy]: a change is on its way (a face's × waits).
  * [compressed]: the device compressed it and deleted its original
  * (File.original_removed) - said first, where Revert to Original would be.
  */
@@ -2784,13 +2784,13 @@ private fun FileInfoView(
                 if (cam.isEmpty() && !info.hasGps && info.exposureTime.isEmpty()) Text(S.appPhotosViewerInfoNoExif().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        // Where it is stored: after the details, before the text and the
-        // people, as on iOS and the web.
-        if (!loading) photoPaths(info)?.let { PhotoPathsSection(it) }
         // Text in photos: what the device read in it, after the details and
         // before the people, as on iOS.
         if (!loading) photoText(info)?.let { PhotoTextSection(it) }
         if (!loading && faces != null) PhotoFacesSection(faces, busy, onShow = onShowPerson, onRemove = onRemoveFace, onAdd = onAddPerson)
+        // Where it is stored: Info's last block, after the people (the
+        // faces and Add a person), as on iOS and the web.
+        if (!loading) photoPaths(info)?.let { PhotoPathsSection(it) }
         Spacer(Modifier.height(24.dp))
     }
 }

@@ -41,6 +41,15 @@ func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor)
 		})
 	}
 
+	// Automatic updates: every 12 hours, unless the owner turned them off
+	// in Settings, what is new is installed as the Update button would -
+	// not while the Wi-Fi is being changed (ApplyUpdate's own rule).
+	if sup != nil {
+		go updater.AutoWatch(func() (bool, error) {
+			return wifiUnlessChanging(updater.Apply)
+		})
+	}
+
 	// A disk of the mirror that stops working: an Alert and a push naming
 	// the USB port it is in, and another once the mirror is whole again.
 	// The one device error that is pushed - the others never are (#64).
