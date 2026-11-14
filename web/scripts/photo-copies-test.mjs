@@ -177,3 +177,24 @@ describe("how it reads", () => {
       "Delete failed: this folder is upload only: nothing in it can be deleted");
   });
 });
+
+// Issue #213: Info's Stored at - the same as the phones' (iOS PhotoPaths,
+// Android photoPaths).
+describe("where Info says it is stored", () => {
+  test("no paths - a device before it, or one that couldn't list them: no block", () => {
+    assert.equal(m.storedAt(undefined), null);
+    assert.equal(m.storedAt([]), null);
+  });
+  test("one path: listed, no copies said", () => {
+    assert.deepEqual(m.storedAt(["/Phone/a.jpg"]), { paths: ["/Phone/a.jpg"], copies: null });
+  });
+  test("several: every one in the device's order, and how many copies", () => {
+    const paths = ["/Mac/Pictures/a.jpg", "/Phone/a.jpg", "/Private/a.jpg"];
+    assert.deepEqual(m.storedAt(paths), { paths, copies: 3 });
+  });
+  test("how it reads", () => {
+    assert.equal(t("web.images.viewer.paths_title"), "Stored at");
+    assert.equal(t("web.images.viewer.paths_copies", { count: 2 }), "2 copies");
+    assert.equal(t("web.images.viewer.paths_copies", { count: 3 }), "3 copies");
+  });
+});

@@ -1207,6 +1207,17 @@
 .pg-info-map { width: 100%; height: 180px; border: 0; border-radius: 8px; margin-top: 4px; }
 /* Before the map is asked for: the button in its place. */
 .pg-info-showmap { margin-top: 4px; align-self: flex-start; }
+/* Stored at (MediaViewer.tsx, photoCopies.ts's storedAt, issue #213), after
+   the details: its heading, with how many copies beside it from 2 on, then
+   every path holding the content, a line each - a long one broken anywhere
+   rather than running out of the panel, which is a phone's width there, its
+   further lines indented so they don't read as another path. */
+.pg-info-paths { padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 6px; }
+.pg-info-paths-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.pg-info-paths-title { margin: 0; font-weight: inherit; min-width: 0; }
+.pg-info-paths-copies { flex: none; color: var(--mist-dim); font-size: 12px; }
+.pg-info-path-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.pg-info-path { min-width: 0; padding-left: 12px; text-indent: -12px; font-size: 13px; line-height: 18px; overflow-wrap: anywhere; }
 /* Text in this photo (MediaViewer.tsx, photoText.ts), after the details and
    before the people: its heading beside a small Copy, then the text as the
    device read it - its lines kept, a long word broken rather than running

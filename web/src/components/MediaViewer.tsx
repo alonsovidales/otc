@@ -33,7 +33,7 @@ import { startDownload, readFileInPieces, leafName, useDownloadState, useDownloa
 import { DownloadButton, DownloadNote } from "./DownloadButton";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { asIs, say, type UiText } from "./uiText";
-import { copiesChoice, delFileFields, deleteOutcome, refusedText } from "./photoCopies";
+import { copiesChoice, delFileFields, deleteOutcome, refusedText, storedAt } from "./photoCopies";
 import { refuseOnDemo } from "../net/demo";
 import { useBackLayer } from "./backStack";
 import { AddPersonIcon, AddToPersonDialog, MoveToPersonDialog, NotThisPersonIcon, RemoveFromPersonDialog, SomeoneElseIcon, UseFaceIcon } from "./personFix";
@@ -664,6 +664,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     return () => urls.forEach((u) => { if (u) URL.revokeObjectURL(u); });
   }, [faces]);
   const facesTitleId = useId();
+  const pathsTitleId = useId();
 
   // Download (see downloadItem), in mediaDownload's store: by path, so
   // the button shows the item on screen, and kept when the viewer closes.
@@ -1205,6 +1206,8 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   const name = items[index].path.split("/").pop();
   // Info's Text in this photo: none (no block) while the details load.
   const infoText = infoLoading ? "" : photoText(infoData?.text);
+  // Info's Stored at (issue #213): its paths come with the details.
+  const stored = infoLoading ? null : storedAt(infoData?.paths);
   // The picture on screen, for the editor: the full size (unless the
   // browser couldn't draw it), else the big thumbnail or the grid's.
   const shownPicture = (stuck === item.path ? null : hiURL) || (bigThumb?.path === item.path ? bigThumb.url : "") || item.thumbURL || ownThumb;
@@ -1552,6 +1555,21 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
                   <div className="pg-info-loading">{t("web.images.viewer.no_exif")}</div>
                 )}
               </div>
+            )}
+            {/* Where it is stored (issue #213): every path holding its
+                content, a line each, and how many copies from 2 on - after
+                its details, before its text and its people. Just a list:
+                nothing in it opens anything. */}
+            {stored && (
+              <section className="pg-info-paths" aria-labelledby={pathsTitleId}>
+                <div className="pg-info-paths-head">
+                  <h3 id={pathsTitleId} className="pg-info-label pg-info-paths-title">{t("web.images.viewer.paths_title")}</h3>
+                  {stored.copies != null && <span className="pg-info-paths-copies">{t("web.images.viewer.paths_copies", { count: stored.copies })}</span>}
+                </div>
+                <ul className="pg-info-path-list">
+                  {stored.paths.map((p) => <li key={p} className="pg-info-path" dir="ltr">{p}</li>)}
+                </ul>
+              </section>
             )}
             {/* The text the device read in the photo (Text in photos), after
                 its details and before its people. */}

@@ -155,3 +155,17 @@ export function deleteLineText(t: TFunction, line: DeleteLine): string {
 
 /** The lines' text, one paragraph each (the toast keeps the breaks). */
 export const deleteNoticeText = (t: TFunction, lines: readonly DeleteLine[]): string => lines.map((l) => deleteLineText(t, l)).join("\n");
+
+/** Issue #213: Info's Stored at - every path the device holds the photo's
+ *  or video's content at (FileExifInfo.paths), in the device's order (by
+ *  path), a line each; and from 2 on, beside the heading, how many copies
+ *  that is: the copies the delete question counts. Nothing to show (no
+ *  block) without paths: a device before it, or one that couldn't list
+ *  them. The phones' Info is the same (iOS PhotoPaths, Android
+ *  photoPaths). */
+export type StoredAt = { paths: readonly string[]; copies: number | null };
+
+export function storedAt(paths: readonly string[] | undefined): StoredAt | null {
+  if (!paths?.length) return null;
+  return { paths, copies: paths.length > 1 ? paths.length : null };
+}
