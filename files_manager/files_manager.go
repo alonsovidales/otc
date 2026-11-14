@@ -1683,7 +1683,8 @@ func IsHeic(f *pb.File) bool { return isHeicFile(f.Path, f.Mime) }
 // GetFileInfo returns a photo/video's camera/EXIF metadata (issue #41),
 // computed live from its own bytes on every call — nothing here is
 // persisted, so "More info" works for files uploaded before this feature
-// existed too, not just new ones.
+// existed too, not just new ones. With it, every path holding its content
+// (issue #213, infoPaths) and a photo's text (Text in photos).
 func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.FileExifInfo, err error) {
 	file, err := mg.dao.GetFileByPath(path)
 	if err != nil {
@@ -1694,11 +1695,12 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 		// A video's metadata is in its container: ffprobe streams the
 		// parts it needs instead of the video being loaded whole.
 		src, done, srcErr := mg.videoSource(session, file)
-		if srcErr != nil {
-			return nil, srcErr
+		if srcErr == nil {
+			ex, err = exifinfo.FromVideoSource(src)
+			done()
+		} else {
+			err = srcErr
 		}
-		ex, err = exifinfo.FromVideoSource(src)
-		done()
 	} else if strings.HasPrefix(file.Mime, "video/") {
 		// No stream to ffprobe (before the websocket layer sets one): read
 		// whole, within the budget, as before.
@@ -1719,14 +1721,16 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 		ex, err = mg.readExif(session, file, mg.shownWholeLimit())
 	}
 	if err != nil {
-		// Text in photos: a photo whose metadata can't be read - a
-		// screenshot or a picture saved from the web has none - still has
-		// its text, which Info shows with no camera details.
+		// A photo or video whose metadata can't be read - a screenshot or
+		// a picture saved from the web has none - still has its paths and
+		// (a photo) its text, which Info shows with no camera details.
+		info = &pb.FileExifInfo{Paths: mg.infoPaths(file)}
 		if strings.HasPrefix(file.Mime, "image") {
-			if text := mg.PhotoText(session, file.Hash); text != "" {
-				log.Debug("no metadata in", path, "- answering its text:", err)
-				return &pb.FileExifInfo{Text: text}, nil
-			}
+			info.Text = mg.PhotoText(session, file.Hash)
+		}
+		if len(info.Paths) > 0 || info.Text != "" {
+			log.Debug("no metadata in", path, "- answering its paths and text:", err)
+			return info, nil
 		}
 		return nil, err
 	}
@@ -1757,6 +1761,7 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 	if strings.HasPrefix(file.Mime, "image") {
 		info.Text = mg.PhotoText(session, file.Hash)
 	}
+	info.Paths = mg.infoPaths(file)
 	return info, nil
 }
 

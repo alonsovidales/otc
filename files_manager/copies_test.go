@@ -3,10 +3,14 @@
 package filesmanager
 
 import (
+	"bytes"
 	"database/sql"
 	"errors"
 	"fmt"
+	"image"
+	"image/jpeg"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +20,8 @@ import (
 	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/dao"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/session"
+	textreader "github.com/alonsovidales/otc/text_reader"
 )
 
 // Issue #201: a photo stored at several paths.
@@ -538,5 +544,144 @@ func TestDelOfTheWholeLibraryIsRefused(t *testing.T) {
 	}
 	if got, want := ErrWholeLibrary.Error(), "the whole library can't be deleted at once: delete its folders or files instead"; got != want {
 		t.Errorf("English %q, want %q", got, want)
+	}
+}
+
+// Issue #213: Info lists where a photo or video is stored
+// (FileExifInfo.paths).
+
+const (
+	rePathsOfHash = "select `path` from `files` where `hash` = \\? order by `path`"
+	rePhotoText   = "select `text` from `photo_text` where `hash` = \\? and `model` = \\?"
+)
+
+// infoManager is a Manager over a mocked database whose Text in photos is
+// on or off, known already (nothing asked about it).
+func infoManager(t *testing.T, textOn bool) (*Manager, sqlmock.Sqlmock, *sqlSeen) {
+	t.Helper()
+	mg, mock, seen := recordingMock(t)
+	mg.texts.loaded.Store(true)
+	mg.texts.on.Store(textOn)
+	return mg, mock, seen
+}
+
+// expectInfoRow is GetFileInfo reading path's row: a mime file holding
+// hash.
+func expectInfoRow(mock sqlmock.Sqlmock, hash, path, mime string) {
+	now := time.Now()
+	mock.ExpectQuery(reByPath).WithArgs(path).WillReturnRows(sqlmock.NewRows(fileCols).AddRow(hash, mime, now, now, path, 7))
+}
+
+// plainJPEG is a JPEG with no metadata in it, as a screenshot or a
+// picture saved from the web.
+func plainJPEG(t *testing.T) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, image.NewRGBA(image.Rect(0, 0, 8, 8)), nil); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+// Beside its details, Info lists every path holding the photo's content,
+// the one asked about among them, as the device keeps them (by path): what
+// dao.PathsOfHash reads - the paths "Delete all" deletes, as many as the
+// question counts, one in a folder kept out of Images too. Paths that
+// can't be listed leave Info as it was before them: its details, no paths.
+func TestInfoListsEveryPathHoldingTheContent(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	gps, err := os.ReadFile("../exifinfo/testdata/gps_test.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := fmt.Sprintf("%064x", 0x2130)
+	storedFile(t, ses, h, "/Phone/a.jpg", "image/jpeg", gps)
+	paths := []string{"/Mac/Pictures/a.jpg", "/Phone/a.jpg", "/Private/a.jpg"}
+
+	mg, mock, _ := infoManager(t, false)
+	expectInfoRow(mock, h, "/Phone/a.jpg", "image/jpeg")
+	mock.ExpectQuery(rePathsOfHash).WithArgs(h).WillReturnRows(pathRows(paths...))
+	expectSentinel(mock)
+	info, err := mg.GetFileInfo(ses, "/Phone/a.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	metUpToSentinel(t, mock)
+	if info.CameraMake == "" || !info.HasGps || info.TakenAt == nil {
+		t.Errorf("the details went: %v", info)
+	}
+	if !slices.Equal(info.Paths, paths) {
+		t.Errorf("paths %q, want %q", info.Paths, paths)
+	}
+
+	mg, mock, _ = infoManager(t, false)
+	expectInfoRow(mock, h, "/Phone/a.jpg", "image/jpeg")
+	mock.ExpectQuery(rePathsOfHash).WithArgs(h).WillReturnError(errors.New("connection lost"))
+	expectSentinel(mock)
+	info, err = mg.GetFileInfo(ses, "/Phone/a.jpg")
+	if err != nil {
+		t.Fatalf("paths that couldn't be listed failed Info: %v", err)
+	}
+	metUpToSentinel(t, mock)
+	if info.CameraMake == "" || len(info.Paths) != 0 {
+		t.Errorf("without its paths: camera %q, paths %q", info.CameraMake, info.Paths)
+	}
+}
+
+// A photo or video whose metadata can't be read - a screenshot has none, a
+// video may have no stream for ffprobe - is still answered: its paths, and
+// a photo's text when the device read some, with no camera details (it
+// used to be an error, "No metadata found"). With neither to say, the
+// error as before.
+func TestInfoWithoutMetadataStillListsThePaths(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	h := fmt.Sprintf("%064x", 0x2131)
+	storedFile(t, ses, h, "/Screenshots/s.jpg", "image/jpeg", plainJPEG(t))
+	paths := []string{"/Downloads/s.jpg", "/Screenshots/s.jpg"}
+
+	mg, mock, _ := infoManager(t, true)
+	expectInfoRow(mock, h, "/Screenshots/s.jpg", "image/jpeg")
+	mock.ExpectQuery(rePathsOfHash).WithArgs(h).WillReturnRows(pathRows(paths...))
+	sealed := ses.Encrypt(encodeLines([]textreader.Line{{Text: "NO PARKING"}, {Text: "Mon-Fri 8-20"}}))
+	mock.ExpectQuery(rePhotoText).WithArgs(h, textreader.Model).WillReturnRows(sqlmock.NewRows([]string{"text"}).AddRow(sealed))
+	expectSentinel(mock)
+	info, err := mg.GetFileInfo(ses, "/Screenshots/s.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	metUpToSentinel(t, mock)
+	if !slices.Equal(info.Paths, paths) || info.Text != "NO PARKING\nMon-Fri 8-20" {
+		t.Errorf("paths %q and text %q, want %q and its two lines", info.Paths, info.Text, paths)
+	}
+	if info.CameraMake != "" || info.Width != 0 || info.TakenAt != nil {
+		t.Errorf("details from nowhere: %v", info)
+	}
+
+	// Text in photos off, the paths unlisted: nothing to say.
+	mg, mock, _ = infoManager(t, false)
+	expectInfoRow(mock, h, "/Screenshots/s.jpg", "image/jpeg")
+	mock.ExpectQuery(rePathsOfHash).WithArgs(h).WillReturnError(errors.New("connection lost"))
+	expectSentinel(mock)
+	if info, err := mg.GetFileInfo(ses, "/Screenshots/s.jpg"); err == nil {
+		t.Errorf("answered %v, want the metadata's error", info)
+	}
+	metUpToSentinel(t, mock)
+
+	// A video: its paths, and no text asked for.
+	v := fmt.Sprintf("%064x", 0x2132)
+	mg, mock, seen := infoManager(t, true)
+	mg.SetVideoSource(func(*session.Session, *pb.File) (string, func(), error) {
+		return "", func() {}, errors.New("no stream")
+	})
+	expectInfoRow(mock, v, "/Phone/v.mp4", "video/mp4")
+	mock.ExpectQuery(rePathsOfHash).WithArgs(v).WillReturnRows(pathRows("/Phone/v.mp4"))
+	expectSentinel(mock)
+	info, err = mg.GetFileInfo(ses, "/Phone/v.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	metUpToSentinel(t, mock)
+	if !slices.Equal(info.Paths, []string{"/Phone/v.mp4"}) || info.Text != "" || seen.ran("photo_text") {
+		t.Errorf("a video: paths %q, text %q (photo_text asked: %v)", info.Paths, info.Text, seen.ran("photo_text"))
 	}
 }

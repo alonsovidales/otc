@@ -46,6 +46,25 @@ func (mg *Manager) setCopies(page []*pb.File) error {
 	return nil
 }
 
+// infoPaths is where file is stored, for Info (FileExifInfo.paths, issue
+// #213): every path in Files holding its content, its own included, by
+// path - dao.PathsOfHash, the paths DelEveryCopy deletes and setCopies
+// counts: no older versions, the folders kept out of Images included. A
+// list that can't be read is logged and left out - Info is answered
+// without it, and the apps show no such section - as a page whose copies
+// can't be counted is served without them.
+func (mg *Manager) infoPaths(file *pb.File) []string {
+	if file.Hash == "" {
+		return nil
+	}
+	paths, err := mg.dao.PathsOfHash(file.Hash)
+	if err != nil {
+		log.Error("could not list the paths holding", file.Hash, "for its info:", err)
+		return nil
+	}
+	return paths
+}
+
 // CopyUploadOnlyError is DelEveryCopy's refusal (RespEnvelope.error_code
 // "copy_upload_only"): one of the copies - maybe the path asked for - is
 // in an upload-only folder (issue #132), so nothing was deleted. Folder is

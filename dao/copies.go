@@ -5,7 +5,8 @@ package dao
 // Issue #201: a photo stored at several paths. Images lists it once, at its
 // oldest copy (SearchMedia), says on each entry how many paths hold it
 // (File.copies, CountCopies), and can delete every one of them
-// (DelFile.every_copy, PathsOfHash).
+// (DelFile.every_copy, PathsOfHash), which Info lists (FileExifInfo.paths,
+// issue #213).
 
 // CountCopies is, for each of hashes, how many paths in Files hold it: its
 // rows in `files`, wherever they are (folders kept out of Images included).
