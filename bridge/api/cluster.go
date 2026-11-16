@@ -4,6 +4,7 @@ package api
 
 import (
 	"bufio"
+	"context"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -49,6 +50,16 @@ func newClusterRouter(c *cluster.Cluster, local localHolder, tld string, next ht
 	return &clusterRouter{cluster: c, local: local, tld: tld, next: next, proxies: map[string]*httputil.ReverseProxy{}}
 }
 
+// clusterRouted is newClusterRouter around the API's own handler, kept so
+// a handler can hand a request over itself (proxyStaticAsset).
+func (api *API) clusterRouted(c *cluster.Cluster, local localHolder, next http.Handler) http.Handler {
+	h := newClusterRouter(c, local, api.tld, next)
+	if cr, ok := h.(*clusterRouter); ok {
+		api.router = cr
+	}
+	return h
+}
+
 func (cr *clusterRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// A request another node already forwarded is served here, whatever
 	// the state here: never forwarded twice, so never in a loop. Redis is
@@ -61,6 +72,38 @@ func (cr *clusterRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	cr.next.ServeHTTP(w, r)
+}
+
+// handedOver marks a request this node already handed to another, so it
+// is never handed over twice: when the other node can't be reached, the
+// request comes back to this node's own handlers (proxy's ErrorHandler),
+// which then wait for the device here.
+type handedOver struct{}
+
+// canHandOver reports whether r may still go to another node: it came
+// from a client, not from a node, and wasn't handed over before.
+func (cr *clusterRouter) canHandOver(r *http.Request) bool {
+	return cr != nil && r.Header.Get(cluster.HopHeader) != "1" && r.Context().Value(handedOver{}) == nil
+}
+
+// handOver sends r to another node holding its device, when there is one;
+// false when nothing was written and the caller serves it here. For a
+// request ServeHTTP kept because this node had a free connection, taken
+// by another request before this one got to it: a page asks for several
+// files at once, and the device opens new connections on whichever node
+// DNS gives it, so a node can be down to its last one while another has
+// dozens.
+func (cr *clusterRouter) handOver(w http.ResponseWriter, r *http.Request) bool {
+	if !cr.canHandOver(r) {
+		return false
+	}
+	addr, ok := cr.cluster.Locate(r.Host)
+	if !ok {
+		return false
+	}
+	r = r.WithContext(context.WithValue(r.Context(), handedOver{}, true))
+	cr.proxy(addr).ServeHTTP(withWriteDeadline(w, r), r)
+	return true
 }
 
 func (cr *clusterRouter) proxy(addr string) *httputil.ReverseProxy {

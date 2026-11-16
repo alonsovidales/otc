@@ -1582,6 +1582,15 @@ func (mg *Manager) IsOnline(domain string) bool {
 }
 
 func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte, err error) {
+	return mg.ForwardOneOffWithin(domain, frame, cOneOffConnWait)
+}
+
+// ForwardOneOffWithin is ForwardOneOff waiting at most connWait for a free
+// connection to the device on this node: ErrNoConnection when none came.
+// A node of a cluster asks with a short wait first, and hands the request
+// to a node that has one rather than keep the client waiting here
+// (api.proxyStaticAsset).
+func (mg *Manager) ForwardOneOffWithin(domain string, frame []byte, connWait time.Duration) (respFrame []byte, err error) {
 	mg.bridgesMu.RLock()
 	pool, ok := mg.bridges[domain]
 	mg.bridgesMu.RUnlock()
@@ -1599,9 +1608,9 @@ func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte,
 
 	giveUp := time.Now().Add(oneOffMaxWait())
 	for attempt := 0; attempt < cOneOffMaxAttempts && time.Now().Before(giveUp); attempt++ {
-		candidate := takeAvailable(pool, min(cOneOffConnWait, time.Until(giveUp)))
+		candidate := takeAvailable(pool, min(connWait, time.Until(giveUp)))
 		if candidate == nil {
-			return nil, errors.New("no available connections in the pool for this device") // i18n-ignore: logged, never sent
+			return nil, errNoConnection
 		}
 
 		var release func()

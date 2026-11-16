@@ -144,6 +144,12 @@ type API struct {
 	// forwardOneOff stands in for websocket.ForwardOneOff in tests (a
 	// fake device); nil in production.
 	forwardOneOff func(domain string, frame []byte) ([]byte, error)
+	// forwardOneOffWithin stands in for websocket.ForwardOneOffWithin in
+	// tests; nil in production.
+	forwardOneOffWithin func(domain string, frame []byte, connWait time.Duration) ([]byte, error)
+	// router is the cluster router around this API's handler; nil on a
+	// single bridge (and in most tests).
+	router *clusterRouter
 	// recordVisit counts a visit to the public site (visits.go):
 	// dao.RecordSiteVisit; nil (most tests) counts nothing.
 	recordVisit func(page, source string)
@@ -167,6 +173,36 @@ func (api *API) oneOff(domain string, frame []byte) ([]byte, error) {
 		return api.forwardOneOff(domain, frame)
 	}
 	return api.websocket.ForwardOneOff(domain, frame)
+}
+
+// cHandOverWait is how long a file of a device's web app waits for a free
+// connection to the device on this node before it is handed to a node that
+// has one: about what the device takes to open a new one. Var so tests can
+// shrink it.
+var cHandOverWait = 250 * time.Millisecond
+
+// oneOffOrHandOver is oneOff for a request another node could serve as
+// well: with no free connection to the device here within cHandOverWait it
+// hands r to a node that holds the device (handed true: the answer is
+// written), and only waits here, as oneOff does, when there is none.
+func (api *API) oneOffOrHandOver(w http.ResponseWriter, r *http.Request, frame []byte) (respFrame []byte, handed bool, err error) {
+	if !api.router.canHandOver(r) {
+		respFrame, err = api.oneOff(r.Host, frame)
+		return respFrame, false, err
+	}
+	if api.forwardOneOffWithin != nil {
+		respFrame, err = api.forwardOneOffWithin(r.Host, frame, cHandOverWait)
+	} else {
+		respFrame, err = api.websocket.ForwardOneOffWithin(r.Host, frame, cHandOverWait)
+	}
+	if !errors.Is(err, websocket.ErrNoConnection) {
+		return respFrame, false, err
+	}
+	if api.router.handOver(w, r) {
+		return nil, true, nil
+	}
+	respFrame, err = api.oneOff(r.Host, frame)
+	return respFrame, false, err
 }
 
 // deviceDisabled is whether r's device is disabled: the relay's answer
@@ -288,7 +324,7 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 			Addr: fmt.Sprintf(":%d", httpsPort),
 			// Issue #144: a device request this node can't serve goes to
 			// one that can (clusterRoute), after the same origin check.
-			Handler:           withHSTS(api.wwwToApex(stripClusterHeaders(api.originGuard(newClusterRouter(clu, webSocket, api.tld, api.handler()))))),
+			Handler:           withHSTS(api.wwwToApex(stripClusterHeaders(api.originGuard(api.clusterRouted(clu, webSocket, api.handler()))))),
 			TLSConfig:         &tls.Config{GetCertificate: certs.get, MinVersion: tls.VersionTLS12},
 			ReadHeaderTimeout: 10 * time.Second,
 			IdleTimeout:       2 * time.Minute,
@@ -586,7 +622,10 @@ func (api *API) proxyStaticAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respFrame, err := api.oneOff(r.Host, frame)
+	respFrame, handed, err := api.oneOffOrHandOver(w, r, frame)
+	if handed {
+		return
+	}
 	if err != nil {
 		// Issue #97: a device that's switched off, offline, or still
 		// booting used to surface as a bare 502 with an empty body -

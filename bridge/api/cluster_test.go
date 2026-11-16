@@ -16,6 +16,7 @@ import (
 
 	"github.com/alonsovidales/otc/bridge/cluster"
 	"github.com/alonsovidales/otc/bridge/limits"
+	"github.com/alonsovidales/otc/bridge/websocket"
 )
 
 type fakeLocal map[string]bool
@@ -292,5 +293,120 @@ func TestAForwardedWebsocketWhoseClientStopsReadingIsCut(t *testing.T) {
 	case <-cut:
 	case <-time.After(10 * time.Second):
 		t.Fatal("the forwarded websocket is still held by a client that stopped reading")
+	}
+}
+
+// handOverPair is two nodes on one Redis, both holding cala's device: the
+// client lands on bridge1, whose router keeps the request (it had a free
+// connection when asked), and whose relay then finds none
+// (within answers ErrNoConnection). back is bridge2's internal listener.
+func handOverPair(t *testing.T, within func(string, []byte, time.Duration) ([]byte, error)) (front http.Handler, api *API, back *httptest.Server) {
+	t.Helper()
+	mr := miniredis.RunT(t)
+	rdb := func() *redis.Client { return redis.NewClient(&redis.Options{Addr: mr.Addr()}) }
+
+	node2 := cluster.New("bridge2", "", testToken, rdb())
+	back = httptest.NewServer(internalHandler(node2, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "served by bridge2 for "+r.Host+" hop="+r.Header.Get(cluster.HopHeader))
+	})))
+	t.Cleanup(back.Close)
+	node2 = cluster.New("bridge2", strings.TrimPrefix(back.URL, "http://"), testToken, rdb())
+	if err := node2.Announce(); err != nil {
+		t.Fatal(err)
+	}
+	if err := node2.Hold("cala.off-the.cloud"); err != nil {
+		t.Fatal(err)
+	}
+
+	api = &API{
+		tld:                 "off-the.cloud",
+		forwardOneOffWithin: within,
+		forwardOneOff:       fakeStaticDevice(map[string]string{"/assets/PeopleView-BahYoLo8.js": "text/javascript; charset=utf-8"}),
+	}
+	node1 := cluster.New("bridge1", "127.0.0.1:1", testToken, rdb())
+	front = stripClusterHeaders(api.clusterRouted(node1, fakeLocal{"cala.off-the.cloud": true}, http.HandlerFunc(api.proxyStaticAsset)))
+	return front, api, back
+}
+
+func noConnectionHere(string, []byte, time.Duration) ([]byte, error) {
+	return nil, websocket.ErrNoConnection
+}
+
+func getAsset(front http.Handler) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodGet, "/assets/PeopleView-BahYoLo8.js", nil)
+	req.Host = "cala.off-the.cloud"
+	rec := httptest.NewRecorder()
+	front.ServeHTTP(rec, req)
+	return rec
+}
+
+// A file of the web app whose node used its last connection to the device
+// for another file of the same page is served by the node that has some,
+// not answered "unavailable" after a wait.
+func TestAFileWithNoConnectionHereIsHandedToAnotherNode(t *testing.T) {
+	var waited time.Duration
+	front, _, _ := handOverPair(t, func(_ string, _ []byte, wait time.Duration) ([]byte, error) {
+		waited = wait
+		return nil, websocket.ErrNoConnection
+	})
+	rec := getAsset(front)
+	if rec.Code != http.StatusOK || rec.Body.String() != "served by bridge2 for cala.off-the.cloud hop=1" {
+		t.Fatalf("got %d %q, want bridge2's answer", rec.Code, rec.Body.String())
+	}
+	if waited != cHandOverWait {
+		t.Fatalf("waited %v for a connection here, want %v", waited, cHandOverWait)
+	}
+}
+
+// With a free connection here, nothing is handed over.
+func TestAFileWithAConnectionHereIsServedHere(t *testing.T) {
+	front, api, _ := handOverPair(t, nil)
+	api.forwardOneOffWithin = func(d string, f []byte, _ time.Duration) ([]byte, error) { return api.forwardOneOff(d, f) }
+	if rec := getAsset(front); rec.Code != http.StatusOK || rec.Body.String() != "x" {
+		t.Fatalf("got %d %q, want this node's own answer", rec.Code, rec.Body.String())
+	}
+}
+
+// The other node gone: the request comes back and waits for the device
+// here, once - never handed over again.
+func TestAFileIsHandedOverOnlyOnce(t *testing.T) {
+	asked := 0
+	front, _, back := handOverPair(t, func(string, []byte, time.Duration) ([]byte, error) {
+		asked++
+		return nil, websocket.ErrNoConnection
+	})
+	back.Close()
+	rec := getAsset(front)
+	if rec.Code != http.StatusOK || rec.Body.String() != "x" {
+		t.Fatalf("got %d %q, want the answer of the wait here", rec.Code, rec.Body.String())
+	}
+	if asked != 1 {
+		t.Fatalf("asked for a connection with the short wait %d times, want 1", asked)
+	}
+}
+
+// A request another node forwarded is never sent on: it waits here.
+func TestAForwardedFileIsNotHandedOn(t *testing.T) {
+	_, api, _ := handOverPair(t, noConnectionHere)
+	req := httptest.NewRequest(http.MethodGet, "/assets/PeopleView-BahYoLo8.js", nil)
+	req.Host = "cala.off-the.cloud"
+	req.Header.Set(cluster.HopHeader, "1")
+	rec := httptest.NewRecorder()
+	api.proxyStaticAsset(rec, req)
+	if rec.Code != http.StatusOK || rec.Body.String() != "x" {
+		t.Fatalf("got %d %q, want this node's own answer", rec.Code, rec.Body.String())
+	}
+}
+
+// No other node holds the device: the full wait here, as on one bridge.
+func TestAFileWaitsHereWhenNoOtherNodeHoldsTheDevice(t *testing.T) {
+	front, _, _ := handOverPair(t, noConnectionHere)
+	req := httptest.NewRequest(http.MethodGet, "/assets/PeopleView-BahYoLo8.js", nil)
+	req.Host = "pit.off-the.cloud"
+	rec := httptest.NewRecorder()
+	// pit isn't local to the router's fake, and nobody holds it: served here.
+	front.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || rec.Body.String() != "x" {
+		t.Fatalf("got %d %q, want this node's own answer", rec.Code, rec.Body.String())
 	}
 }

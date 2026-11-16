@@ -138,6 +138,13 @@ host = 10.10.0.2                 ; the primary, from every node
   The internal listener refuses anything without the token, marks what it
   accepts as forwarded (never forwarded again), and the public listeners
   strip those headers from outside requests.
+- A static asset whose node had a free connection when the router looked
+  and none 250 ms later (`cHandOverWait`: another file of the same page
+  took the last one, and a device opens its new connections on whichever
+  node DNS gives it) is handed over the same way, once
+  (`oneOffOrHandOver`); only with no other node holding the device does
+  it wait here. It used to wait 5 s and answer 503, so a section of the
+  web app "couldn't load" (2026-11-16, the demo's People).
 - "Online" (admin panel, account page, the setup wizard's check) is any
   node holding the device; the offline alert is skipped while another node
   holds it, and only one node sends it per outage (`otc:alert:<domain>`,

@@ -50,6 +50,11 @@ var (
 	errNoConnection  = errors.New("no available connections in the pool for this device") // i18n-ignore: logged, never sent
 )
 
+// ErrNoConnection is a one-off request's answer when the device has no
+// free connection on this node (it may have on another: api's cluster
+// router).
+var ErrNoConnection = errNoConnection
+
 // Session sends the requests of one HTTP response to domain's device.
 // Forward may be called by several goroutines at once; their envelopes
 // must carry distinct ids. Close when the response is done.
