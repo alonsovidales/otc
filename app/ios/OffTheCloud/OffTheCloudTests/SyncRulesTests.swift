@@ -2,6 +2,7 @@
 
 import Foundation
 import Network
+import Photos
 import Testing
 import UserNotifications
 @testable import OffTheCloud
@@ -145,6 +146,29 @@ struct NotificationsAskTests {
         #expect(NotificationsAsk.allowed(.provisional))
         #expect(!NotificationsAsk.allowed(.notDetermined))
         #expect(!NotificationsAsk.allowed(.denied))
+    }
+}
+
+struct SignedInSyncChoiceTests {
+    /// An app installed again opens signed in - iOS keeps its Keychain - with
+    /// its access to Photos gone and never asked for: the sync question is
+    /// asked then, since the sync itself never asks and backed up nothing.
+    @Test func askedWhenPhotosWasNeverAskedFor() {
+        #expect(SyncChoice.asksWhenSignedIn(configured: true, pending: false, access: .notDetermined))
+    }
+
+    /// Access the owner answered, either way, or that the system holds back.
+    @Test func notOnceAccessWasAnswered() {
+        for access in [PHAuthorizationStatus.authorized, .limited, .denied, .restricted] {
+            #expect(!SyncChoice.asksWhenSignedIn(configured: true, pending: false, access: access))
+        }
+    }
+
+    /// A sign-in has it up already, and Welcome has no device to sync with.
+    @Test func notTwiceNorBeforeSigningIn() {
+        #expect(!SyncChoice.asksWhenSignedIn(configured: true, pending: true, access: .notDetermined))
+        #expect(!SyncChoice.asksWhenSignedIn(configured: false, pending: false, access: .notDetermined))
+        #expect(!SyncChoice.asksWhenSignedIn(configured: false, pending: true, access: .notDetermined))
     }
 }
 

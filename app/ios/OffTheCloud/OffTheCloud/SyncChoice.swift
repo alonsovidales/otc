@@ -21,6 +21,28 @@ enum SyncChoice {
         UserDefaults.standard.set(true, forKey: pendingKey)
     }
 
+    /// Pure: whether an app that is already signed in asks the question.
+    /// iOS keeps an app's Keychain when the app is deleted, so one installed
+    /// again opens signed in - with no sign-in there was no question - while
+    /// its access to Photos went with the app. The sync never asks for that
+    /// itself (IOS-07), so nothing was backed up from then on, with no word
+    /// about it. Access never asked for is the sign (iOS's Reset Location &
+    /// Privacy leaves the same); access the owner answered, either way, is
+    /// their choice and is left alone.
+    static func asksWhenSignedIn(configured: Bool, pending: Bool, access: PHAuthorizationStatus) -> Bool {
+        configured && !pending && access == .notDetermined
+    }
+
+    /// As the app shows the device it is signed in to, and each time it
+    /// comes to the front (RootView): the question, when `asksWhenSignedIn`
+    /// says so. Before the sync that starts there, which then waits for it.
+    static func askIfNeverAsked(configured: Bool) {
+        guard asksWhenSignedIn(configured: configured, pending: pending,
+                               access: PHPhotoLibrary.authorizationStatus(for: .readWrite)) else { return }
+        print("Signed in, and Photos was never asked for: asking what to sync")
+        ask()
+    }
+
     /// The answer: the same as Settings' Sync All (`all`) or Sync From Now.
     /// The sync itself is started by the caller.
     static func answer(all: Bool) {

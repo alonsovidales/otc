@@ -44,6 +44,11 @@ struct RootView: View {
                         // a connection, for Settings' Thumbnail cache.
                         // Signing in binds it again (OTCConnection).
                         ThumbDiskCache.shared.use(endpoint: secrets.endpointURLString)
+                        // An app installed again opens signed in (the
+                        // Keychain outlives it) and was never asked what to
+                        // sync, nor for Photos: asked now, before the sync
+                        // below, which waits for the answer.
+                        SyncChoice.askIfNeverAsked(configured: secrets.isConfigured)
                         // The first sync right after setup or sign-in: the
                         // app is already active then, so the scenePhase
                         // change below never comes and photos waited for a
@@ -93,6 +98,9 @@ struct RootView: View {
                 // Issue #190: the route first - back home, the sync goes
                 // over the home network rather than holding the bridge
                 // route for as long as it runs.
+                // Photos never asked for (SyncChoice.asksWhenSignedIn): the
+                // question first.
+                SyncChoice.askIfNeverAsked(configured: secrets.isConfigured)
                 Task {
                     await OTCConnection.shared.reconsiderRoute()
                     try? await PhotoSync.shared.runForeground()

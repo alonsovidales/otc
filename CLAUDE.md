@@ -5002,6 +5002,18 @@ Until it is answered (`syncChoicePending`, UserDefaults / the `otc_sync` prefs) 
 returns at once - background runs included. No run asks for access: Photos/media are asked from Start
 Sync (iOS registers its PHPhotoLibrary observer only once allowed - registering asks), notifications
 once after the first accepted sign-in and the tour, with what they bring (`NotificationsAsk`).
+An iPhone app deleted and installed again opens signed in - iOS keeps its Keychain (address,
+password, device id) while the app's data and its access to Photos go - so no sign-in asked the
+question, the sync skipped every run for want of access, and nothing was backed up, with no word
+about it (seen on 2026-11-19 on a phone that had sent nothing for eight days). The question is
+therefore also asked of a signed-in app whose read access to Photos was never asked for
+(`SyncChoice.asksWhenSignedIn`: configured, not already pending, `.notDetermined`), as MainView
+appears and each time the app comes to the front (`askIfNeverAsked`, RootView), before the sync
+that starts there; iOS's Reset Location & Privacy leaves the same state. Access answered either
+way, or held back by the system, is left alone. Add-only access (the viewer's Save) leaves read
+access `.notDetermined` (checked on an iOS 27 simulator). Checked there too: the app deleted from
+a signed-in simulator and installed again opens on the question. Android needs none of it: an
+uninstall takes the credentials, so the next start is a sign-in.
 **Another address in Settings** (iOS `DeviceChange.swift` <-> Android `data/DeviceChange.kt`): Settings ›
 Connection's Save, or the "can't connect" card's Save & Retry, with another address (not the same
 one respelled, nor a first sign-in) may be another device or the same one reached another way. The
